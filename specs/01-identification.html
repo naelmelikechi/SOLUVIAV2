@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLUVIA — 01 Systeme d'identification</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f8faf8;
+    --card-alt: #f0f5f0;
+    --border: #d4e4d4;
+    --border-light: #e8f0e8;
+    --text: #1a2e1a;
+    --text-secondary: #2d4a2d;
+    --muted: #6b8a6b;
+    --primary: #16a34a;
+    --primary-light: #22c55e;
+    --primary-dark: #15803d;
+    --primary-bg: rgba(22, 163, 74, 0.08);
+    --primary-bg-strong: rgba(22, 163, 74, 0.15);
+    --accent: #059669;
+    --green: #16a34a;
+    --green-light: #4ade80;
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --blue: #2563eb;
+    --blue-bg: rgba(37, 99, 235, 0.08);
+    --purple: #7c3aed;
+    --purple-bg: rgba(124, 58, 237, 0.08);
+    --gray: #6b7280;
+    --gray-bg: rgba(107, 114, 128, 0.08);
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .spec-header {
+    text-align: center;
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .spec-header .logo { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 12px; }
+  .spec-header h1 { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .spec-header .subtitle { font-size: 16px; color: var(--muted); }
+  .spec-header .meta { margin-top: 20px; display: flex; justify-content: center; gap: 24px; font-size: 13px; color: var(--muted); }
+  .spec-header .meta span { background: var(--card-alt); border: 1px solid var(--border-light); padding: 4px 12px; border-radius: 999px; }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  section h2 .num { background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+
+  .mockup { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--card-alt); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .badge-green { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+  .badge-orange { background: rgba(217, 119, 6, 0.12); color: var(--orange); }
+  .badge-red { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .badge-blue { background: rgba(37, 99, 235, 0.12); color: var(--blue); }
+  .badge-gray { background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+  .badge-purple { background: rgba(124, 58, 237, 0.12); color: var(--purple); }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .features.three { grid-template-columns: 1fr 1fr 1fr; }
+  .feature { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; }
+  .feature .icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+  .feature h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text); }
+  .feature p { font-size: 13px; color: var(--muted); }
+
+  .annotation { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; background: var(--primary-bg); border-radius: var(--radius); margin: 16px 0; font-size: 13px; color: var(--text-secondary); }
+  .annotation .icon { font-size: 18px; flex-shrink: 0; }
+
+  code { background: var(--card-alt); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--primary-dark); border: 1px solid var(--border-light); }
+
+  .id-demo {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 20px 0;
+    justify-content: center;
+  }
+  .id-part {
+    text-align: center;
+    padding: 12px 16px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+  }
+  .id-part.highlight { border-color: var(--primary); background: var(--primary-bg); }
+  .id-part .val {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .id-part .lbl {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+  }
+  .id-sep {
+    font-size: 28px;
+    color: var(--muted);
+    margin: 0 6px;
+    font-weight: 300;
+  }
+
+  .id-ref {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-bg);
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(22, 163, 74, 0.2);
+  }
+
+  .sql { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 2.2; }
+  .kw { color: var(--primary); }
+  .fn { color: var(--orange); }
+  .tp { color: var(--blue); }
+  .cm { color: var(--muted); }
+
+  .flow { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+  .flow-step { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; text-align: center; min-width: 120px; }
+  .flow-step .step-num { font-size: 11px; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
+  .flow-step .step-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .flow-step .step-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .flow-arrow { font-size: 20px; color: var(--muted); margin: 0 12px; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="spec-header">
+  <div class="logo">SOLUVIA</div>
+  <h1>01 — Systeme d'identification</h1>
+  <div class="subtitle">Formats d'identifiants metier pour les projets, contrats et factures</div>
+  <div class="meta">
+    <span>v1.0</span>
+    <span>Avril 2026</span>
+    <span>Spec 01 / 11</span>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. PRINCIPES GENERAUX                                              -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">1</span> Principes generaux</h2>
+  <p>Trois entites ont un identifiant metier visible : Projet, Contrat et Facture. Tout le reste est identifie en interne par UUID.</p>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Cle primaire</strong></td><td><code>UUID v4</code> en colonne <code>id</code> — utilise pour les jointures, RLS, API. Jamais affiche a l'utilisateur.</td></tr>
+        <tr><td><strong>Identifiant metier</strong></td><td>Colonne <code>ref</code> — affiche dans l'interface, les URL, les exports. Genere automatiquement a la creation.</td></tr>
+        <tr><td><strong>Immutabilite</strong></td><td>Une ref ne change jamais, meme si l'entite est modifiee ou archivee.</td></tr>
+        <tr><td><strong>Unicite</strong></td><td>Contrainte <code>UNIQUE</code> sur la colonne <code>ref</code>.</td></tr>
+        <tr><td><strong>Generation</strong></td><td>100% automatique via trigger PostgreSQL (Supabase). L'utilisateur ne saisit jamais un ID.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Entites avec ID metier</h3>
+  <div class="features three">
+    <div class="feature" style="border-color: var(--primary);">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">P</div>
+      <h4>Projet</h4>
+      <p><span class="id-ref">0042-DUP-APP</span><br><br>Numero + client + typologie</p>
+    </div>
+    <div class="feature" style="border-color: var(--orange);">
+      <div class="icon" style="background: var(--orange-bg); color: var(--orange);">C</div>
+      <h4>Contrat</h4>
+      <p><span class="id-ref" style="color: var(--orange); background: var(--orange-bg); border-color: rgba(217, 119, 6, 0.2);">CTR-00187</span><br><br>Prefixe + compteur interne</p>
+    </div>
+    <div class="feature" style="border-color: var(--purple);">
+      <div class="icon" style="background: var(--purple-bg); color: var(--purple);">F</div>
+      <h4>Facture</h4>
+      <p><span class="id-ref" style="color: var(--purple); background: var(--purple-bg); border-color: rgba(124, 58, 237, 0.2);">FAC-DUP-0012</span><br><br>Prefixe + client + numero global</p>
+    </div>
+  </div>
+
+  <h3>Entites sans ID metier (UUID interne uniquement)</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Entite</th><th>Source</th><th>Usage dans SOLUVIA</th></tr></thead>
+      <tbody>
+        <tr><td>Client</td><td><span class="badge badge-green">SOLUVIA</span></td><td>Identifie par son nom + trigramme (pas de ref dediee)</td></tr>
+        <tr><td>Apprenant</td><td><span class="badge badge-orange">Eduvia</span></td><td>Compteur uniquement (nombre d'actifs par formation)</td></tr>
+        <tr><td>Formation</td><td><span class="badge badge-orange">Eduvia</span></td><td>Donnee de reference en arriere-plan</td></tr>
+        <tr><td>Company</td><td><span class="badge badge-orange">Eduvia</span></td><td>Donnee de reference en arriere-plan</td></tr>
+        <tr><td>Teacher</td><td><span class="badge badge-orange">Eduvia</span></td><td>Donnee de reference en arriere-plan</td></tr>
+        <tr><td>Campus</td><td><span class="badge badge-orange">Eduvia</span></td><td>Donnee de reference en arriere-plan</td></tr>
+        <tr><td>Opportunite</td><td><span class="badge badge-green">SOLUVIA</span></td><td>UUID interne</td></tr>
+        <tr><td>Utilisateur</td><td><span class="badge badge-green">SOLUVIA</span></td><td>Identifie par nom/prenom + email</td></tr>
+        <tr><td>Saisie de temps</td><td><span class="badge badge-green">SOLUVIA</span></td><td>UUID interne</td></tr>
+        <tr><td>Tache qualite</td><td><span class="badge badge-orange">Eduvia</span></td><td>UUID interne</td></tr>
+        <tr><td>Notification</td><td><span class="badge badge-green">SOLUVIA</span></td><td>UUID interne</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 2. PROJET                                                          -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">2</span> Identifiant Projet</h2>
+  <p>Format composite : numero sequentiel + trigramme client + code typologie.</p>
+
+  <div class="id-demo">
+    <div class="id-part highlight">
+      <div class="val">0042</div>
+      <div class="lbl">Numero sequentiel</div>
+    </div>
+    <div class="id-sep">-</div>
+    <div class="id-part">
+      <div class="val">DUP</div>
+      <div class="lbl">Trigramme client</div>
+    </div>
+    <div class="id-sep">-</div>
+    <div class="id-part">
+      <div class="val">APP</div>
+      <div class="lbl">Typologie projet</div>
+    </div>
+  </div>
+
+  <h3>Composition</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Segment</th><th>Regle</th><th>Exemple</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Numero</strong></td>
+          <td>Sequentiel global, 4 chiffres paddes avec des zeros. De <code>0001</code> a <code>9999</code>.</td>
+          <td><code>0042</code></td>
+        </tr>
+        <tr>
+          <td><strong>Trigramme client</strong></td>
+          <td>3 premieres lettres du nom du client, en majuscules. Si collision avec un client existant, on prend 4 lettres pour le dernier arrive.</td>
+          <td>Dupont &rarr; <code>DUP</code><br>Dupuis (arrive apres) &rarr; <code>DUPU</code></td>
+        </tr>
+        <tr>
+          <td><strong>Typologie</strong></td>
+          <td>Code court du type de projet. Liste dynamique, gerable par l'admin.</td>
+          <td><code>APP</code>, <code>POE</code>, <code>PDC</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Typologies de projet</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Code</th><th>Signification</th><th>Gestion</th></tr></thead>
+      <tbody>
+        <tr><td><code>APP</code></td><td>Apprentissage</td><td rowspan="3" style="vertical-align: middle;">Liste initiale.<br>L'admin peut ajouter de nouvelles typologies depuis l'interface.<br>Stocke dans une table <code>typologies_projet</code> en BDD.</td></tr>
+        <tr><td><code>POE</code></td><td>POEI (Preparation Operationnelle a l'Emploi Individuelle)</td></tr>
+        <tr><td><code>PDC</code></td><td>Plan de Developpement des Competences</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Trigramme client — Regles de collision</h3>
+  <div class="card">
+    <div class="flow">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-title">Dupont</div>
+        <div class="step-desc">Trigramme : <strong>DUP</strong><br>Pas de collision</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-title">Durand</div>
+        <div class="step-desc">Trigramme : <strong>DUR</strong><br>Pas de collision</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step" style="border-color: var(--orange);">
+        <div class="step-num" style="color: var(--orange);">3</div>
+        <div class="step-title">Dupuis</div>
+        <div class="step-desc">"DUP" existe deja<br>Passe a <strong>DUPU</strong> (4 lettres)</div>
+      </div>
+    </div>
+    <ul style="padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 2; margin-top: 8px;">
+      <li>Le trigramme est genere automatiquement a la creation du client</li>
+      <li>L'admin peut le modifier manuellement apres creation si besoin</li>
+      <li>Le trigramme est stocke dans la table <code>clients.trigramme</code></li>
+    </ul>
+  </div>
+
+  <h3>Exemples</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Ref</th><th>Lecture</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-ref">0001-SOL-APP</span></td><td>1er projet, client Soluvia, Apprentissage</td></tr>
+        <tr><td><span class="id-ref">0042-DUP-POE</span></td><td>42eme projet, client Dupont, POEI</td></tr>
+        <tr><td><span class="id-ref">0103-BNP-PDC</span></td><td>103eme projet, client BNP, Plan de Dev. des Competences</td></tr>
+        <tr><td><span class="id-ref">0250-DUPU-APP</span></td><td>250eme projet, client Dupuis (4 lettres car collision), Apprentissage</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 3. CONTRAT                                                         -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">3</span> Identifiant Contrat</h2>
+  <p>Les contrats viennent d'Eduvia. SOLUVIA leur attribue un identifiant lisible a la synchronisation.</p>
+
+  <div class="id-demo">
+    <div class="id-part" style="border-color: var(--orange);">
+      <div class="val" style="color: var(--orange);">CTR</div>
+      <div class="lbl">Prefixe</div>
+    </div>
+    <div class="id-sep">-</div>
+    <div class="id-part" style="border-color: var(--orange);">
+      <div class="val" style="color: var(--orange);">00187</div>
+      <div class="lbl">Compteur interne (5 digits)</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Propriete</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Source</strong></td><td><span class="badge badge-orange">Eduvia</span> — synchro via API <code>/api/v1/contracts</code></td></tr>
+        <tr><td><strong>ID Eduvia</strong></td><td>Entier brut (ex: <code>468024841</code>). Stocke dans <code>contrats.eduvia_id</code> pour la sync.</td></tr>
+        <tr><td><strong>Ref SOLUVIA</strong></td><td><code>CTR-XXXXX</code> — compteur interne sequentiel, attribue a la premiere synchronisation.</td></tr>
+        <tr><td><strong>Padding</strong></td><td>5 chiffres (00001 a 99999)</td></tr>
+        <tr><td><strong>Idempotence</strong></td><td>Si le contrat existe deja en base (match sur <code>eduvia_id</code>), la ref n'est pas recalculee.</td></tr>
+        <tr><td><strong>Archivage</strong></td><td>Si un contrat disparait de l'API Eduvia, il est marque <code>archive = true</code>, jamais supprime.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Flux de synchronisation</h3>
+  <div class="flow">
+    <div class="flow-step" style="border-color: var(--orange);">
+      <div class="step-num" style="color: var(--orange);">API EDUVIA</div>
+      <div class="step-title">id: 468024841</div>
+      <div class="step-desc">contract_state: NOTSENT<br>company_id: 980190962</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="step-num">EDGE FUNCTION</div>
+      <div class="step-title">Sync</div>
+      <div class="step-desc">Nouveau contrat ?<br>Attribuer ref suivante</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: var(--primary); border-width: 2px;">
+      <div class="step-num">SUPABASE</div>
+      <div class="step-title">Table contrats</div>
+      <div class="step-desc">eduvia_id: 468024841<br>ref: CTR-00187</div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 4. FACTURE                                                         -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">4</span> Identifiant Facture</h2>
+  <p>Numerotation sequentielle globale, sans trou (obligation legale francaise).</p>
+
+  <div class="id-demo">
+    <div class="id-part" style="border-color: var(--purple);">
+      <div class="val" style="color: var(--purple);">FAC</div>
+      <div class="lbl">Prefixe</div>
+    </div>
+    <div class="id-sep">-</div>
+    <div class="id-part" style="border-color: var(--purple);">
+      <div class="val" style="color: var(--purple);">DUP</div>
+      <div class="lbl">Trigramme client</div>
+    </div>
+    <div class="id-sep">-</div>
+    <div class="id-part" style="border-color: var(--purple);">
+      <div class="val" style="color: var(--purple);">0012</div>
+      <div class="lbl">Numero global (4 digits)</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Propriete</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Compteur</strong></td><td>Sequentiel global, tous clients confondus. De <code>0001</code> a <code>9999</code>.</td></tr>
+        <tr><td><strong>Trigramme</strong></td><td>Reprend le trigramme du client associe a la facture (meme que celui du projet).</td></tr>
+        <tr><td><strong>Sans trou</strong></td><td>Obligation legale. En cas d'annulation, on cree un avoir — le numero de la facture n'est jamais reutilise.</td></tr>
+        <tr><td><strong>Odoo</strong></td><td>La ref <code>FAC-DUP-0012</code> est transmise a Odoo comme reference externe dans <code>account.move</code>.</td></tr>
+        <tr><td><strong>Generation</strong></td><td>A la creation de la facture par un Admin dans la page Comptabilite.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Exemples</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Ref</th><th>Lecture</th></tr></thead>
+      <tbody>
+        <tr><td><span class="id-ref" style="color: var(--purple); background: var(--purple-bg); border-color: rgba(124, 58, 237, 0.2);">FAC-SOL-0001</span></td><td>1ere facture du systeme, client Soluvia</td></tr>
+        <tr><td><span class="id-ref" style="color: var(--purple); background: var(--purple-bg); border-color: rgba(124, 58, 237, 0.2);">FAC-DUP-0002</span></td><td>2eme facture du systeme, client Dupont</td></tr>
+        <tr><td><span class="id-ref" style="color: var(--purple); background: var(--purple-bg); border-color: rgba(124, 58, 237, 0.2);">FAC-BNP-0003</span></td><td>3eme facture du systeme, client BNP</td></tr>
+        <tr><td><span class="id-ref" style="color: var(--purple); background: var(--purple-bg); border-color: rgba(124, 58, 237, 0.2);">FAC-DUP-0004</span></td><td>4eme facture du systeme, client Dupont a nouveau</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#9888;</span>
+    <p><strong>Obligation legale</strong> — La numerotation est strictement croissante et sans trou. Le compteur global (<code>0001, 0002, 0003...</code>) garantit cette continuite quel que soit le client. Supprimer une facture est interdit : on emet un avoir.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 5. MAPPING EDUVIA                                                  -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">5</span> Mapping Eduvia</h2>
+  <p>Correspondance entre les entites de l'API Eduvia et leur stockage dans SOLUVIA.</p>
+
+  <div class="mockup">
+    <table>
+      <thead>
+        <tr>
+          <th>Entite Eduvia</th>
+          <th>Endpoint API</th>
+          <th>ID Eduvia</th>
+          <th>Stockage SOLUVIA</th>
+          <th>Ref visible</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Contracts</strong></td>
+          <td><code>/api/v1/contracts</code></td>
+          <td><code>id</code> (int)</td>
+          <td><code>contrats.eduvia_id</code></td>
+          <td><span class="id-ref" style="color: var(--orange); background: var(--orange-bg); border-color: rgba(217, 119, 6, 0.2); font-size: 11px;">CTR-00187</span></td>
+        </tr>
+        <tr>
+          <td><strong>EmployeeLearners</strong></td>
+          <td><code>/api/v1/employee_learners</code></td>
+          <td><code>id</code> (int)</td>
+          <td><code>apprenants.eduvia_id</code></td>
+          <td><span class="badge badge-gray">Aucune</span></td>
+        </tr>
+        <tr>
+          <td><strong>Formations</strong></td>
+          <td><code>/api/v1/formations</code></td>
+          <td><code>id</code> (int)</td>
+          <td><code>formations.eduvia_id</code></td>
+          <td><span class="badge badge-gray">Aucune</span></td>
+        </tr>
+        <tr>
+          <td><strong>Companies</strong></td>
+          <td><code>/api/v1/companies</code></td>
+          <td><code>id</code> (int)</td>
+          <td><code>companies.eduvia_id</code></td>
+          <td><span class="badge badge-gray">Aucune</span></td>
+        </tr>
+        <tr>
+          <td><strong>Teachers</strong></td>
+          <td><code>/api/v1/teachers</code></td>
+          <td><code>id</code> (int)</td>
+          <td><code>teachers.eduvia_id</code></td>
+          <td><span class="badge badge-gray">Aucune</span></td>
+        </tr>
+        <tr>
+          <td><strong>Campuses</strong></td>
+          <td><code>/api/v1/campuses</code></td>
+          <td><code>id</code> (int)</td>
+          <td><code>campuses.eduvia_id</code></td>
+          <td><span class="badge badge-gray">Aucune</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Donnees supplementaires synchronisees</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Endpoint Eduvia</th><th>Donnee</th><th>Usage SOLUVIA</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>/contracts/{id}/progressions</code></td>
+          <td>Progression pedagogique (%, score, sequences completees)</td>
+          <td>Metriques projet, page Qualite</td>
+        </tr>
+        <tr>
+          <td><code>/contracts/{id}/training_times</code></td>
+          <td>Temps de formation par contrat (spent_time en secondes)</td>
+          <td>Suivi temps, metriques</td>
+        </tr>
+        <tr>
+          <td><code>/employee_learners/batch/progressions</code></td>
+          <td>Progressions en batch pour plusieurs apprenants</td>
+          <td>Dashboard, compteurs</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Sync</strong> — Toutes les tables Eduvia ont un double index : <code>eduvia_id</code> (pour la sync) et <code>id</code> UUID (pour les jointures internes). Auth via Bearer token sur l'API Eduvia.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 6. AFFICHAGE INTERFACE                                             -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">6</span> Affichage dans l'interface</h2>
+  <p>Ou et comment les identifiants apparaissent dans SOLUVIA.</p>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Contexte</th><th>Format</th><th>Exemple</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Colonne tableau</strong></td>
+          <td>Ref seule, font monospace, couleur primaire, cliquable</td>
+          <td><span class="id-ref">0042-DUP-APP</span></td>
+        </tr>
+        <tr>
+          <td><strong>Titre page detail</strong></td>
+          <td>Ref + nom du projet</td>
+          <td><strong>0042-DUP-APP</strong> — Formation React Avancee</td>
+        </tr>
+        <tr>
+          <td><strong>Breadcrumb</strong></td>
+          <td>Ref seule, cliquable</td>
+          <td>Projets / <span style="color: var(--primary);">0042-DUP-APP</span> / Contrats</td>
+        </tr>
+        <tr>
+          <td><strong>Dropdown / Select</strong></td>
+          <td>Ref + nom court</td>
+          <td>0042-DUP-APP — Formation React</td>
+        </tr>
+        <tr>
+          <td><strong>Export PDF / CSV</strong></td>
+          <td>Colonne "Reference"</td>
+          <td>FAC-DUP-0012</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>URL et routing</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Page</th><th>URL</th><th>Exemple</th></tr></thead>
+      <tbody>
+        <tr><td>Detail projet</td><td><code>/projets/[ref]</code></td><td><code>/projets/0042-DUP-APP</code></td></tr>
+        <tr><td>Onglet projet</td><td><code>/projets/[ref]/[onglet]</code></td><td><code>/projets/0042-DUP-APP/contrats</code></td></tr>
+        <tr><td>Detail facture</td><td><code>/comptabilite/[ref]</code></td><td><code>/comptabilite/FAC-DUP-0012</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <ul style="padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 2;">
+      <li>La page recoit <code>params.ref</code> et fait un <code>SELECT * FROM table WHERE ref = $1</code></li>
+      <li>Si aucun resultat &rarr; page 404</li>
+      <li>RLS applique normalement : un CDP sans acces recoit aussi une 404 (pas de 403)</li>
+    </ul>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 7. GENERATION TECHNIQUE                                            -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">7</span> Generation technique</h2>
+  <p>Implementation PostgreSQL via Supabase : sequences, tables et triggers.</p>
+
+  <h3>Table des typologies</h3>
+  <div class="card sql">
+    <span class="cm">-- Table dynamique, gerable par l'admin</span><br>
+    <span class="kw">CREATE TABLE</span> typologies_projet (<br>
+    &nbsp;&nbsp;id <span class="tp">UUID</span> <span class="kw">DEFAULT</span> <span class="fn">gen_random_uuid</span>() <span class="kw">PRIMARY KEY</span>,<br>
+    &nbsp;&nbsp;code <span class="tp">TEXT</span> <span class="kw">UNIQUE NOT NULL</span>, <span class="cm">-- ex: 'APP', 'POE', 'PDC'</span><br>
+    &nbsp;&nbsp;libelle <span class="tp">TEXT</span> <span class="kw">NOT NULL</span>, <span class="cm">-- ex: 'Apprentissage'</span><br>
+    &nbsp;&nbsp;created_at <span class="tp">TIMESTAMPTZ</span> <span class="kw">DEFAULT NOW</span>()<br>
+    );
+  </div>
+
+  <h3>Table des clients (trigramme)</h3>
+  <div class="card sql">
+    <span class="cm">-- Le trigramme est auto-genere puis modifiable par l'admin</span><br>
+    <span class="kw">ALTER TABLE</span> clients<br>
+    &nbsp;&nbsp;<span class="kw">ADD COLUMN</span> trigramme <span class="tp">TEXT</span> <span class="kw">UNIQUE NOT NULL</span>;<br>
+    <span class="cm">-- Index pour verifier les collisions rapidement</span>
+  </div>
+
+  <h3>Sequences</h3>
+  <div class="card sql">
+    <span class="kw">CREATE SEQUENCE</span> seq_projet_ref <span class="kw">START</span> 1 <span class="kw">INCREMENT</span> 1;<br>
+    <span class="kw">CREATE SEQUENCE</span> seq_contrat_ref <span class="kw">START</span> 1 <span class="kw">INCREMENT</span> 1;<br>
+    <span class="kw">CREATE SEQUENCE</span> seq_facture_ref <span class="kw">START</span> 1 <span class="kw">INCREMENT</span> 1;
+  </div>
+
+  <h3>Trigger — Projet</h3>
+  <div class="card sql">
+    <span class="kw">CREATE OR REPLACE FUNCTION</span> generate_projet_ref()<br>
+    <span class="kw">RETURNS TRIGGER AS</span> $$<br>
+    <span class="kw">DECLARE</span><br>
+    &nbsp;&nbsp;v_trigramme <span class="tp">TEXT</span>;<br>
+    &nbsp;&nbsp;v_typo <span class="tp">TEXT</span>;<br>
+    <span class="kw">BEGIN</span><br>
+    &nbsp;&nbsp;<span class="kw">SELECT</span> trigramme <span class="kw">INTO</span> v_trigramme <span class="kw">FROM</span> clients <span class="kw">WHERE</span> id = NEW.client_id;<br>
+    &nbsp;&nbsp;<span class="kw">SELECT</span> code <span class="kw">INTO</span> v_typo <span class="kw">FROM</span> typologies_projet <span class="kw">WHERE</span> id = NEW.typologie_id;<br>
+    &nbsp;&nbsp;NEW.ref := <span class="fn">LPAD</span>(<span class="fn">nextval</span>('seq_projet_ref')::<span class="tp">TEXT</span>, 4, '0')<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;|| '-' || v_trigramme<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;|| '-' || v_typo;<br>
+    &nbsp;&nbsp;<span class="kw">RETURN</span> NEW;<br>
+    <span class="kw">END</span>;<br>
+    $$ <span class="kw">LANGUAGE</span> plpgsql;<br><br>
+    <span class="kw">CREATE TRIGGER</span> trg_projet_ref <span class="kw">BEFORE INSERT ON</span> projets<br>
+    &nbsp;&nbsp;<span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> generate_projet_ref();
+  </div>
+
+  <h3>Trigger — Contrat</h3>
+  <div class="card sql">
+    <span class="kw">CREATE OR REPLACE FUNCTION</span> generate_contrat_ref()<br>
+    <span class="kw">RETURNS TRIGGER AS</span> $$<br>
+    <span class="kw">BEGIN</span><br>
+    &nbsp;&nbsp;NEW.ref := 'CTR-' || <span class="fn">LPAD</span>(<span class="fn">nextval</span>('seq_contrat_ref')::<span class="tp">TEXT</span>, 5, '0');<br>
+    &nbsp;&nbsp;<span class="kw">RETURN</span> NEW;<br>
+    <span class="kw">END</span>;<br>
+    $$ <span class="kw">LANGUAGE</span> plpgsql;<br><br>
+    <span class="kw">CREATE TRIGGER</span> trg_contrat_ref <span class="kw">BEFORE INSERT ON</span> contrats<br>
+    &nbsp;&nbsp;<span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> generate_contrat_ref();
+  </div>
+
+  <h3>Trigger — Facture</h3>
+  <div class="card sql">
+    <span class="kw">CREATE OR REPLACE FUNCTION</span> generate_facture_ref()<br>
+    <span class="kw">RETURNS TRIGGER AS</span> $$<br>
+    <span class="kw">DECLARE</span><br>
+    &nbsp;&nbsp;v_trigramme <span class="tp">TEXT</span>;<br>
+    <span class="kw">BEGIN</span><br>
+    &nbsp;&nbsp;<span class="kw">SELECT</span> c.trigramme <span class="kw">INTO</span> v_trigramme<br>
+    &nbsp;&nbsp;<span class="kw">FROM</span> clients c <span class="kw">WHERE</span> c.id = NEW.client_id;<br><br>
+    &nbsp;&nbsp;NEW.ref := 'FAC-' || v_trigramme || '-'<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;|| <span class="fn">LPAD</span>(<span class="fn">nextval</span>('seq_facture_ref')::<span class="tp">TEXT</span>, 4, '0');<br>
+    &nbsp;&nbsp;<span class="kw">RETURN</span> NEW;<br>
+    <span class="kw">END</span>;<br>
+    $$ <span class="kw">LANGUAGE</span> plpgsql;<br><br>
+    <span class="kw">CREATE TRIGGER</span> trg_facture_ref <span class="kw">BEFORE INSERT ON</span> factures<br>
+    &nbsp;&nbsp;<span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> generate_facture_ref();
+  </div>
+
+  <h3>Trigger — Trigramme client (auto-generation)</h3>
+  <div class="card sql">
+    <span class="kw">CREATE OR REPLACE FUNCTION</span> generate_trigramme()<br>
+    <span class="kw">RETURNS TRIGGER AS</span> $$<br>
+    <span class="kw">DECLARE</span><br>
+    &nbsp;&nbsp;v_tri <span class="tp">TEXT</span>;<br>
+    <span class="kw">BEGIN</span><br>
+    &nbsp;&nbsp;<span class="cm">-- Prend les 3 premieres lettres en majuscules</span><br>
+    &nbsp;&nbsp;v_tri := <span class="fn">UPPER</span>(<span class="fn">LEFT</span>(NEW.nom, 3));<br><br>
+    &nbsp;&nbsp;<span class="cm">-- Si collision, prendre 4 lettres</span><br>
+    &nbsp;&nbsp;<span class="kw">IF EXISTS</span> (<span class="kw">SELECT</span> 1 <span class="kw">FROM</span> clients <span class="kw">WHERE</span> trigramme = v_tri) <span class="kw">THEN</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;v_tri := <span class="fn">UPPER</span>(<span class="fn">LEFT</span>(NEW.nom, 4));<br>
+    &nbsp;&nbsp;<span class="kw">END IF</span>;<br><br>
+    &nbsp;&nbsp;NEW.trigramme := v_tri;<br>
+    &nbsp;&nbsp;<span class="kw">RETURN</span> NEW;<br>
+    <span class="kw">END</span>;<br>
+    $$ <span class="kw">LANGUAGE</span> plpgsql;<br><br>
+    <span class="kw">CREATE TRIGGER</span> trg_client_trigramme <span class="kw">BEFORE INSERT ON</span> clients<br>
+    &nbsp;&nbsp;<span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> generate_trigramme();
+  </div>
+
+  <h3>Contraintes</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Table</th><th>Colonne</th><th>Contrainte</th></tr></thead>
+      <tbody>
+        <tr><td><code>projets</code></td><td><code>ref</code></td><td><code>TEXT UNIQUE NOT NULL</code> + index B-tree</td></tr>
+        <tr><td><code>contrats</code></td><td><code>ref</code></td><td><code>TEXT UNIQUE NOT NULL</code> + index B-tree</td></tr>
+        <tr><td><code>contrats</code></td><td><code>eduvia_id</code></td><td><code>INTEGER UNIQUE NOT NULL</code> + index B-tree</td></tr>
+        <tr><td><code>factures</code></td><td><code>ref</code></td><td><code>TEXT UNIQUE NOT NULL</code> + index B-tree</td></tr>
+        <tr><td><code>clients</code></td><td><code>trigramme</code></td><td><code>TEXT UNIQUE NOT NULL</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- FOOTER -->
+<div style="text-align: center; padding: 48px 0; color: var(--muted); font-size: 13px;">
+  <div style="font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">SOLUVIA</div>
+  <div>Section 01 — Systeme d'identification — v1.0 — Avril 2026</div>
+  <div style="margin-top: 4px;">Page suivante : <strong>02 — Projets (liste & detail)</strong></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLUVIA — 08 Dashboard & Metriques</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f8faf8;
+    --card-alt: #f0f5f0;
+    --border: #d4e4d4;
+    --border-light: #e8f0e8;
+    --text: #1a2e1a;
+    --text-secondary: #2d4a2d;
+    --muted: #6b8a6b;
+    --primary: #16a34a;
+    --primary-light: #22c55e;
+    --primary-dark: #15803d;
+    --primary-bg: rgba(22, 163, 74, 0.08);
+    --primary-bg-strong: rgba(22, 163, 74, 0.15);
+    --accent: #059669;
+    --green: #16a34a;
+    --green-light: #4ade80;
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --blue: #2563eb;
+    --blue-bg: rgba(37, 99, 235, 0.08);
+    --purple: #7c3aed;
+    --purple-bg: rgba(124, 58, 237, 0.08);
+    --gray: #6b7280;
+    --gray-bg: rgba(107, 114, 128, 0.08);
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .spec-header { text-align: center; padding: 48px 0 40px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .spec-header .logo { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 12px; }
+  .spec-header h1 { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .spec-header .subtitle { font-size: 16px; color: var(--muted); }
+  .spec-header .meta { margin-top: 20px; display: flex; justify-content: center; gap: 24px; font-size: 13px; color: var(--muted); }
+  .spec-header .meta span { background: var(--card-alt); border: 1px solid var(--border-light); padding: 4px 12px; border-radius: 999px; }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  section h2 .num { background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+  .mockup { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-ui-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .mockup-ui-body { padding: 20px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--card-alt); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .badge-green { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+  .badge-orange { background: rgba(217, 119, 6, 0.12); color: var(--orange); }
+  .badge-red { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .badge-blue { background: rgba(37, 99, 235, 0.12); color: var(--blue); }
+  .badge-gray { background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+  .badge-purple { background: rgba(124, 58, 237, 0.12); color: var(--purple); }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .features.three { grid-template-columns: 1fr 1fr 1fr; }
+  .features.four { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .feature { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; }
+  .feature .icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+  .feature h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text); }
+  .feature p { font-size: 13px; color: var(--muted); }
+
+  .annotation { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; background: var(--primary-bg); border-radius: var(--radius); margin: 16px 0; font-size: 13px; color: var(--text-secondary); }
+  .annotation .icon { font-size: 18px; flex-shrink: 0; }
+  .annotation.warn { background: var(--orange-bg); }
+  .annotation.danger { background: var(--red-bg); }
+
+  code { background: var(--card-alt); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--primary-dark); border: 1px solid var(--border-light); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: white; border: 1px solid var(--border-light); border-radius: var(--radius); padding: 14px; text-align: center; }
+  .stat-card .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .stat-card .stat-value { font-size: 20px; font-weight: 700; color: var(--text); font-family: 'SF Mono', monospace; }
+  .stat-card .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .stat-card .stat-trend { font-size: 11px; margin-top: 4px; font-weight: 600; }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.orange .stat-value { color: var(--orange); }
+  .stat-card.red .stat-value { color: var(--red); }
+  .stat-card.blue .stat-value { color: var(--blue); }
+
+  .alert-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-light); cursor: pointer; }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-item:hover { background: var(--card-alt); }
+  .alert-count { min-width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: white; flex-shrink: 0; }
+  .alert-text { flex: 1; }
+  .alert-text strong { font-size: 13px; display: block; }
+  .alert-text span { font-size: 12px; color: var(--muted); }
+
+  .menu-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text); background: var(--card); border: 1px solid var(--border-light); margin-bottom: 4px; }
+  .menu-badge { min-width: 20px; height: 20px; border-radius: 50%; background: var(--red); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+  .sparkline { display: inline-flex; align-items: flex-end; gap: 2px; height: 24px; }
+  .sparkline div { width: 6px; border-radius: 2px 2px 0 0; background: var(--primary); }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="spec-header">
+  <div class="logo">SOLUVIA</div>
+  <h1>08 — Dashboard &amp; Metriques</h1>
+  <div class="subtitle">Tableau de bord de pilotage, alertes operationnelles, snapshots mensuels</div>
+  <div class="meta">
+    <span>v1.0</span>
+    <span>Avril 2026</span>
+    <span>Spec 08 / 11</span>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. PRINCIPES                                                       -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">1</span> Principes</h2>
+  <p>Page <code>/dashboard</code> — tableau de bord de pilotage. Consolide les KPIs de toutes les pages SOLUVIA.</p>
+
+  <div class="features three">
+    <div class="feature">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">&#128200;</div>
+      <h4>Temps reel + snapshots</h4>
+      <p>KPIs calcules en temps reel. Snapshot automatique le 1er de chaque mois pour comparer les periodes.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--red-bg); color: var(--red);">&#128276;</div>
+      <h4>Alertes actives</h4>
+      <p>Bloc alertes + badges dans le menu + emails automatiques. Les problemes remontent sans chercher.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--purple-bg); color: var(--purple);">&#9881;</div>
+      <h4>Configurable</h4>
+      <p>Chaque KPI est masquable. Les metriques affichees sont personnalisables par utilisateur.</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Page</strong></td><td><code>/dashboard</code> — accessible depuis la navigation principale. La liste projets reste sur <code>/projets</code>.</td></tr>
+        <tr><td><strong>CDP</strong></td><td>Voit les KPIs de ses projets uniquement (RLS). Recoit les alertes de ses projets.</td></tr>
+        <tr><td><strong>Admin</strong></td><td>Voit les KPIs globaux (tous les projets, tous les CDP). Recoit les alertes globales.</td></tr>
+        <tr><td><strong>Batch mensuel</strong></td><td>Snapshot sauvegarde automatiquement le 1er de chaque mois. Permet comparaison M vs M-1, M-3, M-12.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 2. ALERTES OPERATIONNELLES                                         -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">2</span> Alertes operationnelles</h2>
+  <p>Bloc en haut du dashboard. Les problemes a traiter en priorite, avec lien direct vers la page concernee.</p>
+
+  <h3>Mockup — Bloc alertes</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Alertes</div>
+      <div style="font-size: 12px; color: var(--muted);">4 alertes actives</div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0;">
+      <div class="alert-item">
+        <div class="alert-count" style="background: var(--red);">3</div>
+        <div class="alert-text">
+          <strong>Factures en retard</strong>
+          <span>3 factures impayees dont l'echeance est depassee &rarr; /facturation</span>
+        </div>
+      </div>
+      <div class="alert-item">
+        <div class="alert-count" style="background: var(--orange);">5</div>
+        <div class="alert-text">
+          <strong>Temps non saisi aujourd'hui</strong>
+          <span>5 projets sans saisie de temps pour le jour J &rarr; /temps</span>
+        </div>
+      </div>
+      <div class="alert-item">
+        <div class="alert-count" style="background: var(--orange);">8</div>
+        <div class="alert-text">
+          <strong>Taches qualite en attente</strong>
+          <span>8 taches non realisees sur l'ensemble des projets &rarr; /qualite</span>
+        </div>
+      </div>
+      <div class="alert-item">
+        <div class="alert-count" style="background: var(--purple);">2</div>
+        <div class="alert-text">
+          <strong>Contrats sans progression</strong>
+          <span>2 contrats actifs avec 0% de progression depuis 30 jours &rarr; /projets</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Liste des alertes</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Alerte</th><th>Condition</th><th>Lien</th><th>Couleur</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Factures en retard</strong></td><td>Nb de factures emises dont l'echeance est depassee et non payees</td><td><code>/facturation</code> filtree</td><td style="color: var(--red);">Rouge</td></tr>
+        <tr><td><strong>Temps non saisi</strong></td><td>Nb de projets actifs du CDP sans saisie de temps pour le jour J</td><td><code>/temps</code></td><td style="color: var(--orange);">Orange</td></tr>
+        <tr><td><strong>Taches qualite</strong></td><td>Nb de taches Qualiopi en attente (non realisees) sur les projets du CDP</td><td><code>/qualite</code> filtree</td><td style="color: var(--orange);">Orange</td></tr>
+        <tr><td><strong>Contrats sans progression</strong></td><td>Contrats actifs dont la progression reelle n'a pas bouge depuis 30 jours</td><td><code>/projets</code> filtree</td><td style="color: var(--purple);">Violet</td></tr>
+        <tr><td><strong>Echeances a facturer</strong></td><td>Nb d'echeances de facturation eligibles non encore validees par le CDP</td><td><code>/facturation</code></td><td style="color: var(--blue);">Bleu</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Zero alerte</strong> — Si aucune alerte active, le bloc affiche "Tout est en ordre" avec un fond vert. Le bloc est toujours visible (pas masque quand vide).</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 3. KPIs FINANCIERS                                                 -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">3</span> KPIs financiers</h2>
+  <p>Metriques financieres du mois en cours avec evolution par rapport au mois precedent. Source : spec 05.</p>
+
+  <h3>Mockup — KPIs financiers</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Finances — Avril 2026</div>
+      <div style="font-size: 12px; color: var(--muted);">Commission SOLUVIA</div>
+    </div>
+    <div class="mockup-ui-body">
+      <div class="stats-row">
+        <div class="stat-card green">
+          <div class="stat-label">Production</div>
+          <div class="stat-value">12 450 &euro;</div>
+          <div class="stat-trend" style="color: var(--green);">&#9650; +5,5% vs M-1</div>
+          <div class="sparkline" style="margin-top: 8px; justify-content: center;">
+            <div style="height: 10px;"></div><div style="height: 12px;"></div><div style="height: 11px;"></div><div style="height: 14px;"></div><div style="height: 13px;"></div><div style="height: 15px;"></div><div style="height: 14px;"></div><div style="height: 16px;"></div><div style="height: 18px;"></div><div style="height: 17px;"></div><div style="height: 19px;"></div><div style="height: 20px; background: var(--primary-light);"></div>
+          </div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">Facture</div>
+          <div class="stat-value">10 200 &euro;</div>
+          <div class="stat-trend" style="color: var(--red);">&#9660; -11,3% vs M-1</div>
+          <div class="sparkline" style="margin-top: 8px; justify-content: center;">
+            <div style="height: 14px; background: var(--blue);"></div><div style="height: 16px; background: var(--blue);"></div><div style="height: 13px; background: var(--blue);"></div><div style="height: 15px; background: var(--blue);"></div><div style="height: 18px; background: var(--blue);"></div><div style="height: 17px; background: var(--blue);"></div><div style="height: 19px; background: var(--blue);"></div><div style="height: 20px; background: var(--blue);"></div><div style="height: 18px; background: var(--blue);"></div><div style="height: 19px; background: var(--blue);"></div><div style="height: 20px; background: var(--blue);"></div><div style="height: 16px; background: rgba(37,99,235,0.5);"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Encaisse</div>
+          <div class="stat-value">8 800 &euro;</div>
+          <div class="stat-trend" style="color: var(--red);">&#9660; -13,7% vs M-1</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">En retard</div>
+          <div class="stat-value">3 200 &euro;</div>
+          <div class="stat-trend" style="color: var(--red);">&#9650; +14,3% vs M-1</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Sparklines</strong> — Mini-graphiques sur 12 mois pour chaque KPI. Le dernier point (mois en cours) est en surbrillance. Optionnel et masquable.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 4. KPIs OPERATIONNELS                                              -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">4</span> KPIs operationnels</h2>
+  <p>Metriques d'activite : volume de projets, contrats, apprenants, temps saisi.</p>
+
+  <h3>Mockup — KPIs operationnels</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Activite — Avril 2026</div>
+    </div>
+    <div class="mockup-ui-body">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Projets actifs</div>
+          <div class="stat-value">12</div>
+          <div class="stat-sub">dont 3 APP, 5 PDC, 4 POE</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Contrats actifs</div>
+          <div class="stat-value">187</div>
+          <div class="stat-trend" style="color: var(--green);">&#9650; +8 vs M-1</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Apprenants actifs</div>
+          <div class="stat-value">182</div>
+          <div class="stat-trend" style="color: var(--green);">&#9650; +5 vs M-1</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Taux saisie temps</div>
+          <div class="stat-value" style="color: var(--green);">92%</div>
+          <div class="stat-sub">18/20 jours ouvrables saisis</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Detail des metriques</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Metrique</th><th>Formule</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Projets actifs</strong></td><td>COUNT projets WHERE statut = 'actif'</td><td>Table <code>projets</code></td></tr>
+        <tr><td><strong>Contrats actifs</strong></td><td>COUNT contrats WHERE statut = 'actif' et date_fin &ge; aujourd'hui</td><td>Table <code>contrats</code> (sync Eduvia)</td></tr>
+        <tr><td><strong>Apprenants actifs</strong></td><td>COUNT DISTINCT apprenants lies a un contrat actif</td><td>Table <code>employee_learners</code> (sync Eduvia)</td></tr>
+        <tr><td><strong>Temps saisi (mois)</strong></td><td>SUM heures saisies sur le mois en cours</td><td>Table <code>saisies_temps</code> (spec 04)</td></tr>
+        <tr><td><strong>Taux saisie temps</strong></td><td>Nb jours avec au moins 1 saisie / nb jours ouvrables du mois &times; 100</td><td>Table <code>saisies_temps</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 5. KPIs QUALITE & PEDAGOGIE (PLACEHOLDERS)                         -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">5</span> KPIs qualite &amp; pedagogie</h2>
+  <p>Indicateurs de performance qualitative. Les formules exactes seront definies ulterieurement.</p>
+
+  <h3>Mockup — Emplacements reserves</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Performance — Avril 2026</div>
+      <div><span class="badge badge-orange">Formules a definir</span></div>
+    </div>
+    <div class="mockup-ui-body">
+      <div class="features three">
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <h4>Qualite Qualiopi</h4>
+          <div style="font-size: 28px; font-weight: 700; color: var(--border); font-family: monospace; margin: 12px 0;">—%</div>
+          <p>% taches non conformes</p>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <h4>Pedagogie</h4>
+          <div style="font-size: 28px; font-weight: 700; color: var(--border); font-family: monospace; margin: 12px 0;">—%</div>
+          <p>Indicateurs a definir</p>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <h4>Reussite</h4>
+          <div style="font-size: 28px; font-weight: 700; color: var(--border); font-family: monospace; margin: 12px 0;">—%</div>
+          <p>Taux de reussite examens</p>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <h4>Financement</h4>
+          <div style="font-size: 28px; font-weight: 700; color: var(--border); font-family: monospace; margin: 12px 0;">—%</div>
+          <p>% financement consomme</p>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <h4>Abandons</h4>
+          <div style="font-size: 28px; font-weight: 700; color: var(--border); font-family: monospace; margin: 12px 0;">—%</div>
+          <p>Nb et taux d'abandons</p>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <h4>Rentabilite</h4>
+          <div style="font-size: 28px; font-weight: 700; color: var(--border); font-family: monospace; margin: 12px 0;">— &euro;</div>
+          <p>Formule a definir</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation warn">
+    <span class="icon">&#9888;</span>
+    <p><strong>A definir</strong> — Les formules de calcul, les sources de donnees et les seuils de ces 6 indicateurs seront specifies ulterieurement. Les emplacements sont reserves dans l'interface. L'ajout d'un indicateur ne necessitera pas de refonte — juste la configuration de la formule et de la source.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 6. SNAPSHOT MENSUEL & COMPARAISONS                                 -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">6</span> Snapshot mensuel &amp; comparaisons</h2>
+  <p>Chaque 1er du mois, SOLUVIA sauvegarde automatiquement tous les KPIs. Permet de comparer les evolutions.</p>
+
+  <h3>Mecanisme</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Declencheur</strong></td><td>CRON Supabase Edge Function — le 1er de chaque mois a 00:01.</td></tr>
+        <tr><td><strong>Donnees sauvegardees</strong></td><td>Valeur de chaque KPI (financier, operationnel, qualite) pour le mois ecoule. Scope : global + par projet + par CDP.</td></tr>
+        <tr><td><strong>Retention</strong></td><td>Snapshots conserves indefiniment. Pas de purge automatique.</td></tr>
+        <tr><td><strong>Immutabilite</strong></td><td>Un snapshot ne peut pas etre modifie apres creation. Les donnees du mois sont figees.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Mockup — Tableau d'evolution</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Evolution des KPIs</div>
+      <div style="font-size: 12px; color: var(--muted);">Comparaison M vs M-1, M-3, M-12</div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th style="min-width: 160px;">KPI</th>
+            <th style="text-align: right;">Avr 2026</th>
+            <th style="text-align: right;">Mar 2026 (M-1)</th>
+            <th style="text-align: center;">Evol M-1</th>
+            <th style="text-align: right;">Jan 2026 (M-3)</th>
+            <th style="text-align: center;">Evol M-3</th>
+            <th style="text-align: right;">Avr 2025 (M-12)</th>
+            <th style="text-align: center;">Evol M-12</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Production</strong></td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">12 450 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">11 800 &euro;</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+5,5%</td>
+            <td style="text-align: right; font-family: monospace;">10 500 &euro;</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+18,6%</td>
+            <td style="text-align: right; font-family: monospace;">8 200 &euro;</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+51,8%</td>
+          </tr>
+          <tr>
+            <td><strong>Facture</strong></td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">10 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">11 500 &euro;</td>
+            <td style="text-align: center; color: var(--red); font-weight: 600;">-11,3%</td>
+            <td style="text-align: right; font-family: monospace;">9 800 &euro;</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+4,1%</td>
+            <td style="text-align: right; font-family: monospace;">7 800 &euro;</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+30,8%</td>
+          </tr>
+          <tr>
+            <td><strong>En retard</strong></td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700; color: var(--red);">3 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">2 800 &euro;</td>
+            <td style="text-align: center; color: var(--red); font-weight: 600;">+14,3%</td>
+            <td style="text-align: right; font-family: monospace;">1 500 &euro;</td>
+            <td style="text-align: center; color: var(--red); font-weight: 600;">+113%</td>
+            <td style="text-align: right; font-family: monospace;">600 &euro;</td>
+            <td style="text-align: center; color: var(--red); font-weight: 600;">+433%</td>
+          </tr>
+          <tr>
+            <td><strong>Projets actifs</strong></td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">12</td>
+            <td style="text-align: right; font-family: monospace;">11</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+1</td>
+            <td style="text-align: right; font-family: monospace;">10</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+2</td>
+            <td style="text-align: right; font-family: monospace;">8</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+4</td>
+          </tr>
+          <tr>
+            <td><strong>Taux saisie temps</strong></td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">92%</td>
+            <td style="text-align: right; font-family: monospace;">88%</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+4pt</td>
+            <td style="text-align: right; font-family: monospace;">85%</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+7pt</td>
+            <td style="text-align: right; font-family: monospace;">72%</td>
+            <td style="text-align: center; color: var(--green); font-weight: 600;">+20pt</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Codes couleur evolution</strong> — <span style="color: var(--green); font-weight: 600;">Vert</span> = amelioration (hausse production, baisse retards). <span style="color: var(--red); font-weight: 600;">Rouge</span> = degradation (hausse retards, baisse production). La semantique est inversee pour les metriques negatives (retard, abandons).</p>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Export CSV / XLSX</strong> — Le tableau d'evolution et les KPIs sont exportables en CSV ou XLSX. Exporte les donnees du snapshot mensuel visible (periodes affichees, KPIs affiches).</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 7. NOTIFICATIONS EMAIL                                             -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">7</span> Notifications email</h2>
+  <p>Emails automatiques sur regles fixes predefinies. Pas de configuration utilisateur.</p>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Alerte</th><th>Frequence</th><th>Destinataire</th><th>Contenu</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Temps non saisi</strong></td>
+          <td>Quotidien (18h)</td>
+          <td>Le CDP concerne</td>
+          <td>"Vous n'avez pas saisi de temps aujourd'hui sur X projets."</td>
+        </tr>
+        <tr>
+          <td><strong>Factures en retard</strong></td>
+          <td>Hebdomadaire (lundi 9h)</td>
+          <td>Le CDP + admin</td>
+          <td>"X factures en retard pour un total de Y &euro;. Voir le detail."</td>
+        </tr>
+        <tr>
+          <td><strong>Fenetre de facturation</strong></td>
+          <td>Le 25 du mois</td>
+          <td>Tous les CDP</td>
+          <td>"La fenetre de facturation est ouverte. X echeances a valider."</td>
+        </tr>
+        <tr>
+          <td><strong>Fin de fenetre</strong></td>
+          <td>Le 2 du mois (veille de fermeture)</td>
+          <td>CDP avec echeances non validees</td>
+          <td>"La fenetre de facturation ferme demain. X echeances non facturees."</td>
+        </tr>
+        <tr>
+          <td><strong>Rapport mensuel</strong></td>
+          <td>Le 1er du mois</td>
+          <td>Admin</td>
+          <td>Resume du mois ecoule : KPIs principaux, evolutions, alertes. Base sur le snapshot mensuel.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Implementation</strong> — CRON Supabase Edge Functions + service d'envoi email (Resend, SendGrid ou equivalent). Les emails utilisent un template HTML sobre aux couleurs SOLUVIA.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 8. BADGES MENU                                                     -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">8</span> Badges menu</h2>
+  <p>Indicateurs visuels dans la navigation laterale. Le CDP voit en un coup d'oeil ou sont les problemes.</p>
+
+  <h3>Mockup — Menu avec badges</h3>
+  <div style="max-width: 260px; margin-bottom: 24px;">
+    <div class="menu-item" style="background: var(--primary-bg); border-color: var(--primary); color: var(--primary); font-weight: 600;">
+      Dashboard
+    </div>
+    <div class="menu-item">
+      Projets
+    </div>
+    <div class="menu-item">
+      Qualite
+      <span class="menu-badge" style="background: var(--orange);">8</span>
+    </div>
+    <div class="menu-item">
+      Temps
+      <span class="menu-badge">!</span>
+    </div>
+    <div class="menu-item">
+      Production
+    </div>
+    <div class="menu-item">
+      Facturation
+      <span class="menu-badge">3</span>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Page</th><th>Badge</th><th>Condition</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Facturation</strong></td><td><span class="menu-badge" style="display: inline-flex;">3</span></td><td>Nb de factures en retard (echeance depassee, non payees)</td></tr>
+        <tr><td><strong>Temps</strong></td><td><span class="menu-badge" style="display: inline-flex;">!</span></td><td>Point d'exclamation si aucune saisie aujourd'hui</td></tr>
+        <tr><td><strong>Qualite</strong></td><td><span class="menu-badge" style="display: inline-flex; background: var(--orange);">8</span></td><td>Nb de taches qualite en attente</td></tr>
+        <tr><td><strong>Dashboard</strong></td><td>—</td><td>Pas de badge (c'est la page qui les consolide)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Temps reel</strong> — Les badges se mettent a jour en temps reel via Supabase Realtime. Pas besoin de rafraichir la page.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 9. PERMISSIONS & RLS                                               -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">9</span> Permissions &amp; RLS</h2>
+  <p>Meme modele que le reste de SOLUVIA.</p>
+
+  <div class="features">
+    <div class="feature" style="border-color: var(--purple);">
+      <div class="icon" style="background: var(--purple-bg); color: var(--purple);">A</div>
+      <h4>Admin</h4>
+      <p>Dashboard global : KPIs agreges sur <strong>tous</strong> les projets et CDP. Alertes globales. Rapport mensuel par email.</p>
+    </div>
+    <div class="feature" style="border-color: var(--blue);">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">C</div>
+      <h4>CDP</h4>
+      <p>Dashboard filtre : KPIs de ses projets uniquement (<code>cdp_id</code> ou <code>backup_cdp_id</code>). Alertes de ses projets. Badges de ses projets.</p>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 10. MODELE DE DONNEES                                              -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">10</span> Modele de donnees</h2>
+  <p>Table de snapshots pour l'historique mensuel des KPIs.</p>
+
+  <h3>Table <code>kpi_snapshots</code></h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Type</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td><code>UUID</code></td><td>Cle primaire</td></tr>
+        <tr><td><code>mois</code></td><td><code>DATE</code></td><td>Premier jour du mois (ex: 2026-04-01)</td></tr>
+        <tr><td><code>type_kpi</code></td><td><code>TEXT</code></td><td><code>production</code>, <code>facture</code>, <code>encaisse</code>, <code>en_retard</code>, <code>projets_actifs</code>, <code>contrats_actifs</code>, <code>apprenants_actifs</code>, <code>taux_saisie_temps</code>, ...</td></tr>
+        <tr><td><code>valeur</code></td><td><code>NUMERIC(14,2)</code></td><td>Valeur du KPI au moment du snapshot</td></tr>
+        <tr><td><code>scope</code></td><td><code>TEXT</code></td><td><code>global</code> | <code>projet</code> | <code>cdp</code></td></tr>
+        <tr><td><code>scope_id</code></td><td><code>UUID NULL</code></td><td>ID du projet ou du CDP (NULL si scope = global)</td></tr>
+        <tr><td><code>created_at</code></td><td><code>TIMESTAMPTZ</code></td><td>Date de creation du snapshot</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Contraintes</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Contrainte</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Unicite</strong></td><td><code>UNIQUE(mois, type_kpi, scope, scope_id)</code> — un seul snapshot par KPI par scope par mois.</td></tr>
+        <tr><td><strong>Immutabilite</strong></td><td>Pas de <code>UPDATE</code> autorise. Les snapshots sont en ecriture seule.</td></tr>
+        <tr><td><strong>CRON</strong></td><td>Edge Function declenchee le 1er de chaque mois. Insere une ligne par KPI &times; scope.</td></tr>
+        <tr><td><strong>RLS</strong></td><td>CDP : lecture des snapshots ou <code>scope = 'global'</code> ou <code>scope_id = auth.uid()</code> ou <code>scope_id</code> est un projet du CDP. Admin : tout.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- FOOTER -->
+<div style="text-align: center; padding: 48px 0; color: var(--muted); font-size: 13px;">
+  <div style="font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">SOLUVIA</div>
+  <div>Section 08 — Dashboard & Metriques — v1.0 — Avril 2026</div>
+  <div style="margin-top: 4px;">Page suivante : <strong>09 — Navigation & Administration</strong></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLUVIA — 03 Qualite</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f8faf8;
+    --card-alt: #f0f5f0;
+    --border: #d4e4d4;
+    --border-light: #e8f0e8;
+    --text: #1a2e1a;
+    --text-secondary: #2d4a2d;
+    --muted: #6b8a6b;
+    --primary: #16a34a;
+    --primary-light: #22c55e;
+    --primary-dark: #15803d;
+    --primary-bg: rgba(22, 163, 74, 0.08);
+    --primary-bg-strong: rgba(22, 163, 74, 0.15);
+    --accent: #059669;
+    --green: #16a34a;
+    --green-light: #4ade80;
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --blue: #2563eb;
+    --blue-bg: rgba(37, 99, 235, 0.08);
+    --purple: #7c3aed;
+    --purple-bg: rgba(124, 58, 237, 0.08);
+    --gray: #6b7280;
+    --gray-bg: rgba(107, 114, 128, 0.08);
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .spec-header {
+    text-align: center;
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .spec-header .logo { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 12px; }
+  .spec-header h1 { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .spec-header .subtitle { font-size: 16px; color: var(--muted); }
+  .spec-header .meta { margin-top: 20px; display: flex; justify-content: center; gap: 24px; font-size: 13px; color: var(--muted); }
+  .spec-header .meta span { background: var(--card-alt); border: 1px solid var(--border-light); padding: 4px 12px; border-radius: 999px; }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  section h2 .num { background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+
+  .mockup { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--card-alt); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .badge-green { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+  .badge-orange { background: rgba(217, 119, 6, 0.12); color: var(--orange); }
+  .badge-red { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .badge-blue { background: rgba(37, 99, 235, 0.12); color: var(--blue); }
+  .badge-gray { background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+  .badge-purple { background: rgba(124, 58, 237, 0.12); color: var(--purple); }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+  .annotation { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; background: var(--primary-bg); border-radius: var(--radius); margin: 16px 0; font-size: 13px; color: var(--text-secondary); }
+  .annotation .icon { font-size: 18px; flex-shrink: 0; }
+  .annotation.danger { background: var(--red-bg); }
+
+  code { background: var(--card-alt); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--primary-dark); border: 1px solid var(--border-light); }
+
+  .id-ref {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--primary-bg);
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(22, 163, 74, 0.2);
+  }
+
+  .mockup-ui { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-ui-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .mockup-ui-body { padding: 20px; }
+
+  .progress-bar { height: 8px; background: var(--card-alt); border-radius: 4px; overflow: hidden; }
+  .progress-bar .fill { height: 100%; border-radius: 4px; }
+
+  .famille-card {
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: 60px 1fr 120px 100px;
+    align-items: center;
+    gap: 16px;
+  }
+  .famille-card .code {
+    font-family: 'SF Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    padding: 8px;
+    border-radius: 8px;
+  }
+  .famille-card .info h4 { font-size: 13px; font-weight: 600; color: var(--text); margin: 0; }
+  .famille-card .info p { font-size: 11px; color: var(--muted); margin: 2px 0 0; }
+  .famille-card .compteur { font-family: monospace; font-size: 13px; font-weight: 600; text-align: center; }
+  .famille-card .statut { text-align: right; }
+
+  .livrable-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 13px;
+  }
+  .livrable-row:last-child { border-bottom: none; }
+  .livrable-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .livrable-check.done { background: var(--primary); border-color: var(--primary); color: white; }
+  .livrable-check.todo { background: white; border-color: var(--border); }
+  .livrable-link {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--primary);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .flow { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+  .flow-step { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; text-align: center; min-width: 130px; }
+  .flow-step .step-num { font-size: 11px; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
+  .flow-step .step-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .flow-step .step-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .flow-arrow { font-size: 20px; color: var(--muted); margin: 0 12px; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="spec-header">
+  <div class="logo">SOLUVIA</div>
+  <h1>03 — Qualite</h1>
+  <div class="subtitle">Suivi des livrables Qualiopi par projet — donnees synchronisees depuis Eduvia (lecture seule)</div>
+  <div class="meta">
+    <span>v1.0</span>
+    <span>Avril 2026</span>
+    <span>Spec 03 / 11</span>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. VUE D'ENSEMBLE                                                  -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">1</span> Vue d'ensemble</h2>
+  <p>La page Qualite affiche l'etat des livrables Qualiopi pour chaque projet. 100% lecture seule — les modifications se font dans Eduvia.</p>
+
+  <div class="features">
+    <div class="card">
+      <h3 style="margin-top: 0;">Source des donnees</h3>
+      <ul style="padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 2;">
+        <li>Toutes les donnees viennent de <span class="badge badge-orange">Eduvia</span></li>
+        <li>API qualite a venir dans Eduvia (pas encore disponible)</li>
+        <li>Synchronisation periodique (CRON)</li>
+        <li>Aucune modification possible dans SOLUVIA</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="margin-top: 0;">Logique de conformite</h3>
+      <ul style="padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 2;">
+        <li>Un livrable = une tache (fait / pas fait)</li>
+        <li>Une famille = conforme si <strong>100% des livrables</strong> sont faits</li>
+        <li>Statut calcule automatiquement, pas de saisie manuelle</li>
+        <li>Clic sur un livrable &rarr; ouvre Eduvia dans un nouvel onglet</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 2. FAMILLES DE TACHES                                              -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">2</span> Familles de taches</h2>
+  <p>10 familles regroupent les indicateurs et livrables Qualiopi.</p>
+
+  <div class="mockup">
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Famille</th>
+          <th>Description</th>
+          <th style="text-align: center;">Indicateurs</th>
+          <th style="text-align: center;">Livrables</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>C1</code></td>
+          <td><strong>Information au public</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Conditions d'information du public sur les prestations, delais et resultats</td>
+          <td style="text-align: center;">3</td>
+          <td style="text-align: center;">1</td>
+        </tr>
+        <tr>
+          <td><code>C2</code></td>
+          <td><strong>Objectif et adaptation</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Identification des objectifs et adaptation aux publics lors de la conception</td>
+          <td style="text-align: center;">5</td>
+          <td style="text-align: center;">8</td>
+        </tr>
+        <tr>
+          <td><code>C3</code></td>
+          <td><strong>Accueil, suivi et evaluation</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Adaptation des modalites d'accueil, accompagnement, suivi et evaluation</td>
+          <td style="text-align: center;">8</td>
+          <td style="text-align: center;">26</td>
+        </tr>
+        <tr>
+          <td><code>C4</code></td>
+          <td><strong>Adequation des moyens</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Adequation des moyens pedagogiques, techniques et d'encadrement</td>
+          <td style="text-align: center;">4</td>
+          <td style="text-align: center;">11</td>
+        </tr>
+        <tr>
+          <td><code>C5</code></td>
+          <td><strong>Qualification du personnel</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Qualification et developpement des competences des personnels</td>
+          <td style="text-align: center;">2</td>
+          <td style="text-align: center;">7</td>
+        </tr>
+        <tr>
+          <td><code>C6</code></td>
+          <td><strong>Investissement environnement pro</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Inscription et investissement dans l'environnement professionnel</td>
+          <td style="text-align: center;">7</td>
+          <td style="text-align: center;">18</td>
+        </tr>
+        <tr>
+          <td><code>C7</code></td>
+          <td><strong>Appreciations et amelioration</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Recueil et prise en compte des appreciations et reclamations</td>
+          <td style="text-align: center;">3</td>
+          <td style="text-align: center;">12</td>
+        </tr>
+        <tr>
+          <td><code>ADM</code></td>
+          <td><strong>Administration & Organisation</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Gestion administrative et juridique de l'organisme de formation</td>
+          <td style="text-align: center;">3</td>
+          <td style="text-align: center;">20</td>
+        </tr>
+        <tr>
+          <td><code>HQ</code></td>
+          <td><strong>Handicap & Qualite Transversale</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Prise en charge du handicap et qualite transversale</td>
+          <td style="text-align: center;">1</td>
+          <td style="text-align: center;">1</td>
+        </tr>
+        <tr>
+          <td><code>RGPD</code></td>
+          <td><strong>Protection des Donnees</strong></td>
+          <td style="font-size: 12px; color: var(--muted);">Conformite RGPD et protection des donnees personnelles</td>
+          <td style="text-align: center;">1</td>
+          <td style="text-align: center;">5</td>
+        </tr>
+        <tr style="font-weight: 600; background: var(--card-alt);">
+          <td></td>
+          <td><strong>Total</strong></td>
+          <td></td>
+          <td style="text-align: center;"><strong>37</strong></td>
+          <td style="text-align: center;"><strong>109</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 3. PAGE LISTE                                                      -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">3</span> Page liste — Tous les projets</h2>
+  <p>Vue globale de la conformite qualite pour chaque projet.</p>
+
+  <h3>Colonnes du tableau</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Contenu</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td><strong>N° Projet</strong></td><td>Ref du projet</td><td><span class="badge badge-green">SOLUVIA</span></td></tr>
+        <tr><td><strong>Client</strong></td><td>Raison sociale</td><td><span class="badge badge-green">SOLUVIA</span></td></tr>
+        <tr><td><strong>CDP</strong></td><td>Chef de projet assigne</td><td><span class="badge badge-green">SOLUVIA</span></td></tr>
+        <tr><td><strong>Livrables</strong></td><td>Realises / Total (ex: 72/109)</td><td><span class="badge badge-orange">Eduvia</span></td></tr>
+        <tr><td><strong>Progression</strong></td><td>Barre de progression (%) du total livrables</td><td><span class="badge badge-orange">Eduvia</span></td></tr>
+        <tr><td><strong>Familles conformes</strong></td><td>Nb familles a 100% / 10 (ex: 4/10)</td><td><span class="badge badge-orange">Eduvia</span></td></tr>
+        <tr><td><strong>Statut global</strong></td><td>Conforme (10/10) ou Non conforme</td><td>Calcule</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Mockup — Liste qualite</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Qualite</div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); background: white;">Rechercher...</div>
+        <div style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); background: white;">Colonnes &#9662;</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th>N° Projet &#9662;</th>
+            <th>Client &#9662;</th>
+            <th>CDP &#9662;</th>
+            <th style="text-align: center;">Livrables &#9662;</th>
+            <th style="width: 140px;">Progression &#9662;</th>
+            <th style="text-align: center;">Familles &#9662;</th>
+            <th style="text-align: center;">Statut &#9662;</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="cursor: pointer;">
+            <td><span class="id-ref">0001-HEO-APP</span></td>
+            <td>Heol Formation</td>
+            <td>M. Dupont</td>
+            <td style="text-align: center; font-family: monospace; font-weight: 600;">72 / 109</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="progress-bar" style="flex: 1;"><div class="fill" style="width: 66%; background: var(--orange);"></div></div>
+                <span style="font-size: 12px; font-family: monospace; font-weight: 600; color: var(--orange);">66%</span>
+              </div>
+            </td>
+            <td style="text-align: center; font-family: monospace; font-weight: 600;">4 / 10</td>
+            <td style="text-align: center;"><span class="badge badge-red">Non conforme</span></td>
+          </tr>
+          <tr style="cursor: pointer;">
+            <td><span class="id-ref">0002-BNP-PDC</span></td>
+            <td>BNP Paribas</td>
+            <td>S. Martin</td>
+            <td style="text-align: center; font-family: monospace; font-weight: 600;">109 / 109</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="progress-bar" style="flex: 1;"><div class="fill" style="width: 100%; background: var(--green);"></div></div>
+                <span style="font-size: 12px; font-family: monospace; font-weight: 600; color: var(--green);">100%</span>
+              </div>
+            </td>
+            <td style="text-align: center; font-family: monospace; font-weight: 600;">10 / 10</td>
+            <td style="text-align: center;"><span class="badge badge-green">Conforme</span></td>
+          </tr>
+          <tr style="cursor: pointer;">
+            <td><span class="id-ref">0003-SOL-POE</span></td>
+            <td>Soluvia</td>
+            <td>A. Durand</td>
+            <td style="text-align: center; font-family: monospace; font-weight: 600;">45 / 109</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="progress-bar" style="flex: 1;"><div class="fill" style="width: 41%; background: var(--red);"></div></div>
+                <span style="font-size: 12px; font-family: monospace; font-weight: 600; color: var(--red);">41%</span>
+              </div>
+            </td>
+            <td style="text-align: center; font-family: monospace; font-weight: 600;">1 / 10</td>
+            <td style="text-align: center;"><span class="badge badge-red">Non conforme</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Permissions</strong> — L'admin voit tous les projets. Le CDP voit uniquement ses projets (RLS). Memes colonnes pour les deux roles.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 4. DETAIL PAR PROJET                                               -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">4</span> Detail qualite par projet</h2>
+  <p>Clic sur un projet dans la liste &rarr; affichage des 10 familles avec leurs livrables.</p>
+
+  <h3>Mockup — Familles</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Qualite — <span class="id-ref">0001-HEO-APP</span> Heol Formation</div>
+      <div style="font-size: 12px; color: var(--muted);">72 / 109 livrables &middot; 4 / 10 familles conformes</div>
+    </div>
+    <div class="mockup-ui-body">
+
+      <!-- C1 -->
+      <div class="famille-card">
+        <div class="code" style="background: var(--primary-bg); color: var(--primary);">C1</div>
+        <div class="info">
+          <h4>Information au public</h4>
+          <p>3 indicateurs</p>
+        </div>
+        <div class="compteur" style="color: var(--green);">1 / 1</div>
+        <div class="statut"><span class="badge badge-green">Conforme</span></div>
+      </div>
+
+      <!-- C2 -->
+      <div class="famille-card">
+        <div class="code" style="background: var(--primary-bg); color: var(--primary);">C2</div>
+        <div class="info">
+          <h4>Objectif et adaptation</h4>
+          <p>5 indicateurs</p>
+        </div>
+        <div class="compteur" style="color: var(--green);">8 / 8</div>
+        <div class="statut"><span class="badge badge-green">Conforme</span></div>
+      </div>
+
+      <!-- C3 -->
+      <div class="famille-card" style="border-color: var(--orange);">
+        <div class="code" style="background: var(--orange-bg); color: var(--orange);">C3</div>
+        <div class="info">
+          <h4>Accueil, suivi et evaluation</h4>
+          <p>8 indicateurs</p>
+        </div>
+        <div class="compteur" style="color: var(--orange);">18 / 26</div>
+        <div class="statut"><span class="badge badge-red">Non conforme</span></div>
+      </div>
+
+      <!-- C4 -->
+      <div class="famille-card">
+        <div class="code" style="background: var(--primary-bg); color: var(--primary);">C4</div>
+        <div class="info">
+          <h4>Adequation des moyens</h4>
+          <p>4 indicateurs</p>
+        </div>
+        <div class="compteur" style="color: var(--green);">11 / 11</div>
+        <div class="statut"><span class="badge badge-green">Conforme</span></div>
+      </div>
+
+      <!-- C5 -->
+      <div class="famille-card" style="border-color: var(--orange);">
+        <div class="code" style="background: var(--orange-bg); color: var(--orange);">C5</div>
+        <div class="info">
+          <h4>Qualification du personnel</h4>
+          <p>2 indicateurs</p>
+        </div>
+        <div class="compteur" style="color: var(--orange);">5 / 7</div>
+        <div class="statut"><span class="badge badge-red">Non conforme</span></div>
+      </div>
+
+      <!-- C6 -->
+      <div class="famille-card" style="border-color: var(--orange);">
+        <div class="code" style="background: var(--orange-bg); color: var(--orange);">C6</div>
+        <div class="info">
+          <h4>Investissement environnement pro</h4>
+          <p>7 indicateurs</p>
+        </div>
+        <div class="compteur" style="color: var(--orange);">12 / 18</div>
+        <div class="statut"><span class="badge badge-red">Non conforme</span></div>
+      </div>
+
+      <!-- C7 -->
+      <div class="famille-card">
+        <div class="code" style="background: var(--primary-bg); color: var(--primary);">C7</div>
+        <div class="info">
+          <h4>Appreciations et amelioration</h4>
+          <p>3 indicateurs</p>
+        </div>
+        <div class="compteur" style="color: var(--green);">12 / 12</div>
+        <div class="statut"><span class="badge badge-green">Conforme</span></div>
+      </div>
+
+      <!-- ADM -->
+      <div class="famille-card" style="border-color: var(--orange);">
+        <div class="code" style="background: var(--blue-bg); color: var(--blue);">ADM</div>
+        <div class="info">
+          <h4>Administration & Organisation</h4>
+          <p>3 indicateurs</p>
+        </div>
+        <div class="compteur" style="color: var(--orange);">3 / 20</div>
+        <div class="statut"><span class="badge badge-red">Non conforme</span></div>
+      </div>
+
+      <!-- HQ -->
+      <div class="famille-card" style="border-color: var(--orange);">
+        <div class="code" style="background: var(--blue-bg); color: var(--blue);">HQ</div>
+        <div class="info">
+          <h4>Handicap & Qualite Transversale</h4>
+          <p>1 indicateur</p>
+        </div>
+        <div class="compteur" style="color: var(--orange);">0 / 1</div>
+        <div class="statut"><span class="badge badge-red">Non conforme</span></div>
+      </div>
+
+      <!-- RGPD -->
+      <div class="famille-card" style="border-color: var(--orange);">
+        <div class="code" style="background: var(--blue-bg); color: var(--blue);">RGPD</div>
+        <div class="info">
+          <h4>Protection des Donnees</h4>
+          <p>1 indicateur</p>
+        </div>
+        <div class="compteur" style="color: var(--orange);">2 / 5</div>
+        <div class="statut"><span class="badge badge-red">Non conforme</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <h3>Detail des livrables (clic sur une famille)</h3>
+  <p>Clic sur une famille &rarr; deploie la liste des livrables avec leur statut.</p>
+
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title"><span style="font-family: monospace; font-weight: 700; color: var(--orange); margin-right: 8px;">C3</span> Accueil, suivi et evaluation — 18 / 26 livrables</div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0;">
+
+      <div class="livrable-row">
+        <div class="livrable-check done">&#10003;</div>
+        <span>Livret d'accueil remis a chaque apprenant</span>
+        <span class="livrable-link">Ouvrir dans Eduvia &#8599;</span>
+      </div>
+      <div class="livrable-row">
+        <div class="livrable-check done">&#10003;</div>
+        <span>Reglement interieur affiche et signe</span>
+        <span class="livrable-link">Ouvrir dans Eduvia &#8599;</span>
+      </div>
+      <div class="livrable-row">
+        <div class="livrable-check done">&#10003;</div>
+        <span>Positionnement initial realise avant entree en formation</span>
+        <span class="livrable-link">Ouvrir dans Eduvia &#8599;</span>
+      </div>
+      <div class="livrable-row">
+        <div class="livrable-check todo"></div>
+        <span style="color: var(--muted);">Evaluations intermediaires planifiees et realisees</span>
+        <span class="livrable-link">Ouvrir dans Eduvia &#8599;</span>
+      </div>
+      <div class="livrable-row">
+        <div class="livrable-check todo"></div>
+        <span style="color: var(--muted);">Bilan de fin de formation signe par l'apprenant</span>
+        <span class="livrable-link">Ouvrir dans Eduvia &#8599;</span>
+      </div>
+      <div class="livrable-row">
+        <div class="livrable-check todo"></div>
+        <span style="color: var(--muted);">Attestation de competences delivree</span>
+        <span class="livrable-link">Ouvrir dans Eduvia &#8599;</span>
+      </div>
+      <div class="livrable-row" style="border-bottom: none;">
+        <span style="font-size: 12px; color: var(--muted); font-style: italic;">... et 20 autres livrables</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#9888;</span>
+    <p><strong>Lien Eduvia</strong> — Le clic "Ouvrir dans Eduvia" ouvre un nouvel onglet vers <code>{instance}.eduvia.app/campuses/1</code>. L'URL de l'instance est associee a la cle API du client.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 5. NAVIGATION                                                      -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">5</span> Navigation</h2>
+  <p>Flux de navigation dans la page Qualite.</p>
+
+  <div class="flow">
+    <div class="flow-step" style="border-color: var(--primary); border-width: 2px;">
+      <div class="step-num">PAGE</div>
+      <div class="step-title">/qualite</div>
+      <div class="step-desc">Liste tous les projets<br>avec compteurs</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="step-num">CLIC PROJET</div>
+      <div class="step-title">Detail familles</div>
+      <div class="step-desc">10 familles avec<br>livrables realises/total</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="step-num">CLIC FAMILLE</div>
+      <div class="step-title">Liste livrables</div>
+      <div class="step-desc">Chaque livrable<br>fait / pas fait</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: var(--orange);">
+      <div class="step-num" style="color: var(--orange);">CLIC LIVRABLE</div>
+      <div class="step-title">Eduvia</div>
+      <div class="step-desc">Nouvel onglet<br>instance.eduvia.app</div>
+    </div>
+  </div>
+
+  <h3>URL</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Page</th><th>URL</th></tr></thead>
+      <tbody>
+        <tr><td>Liste qualite</td><td><code>/qualite</code></td></tr>
+        <tr><td>Detail projet</td><td><code>/qualite/[ref-projet]</code></td></tr>
+        <tr><td>Lien Eduvia</td><td><code>https://{instance}.eduvia.app/campuses/1</code> (nouvel onglet)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 6. DONNEES ET SYNC                                                 -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">6</span> Donnees et synchronisation</h2>
+  <p>Schema de stockage des donnees qualite dans Supabase.</p>
+
+  <h3>Table <code>qualite_familles</code></h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Type</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td><code>UUID</code></td><td>Cle primaire</td></tr>
+        <tr><td><code>code</code></td><td><code>TEXT UNIQUE</code></td><td>C1, C2... ADM, HQ, RGPD</td></tr>
+        <tr><td><code>libelle</code></td><td><code>TEXT</code></td><td>Nom complet de la famille</td></tr>
+        <tr><td><code>description</code></td><td><code>TEXT</code></td><td>Description courte</td></tr>
+        <tr><td><code>nb_indicateurs</code></td><td><code>INTEGER</code></td><td>Nombre d'indicateurs dans la famille</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Table <code>qualite_livrables</code></h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Type</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td><code>UUID</code></td><td>Cle primaire</td></tr>
+        <tr><td><code>projet_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>projets.id</code></td></tr>
+        <tr><td><code>famille_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>qualite_familles.id</code></td></tr>
+        <tr><td><code>eduvia_id</code></td><td><code>INTEGER</code></td><td>ID du livrable dans Eduvia (pour la sync)</td></tr>
+        <tr><td><code>libelle</code></td><td><code>TEXT</code></td><td>Nom du livrable</td></tr>
+        <tr><td><code>fait</code></td><td><code>BOOLEAN</code></td><td><code>true</code> = realise, <code>false</code> = a faire</td></tr>
+        <tr><td><code>last_sync_at</code></td><td><code>TIMESTAMPTZ</code></td><td>Derniere synchronisation</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Regles de synchronisation</h3>
+  <div class="card">
+    <ul style="padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 2;">
+      <li>API Eduvia qualite (a venir) sera appelee via Edge Function CRON</li>
+      <li>Match sur <code>eduvia_id</code> pour mise a jour (UPSERT)</li>
+      <li>Si un livrable disparait de l'API &rarr; <code>archive = true</code>, pas de suppression</li>
+      <li>Le statut conforme/non conforme est calcule en temps reel (pas stocke) : <code>COUNT(fait = true) = COUNT(*)</code> par famille et projet</li>
+    </ul>
+  </div>
+</section>
+
+<hr>
+
+<!-- FOOTER -->
+<div style="text-align: center; padding: 48px 0; color: var(--muted); font-size: 13px;">
+  <div style="font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">SOLUVIA</div>
+  <div>Section 03 — Qualite — v1.0 — Avril 2026</div>
+  <div style="margin-top: 4px;">Page suivante : <strong>04 — Suivi de Temps</strong></div>
+</div>
+
+</body>
+</html>

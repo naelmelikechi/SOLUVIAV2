@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLUVIA — 09 Navigation & Administration</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f8faf8;
+    --card-alt: #f0f5f0;
+    --border: #d4e4d4;
+    --border-light: #e8f0e8;
+    --text: #1a2e1a;
+    --text-secondary: #2d4a2d;
+    --muted: #6b8a6b;
+    --primary: #16a34a;
+    --primary-light: #22c55e;
+    --primary-dark: #15803d;
+    --primary-bg: rgba(22, 163, 74, 0.08);
+    --primary-bg-strong: rgba(22, 163, 74, 0.15);
+    --accent: #059669;
+    --green: #16a34a;
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --blue: #2563eb;
+    --blue-bg: rgba(37, 99, 235, 0.08);
+    --purple: #7c3aed;
+    --purple-bg: rgba(124, 58, 237, 0.08);
+    --gray: #6b7280;
+    --gray-bg: rgba(107, 114, 128, 0.08);
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 32px; max-width: 1200px; margin: 0 auto; }
+
+  .spec-header { text-align: center; padding: 48px 0 40px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .spec-header .logo { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 12px; }
+  .spec-header h1 { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .spec-header .subtitle { font-size: 16px; color: var(--muted); }
+  .spec-header .meta { margin-top: 20px; display: flex; justify-content: center; gap: 24px; font-size: 13px; color: var(--muted); }
+  .spec-header .meta span { background: var(--card-alt); border: 1px solid var(--border-light); padding: 4px 12px; border-radius: 999px; }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  section h2 .num { background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+  .mockup { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-ui-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .mockup-ui-body { padding: 20px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--card-alt); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .badge-green { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+  .badge-orange { background: rgba(217, 119, 6, 0.12); color: var(--orange); }
+  .badge-red { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .badge-blue { background: rgba(37, 99, 235, 0.12); color: var(--blue); }
+  .badge-gray { background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+  .badge-purple { background: rgba(124, 58, 237, 0.12); color: var(--purple); }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .features.three { grid-template-columns: 1fr 1fr 1fr; }
+  .feature { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; }
+  .feature h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text); }
+  .feature p { font-size: 13px; color: var(--muted); }
+
+  .annotation { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; background: var(--primary-bg); border-radius: var(--radius); margin: 16px 0; font-size: 13px; color: var(--text-secondary); }
+  .annotation .icon { font-size: 18px; flex-shrink: 0; }
+  .annotation.warn { background: var(--orange-bg); }
+  .annotation.danger { background: var(--red-bg); }
+
+  code { background: var(--card-alt); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--primary-dark); border: 1px solid var(--border-light); }
+
+  /* Sidebar mockup */
+  .sidebar { width: 240px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .sidebar-logo { padding: 20px; text-align: center; border-bottom: 1px solid var(--border); }
+  .sidebar-logo span { font-size: 16px; font-weight: 700; letter-spacing: 3px; color: var(--primary); }
+  .sidebar-nav { padding: 12px 8px; }
+  .nav-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; margin-bottom: 2px; }
+  .nav-item:hover { background: var(--card-alt); }
+  .nav-item.active { background: var(--primary-bg-strong); color: var(--primary); font-weight: 600; }
+  .nav-item .nav-icon { width: 20px; text-align: center; margin-right: 10px; font-size: 15px; }
+  .nav-badge { min-width: 20px; height: 20px; border-radius: 50%; background: var(--red); color: white; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .nav-badge.orange { background: var(--orange); }
+  .sidebar-sep { height: 1px; background: var(--border); margin: 8px 14px; }
+  .nav-section { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding: 8px 14px 4px; }
+  .nav-sub { padding-left: 44px; font-size: 12px; color: var(--muted); }
+  .nav-sub:hover { color: var(--text); }
+  .sidebar-profile { padding: 14px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-bg-strong); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+
+  .param-section { background: white; border: 1px solid var(--border-light); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+  .param-header { padding: 14px 20px; background: var(--card-alt); border-bottom: 1px solid var(--border-light); font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .param-body { padding: 16px 20px; }
+  .param-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-light); font-size: 13px; }
+  .param-row:last-child { border-bottom: none; }
+  .param-value { font-family: 'SF Mono', monospace; font-size: 12px; color: var(--text-secondary); }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="spec-header">
+  <div class="logo">SOLUVIA</div>
+  <h1>09 — Navigation &amp; Administration</h1>
+  <div class="subtitle">Menu principal, gestion clients, utilisateurs et parametres</div>
+  <div class="meta">
+    <span>v1.0</span>
+    <span>Avril 2026</span>
+    <span>Spec 09 / 11</span>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. MENU PRINCIPAL                                                  -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">1</span> Menu principal</h2>
+  <p>Sidebar laterale fixe a gauche. 6 pages principales + section Administration separee en bas.</p>
+
+  <h3>Mockup — Sidebar</h3>
+  <div style="display: grid; grid-template-columns: auto 1fr; gap: 32px; align-items: start;">
+    <div class="sidebar">
+      <div class="sidebar-logo"><span>SOLUVIA</span></div>
+      <div class="sidebar-nav">
+        <div class="nav-item active">
+          <div><span class="nav-icon">&#128203;</span> Projets</div>
+        </div>
+        <div class="nav-item">
+          <div><span class="nav-icon">&#9989;</span> Qualite</div>
+          <span class="nav-badge orange">8</span>
+        </div>
+        <div class="nav-item">
+          <div><span class="nav-icon">&#9201;</span> Temps</div>
+          <span class="nav-badge">!</span>
+        </div>
+        <div class="nav-item">
+          <div><span class="nav-icon">&#128200;</span> Production</div>
+        </div>
+        <div class="nav-item">
+          <div><span class="nav-icon">&#128196;</span> Facturation</div>
+          <span class="nav-badge">3</span>
+        </div>
+        <div class="nav-item">
+          <div><span class="nav-icon">&#128202;</span> Dashboard</div>
+        </div>
+
+        <div class="sidebar-sep"></div>
+        <div class="nav-section">&#9881; Administration</div>
+        <div class="nav-item nav-sub">Clients</div>
+        <div class="nav-item nav-sub">Utilisateurs</div>
+        <div class="nav-item nav-sub">Parametres</div>
+      </div>
+      <div class="sidebar-profile">
+        <div class="avatar">IB</div>
+        <div>
+          <div style="font-size: 13px; font-weight: 500;">Ilies Benkoussa</div>
+          <div style="font-size: 11px; color: var(--muted);">Admin</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-top: 0;">Structure du menu</h3>
+      <div class="mockup">
+        <table>
+          <thead><tr><th>#</th><th>Item</th><th>URL</th><th>Badge</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><strong>Projets</strong></td><td><code>/projets</code></td><td>—</td></tr>
+            <tr><td>2</td><td><strong>Qualite</strong></td><td><code>/qualite</code></td><td>Nb taches en attente</td></tr>
+            <tr><td>3</td><td><strong>Temps</strong></td><td><code>/temps</code></td><td>! si temps non saisi aujourd'hui</td></tr>
+            <tr><td>4</td><td><strong>Production</strong></td><td><code>/production</code></td><td>—</td></tr>
+            <tr><td>5</td><td><strong>Facturation</strong></td><td><code>/facturation</code></td><td>Nb de factures emises dont l'echeance est depassee et non payees</td></tr>
+            <tr><td>6</td><td><strong>Dashboard</strong></td><td><code>/dashboard</code></td><td>—</td></tr>
+            <tr style="background: var(--card-alt);"><td></td><td colspan="3" style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;">Administration</td></tr>
+            <tr><td></td><td>Clients</td><td><code>/admin/clients</code></td><td>—</td></tr>
+            <tr><td></td><td>Utilisateurs</td><td><code>/admin/utilisateurs</code></td><td>—</td></tr>
+            <tr><td></td><td>Parametres</td><td><code>/admin/parametres</code></td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mockup">
+        <table>
+          <thead><tr><th>Comportement</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Page d'accueil</strong></td><td><code>/projets</code> — la liste des projets est la landing page de SOLUVIA.</td></tr>
+            <tr><td><strong>Item actif</strong></td><td>Fond vert clair + texte vert sur la page courante.</td></tr>
+            <tr><td><strong>Badges</strong></td><td>Temps reel via Supabase Realtime (spec 08). Badges rouges ou orange selon la severite.</td></tr>
+            <tr><td><strong>Profil</strong></td><td>En bas de la sidebar : avatar initiales, nom, role. Clic &rarr; menu deconnexion.</td></tr>
+            <tr><td><strong>Responsive</strong></td><td>Mobile : sidebar collapsible (hamburger). Tablette : sidebar reduite (icones uniquement).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Breadcrumb</strong> — Fil d'Ariane affiche sur toutes les pages sous le header. Ex: <code>Projets &gt; 0042-DUP-APP &gt; Contrats</code>. Cliquable pour remonter dans la hierarchie.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 2. SECTION ADMINISTRATION                                          -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">2</span> Section Administration</h2>
+  <p>Separee du menu principal par un trait. 3 sous-pages accessibles par admin (lecture+ecriture) et CDP (lecture seule).</p>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Page</th><th>URL</th><th>Admin</th><th>CDP</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Clients</strong></td><td><code>/admin/clients</code></td><td>Lecture + ecriture (CRUD)</td><td>Lecture seule</td></tr>
+        <tr><td><strong>Utilisateurs</strong></td><td><code>/admin/utilisateurs</code></td><td>Lecture + ecriture (CRUD)</td><td>Lecture seule</td></tr>
+        <tr><td><strong>Parametres</strong></td><td><code>/admin/parametres</code></td><td>Lecture + ecriture</td><td><strong>Non visible</strong> — masque du menu</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation warn">
+    <span class="icon">&#9888;</span>
+    <p><strong>Parametres masques pour CDP</strong> — La page Parametres n'apparait pas dans le menu pour les CDP. Seuls Clients et Utilisateurs sont visibles en lecture seule. Cela evite de montrer des informations sensibles (cles API, coordonnees comptables).</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 3. PAGE CLIENTS                                                    -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">3</span> Page Clients</h2>
+  <p>Anciennement dans le menu principal, desormais dans Administration. Reprend la fiche client de la spec 02.</p>
+
+  <h3>Liste clients</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Clients</div>
+      <div style="display: flex; gap: 8px;">
+        <div style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); background: white;">Rechercher...</div>
+        <div style="padding: 6px 12px; background: var(--primary); color: white; border-radius: 6px; font-size: 12px; font-weight: 600;">+ Nouveau client</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th>Trigramme</th>
+            <th>Raison sociale</th>
+            <th>SIRET</th>
+            <th style="text-align: center;">Projets</th>
+            <th style="text-align: center;">Contrats actifs</th>
+            <th>Date d'entree</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="cursor: pointer;">
+            <td><span style="font-family: monospace; font-weight: 700; color: var(--primary);">HEO</span></td>
+            <td><strong>Heol Formation</strong></td>
+            <td style="font-family: monospace; color: var(--muted);">987 654 321 00034</td>
+            <td style="text-align: center;">2</td>
+            <td style="text-align: center;">54</td>
+            <td>15/01/2026</td>
+          </tr>
+          <tr style="cursor: pointer;">
+            <td><span style="font-family: monospace; font-weight: 700; color: var(--primary);">BNP</span></td>
+            <td><strong>BNP Paribas</strong></td>
+            <td style="font-family: monospace; color: var(--muted);">662 042 449 00345</td>
+            <td style="text-align: center;">1</td>
+            <td style="text-align: center;">18</td>
+            <td>03/02/2026</td>
+          </tr>
+          <tr style="cursor: pointer;">
+            <td><span style="font-family: monospace; font-weight: 700; color: var(--primary);">SOL</span></td>
+            <td><strong>Soluvia</strong></td>
+            <td style="font-family: monospace; color: var(--muted);">123 456 789 00012</td>
+            <td style="text-align: center;">1</td>
+            <td style="text-align: center;">8</td>
+            <td>10/03/2026</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3>Fiche client (rappel spec 02)</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Section</th><th>Contenu</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Informations</strong></td><td>Raison sociale, SIRET, adresse, localisation</td><td>API Pappers</td></tr>
+        <tr><td><strong>Identification</strong></td><td>Trigramme (auto puis modifiable), N° Qualiopi, N° NDA, N° UAI, date d'entree</td><td>Saisie admin</td></tr>
+        <tr><td><strong>Contacts</strong></td><td>Liste de contacts : nom, poste, email, telephone</td><td>Saisie admin</td></tr>
+        <tr><td><strong>Cles API Eduvia</strong></td><td>1 cle par defaut, possibilite d'en avoir plusieurs</td><td>Saisie admin</td></tr>
+        <tr><td><strong>Historique</strong></td><td>Journal libre date, rempli par les CDP. Type CRM.</td><td>Saisie CDP</td></tr>
+        <tr><td><strong>Documents</strong></td><td>Upload multiple (Supabase Storage). Contrats signes, avenants, pieces.</td><td>Upload admin/CDP</td></tr>
+        <tr><td><strong>Projets associes</strong></td><td>Liste des projets du client avec statut</td><td>Calcule</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>CDP lecture seule</strong> — Les CDP peuvent consulter les fiches clients mais pas modifier les informations ni les contacts. Ils peuvent en revanche ajouter des entrees dans l'historique et uploader des documents.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 4. PAGE UTILISATEURS                                               -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">4</span> Page Utilisateurs</h2>
+  <p>Gestion des comptes CDP et admin. CRUD reserve a l'admin.</p>
+
+  <h3>Mockup — Liste utilisateurs</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Utilisateurs</div>
+      <div style="padding: 6px 12px; background: var(--primary); color: white; border-radius: 6px; font-size: 12px; font-weight: 600;">+ Inviter un utilisateur</div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th style="text-align: center;">Projets assignes</th>
+            <th>Derniere connexion</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Ilies Benkoussa</strong></td>
+            <td style="font-family: monospace; font-size: 12px;">ilies@soluvia.fr</td>
+            <td><span class="badge badge-purple">Admin</span></td>
+            <td style="text-align: center;">—</td>
+            <td>Aujourd'hui 14:32</td>
+            <td><span class="badge badge-green">Actif</span></td>
+          </tr>
+          <tr>
+            <td><strong>Sophie Martin</strong></td>
+            <td style="font-family: monospace; font-size: 12px;">s.martin@soluvia.fr</td>
+            <td><span class="badge badge-blue">CDP</span></td>
+            <td style="text-align: center;">4</td>
+            <td>Aujourd'hui 10:15</td>
+            <td><span class="badge badge-green">Actif</span></td>
+          </tr>
+          <tr>
+            <td><strong>Marc Dupont</strong></td>
+            <td style="font-family: monospace; font-size: 12px;">m.dupont@soluvia.fr</td>
+            <td><span class="badge badge-blue">CDP</span></td>
+            <td style="text-align: center;">3</td>
+            <td>Hier 17:45</td>
+            <td><span class="badge badge-green">Actif</span></td>
+          </tr>
+          <tr style="opacity: 0.5;">
+            <td><strong>Julie Leroy</strong></td>
+            <td style="font-family: monospace; font-size: 12px;">j.leroy@soluvia.fr</td>
+            <td><span class="badge badge-blue">CDP</span></td>
+            <td style="text-align: center;">0</td>
+            <td>12/02/2026</td>
+            <td><span class="badge badge-gray">Desactive</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3>Gestion des utilisateurs</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Action</th><th>Detail</th><th>Qui</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Inviter</strong></td><td>Email d'invitation avec lien de creation de compte. Role assigne a l'invitation (admin ou CDP).</td><td>Admin</td></tr>
+        <tr><td><strong>Modifier</strong></td><td>Changer le role, reassigner des projets.</td><td>Admin</td></tr>
+        <tr><td><strong>Desactiver</strong></td><td>Compte desactive, l'utilisateur ne peut plus se connecter. Ses donnees restent (pas de suppression).</td><td>Admin</td></tr>
+        <tr><td><strong>Consulter</strong></td><td>Voir la liste et les fiches des utilisateurs.</td><td>Admin + CDP</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Authentification</strong> — Via Supabase Auth. Email + mot de passe. Pas de SSO prevu pour l'instant. Le role (admin/CDP) est stocke dans les metadonnees utilisateur Supabase.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 5. PAGE PARAMETRES                                                 -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">5</span> Page Parametres</h2>
+  <p>Configuration globale de SOLUVIA. Visible uniquement par les admins.</p>
+
+  <h3>Mockup — Parametres</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Parametres</div>
+      <div style="font-size: 12px; color: var(--muted);">Admin uniquement</div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 16px;">
+
+      <div class="param-section">
+        <div class="param-header">&#127970; Entreprise</div>
+        <div class="param-body">
+          <div class="param-row"><span>Raison sociale</span><span class="param-value">SOLUVIA SAS</span></div>
+          <div class="param-row"><span>Adresse</span><span class="param-value">123 Rue de la Formation, 75001 Paris</span></div>
+          <div class="param-row"><span>SIRET</span><span class="param-value">123 456 789 00012</span></div>
+          <div class="param-row"><span>TVA intracommunautaire</span><span class="param-value">FR12 123456789</span></div>
+          <div class="param-row"><span>Email de contact</span><span class="param-value">contact@soluvia.fr</span></div>
+          <div class="param-row"><span>Logo</span><span class="param-value" style="color: var(--primary);">logo.png (modifier)</span></div>
+        </div>
+      </div>
+
+      <div class="param-section">
+        <div class="param-header">&#128196; Facturation</div>
+        <div class="param-body">
+          <div class="param-row"><span>Taux TVA par defaut</span><span class="param-value">20%</span></div>
+          <div class="param-row"><span>Mentions legales facture</span><span class="param-value" style="color: var(--primary);">Voir / Modifier</span></div>
+          <div class="param-row"><span>Fenetre de facturation</span><span class="param-value">Du 25 au 3</span></div>
+          <div class="param-row"><span>Delai echeance</span><span class="param-value">30 jours fin de mois</span></div>
+          <div class="param-row"><span>Prochain numero facture</span><span class="param-value">FAC-???-0016</span></div>
+        </div>
+      </div>
+
+      <div class="param-section">
+        <div class="param-header">&#128204; Typologies projet</div>
+        <div class="param-body">
+          <div class="param-row"><span><code>APP</code> — Apprentissage</span><span class="param-value" style="color: var(--primary);">Modifier</span></div>
+          <div class="param-row"><span><code>PDC</code> — Plan de Dev. des Competences</span><span class="param-value" style="color: var(--primary);">Modifier</span></div>
+          <div class="param-row"><span><code>POE</code> — POEI</span><span class="param-value" style="color: var(--primary);">Modifier</span></div>
+          <div class="param-row"><span style="color: var(--primary); cursor: pointer;">+ Ajouter une typologie</span><span></span></div>
+        </div>
+      </div>
+
+      <div class="param-section">
+        <div class="param-header">&#128273; Cles API Eduvia</div>
+        <div class="param-body">
+          <div class="param-row"><span>Heol Formation</span><span class="param-value">heo_****_a8f2</span></div>
+          <div class="param-row"><span>BNP Paribas</span><span class="param-value">bnp_****_c3d1</span></div>
+          <div class="param-row"><span>Soluvia</span><span class="param-value">sol_****_7e9b</span></div>
+          <div class="param-row"><span style="color: var(--muted); font-size: 12px;">Derniere sync : aujourd'hui 06:15</span><span class="param-value" style="color: var(--primary);">Forcer la sync</span></div>
+        </div>
+      </div>
+
+      <div class="param-section">
+        <div class="param-header">&#128197; Jours feries 2026</div>
+        <div class="param-body">
+          <div class="param-row"><span>01/01 — Jour de l'An</span><span class="param-value">Pre-rempli</span></div>
+          <div class="param-row"><span>06/04 — Lundi de Paques</span><span class="param-value">Pre-rempli</span></div>
+          <div class="param-row"><span>01/05 — Fete du Travail</span><span class="param-value">Pre-rempli</span></div>
+          <div class="param-row"><span style="color: var(--muted); font-size: 12px;">... 8 autres jours feries</span><span class="param-value" style="color: var(--primary);">Voir tout</span></div>
+          <div class="param-row"><span style="color: var(--primary); cursor: pointer;">+ Ajouter un jour ferie</span><span></span></div>
+        </div>
+      </div>
+
+      <div class="param-section">
+        <div class="param-header" style="color: var(--muted);">&#128279; Odoo (a venir)</div>
+        <div class="param-body" style="text-align: center; padding: 24px; color: var(--muted);">
+          Integration Odoo non configuree. Sera disponible quand Odoo sera en production.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 6. RESPONSIVE & COMPORTEMENT                                       -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">6</span> Responsive &amp; comportement global</h2>
+  <p>Regles d'interface communes a toutes les pages de SOLUVIA.</p>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Breakpoint</th><th>Sidebar</th><th>Contenu</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Desktop (&ge; 1024px)</strong></td><td>Sidebar complete visible (240px). Toujours ouverte.</td><td>Contenu a droite de la sidebar.</td></tr>
+        <tr><td><strong>Tablette (768-1023px)</strong></td><td>Sidebar reduite : icones uniquement (60px). Hover pour voir le libelle.</td><td>Contenu occupe le reste.</td></tr>
+        <tr><td><strong>Mobile (&lt; 768px)</strong></td><td>Sidebar masquee. Bouton hamburger en haut a gauche pour l'ouvrir (overlay).</td><td>Contenu pleine largeur.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Elements communs</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Element</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Breadcrumb</strong></td><td>Fil d'Ariane sous le header de chaque page. Cliquable. Ex: <code>Administration &gt; Clients &gt; Heol Formation</code>.</td></tr>
+        <tr><td><strong>Header de page</strong></td><td>Titre de la page + actions contextuelles (boutons, filtres). Toujours en haut.</td></tr>
+        <tr><td><strong>Tableaux</strong></td><td>Pattern global : tri, filtre, recherche, colonnes configurables (spec 02).</td></tr>
+        <tr><td><strong>Scroll</strong></td><td>Sidebar fixe. Contenu scrollable. Header de page fixe en haut.</td></tr>
+        <tr><td><strong>Theme</strong></td><td>Theme clair uniquement (pas de dark mode pour l'instant). Palette verte SOLUVIA.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- FOOTER -->
+<div style="text-align: center; padding: 48px 0; color: var(--muted); font-size: 13px;">
+  <div style="font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">SOLUVIA</div>
+  <div>Section 09 — Navigation & Administration — v1.0 — Avril 2026</div>
+  <div style="margin-top: 4px;">Page suivante : <strong>10 — Performance Commerciale</strong> (a specifier)</div>
+</div>
+
+</body>
+</html>

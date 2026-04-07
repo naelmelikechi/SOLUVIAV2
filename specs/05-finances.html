@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLUVIA — 05 Finances (Production)</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f8faf8;
+    --card-alt: #f0f5f0;
+    --border: #d4e4d4;
+    --border-light: #e8f0e8;
+    --text: #1a2e1a;
+    --text-secondary: #2d4a2d;
+    --muted: #6b8a6b;
+    --primary: #16a34a;
+    --primary-light: #22c55e;
+    --primary-dark: #15803d;
+    --primary-bg: rgba(22, 163, 74, 0.08);
+    --primary-bg-strong: rgba(22, 163, 74, 0.15);
+    --accent: #059669;
+    --green: #16a34a;
+    --green-light: #4ade80;
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --blue: #2563eb;
+    --blue-bg: rgba(37, 99, 235, 0.08);
+    --purple: #7c3aed;
+    --purple-bg: rgba(124, 58, 237, 0.08);
+    --gray: #6b7280;
+    --gray-bg: rgba(107, 114, 128, 0.08);
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .spec-header { text-align: center; padding: 48px 0 40px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .spec-header .logo { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 12px; }
+  .spec-header h1 { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .spec-header .subtitle { font-size: 16px; color: var(--muted); }
+  .spec-header .meta { margin-top: 20px; display: flex; justify-content: center; gap: 24px; font-size: 13px; color: var(--muted); }
+  .spec-header .meta span { background: var(--card-alt); border: 1px solid var(--border-light); padding: 4px 12px; border-radius: 999px; }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  section h2 .num { background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+
+  .mockup { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+
+  .mockup-ui { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-ui-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .mockup-ui-body { padding: 20px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--card-alt); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .badge-green { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+  .badge-orange { background: rgba(217, 119, 6, 0.12); color: var(--orange); }
+  .badge-red { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .badge-blue { background: rgba(37, 99, 235, 0.12); color: var(--blue); }
+  .badge-gray { background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+  .badge-purple { background: rgba(124, 58, 237, 0.12); color: var(--purple); }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .features.three { grid-template-columns: 1fr 1fr 1fr; }
+  .feature { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; }
+  .feature .icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+  .feature h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text); }
+  .feature p { font-size: 13px; color: var(--muted); }
+
+  .annotation { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; background: var(--primary-bg); border-radius: var(--radius); margin: 16px 0; font-size: 13px; color: var(--text-secondary); }
+  .annotation .icon { font-size: 18px; flex-shrink: 0; }
+  .annotation.warn { background: var(--orange-bg); }
+  .annotation.danger { background: var(--red-bg); }
+
+  code { background: var(--card-alt); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--primary-dark); border: 1px solid var(--border-light); }
+
+  .id-ref { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; font-weight: 700; color: var(--primary); background: var(--primary-bg); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(22, 163, 74, 0.2); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stats-row.six { grid-template-columns: repeat(6, 1fr); }
+  .stat-card { background: white; border: 1px solid var(--border-light); border-radius: var(--radius); padding: 14px; text-align: center; }
+  .stat-card .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .stat-card .stat-value { font-size: 20px; font-weight: 700; color: var(--text); font-family: 'SF Mono', monospace; }
+  .stat-card .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.orange .stat-value { color: var(--orange); }
+  .stat-card.red .stat-value { color: var(--red); }
+  .stat-card.blue .stat-value { color: var(--blue); }
+  .stat-card.purple .stat-value { color: var(--purple); }
+
+  .view-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .view-tab { padding: 6px 16px; border-radius: 6px; font-size: 13px; color: var(--muted); cursor: pointer; border: 1px solid var(--border-light); background: white; }
+  .view-tab.active { background: var(--primary); color: white; border-color: var(--primary); font-weight: 600; }
+
+  .toggle-group { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .toggle-btn { padding: 6px 16px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; background: white; color: var(--muted); border-right: 1px solid var(--border); }
+  .toggle-btn:last-child { border-right: none; }
+  .toggle-btn.active { background: var(--primary); color: white; font-weight: 600; }
+
+  .month-row { font-family: 'SF Mono', monospace; font-size: 13px; }
+  .month-row.past { opacity: 0.7; }
+  .month-row.current { background: var(--primary-bg); font-weight: 700; }
+  .month-row.future { font-style: italic; color: var(--muted); }
+
+  .chart-placeholder { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 40px; text-align: center; margin-bottom: 24px; }
+
+  .section-block { background: white; border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .section-block h4 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .section-block h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .flow { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+  .flow-step { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; text-align: center; min-width: 130px; }
+  .flow-step .step-num { font-size: 11px; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
+  .flow-step .step-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .flow-step .step-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .flow-arrow { font-size: 20px; color: var(--muted); margin: 0 12px; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="spec-header">
+  <div class="logo">SOLUVIA</div>
+  <h1>05 — Finances (Production)</h1>
+  <div class="subtitle">Visualisation financiere, tableau 25 mois glissants, drill-down et tendances</div>
+  <div class="meta">
+    <span>v1.0</span>
+    <span>Avril 2026</span>
+    <span>Spec 05 / 11</span>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. PRINCIPES                                                       -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">1</span> Principes</h2>
+  <p>Page <code>/production</code> — visualisation financiere pure. Aucune action de comptabilite ni de creation de facture.</p>
+
+  <div class="features three">
+    <div class="feature">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">&#128200;</div>
+      <h4>Visualisation pure</h4>
+      <p>Lecture seule. Pas de saisie, pas de declenchement de factures. La facturation est geree dans <code>/facturation</code> (spec 06).</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">&#8644;</div>
+      <h4>Double perspective</h4>
+      <p>Toggle OPCO (client) / SOLUVIA / Les deux. Le CDP et l'admin voient les deux cotes.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--purple-bg); color: var(--purple);">&#9881;</div>
+      <h4>Tout configurable</h4>
+      <p>Colonnes masquables, tri, filtre, recherche sur chaque colonne. Pattern global SOLUVIA.</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Page</strong></td><td><code>/production</code> — accessible depuis la navigation principale</td></tr>
+        <tr><td><strong>Perimetre</strong></td><td>Visualisation des metriques financieres : production, facture, encaisse, retard, restes</td></tr>
+        <tr><td><strong>Pas de comptabilite</strong></td><td>Aucune creation de facture, avoir ou ecriture. Voir spec 06 (Facturation) et spec future (Comptabilite/Odoo)</td></tr>
+        <tr><td><strong>Perspectives</strong></td><td>Toggle 3 positions : <strong>OPCO</strong> (cote client) | <strong>SOLUVIA</strong> (cote commission) | <strong>Les deux</strong></td></tr>
+        <tr><td><strong>Vue par defaut</strong></td><td>SOLUVIA, periode = mois en cours</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 2. KPIs SYNTHETIQUES                                               -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">2</span> Indicateurs synthetiques</h2>
+  <p>Cards en haut de page avec les totaux de la periode selectionnee. Les valeurs changent selon le toggle OPCO / SOLUVIA.</p>
+
+  <h3>Mockup — KPIs (vue SOLUVIA)</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Production — Avril 2026</div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <div class="toggle-group">
+          <div class="toggle-btn">OPCO</div>
+          <div class="toggle-btn active">SOLUVIA</div>
+          <div class="toggle-btn">Les deux</div>
+        </div>
+        <div style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); background: white;">Colonnes &#9662;</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body">
+      <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Flux du mois</div>
+      <div class="stats-row">
+        <div class="stat-card green">
+          <div class="stat-label">Production</div>
+          <div class="stat-value" style="font-size: 18px;">12 450 &euro;</div>
+          <div class="stat-sub">Mois en cours</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">Facture</div>
+          <div class="stat-value" style="font-size: 18px;">10 200 &euro;</div>
+          <div class="stat-sub">Emissions du mois</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Encaisse</div>
+          <div class="stat-value" style="font-size: 18px;">8 800 &euro;</div>
+          <div class="stat-sub">Paiements recus</div>
+        </div>
+      </div>
+      <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; margin-top: 16px;">Soldes cumules</div>
+      <div class="stats-row">
+        <div class="stat-card red">
+          <div class="stat-label">En retard</div>
+          <div class="stat-value" style="font-size: 18px;">3 200 &euro;</div>
+          <div class="stat-sub">Echeances depassees</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-label">Reste a facturer</div>
+          <div class="stat-value" style="font-size: 18px;">8 350 &euro;</div>
+          <div class="stat-sub">Prod. cumule &minus; Fact. cumule</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Reste a encaisser</div>
+          <div class="stat-value" style="font-size: 18px;">9 800 &euro;</div>
+          <div class="stat-sub">Fact. cumule &minus; Enc. cumule</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Mockup — KPIs (vue Les deux)</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Production — Avril 2026</div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <div class="toggle-group">
+          <div class="toggle-btn">OPCO</div>
+          <div class="toggle-btn">SOLUVIA</div>
+          <div class="toggle-btn active">Les deux</div>
+        </div>
+      </div>
+    </div>
+    <div class="mockup-ui-body">
+      <div class="features">
+        <div class="section-block">
+          <h4><span class="dot" style="background: var(--orange);"></span> Cote OPCO (client)</h4>
+          <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px;">Flux du mois</div>
+          <div class="stats-row">
+            <div class="stat-card green">
+              <div class="stat-label">Production</div>
+              <div class="stat-value" style="font-size: 16px;">124 500 &euro;</div>
+            </div>
+            <div class="stat-card blue">
+              <div class="stat-label">Facture</div>
+              <div class="stat-value" style="font-size: 16px;">102 000 &euro;</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Encaisse</div>
+              <div class="stat-value" style="font-size: 16px;">88 000 &euro;</div>
+            </div>
+          </div>
+          <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; margin-top: 10px;">Soldes cumules</div>
+          <div class="stats-row">
+            <div class="stat-card red">
+              <div class="stat-label">En retard</div>
+              <div class="stat-value" style="font-size: 16px;">32 000 &euro;</div>
+            </div>
+            <div class="stat-card orange">
+              <div class="stat-label">Reste a facturer</div>
+              <div class="stat-value" style="font-size: 16px;">83 500 &euro;</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Reste a encaisser</div>
+              <div class="stat-value" style="font-size: 16px;">98 000 &euro;</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <h4><span class="dot" style="background: var(--primary);"></span> Cote SOLUVIA (commission)</h4>
+          <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px;">Flux du mois</div>
+          <div class="stats-row">
+            <div class="stat-card green">
+              <div class="stat-label">Production</div>
+              <div class="stat-value" style="font-size: 16px;">12 450 &euro;</div>
+            </div>
+            <div class="stat-card blue">
+              <div class="stat-label">Facture</div>
+              <div class="stat-value" style="font-size: 16px;">10 200 &euro;</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Encaisse</div>
+              <div class="stat-value" style="font-size: 16px;">8 800 &euro;</div>
+            </div>
+          </div>
+          <div style="font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; margin-top: 10px;">Soldes cumules</div>
+          <div class="stats-row">
+            <div class="stat-card red">
+              <div class="stat-label">En retard</div>
+              <div class="stat-value" style="font-size: 16px;">3 200 &euro;</div>
+            </div>
+            <div class="stat-card orange">
+              <div class="stat-label">Reste a facturer</div>
+              <div class="stat-value" style="font-size: 16px;">8 350 &euro;</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Reste a encaisser</div>
+              <div class="stat-value" style="font-size: 16px;">9 800 &euro;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Colonnes configurables</strong> — Le bouton "Colonnes" permet de masquer/afficher chaque KPI. Preference persistee en <code>localStorage</code>. Meme pattern que tous les tableaux SOLUVIA.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 3. TABLEAU 25 MOIS                                                 -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">3</span> Tableau de production — 25 mois glissants</h2>
+  <p>Tableau vertical : 1 ligne = 1 mois. Le mois en cours est centre, avec 12 mois passes au-dessus et 12 mois futurs en-dessous.</p>
+
+  <h3>Structure du tableau</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Zone</th><th>Lignes</th><th>Rendu visuel</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Passe</strong></td><td>12 lignes (M-12 a M-1)</td><td>Fond neutre, opacite legerement reduite</td></tr>
+        <tr><td><strong>Mois en cours</strong></td><td>1 ligne (M0)</td><td>Fond vert (<code>var(--primary-bg)</code>), texte en gras, mise en evidence</td></tr>
+        <tr><td><strong>Futur</strong></td><td>12 lignes (M+1 a M+12)</td><td>Fond clair, texte en italique, valeurs previsionnelles</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Groupes de colonnes</h3>
+  <p>Le tableau reprend la structure du fichier de stats HVS : 4 groupes de colonnes, chacun activable/desactivable. A l'interieur de chaque groupe, chaque colonne est aussi masquable individuellement.</p>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Groupe</th><th>Colonnes</th><th>Description</th><th>Affichage</th></tr></thead>
+      <tbody>
+        <tr>
+          <td rowspan="4" style="font-weight: 700; color: var(--primary); vertical-align: top; border-right: 3px solid var(--primary);">Mois</td>
+          <td><strong>Mois</strong></td><td>Libelle du mois (ex: Avr 2026)</td><td>Toujours visible</td>
+        </tr>
+        <tr><td><strong>Production</strong></td><td>Montant produit lineairement sur le mois</td><td>Masquable</td></tr>
+        <tr><td><strong>Facture</strong></td><td>Montant des factures emises sur le mois</td><td>Masquable</td></tr>
+        <tr><td><strong>Encaisse</strong></td><td>Montant des paiements recus sur le mois</td><td>Masquable</td></tr>
+        <tr>
+          <td rowspan="3" style="font-weight: 700; color: var(--accent); vertical-align: top; border-right: 3px solid var(--accent);">12 mois glissants</td>
+          <td><strong>Production 12M</strong></td><td>Somme de la production sur les 12 derniers mois (mois en cours inclus)</td><td>Masquable</td>
+        </tr>
+        <tr><td><strong>Facture 12M</strong></td><td>Somme des factures emises sur les 12 derniers mois</td><td>Masquable</td></tr>
+        <tr><td><strong>Encaisse 12M</strong></td><td>Somme des encaissements sur les 12 derniers mois</td><td>Masquable</td></tr>
+        <tr>
+          <td rowspan="3" style="font-weight: 700; color: var(--purple); vertical-align: top; border-right: 3px solid var(--purple);">Annee</td>
+          <td><strong>Production Ann.</strong></td><td>Cumul de la production depuis le 1er janvier de l'annee en cours</td><td>Masquable</td>
+        </tr>
+        <tr><td><strong>Facture Ann.</strong></td><td>Cumul des factures emises depuis le 1er janvier</td><td>Masquable</td></tr>
+        <tr><td><strong>Encaisse Ann.</strong></td><td>Cumul des encaissements depuis le 1er janvier</td><td>Masquable</td></tr>
+        <tr>
+          <td rowspan="3" style="font-weight: 700; color: var(--blue); vertical-align: top; border-right: 3px solid var(--blue);">Soldes</td>
+          <td><strong>En retard</strong></td><td>Snapshot : total des factures impayees dont l'echeance est depassee</td><td>Masquable</td>
+        </tr>
+        <tr><td><strong>Reste a facturer (RAF)</strong></td><td>Production cumulee &minus; Facture cumulee (depuis le debut)</td><td>Masquable</td></tr>
+        <tr><td><strong>Reste a encaisser (RAE)</strong></td><td>Facture cumulee &minus; Encaisse cumulee (depuis le debut)</td><td>Masquable</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Affichage par defaut</strong> — Groupe <strong>Mois</strong> + <strong>Soldes</strong> affiches. Groupes <strong>12M</strong> et <strong>Annee</strong> masques par defaut, activables via le bouton "Colonnes". Chaque utilisateur peut personnaliser (preference persistee en <code>localStorage</code>).</p>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Coherence</strong> — En retard &le; Reste a encaisser (toujours). Le retard est un sous-ensemble des factures non encaissees : seules celles dont l'echeance est depassee.</p>
+  </div>
+
+  <h3>Mockup — Vue par defaut (Mois + Soldes)</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Production — 25 mois glissants</div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <div class="toggle-group">
+          <div class="toggle-btn">OPCO</div>
+          <div class="toggle-btn active">SOLUVIA</div>
+          <div class="toggle-btn">Les deux</div>
+        </div>
+        <div style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); background: white;">Rechercher...</div>
+        <div style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); background: white;">Colonnes &#9662;</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr style="font-size: 10px; border-bottom: none;">
+            <th></th>
+            <th colspan="3" style="text-align: center; color: var(--primary); border-bottom: 2px solid var(--primary); letter-spacing: 1px;">MOIS</th>
+            <th colspan="3" style="text-align: center; color: var(--blue); border-bottom: 2px solid var(--blue); border-left: 3px solid var(--blue); letter-spacing: 1px;">SOLDES</th>
+          </tr>
+          <tr>
+            <th style="min-width: 120px;">Mois &#9662;</th>
+            <th style="text-align: right;">Production &#9662;</th>
+            <th style="text-align: right;">Facture &#9662;</th>
+            <th style="text-align: right;">Encaisse &#9662;</th>
+            <th style="text-align: right; border-left: 3px solid var(--blue);">En retard &#9662;</th>
+            <th style="text-align: right;">RAF &#9662;</th>
+            <th style="text-align: right;">RAE &#9662;</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- PASSE -->
+          <tr class="month-row past" style="opacity: 0.6;">
+            <td style="font-weight: 500;">Avr 2025</td>
+            <td style="text-align: right; font-family: monospace;">8 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">7 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">7 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--muted); border-left: 3px solid var(--blue);">600 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">2 400 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">3 000 &euro;</td>
+          </tr>
+          <tr class="month-row past" style="opacity: 0.65;">
+            <td style="font-weight: 500;">Mai 2025</td>
+            <td style="text-align: right; font-family: monospace;">8 500 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">8 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">7 500 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--orange); border-left: 3px solid var(--blue);">1 300 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">2 700 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">3 700 &euro;</td>
+          </tr>
+          <tr style="opacity: 0.5;"><td colspan="7" style="text-align: center; color: var(--muted); font-size: 12px; padding: 4px;">... 8 mois ...</td></tr>
+          <tr class="month-row past" style="opacity: 0.85;">
+            <td style="font-weight: 500;">Fev 2026</td>
+            <td style="text-align: right; font-family: monospace;">11 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">10 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">9 500 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--orange); border-left: 3px solid var(--blue);">2 400 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">5 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">7 100 &euro;</td>
+          </tr>
+          <tr class="month-row past" style="opacity: 0.9;">
+            <td style="font-weight: 500;">Mar 2026</td>
+            <td style="text-align: right; font-family: monospace;">11 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">11 500 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">10 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red); border-left: 3px solid var(--blue);">2 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">6 100 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">8 400 &euro;</td>
+          </tr>
+          <!-- MOIS EN COURS -->
+          <tr class="month-row current" style="background: var(--primary-bg);">
+            <td style="font-weight: 700;"><span style="color: var(--primary);">&#9654;</span> Avr 2026</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">12 450 &euro;</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">10 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">8 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700; color: var(--red); border-left: 3px solid var(--blue);">3 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700; color: var(--orange);">8 350 &euro;</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">9 800 &euro;</td>
+          </tr>
+          <!-- FUTUR -->
+          <tr class="month-row future" style="font-style: italic; color: var(--muted);">
+            <td style="font-weight: 500;">Mai 2026</td>
+            <td style="text-align: right; font-family: monospace;">12 450 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">11 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--border);">&mdash;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--border); border-left: 3px solid var(--blue);">&mdash;</td>
+            <td style="text-align: right; font-family: monospace;">9 600 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--border);">&mdash;</td>
+          </tr>
+          <tr class="month-row future" style="font-style: italic; color: var(--muted);">
+            <td style="font-weight: 500;">Jun 2026</td>
+            <td style="text-align: right; font-family: monospace;">12 450 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">11 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--border);">&mdash;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--border); border-left: 3px solid var(--blue);">&mdash;</td>
+            <td style="text-align: right; font-family: monospace;">10 850 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--border);">&mdash;</td>
+          </tr>
+          <tr style="opacity: 0.5;"><td colspan="7" style="text-align: center; color: var(--muted); font-size: 12px; padding: 4px;">... 10 mois ...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3>Mockup — Vue complete (4 groupes actives)</h3>
+  <p>Quand l'utilisateur active les groupes 12M et Annee via le bouton "Colonnes", le tableau s'elargit (scroll horizontal).</p>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Production — 25 mois glissants — Vue complete</div>
+      <div style="font-size: 11px; color: var(--muted);">Scroll horizontal &rarr;</div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0; min-width: 1100px;">
+        <thead>
+          <tr style="font-size: 10px; border-bottom: none;">
+            <th></th>
+            <th colspan="3" style="text-align: center; color: var(--primary); border-bottom: 2px solid var(--primary); letter-spacing: 1px;">MOIS</th>
+            <th colspan="3" style="text-align: center; color: var(--accent); border-bottom: 2px solid var(--accent); border-left: 3px solid var(--accent); letter-spacing: 1px;">12 MOIS GLISSANTS</th>
+            <th colspan="3" style="text-align: center; color: var(--purple); border-bottom: 2px solid var(--purple); border-left: 3px solid var(--purple); letter-spacing: 1px;">ANNEE</th>
+            <th colspan="3" style="text-align: center; color: var(--blue); border-bottom: 2px solid var(--blue); border-left: 3px solid var(--blue); letter-spacing: 1px;">SOLDES</th>
+          </tr>
+          <tr>
+            <th style="min-width: 100px; font-size: 11px;">Mois</th>
+            <th style="text-align: right; font-size: 11px;">Prod.</th>
+            <th style="text-align: right; font-size: 11px;">Fact.</th>
+            <th style="text-align: right; font-size: 11px;">Enc.</th>
+            <th style="text-align: right; font-size: 11px; border-left: 3px solid var(--accent);">Prod. 12M</th>
+            <th style="text-align: right; font-size: 11px;">Fact. 12M</th>
+            <th style="text-align: right; font-size: 11px;">Enc. 12M</th>
+            <th style="text-align: right; font-size: 11px; border-left: 3px solid var(--purple);">Prod. Ann.</th>
+            <th style="text-align: right; font-size: 11px;">Fact. Ann.</th>
+            <th style="text-align: right; font-size: 11px;">Enc. Ann.</th>
+            <th style="text-align: right; font-size: 11px; border-left: 3px solid var(--blue);">En retard</th>
+            <th style="text-align: right; font-size: 11px;">RAF</th>
+            <th style="text-align: right; font-size: 11px;">RAE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="month-row past" style="opacity: 0.9;">
+            <td style="font-weight: 500;">Mar 26</td>
+            <td style="text-align: right; font-family: monospace;">11 800</td>
+            <td style="text-align: right; font-family: monospace;">11 500</td>
+            <td style="text-align: right; font-family: monospace;">10 200</td>
+            <td style="text-align: right; font-family: monospace; border-left: 3px solid var(--accent);">125 400</td>
+            <td style="text-align: right; font-family: monospace;">118 600</td>
+            <td style="text-align: right; font-family: monospace;">108 200</td>
+            <td style="text-align: right; font-family: monospace; border-left: 3px solid var(--purple);">34 800</td>
+            <td style="text-align: right; font-family: monospace;">32 500</td>
+            <td style="text-align: right; font-family: monospace;">28 900</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red); border-left: 3px solid var(--blue);">2 800</td>
+            <td style="text-align: right; font-family: monospace;">6 100</td>
+            <td style="text-align: right; font-family: monospace;">8 400</td>
+          </tr>
+          <tr class="month-row current" style="background: var(--primary-bg); font-weight: 700;">
+            <td><span style="color: var(--primary);">&#9654;</span> Avr 26</td>
+            <td style="text-align: right; font-family: monospace;">12 450</td>
+            <td style="text-align: right; font-family: monospace;">10 200</td>
+            <td style="text-align: right; font-family: monospace;">8 800</td>
+            <td style="text-align: right; font-family: monospace; border-left: 3px solid var(--accent);">129 650</td>
+            <td style="text-align: right; font-family: monospace;">121 000</td>
+            <td style="text-align: right; font-family: monospace;">109 800</td>
+            <td style="text-align: right; font-family: monospace; border-left: 3px solid var(--purple);">47 250</td>
+            <td style="text-align: right; font-family: monospace;">42 700</td>
+            <td style="text-align: right; font-family: monospace;">37 700</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red); border-left: 3px solid var(--blue);">3 200</td>
+            <td style="text-align: right; font-family: monospace;">8 350</td>
+            <td style="text-align: right; font-family: monospace;">9 800</td>
+          </tr>
+          <tr class="month-row future" style="font-style: italic; color: var(--muted);">
+            <td>Mai 26</td>
+            <td style="text-align: right; font-family: monospace;">12 450</td>
+            <td style="text-align: right; font-family: monospace;">11 200</td>
+            <td style="text-align: right; font-family: monospace;">&mdash;</td>
+            <td style="text-align: right; font-family: monospace; border-left: 3px solid var(--accent);">133 600</td>
+            <td style="text-align: right; font-family: monospace;">124 000</td>
+            <td style="text-align: right; font-family: monospace;">&mdash;</td>
+            <td style="text-align: right; font-family: monospace; border-left: 3px solid var(--purple);">59 700</td>
+            <td style="text-align: right; font-family: monospace;">53 900</td>
+            <td style="text-align: right; font-family: monospace;">&mdash;</td>
+            <td style="text-align: right; font-family: monospace; border-left: 3px solid var(--blue);">&mdash;</td>
+            <td style="text-align: right; font-family: monospace;">9 600</td>
+            <td style="text-align: right; font-family: monospace;">&mdash;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#9888;</span>
+    <p><strong>Donnees futures</strong> — Production = previsionnel lineaire base sur les contrats actifs. Facturation = echeances prevues selon le modele de facturation (voir section 5). Encaisse, En retard et RAE = vide dans le futur (pas encore realises, affiche "&mdash;"). Les colonnes 12M et Annee integrent le previsionnel pour Production et Facturation.</p>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Scroll automatique</strong> — A l'ouverture de la page, le tableau scrolle automatiquement pour centrer le mois en cours a l'ecran.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 4. DRILL-DOWN                                                      -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">4</span> Drill-down : Totaux &rarr; Client &rarr; Projet</h2>
+  <p>Clic sur une ligne du tableau pour descendre dans le detail. Trois niveaux de profondeur.</p>
+
+  <div class="flow">
+    <div class="flow-step" style="border-color: var(--primary);">
+      <div class="step-num">NIVEAU 1</div>
+      <div class="step-title">Totaux par mois</div>
+      <div class="step-desc">Vue par defaut<br>Agreges tous projets</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: var(--blue);">
+      <div class="step-num">NIVEAU 2</div>
+      <div class="step-title">Detail par client</div>
+      <div class="step-desc">Clic sur un mois<br>1 ligne = 1 client</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: var(--purple);">
+      <div class="step-num">NIVEAU 3</div>
+      <div class="step-title">Detail par projet</div>
+      <div class="step-desc">Clic sur un client<br>1 ligne = 1 projet</div>
+    </div>
+  </div>
+
+  <h3>Mockup — Niveau 2 : Detail par client (Avril 2026)</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">
+        <span style="color: var(--muted); cursor: pointer;">25 mois</span>
+        <span style="color: var(--muted); margin: 0 6px;">&#8250;</span>
+        <strong>Avril 2026 — Par client</strong>
+      </div>
+      <div class="toggle-group">
+        <div class="toggle-btn">OPCO</div>
+        <div class="toggle-btn active">SOLUVIA</div>
+        <div class="toggle-btn">Les deux</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th style="min-width: 180px;">Client &#9662;</th>
+            <th style="text-align: center;">Nb projets</th>
+            <th style="text-align: right;">Production &#9662;</th>
+            <th style="text-align: right;">Facture &#9662;</th>
+            <th style="text-align: right;">Encaisse &#9662;</th>
+            <th style="text-align: right; border-left: 3px solid var(--blue);">En retard &#9662;</th>
+            <th style="text-align: right;">Reste a fact. &#9662;</th>
+            <th style="text-align: right;">Reste a enc. &#9662;</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="cursor: pointer;">
+            <td><strong>Heol Formation</strong></td>
+            <td style="text-align: center;">2</td>
+            <td style="text-align: right; font-family: monospace;">6 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">5 400 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">4 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red); border-left: 3px solid var(--blue);">1 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">4 000 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">4 200 &euro;</td>
+          </tr>
+          <tr style="cursor: pointer;">
+            <td><strong>BNP Paribas</strong></td>
+            <td style="text-align: center;">1</td>
+            <td style="text-align: right; font-family: monospace;">4 100 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">3 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">3 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--muted); border-left: 3px solid var(--blue);">0 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">1 500 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">800 &euro;</td>
+          </tr>
+          <tr style="cursor: pointer;">
+            <td><strong>Soluvia</strong></td>
+            <td style="text-align: center;">1</td>
+            <td style="text-align: right; font-family: monospace;">2 150 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">1 000 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">800 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red); border-left: 3px solid var(--blue);">1 400 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">2 850 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">4 800 &euro;</td>
+          </tr>
+          <tr style="background: var(--card-alt); font-weight: 700;">
+            <td><strong>Total</strong></td>
+            <td style="text-align: center;">4</td>
+            <td style="text-align: right; font-family: monospace;">12 450 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">10 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">8 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red); border-left: 3px solid var(--blue);">3 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">8 350 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">9 800 &euro;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3>Mockup — Niveau 3 : Detail par projet (Heol Formation, Avril 2026)</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">
+        <span style="color: var(--muted); cursor: pointer;">25 mois</span>
+        <span style="color: var(--muted); margin: 0 6px;">&#8250;</span>
+        <span style="color: var(--muted); cursor: pointer;">Avr 2026</span>
+        <span style="color: var(--muted); margin: 0 6px;">&#8250;</span>
+        <strong>Heol Formation</strong>
+      </div>
+      <div class="toggle-group">
+        <div class="toggle-btn">OPCO</div>
+        <div class="toggle-btn active">SOLUVIA</div>
+        <div class="toggle-btn">Les deux</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th style="min-width: 160px;">Projet &#9662;</th>
+            <th style="text-align: center;">Commission</th>
+            <th style="text-align: center;">Contrats</th>
+            <th style="text-align: right;">Production &#9662;</th>
+            <th style="text-align: right;">Facture &#9662;</th>
+            <th style="text-align: right;">Encaisse &#9662;</th>
+            <th style="text-align: right; border-left: 3px solid var(--blue);">En retard &#9662;</th>
+            <th style="text-align: right;">Reste a fact. &#9662;</th>
+            <th style="text-align: right;">Reste a enc. &#9662;</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="id-ref">0001-HEO-APP</span></td>
+            <td style="text-align: center;">10%</td>
+            <td style="text-align: center;">42</td>
+            <td style="text-align: right; font-family: monospace;">4 500 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">3 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">3 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red); border-left: 3px solid var(--blue);">1 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">2 500 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">2 800 &euro;</td>
+          </tr>
+          <tr>
+            <td><span class="id-ref">0005-HEO-PDC</span></td>
+            <td style="text-align: center;">8%</td>
+            <td style="text-align: center;">12</td>
+            <td style="text-align: right; font-family: monospace;">1 700 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">1 600 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">1 000 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--orange); border-left: 3px solid var(--blue);">600 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">1 500 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">1 400 &euro;</td>
+          </tr>
+          <tr style="background: var(--card-alt); font-weight: 700;">
+            <td><strong>Total Heol</strong></td>
+            <td></td>
+            <td style="text-align: center;">54</td>
+            <td style="text-align: right; font-family: monospace;">6 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">5 400 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">4 200 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red); border-left: 3px solid var(--blue);">1 800 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">4 000 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">4 200 &euro;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Comportement</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Navigation</strong></td><td>Fil d'Ariane cliquable : <code>25 mois &gt; Avr 2026 &gt; Heol Formation</code>. Retour au niveau precedent en cliquant.</td></tr>
+        <tr><td><strong>Tri / Filtre</strong></td><td>Chaque colonne du detail est triable et filtrable. Pattern global SOLUVIA.</td></tr>
+        <tr><td><strong>Clic projet</strong></td><td>Clic sur la ref projet &rarr; ouvre la page detail projet (<code>/projets/[ref]</code>).</td></tr>
+        <tr><td><strong>Toggle OPCO/SOLUVIA</strong></td><td>Le toggle reste actif a tous les niveaux de drill-down. Les montants se mettent a jour.</td></tr>
+        <tr><td><strong>Export</strong></td><td>Bouton export CSV / XLSX a chaque niveau. Exporte les donnees visibles (colonnes affichees, filtres actifs, perspective OPCO/SOLUVIA).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 5. FORMULES & CALCULS                                              -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">5</span> Formules &amp; calculs</h2>
+  <p>Toutes les regles de calcul des metriques financieres.</p>
+
+  <h3>Production</h3>
+  <div class="card">
+    <div style="font-family: 'SF Mono', monospace; font-size: 14px; line-height: 2; color: var(--text);">
+      <strong style="color: var(--primary);">Production OPCO (mois)</strong> = montant_contrat &divide; duree_reelle_mois<br>
+      <span style="color: var(--muted); font-size: 12px;">Repartition lineaire sur la duree reelle du contrat. Si contrat 12 000 &euro; sur 24 mois &rarr; 500 &euro;/mois.</span><br><br>
+      <strong style="color: var(--primary);">Production SOLUVIA (mois)</strong> = production_OPCO &times; taux_commission_projet<br>
+      <span style="color: var(--muted); font-size: 12px;">Le taux de commission est defini par projet (ex: 10% &rarr; 50 &euro;/mois).</span><br><br>
+      <strong style="color: var(--primary);">Production totale (mois)</strong> = &Sigma; production de tous les contrats actifs sur le mois<br>
+      <span style="color: var(--muted); font-size: 12px;">Si un projet ajoute des contrats en cours de route, ils s'additionnent au mois de leur debut.</span>
+    </div>
+  </div>
+
+  <h3>Facturation, encaissement, retard</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Metrique</th><th>Formule</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Facture</strong></td>
+          <td><code>&Sigma; factures emises sur le mois</code></td>
+          <td>Montant HT des factures dont la date d'emission tombe dans le mois.</td>
+        </tr>
+        <tr>
+          <td><strong>Encaisse</strong></td>
+          <td><code>&Sigma; paiements recus sur le mois</code></td>
+          <td>Montant HT des paiements dont la date de reception tombe dans le mois.</td>
+        </tr>
+        <tr>
+          <td><strong>En retard</strong></td>
+          <td><code>&Sigma; (facture &minus; encaisse) si echeance &lt; aujourd'hui</code></td>
+          <td>Factures dont la date d'echeance est depassee et le solde non nul. Retard <strong>exigible uniquement</strong>.</td>
+        </tr>
+        <tr>
+          <td><strong>Reste a facturer</strong></td>
+          <td><code>production cumulee &minus; facture cumulee</code></td>
+          <td>Cumul depuis le debut du projet jusqu'au mois concerne.</td>
+        </tr>
+        <tr>
+          <td><strong>Reste a encaisser</strong></td>
+          <td><code>facture cumulee &minus; encaisse cumulee</code></td>
+          <td>Cumul depuis le debut du projet jusqu'au mois concerne.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Previsionnel (mois futurs)</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Metrique</th><th>Regle dans le futur</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Production</strong></td>
+          <td>Previsionnel lineaire base sur les contrats actifs : <code>montant / duree</code> par mois restant.</td>
+        </tr>
+        <tr>
+          <td><strong>Facture</strong></td>
+          <td>Echeances de facturation prevues selon le modele : <strong>1/12 emise fin M+2</strong> (echeance fin M+3), puis mensuel de M+3 a M+10 (1/12 chacune), puis <strong>une seule facture couvrant M10+M11+M12 (3/12) emise fin M12</strong>. 10 factures par contrat.</td>
+        </tr>
+        <tr>
+          <td><strong>Encaisse</strong></td>
+          <td><strong>"&mdash;"</strong> — Pas de previsionnel, les paiements ne sont pas previsibles.</td>
+        </tr>
+        <tr>
+          <td><strong>En retard</strong></td>
+          <td><strong>"&mdash;"</strong> — Pas de retard previsionnel.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation warn">
+    <span class="icon">&#9888;</span>
+    <p><strong>Modele de facturation</strong> — 1 contrat = 10 factures sur 12 mois. Chaque mois est facture avec un decalage de 2 mois : le mois 1 est facture fin M+2, echeance fin M+3. Exemple : contrat du 15 janvier &rarr; 1ere facture (mois 1) fin mars, encaissement fin avril. Facturation mensuelle de M+2 a M+10 : 9 factures de 1/12 couvrant les mois 1 a 9. Puis une seule facture fin M12 couvrant les mois 10, 11 et 12 (3/12) — car le decalage de 2 mois depasserait la fin du contrat. Total = 10 factures.</p>
+  </div>
+
+  <div class="annotation danger">
+    <span class="icon">&#9940;</span>
+    <p><strong>Rupture de contrat</strong> — En cas de rupture anticipee, le solde est calcule au <strong>pro-rata temporis</strong> de la duree effectivement realisee. Voir spec 06 (Facturation) pour les avoirs.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 6. GRAPHIQUE DE TENDANCES                                          -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">6</span> Graphique de tendances</h2>
+  <p>Courbe d'evolution des metriques sur les 25 mois. Chaque metrique est activable/desactivable.</p>
+
+  <h3>Comportement</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Fonctionnalite</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Type</strong></td><td>Graphique en courbes (line chart). Axe X = mois, Axe Y = montant en euros.</td></tr>
+        <tr><td><strong>Metriques</strong></td><td>Checkboxes pour choisir : Production, Facture, Encaisse, En retard. Toutes activables simultanement.</td></tr>
+        <tr><td><strong>Passe vs futur</strong></td><td>Trait plein pour les mois passes. Pointilles pour les mois futurs (previsionnel).</td></tr>
+        <tr><td><strong>Toggle OPCO/SOLUVIA</strong></td><td>Le graphique suit le toggle de la page. Les valeurs se mettent a jour en temps reel.</td></tr>
+        <tr><td><strong>Survol</strong></td><td>Tooltip au survol avec le detail du mois (montant exact pour chaque metrique affichee).</td></tr>
+        <tr><td><strong>Position</strong></td><td>Au-dessus du tableau 25 mois. Pliable/depliable pour ne pas encombrer.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Mockup — Graphique</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Tendances</div>
+      <div style="display: flex; gap: 12px; align-items: center; font-size: 12px;">
+        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+          <span style="width: 12px; height: 12px; background: var(--green); border-radius: 3px; display: inline-block;"></span>
+          <span style="color: var(--text);">Production</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+          <span style="width: 12px; height: 12px; background: var(--blue); border-radius: 3px; display: inline-block;"></span>
+          <span style="color: var(--text);">Facture</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+          <span style="width: 12px; height: 12px; background: var(--purple); border-radius: 3px; display: inline-block;"></span>
+          <span style="color: var(--text);">Encaisse</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; opacity: 0.4;">
+          <span style="width: 12px; height: 12px; background: var(--red); border-radius: 3px; display: inline-block;"></span>
+          <span style="color: var(--muted);">En retard</span>
+        </label>
+      </div>
+    </div>
+    <div class="mockup-ui-body">
+      <!-- Simplified chart representation -->
+      <div style="position: relative; height: 200px; border-left: 2px solid var(--border); border-bottom: 2px solid var(--border); margin: 0 20px;">
+        <!-- Y axis labels -->
+        <div style="position: absolute; left: -50px; top: 0; font-size: 10px; color: var(--muted); font-family: monospace;">15k&euro;</div>
+        <div style="position: absolute; left: -50px; top: 33%; font-size: 10px; color: var(--muted); font-family: monospace;">10k&euro;</div>
+        <div style="position: absolute; left: -50px; top: 66%; font-size: 10px; color: var(--muted); font-family: monospace;">5k&euro;</div>
+        <div style="position: absolute; left: -50px; bottom: -4px; font-size: 10px; color: var(--muted); font-family: monospace;">0&euro;</div>
+        <!-- Grid lines -->
+        <div style="position: absolute; top: 33%; left: 0; right: 0; border-top: 1px dashed var(--border-light);"></div>
+        <div style="position: absolute; top: 66%; left: 0; right: 0; border-top: 1px dashed var(--border-light);"></div>
+        <!-- Current month marker -->
+        <div style="position: absolute; left: 48%; top: 0; bottom: -20px; width: 2px; background: var(--primary); opacity: 0.3;"></div>
+        <div style="position: absolute; left: 46%; bottom: -20px; font-size: 10px; color: var(--primary); font-weight: 600;">Avr 26</div>
+        <!-- Past label -->
+        <div style="position: absolute; left: 10%; bottom: -20px; font-size: 10px; color: var(--muted);">Avr 25</div>
+        <!-- Future label -->
+        <div style="position: absolute; right: 5%; bottom: -20px; font-size: 10px; color: var(--muted);">Avr 27</div>
+        <!-- Visual hint -->
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 13px; color: var(--muted);">
+          Courbes Production / Facture / Encaisse<br>
+          <span style="font-size: 11px;">Trait plein (passe) | Pointilles (futur)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 7. PERMISSIONS & RLS                                               -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">7</span> Permissions &amp; RLS</h2>
+  <p>Meme modele de permissions que le reste de SOLUVIA.</p>
+
+  <div class="features">
+    <div class="feature" style="border-color: var(--purple);">
+      <div class="icon" style="background: var(--purple-bg); color: var(--purple);">A</div>
+      <h4>Admin</h4>
+      <p>Voit <strong>tous</strong> les projets de tous les CDP. Memes colonnes, memes fonctionnalites, meme toggle OPCO/SOLUVIA.</p>
+    </div>
+    <div class="feature" style="border-color: var(--blue);">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">C</div>
+      <h4>CDP</h4>
+      <p>Voit uniquement ses projets (<code>cdp_id</code> ou <code>backup_cdp_id</code>). Filtre par RLS Supabase. Acces au toggle OPCO/SOLUVIA.</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>RLS Policy</strong></td><td><code>SELECT</code> autorise si <code>projets.cdp_id = auth.uid()</code> OU <code>projets.backup_cdp_id = auth.uid()</code> OU role = admin.</td></tr>
+        <tr><td><strong>Drill-down</strong></td><td>Le CDP ne voit que ses clients/projets a chaque niveau. L'admin voit tout.</td></tr>
+        <tr><td><strong>KPIs</strong></td><td>Calcules sur le perimetre visible (projets du CDP ou tous les projets pour l'admin).</td></tr>
+        <tr><td><strong>Toggle</strong></td><td>CDP et Admin ont acces aux 3 positions (OPCO / SOLUVIA / Les deux).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 8. MODELE DE DONNEES                                               -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">8</span> Modele de donnees</h2>
+  <p>Tables et vues impliquees dans le calcul des metriques financieres. Cette page est en lecture seule — pas de nouvelles tables creees.</p>
+
+  <h3>Tables sources</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Table</th><th>Donnees utilisees</th><th>Metriques alimentees</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>projets</code></td>
+          <td>ref, client_id, cdp_id, backup_cdp_id, taux_commission, statut</td>
+          <td>Filtrage, groupement, commission</td>
+        </tr>
+        <tr>
+          <td><code>clients</code></td>
+          <td>id, raison_sociale, trigramme</td>
+          <td>Drill-down niveau 2</td>
+        </tr>
+        <tr>
+          <td><code>contrats</code></td>
+          <td>id, projet_id, montant, date_debut, date_fin, statut</td>
+          <td>Production (montant / duree &times; mois)</td>
+        </tr>
+        <tr>
+          <td><code>factures</code></td>
+          <td>id, contrat_id, montant_ht, date_emission, date_echeance, statut</td>
+          <td>Facture, En retard, previsionnel facturation</td>
+        </tr>
+        <tr>
+          <td><code>paiements</code></td>
+          <td>id, facture_id, montant, date_reception</td>
+          <td>Encaisse</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Vue calculee (suggestion d'implementation)</h3>
+  <div class="card" style="font-family: 'SF Mono', monospace; font-size: 12px; line-height: 2.2;">
+    <span style="color: var(--muted);">-- Vue materialisee pour les metriques mensuelles</span><br>
+    <span style="color: var(--primary);">CREATE MATERIALIZED VIEW</span> mv_production_mensuelle <span style="color: var(--primary);">AS</span><br>
+    <span style="color: var(--primary);">SELECT</span><br>
+    &nbsp;&nbsp;p.id <span style="color: var(--primary);">AS</span> projet_id,<br>
+    &nbsp;&nbsp;p.client_id,<br>
+    &nbsp;&nbsp;mois.mois,<br>
+    &nbsp;&nbsp;<span style="color: var(--muted);">-- Production lineaire</span><br>
+    &nbsp;&nbsp;<span style="color: var(--primary);">SUM</span>(c.montant / duree_mois(c)) <span style="color: var(--primary);">AS</span> production_opco,<br>
+    &nbsp;&nbsp;<span style="color: var(--primary);">SUM</span>(c.montant / duree_mois(c) * p.taux_commission) <span style="color: var(--primary);">AS</span> production_soluvia,<br>
+    &nbsp;&nbsp;<span style="color: var(--muted);">-- Facture / Encaisse / Retard (jointures)</span><br>
+    &nbsp;&nbsp;...<br>
+    <span style="color: var(--primary);">FROM</span> projets p<br>
+    <span style="color: var(--primary);">JOIN</span> contrats c <span style="color: var(--primary);">ON</span> c.projet_id = p.id<br>
+    <span style="color: var(--primary);">CROSS JOIN</span> generate_series(...) <span style="color: var(--primary);">AS</span> mois<br>
+    <span style="color: var(--primary);">GROUP BY</span> p.id, p.client_id, mois.mois;
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Performance</strong> — Vue materialisee rafraichie periodiquement (CRON) ou calcul cote client selon le volume. Pour 25-30 CDP et ~100 projets, un calcul temps reel cote API est envisageable. A determiner lors de l'implementation.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- FOOTER -->
+<div style="text-align: center; padding: 48px 0; color: var(--muted); font-size: 13px;">
+  <div style="font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">SOLUVIA</div>
+  <div>Section 05 — Finances (Production) — v1.0 — Avril 2026</div>
+  <div style="margin-top: 4px;">Page suivante : <strong>06 — Facturation</strong></div>
+</div>
+
+</body>
+</html>

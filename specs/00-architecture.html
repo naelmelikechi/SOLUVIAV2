@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLUVIA — 00 Architecture & Vue d'ensemble</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f8faf8;
+    --card-alt: #f0f5f0;
+    --border: #d4e4d4;
+    --border-light: #e8f0e8;
+    --text: #1a2e1a;
+    --text-secondary: #2d4a2d;
+    --muted: #6b8a6b;
+    --primary: #16a34a;
+    --primary-light: #22c55e;
+    --primary-dark: #15803d;
+    --primary-bg: rgba(22, 163, 74, 0.08);
+    --primary-bg-strong: rgba(22, 163, 74, 0.15);
+    --accent: #059669;
+    --green: #16a34a;
+    --green-light: #4ade80;
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --blue: #2563eb;
+    --blue-bg: rgba(37, 99, 235, 0.08);
+    --purple: #7c3aed;
+    --purple-bg: rgba(124, 58, 237, 0.08);
+    --gray: #6b7280;
+    --gray-bg: rgba(107, 114, 128, 0.08);
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .spec-header {
+    text-align: center;
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .spec-header .logo { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 12px; }
+  .spec-header h1 { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .spec-header .subtitle { font-size: 16px; color: var(--muted); }
+  .spec-header .meta { margin-top: 20px; display: flex; justify-content: center; gap: 24px; font-size: 13px; color: var(--muted); }
+  .spec-header .meta span { background: var(--card-alt); border: 1px solid var(--border-light); padding: 4px 12px; border-radius: 999px; }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  section h2 .num { background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+  h4 { font-size: 15px; font-weight: 600; margin: 16px 0 8px; color: var(--text-secondary); }
+
+  .card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+  .card h3 { margin-top: 0; font-size: 16px; }
+  .card p { color: var(--muted); font-size: 14px; }
+
+  .mockup { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .mockup-body { padding: 20px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--card-alt); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .badge-green { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+  .badge-orange { background: rgba(217, 119, 6, 0.12); color: var(--orange); }
+  .badge-red { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .badge-blue { background: rgba(37, 99, 235, 0.12); color: var(--blue); }
+  .badge-gray { background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+  .badge-purple { background: rgba(124, 58, 237, 0.12); color: var(--purple); }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .features.three { grid-template-columns: 1fr 1fr 1fr; }
+  .feature { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; }
+  .feature .icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+  .feature h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text); }
+  .feature p { font-size: 13px; color: var(--muted); }
+
+  .flow { display: flex; align-items: center; justify-content: center; gap: 0; padding: 32px 0; flex-wrap: wrap; }
+  .flow-step { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; text-align: center; min-width: 140px; }
+  .flow-step .step-num { font-size: 11px; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
+  .flow-step .step-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .flow-step .step-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .flow-arrow { font-size: 20px; color: var(--border); padding: 0 8px; }
+
+  .annotation { display: flex; gap: 12px; padding: 16px; background: var(--primary-bg); border-left: 3px solid var(--primary); border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: 16px; }
+  .annotation.warn { background: var(--orange-bg); border-left-color: var(--orange); }
+  .annotation.danger { background: var(--red-bg); border-left-color: var(--red); }
+  .annotation .icon { font-size: 18px; flex-shrink: 0; }
+  .annotation p { font-size: 13px; color: var(--muted); }
+  .annotation strong { color: var(--text); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .stat { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 16px; text-align: center; }
+  .stat .value { font-size: 28px; font-weight: 700; font-family: 'SF Mono', 'Fira Code', monospace; }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .stat.primary .value { color: var(--primary); }
+  .stat.success .value { color: var(--green); }
+
+  .pid { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; font-weight: 700; color: var(--primary-dark); background: var(--primary-bg-strong); padding: 3px 10px; border-radius: 6px; white-space: nowrap; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+
+  code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; background: var(--card-alt); padding: 2px 6px; border-radius: 4px; }
+
+  /* === LAYOUT MOCKUP === */
+  .layout-mockup {
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    grid-template-rows: 56px 1fr;
+    min-height: 500px;
+    background: #f5f7f5;
+  }
+  .layout-mockup.collapsed {
+    grid-template-columns: 64px 1fr;
+  }
+  .layout-sidebar {
+    grid-row: 1 / -1;
+    background: white;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+  .layout-sidebar .brand {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 56px;
+  }
+  .layout-sidebar .brand .brand-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--primary);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .layout-sidebar .brand .brand-text {
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .layout-sidebar .nav-section {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--border);
+    padding: 16px 20px 6px;
+    font-weight: 700;
+  }
+  .layout-sidebar .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    font-size: 13px;
+    color: var(--muted);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .layout-sidebar .nav-item:hover {
+    background: var(--card-alt);
+  }
+  .layout-sidebar .nav-item.active {
+    background: var(--primary-bg);
+    color: var(--primary);
+    font-weight: 600;
+    border-left-color: var(--primary);
+  }
+  .layout-sidebar .nav-item .ico {
+    width: 20px;
+    text-align: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .layout-sidebar .nav-item .nav-label {
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .layout-sidebar .nav-item .nav-badge {
+    margin-left: auto;
+    background: var(--red);
+    color: white;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+  .layout-sidebar .collapse-btn {
+    margin-top: auto;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-light);
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .layout-topbar {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+  .layout-topbar .breadcrumb {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .layout-topbar .breadcrumb a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .layout-topbar .breadcrumb span { margin: 0 6px; }
+  .layout-topbar .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .layout-topbar .notif-bell {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    background: var(--card-alt);
+  }
+  .layout-topbar .notif-bell .notif-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    background: var(--red);
+    border-radius: 50%;
+    border: 2px solid white;
+  }
+  .layout-topbar .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-bg-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    cursor: pointer;
+  }
+  .layout-content {
+    padding: 24px;
+    overflow-y: auto;
+    background: #f5f7f5;
+  }
+  .layout-content .content-placeholder {
+    background: white;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 60px 40px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* === COLLAPSED SIDEBAR === */
+  .layout-mockup.collapsed .brand .brand-text { display: none; }
+  .layout-mockup.collapsed .nav-section { padding: 16px 0 6px; text-align: center; font-size: 0; height: 24px; }
+  .layout-mockup.collapsed .nav-item { padding: 10px 0; justify-content: center; }
+  .layout-mockup.collapsed .nav-item .nav-label { display: none; }
+  .layout-mockup.collapsed .nav-item .nav-badge { display: none; }
+  .layout-mockup.collapsed .collapse-btn .collapse-text { display: none; }
+  .layout-mockup.collapsed .collapse-btn { justify-content: center; }
+  .layout-mockup.collapsed .brand { justify-content: center; padding: 16px 8px; }
+
+  /* === LOGIN MOCKUP === */
+  .login-mockup {
+    background: #f5f7f5;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 60px 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .login-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    width: 400px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .login-card .login-logo {
+    text-align: center;
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--primary);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .login-card .login-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .login-card .login-subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .login-card .form-group {
+    margin-bottom: 20px;
+  }
+  .login-card .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .login-card .form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--card);
+  }
+  .login-card .form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+  }
+  .login-card .login-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .login-card .login-forgot {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--primary);
+    cursor: pointer;
+  }
+
+  /* === NOTIFICATION PANEL === */
+  .notif-panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: 360px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .notif-panel .notif-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .notif-panel .notif-header h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .notif-panel .notif-header .notif-count {
+    background: var(--red);
+    color: white;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+  .notif-panel .notif-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .notif-panel .notif-item:last-child { border-bottom: none; }
+  .notif-panel .notif-item.unread { background: var(--primary-bg); }
+  .notif-panel .notif-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .notif-panel .notif-body {
+    flex: 1;
+  }
+  .notif-panel .notif-body .notif-text {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .notif-panel .notif-body .notif-time {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* === RESPONSIVE === */
+  @media (max-width: 768px) {
+    body { padding: 16px; }
+    .features, .features.three { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+    .layout-mockup { grid-template-columns: 1fr; }
+    .layout-sidebar { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================================================================= -->
+<!-- HEADER                                                            -->
+<!-- ================================================================= -->
+<div class="spec-header">
+  <div class="logo">SOLUVIA</div>
+  <h1>00 — Architecture &amp; Vue d'ensemble</h1>
+  <p class="subtitle">Positionnement, stack technique, authentification, layout, navigation &amp; notifications</p>
+  <div class="meta">
+    <span>Version 1.0</span>
+    <span>Avril 2026</span>
+    <span>Spec 00 / 11</span>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. POSITIONNEMENT                                                 -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">1</span> Positionnement de SOLUVIA</h2>
+  <p>SOLUVIA est la couche de pilotage strategique qui se superpose a l'ecosysteme operationnel existant.</p>
+
+  <h3>Les 3 systemes</h3>
+  <div class="features three">
+    <div class="feature">
+      <div class="icon" style="background: var(--orange-bg); color: var(--orange);">E</div>
+      <h4>Eduvia</h4>
+      <p><strong>Role :</strong> Outil operationnel<br>
+      <strong>Gere :</strong> Projets, contrats, apprenants, financements OPCO, taches qualite, suivi pedagogique, facturation OPCO<br>
+      <strong>Statut :</strong> Source de verite pour les donnees metier<br>
+      <strong>Connexion :</strong> API REST (lecture)</p>
+    </div>
+    <div class="feature" style="border-color: var(--primary);">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">S</div>
+      <h4>SOLUVIA</h4>
+      <p><strong>Role :</strong> Outil de pilotage<br>
+      <strong>Gere :</strong> Vision consolidee projets, suivi temps, metriques, finance, facturation interne, performance commerciale<br>
+      <strong>Statut :</strong> Consomme Eduvia + produit ses propres donnees<br>
+      <strong>Connexion :</strong> API Eduvia (lecture) + API Odoo (ecriture)</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">O</div>
+      <h4>Odoo</h4>
+      <p><strong>Role :</strong> Comptabilite<br>
+      <strong>Gere :</strong> Plan comptable, ecritures, TVA, exports legaux<br>
+      <strong>Statut :</strong> Recepteur des factures generees par SOLUVIA<br>
+      <strong>Connexion :</strong> API XML-RPC / REST (ecriture factures + lecture paiements)</p>
+    </div>
+  </div>
+
+  <h3>Flux de donnees global</h3>
+  <div class="flow">
+    <div class="flow-step" style="border-color: var(--orange);">
+      <div class="step-num" style="color: var(--orange);">SOURCE OPERATIONNELLE</div>
+      <div class="step-title">Eduvia</div>
+      <div class="step-desc">Contrats, taches, finances<br>Apprenants, OPCO</div>
+    </div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-step" style="border-color: var(--primary); border-width: 2px;">
+      <div class="step-num">PILOTAGE</div>
+      <div class="step-title">SOLUVIA</div>
+      <div class="step-desc">Consolidation, metriques<br>Temps, facturation interne</div>
+    </div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-step" style="border-color: var(--blue);">
+      <div class="step-num" style="color: var(--blue);">COMPTABILITE</div>
+      <div class="step-title">Odoo</div>
+      <div class="step-desc">Factures, paiements<br>Exports legaux</div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#9888;</span>
+    <p><strong>Principe fondamental</strong> — SOLUVIA ne remplace jamais Eduvia. Les donnees operationnelles (contrats, apprenants, taches qualite) restent gerees dans Eduvia. SOLUVIA les <strong>lit</strong> via API et y ajoute sa couche de pilotage (temps, metriques calculees, facturation interne, performance commerciale).</p>
+  </div>
+
+  <h3>Donnees propres a SOLUVIA vs donnees synchronisees</h3>
+  <div class="mockup">
+    <table>
+      <thead>
+        <tr>
+          <th>Donnee</th>
+          <th>Source</th>
+          <th>Dans SOLUVIA</th>
+          <th>Modifiable dans SOLUVIA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Contrats / Apprenants</td><td><span class="badge badge-orange">Eduvia</span></td><td>Cache local (table <code>contrats</code>)</td><td><span class="badge badge-red">Non</span> Lecture seule</td></tr>
+        <tr><td>Taches qualite</td><td><span class="badge badge-orange">Eduvia</span></td><td>Cache local (table <code>taches_qualite</code>)</td><td><span class="badge badge-red">Non</span> Lecture seule</td></tr>
+        <tr><td>Donnees financieres projets</td><td><span class="badge badge-orange">Eduvia</span></td><td>Cache local (table <code>donnees_financieres</code>)</td><td><span class="badge badge-red">Non</span> Lecture seule</td></tr>
+        <tr><td>Production mensuelle</td><td><span class="badge badge-orange">Eduvia</span></td><td>Cache local (table <code>production_mensuelle</code>)</td><td><span class="badge badge-red">Non</span> Lecture seule</td></tr>
+        <tr><td>Saisie de temps</td><td><span class="badge badge-green">SOLUVIA</span></td><td>Table <code>saisies_temps</code></td><td><span class="badge badge-green">Oui</span></td></tr>
+        <tr><td>Metriques projet (%)</td><td><span class="badge badge-green">SOLUVIA</span></td><td>Table <code>metriques_projet</code> (calculees)</td><td><span class="badge badge-green">Oui</span></td></tr>
+        <tr><td>Factures internes</td><td><span class="badge badge-green">SOLUVIA</span></td><td>Table <code>factures</code></td><td><span class="badge badge-green">Oui</span></td></tr>
+        <tr><td>Pipeline commercial</td><td><span class="badge badge-green">SOLUVIA</span></td><td>Table <code>opportunites</code></td><td><span class="badge badge-green">Oui</span></td></tr>
+        <tr><td>Utilisateurs / Roles</td><td><span class="badge badge-green">SOLUVIA</span></td><td>Table <code>users</code> + Supabase Auth</td><td><span class="badge badge-green">Oui</span></td></tr>
+        <tr><td>Statuts paiement</td><td><span class="badge badge-blue">Odoo</span></td><td>Champ <code>factures.statut</code> mis a jour</td><td><span class="badge badge-red">Non</span> Sync Odoo</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 2. STACK TECHNIQUE                                                -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">2</span> Stack technique</h2>
+  <p>Architecture moderne JAMstack avec backend-as-a-service. Dimensionnee pour 30+ utilisateurs simultanees.</p>
+
+  <h3>Technologies</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Couche</th><th>Technologie</th><th>Version</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-blue">Frontend</span></td>
+          <td><strong>Next.js</strong> (App Router)</td>
+          <td>14+</td>
+          <td>Framework React avec SSR/SSG, routing fichier, API Routes</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue">Frontend</span></td>
+          <td><strong>React</strong></td>
+          <td>18+</td>
+          <td>Librairie UI, composants, hooks</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue">Frontend</span></td>
+          <td><strong>TypeScript</strong></td>
+          <td>5+</td>
+          <td>Typage statique, securite du code</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue">Frontend</span></td>
+          <td><strong>TailwindCSS</strong></td>
+          <td>3+</td>
+          <td>Utility-first CSS, design system coherent</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">Backend</span></td>
+          <td><strong>Supabase</strong></td>
+          <td>—</td>
+          <td>PostgreSQL, Auth, RLS, Realtime, Edge Functions, Storage</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">Backend</span></td>
+          <td><strong>PostgreSQL</strong></td>
+          <td>15+</td>
+          <td>Base de donnees relationnelle (via Supabase)</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">Deploiement</span></td>
+          <td><strong>Vercel</strong></td>
+          <td>—</td>
+          <td>CI/CD automatique, preview deploys, Edge Network</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-orange">Integration</span></td>
+          <td><strong>Eduvia API</strong></td>
+          <td>REST</td>
+          <td>Source de donnees operationnelles (lecture seule)</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-orange">Integration</span></td>
+          <td><strong>Odoo API</strong></td>
+          <td>XML-RPC / REST</td>
+          <td>Export factures, sync paiements</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Architecture detaillee</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-num">NAVIGATEUR</div>
+      <div class="step-title">Client React</div>
+      <div class="step-desc">Next.js App Router<br>TailwindCSS<br>TypeScript</div>
+    </div>
+    <div class="flow-arrow">&#8596;</div>
+    <div class="flow-step">
+      <div class="step-num">API LAYER</div>
+      <div class="step-title">Next.js API Routes</div>
+      <div class="step-desc">Server Components<br>Route Handlers<br>Middleware Auth</div>
+    </div>
+    <div class="flow-arrow">&#8596;</div>
+    <div class="flow-step" style="border-color: var(--primary); border-width: 2px;">
+      <div class="step-num">BACKEND</div>
+      <div class="step-title">Supabase</div>
+      <div class="step-desc">PostgreSQL + RLS<br>Auth (JWT)<br>Edge Functions (sync)</div>
+    </div>
+  </div>
+  <div class="flow" style="padding-top: 0;">
+    <div class="flow-step" style="border-color: var(--orange);">
+      <div class="step-num" style="color: var(--orange);">CRON / EDGE FN</div>
+      <div class="step-title">Sync Eduvia</div>
+      <div class="step-desc">Toutes les 15 min<br>ou quotidien</div>
+    </div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-step">
+      <div class="step-num">SUPABASE</div>
+      <div class="step-title">Tables sync</div>
+      <div class="step-desc">contrats, taches,<br>finances, production</div>
+    </div>
+    <div class="flow-arrow" style="margin: 0 16px;">|</div>
+    <div class="flow-step" style="border-color: var(--blue);">
+      <div class="step-num" style="color: var(--blue);">EVENT-DRIVEN</div>
+      <div class="step-title">Push Odoo</div>
+      <div class="step-desc">A la validation<br>d'une facture</div>
+    </div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-step">
+      <div class="step-num">ODOO</div>
+      <div class="step-title">Comptabilite</div>
+      <div class="step-desc">Factures, paiements</div>
+    </div>
+  </div>
+
+  <h3>Structure du projet Next.js</h3>
+  <div class="card" style="font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 2; color: var(--text-secondary);">
+    <span style="color: var(--primary); font-weight: 700;">soluvia/</span><br>
+    &#9500;&#9472;&#9472; <span style="color: var(--primary);">app/</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; <span style="color: var(--blue);">(auth)/</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; login/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9492;&#9472;&#9472; forgot-password/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; <span style="color: var(--blue);">(dashboard)/</span>&nbsp;&nbsp;<span style="color: var(--muted);">// Layout avec sidebar</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; projets/page.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Accueil - liste projets</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; projets/[id]/page.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Detail projet (onglets)</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; qualite/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; suivi-projet/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; temps/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; finance/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; comptabilite/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; performance/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; administration/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; administration/clients/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; parametres/page.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9492;&#9472;&#9472; layout.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Sidebar + Topbar + Content</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; api/<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; sync/eduvia/route.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// CRON sync Eduvia</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;&#9492;&#9472;&#9472; sync/odoo/route.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Push/Pull Odoo</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9492;&#9472;&#9472; layout.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Root layout (fonts, providers)</span><br>
+    &#9500;&#9472;&#9472; <span style="color: var(--primary);">components/</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; layout/Sidebar.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; layout/Topbar.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; layout/NotificationPanel.tsx<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; ui/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Composants generiques (Button, Badge, Table...)</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9492;&#9472;&#9472; [page]/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Composants specifiques par page</span><br>
+    &#9500;&#9472;&#9472; <span style="color: var(--primary);">lib/</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; supabase/client.ts<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; supabase/server.ts<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; supabase/middleware.ts<br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; eduvia/client.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Client API Eduvia</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9500;&#9472;&#9472; odoo/client.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Client API Odoo</span><br>
+    &#9474;&nbsp;&nbsp;&nbsp;&#9492;&#9472;&#9472; utils/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Helpers, formatters, types</span><br>
+    &#9500;&#9472;&#9472; <span style="color: var(--primary);">types/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Types TypeScript globaux</span><br>
+    &#9500;&#9472;&#9472; <span style="color: var(--primary);">hooks/</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Custom hooks React</span><br>
+    &#9500;&#9472;&#9472; middleware.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">// Auth middleware (redirect si non connecte)</span><br>
+    &#9492;&#9472;&#9472; tailwind.config.ts
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>App Router</strong> — Utilisation du App Router de Next.js (pas Pages Router). Les route groups <code>(auth)</code> et <code>(dashboard)</code> permettent d'avoir des layouts differents : sans sidebar pour la connexion, avec sidebar pour le reste.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 3. AUTHENTIFICATION                                               -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">3</span> Authentification</h2>
+  <p>Connexion via Supabase Auth avec email et mot de passe. Pas de SSO pour la V1.</p>
+
+  <h3>Flux d'authentification</h3>
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="step-title">Login</div>
+      <div class="step-desc">Email + mot de passe</div>
+    </div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="step-title">Supabase Auth</div>
+      <div class="step-desc">Verification credentials<br>Generation JWT</div>
+    </div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div class="step-title">Middleware</div>
+      <div class="step-desc">Verification JWT<br>Refresh token auto</div>
+    </div>
+    <div class="flow-arrow">&#8594;</div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div class="step-title">RLS</div>
+      <div class="step-desc">Filtrage donnees<br>selon role (admin/cdp)</div>
+    </div>
+  </div>
+
+  <h3>Regles</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Methode de connexion</strong></td><td>Email + mot de passe (Supabase Auth)</td></tr>
+        <tr><td><strong>Creation de compte</strong></td><td>Admin uniquement (pas d'auto-inscription)</td></tr>
+        <tr><td><strong>Mot de passe oublie</strong></td><td>Lien de reinitialisation par email (Supabase Auth magic link)</td></tr>
+        <tr><td><strong>Session</strong></td><td>JWT stocke en cookie HttpOnly, refresh automatique</td></tr>
+        <tr><td><strong>Expiration session</strong></td><td>7 jours (refresh automatique tant que l'utilisateur est actif)</td></tr>
+        <tr><td><strong>Middleware Next.js</strong></td><td>Verifie le JWT sur chaque requete. Redirige vers <code>/login</code> si non connecte</td></tr>
+        <tr><td><strong>Utilisateur desactive</strong></td><td>Le champ <code>users.actif = false</code> empeche la connexion (meme si le compte Supabase Auth existe)</td></tr>
+        <tr><td><strong>Roles</strong></td><td>Stockes dans la table <code>users.role</code> (pas dans les JWT claims Supabase)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Mockup — Page de connexion</h3>
+  <div class="login-mockup">
+    <div class="login-card">
+      <div class="login-logo">SOLUVIA</div>
+      <div class="login-title">Connexion</div>
+      <div class="login-subtitle">Connectez-vous a votre espace de pilotage</div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" class="form-input" placeholder="prenom.nom@soluvia.fr" value="m.dupont@soluvia.fr">
+      </div>
+      <div class="form-group">
+        <label>Mot de passe</label>
+        <input type="password" class="form-input" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" value="••••••••">
+      </div>
+      <button class="login-btn">Se connecter</button>
+      <div class="login-forgot">Mot de passe oublie ?</div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#127912;</span>
+    <p><strong>Design login</strong> — Page plein ecran, fond gris clair, carte centree avec logo SOLUVIA. Pas de sidebar, pas de topbar. Le route group <code>(auth)</code> utilise un layout vide.</p>
+  </div>
+
+  <h3>Comportement apres connexion</h3>
+  <div class="card">
+    <ul style="padding-left: 20px; color: var(--muted); font-size: 14px; line-height: 2;">
+      <li><strong>Connexion reussie</strong> &rarr; Redirection vers <code>/projets</code> (page d'accueil)</li>
+      <li><strong>Email inexistant</strong> &rarr; Message : "Identifiants incorrects" (pas de leak d'information)</li>
+      <li><strong>Mot de passe faux</strong> &rarr; Meme message generique</li>
+      <li><strong>Compte desactive</strong> &rarr; Message : "Votre compte a ete desactive. Contactez un administrateur."</li>
+      <li><strong>Mot de passe oublie</strong> &rarr; Saisir email, reception d'un lien magic link, redirection vers formulaire de nouveau mot de passe</li>
+      <li><strong>Rate limiting</strong> &rarr; 5 tentatives max, puis blocage 15 minutes (Supabase Auth natif)</li>
+    </ul>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 4. ROLES & PERMISSIONS                                            -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">4</span> Roles &amp; Permissions</h2>
+  <p>Deux roles : Admin (acces total) et Chef de Projet / CDP (acces restreint a ses projets).</p>
+
+  <h3>Definition des roles</h3>
+  <div class="features">
+    <div class="feature" style="border-color: var(--purple);">
+      <div class="icon" style="background: var(--purple-bg); color: var(--purple);">A</div>
+      <h4>Admin</h4>
+      <p><strong>Acces :</strong> Toutes les pages, tous les projets, toutes les actions<br>
+      <strong>Peut :</strong> Creer/modifier des projets, gerer les users, configurer les APIs, generer des factures, voir la performance commerciale<br>
+      <strong>Nombre estime :</strong> 2-3 personnes</p>
+    </div>
+    <div class="feature" style="border-color: var(--blue);">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">C</div>
+      <h4>Chef de Projet (CDP)</h4>
+      <p><strong>Acces :</strong> Pages limitees, uniquement ses projets assignes (cdp_id ou backup_cdp_id)<br>
+      <strong>Peut :</strong> Saisir son temps, voir ses projets/qualite/finance, supprimer des lignes de facturation<br>
+      <strong>Ne peut pas :</strong> Voir les autres projets, acceder a l'admin, la perf commerciale, les parametres<br>
+      <strong>Nombre estime :</strong> 25-30 personnes</p>
+    </div>
+  </div>
+
+  <h3>Matrice des permissions detaillee</h3>
+  <div class="mockup">
+    <table>
+      <thead>
+        <tr>
+          <th>Page</th>
+          <th style="text-align:center;">Admin<br><span style="font-weight:400;text-transform:none;">Voir</span></th>
+          <th style="text-align:center;">Admin<br><span style="font-weight:400;text-transform:none;">Creer</span></th>
+          <th style="text-align:center;">Admin<br><span style="font-weight:400;text-transform:none;">Modifier</span></th>
+          <th style="text-align:center;">Admin<br><span style="font-weight:400;text-transform:none;">Supprimer</span></th>
+          <th style="text-align:center;">CDP<br><span style="font-weight:400;text-transform:none;">Voir</span></th>
+          <th style="text-align:center;">CDP<br><span style="font-weight:400;text-transform:none;">Creer</span></th>
+          <th style="text-align:center;">CDP<br><span style="font-weight:400;text-transform:none;">Modifier</span></th>
+          <th style="text-align:center;">CDP<br><span style="font-weight:400;text-transform:none;">Supprimer</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Projets</strong> (liste)</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--blue); font-weight: 700;" title="Ses projets uniquement">&#9679;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+        </tr>
+        <tr>
+          <td><strong>Detail Projet</strong></td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--blue); font-weight: 700;">&#9679;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+        </tr>
+        <tr>
+          <td><strong>Qualite</strong></td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--blue); font-weight: 700;">&#9679;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+        </tr>
+        <tr>
+          <td><strong>Suivi de Projet</strong></td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--blue); font-weight: 700;">&#9679;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+        </tr>
+        <tr>
+          <td><strong>Suivi de Temps</strong></td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003; Equipe</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003; Perso</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003; Perso</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003; Perso</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003; Perso</td>
+        </tr>
+        <tr>
+          <td><strong>Finance</strong></td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003; Complet</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--blue); font-weight: 700;">&#9679; Soluvia</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+          <td style="text-align:center; color: var(--muted);">—</td>
+        </tr>
+        <tr>
+          <td><strong>Comptabilite</strong></td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--blue); font-weight: 700;">&#9679;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--orange); font-weight: 700;">&#9650; Lignes</td>
+          <td style="text-align:center; color: var(--orange); font-weight: 700;">&#9650; Lignes</td>
+        </tr>
+        <tr>
+          <td><strong>Performance Commerciale</strong></td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+        </tr>
+        <tr>
+          <td><strong>Administration</strong></td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+        </tr>
+        <tr>
+          <td><strong>Parametres</strong></td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--green); font-weight: 700;">&#10003;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+          <td style="text-align:center; color: var(--red); font-weight: 700;">&#10007;</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128308;</span>
+    <p><strong>Legende</strong> — <span style="color: var(--green); font-weight: 700;">&#10003;</span> = Acces complet | <span style="color: var(--blue); font-weight: 700;">&#9679;</span> = Ses projets uniquement (cdp_id OU backup_cdp_id = user) | <span style="color: var(--orange); font-weight: 700;">&#9650;</span> = Action partielle | <span style="color: var(--red); font-weight: 700;">&#10007;</span> = Pas d'acces | — = Non applicable</p>
+  </div>
+
+  <h3>Implementation RLS (Row Level Security)</h3>
+  <div class="card" style="font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 2.2;">
+    <span style="color: var(--muted);">-- Politique pour la table projets</span><br>
+    <span style="color: var(--primary);">CREATE POLICY</span> "admin_all" <span style="color: var(--primary);">ON</span> projets<br>
+    &nbsp;&nbsp;<span style="color: var(--primary);">FOR ALL</span><br>
+    &nbsp;&nbsp;<span style="color: var(--primary);">USING</span> (<span style="color: var(--orange);">get_user_role</span>() = 'admin');<br><br>
+    <span style="color: var(--primary);">CREATE POLICY</span> "cdp_own_projects" <span style="color: var(--primary);">ON</span> projets<br>
+    &nbsp;&nbsp;<span style="color: var(--primary);">FOR SELECT</span><br>
+    &nbsp;&nbsp;<span style="color: var(--primary);">USING</span> (<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;cdp_id = <span style="color: var(--orange);">auth.uid</span>()<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--primary);">OR</span> backup_cdp_id = <span style="color: var(--orange);">auth.uid</span>()<br>
+    &nbsp;&nbsp;);<br><br>
+    <span style="color: var(--muted);">-- Politique pour saisies_temps</span><br>
+    <span style="color: var(--primary);">CREATE POLICY</span> "cdp_own_time" <span style="color: var(--primary);">ON</span> saisies_temps<br>
+    &nbsp;&nbsp;<span style="color: var(--primary);">FOR ALL</span><br>
+    &nbsp;&nbsp;<span style="color: var(--primary);">USING</span> (user_id = <span style="color: var(--orange);">auth.uid</span>());
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 5. LAYOUT GLOBAL                                                  -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">5</span> Layout global</h2>
+  <p>Structure de page commune a toute l'application : sidebar collapsible + topbar avec breadcrumb et notifications + zone de contenu.</p>
+
+  <h3>Composants du layout</h3>
+  <div class="stats" style="grid-template-columns: 1fr 1fr 1fr;">
+    <div class="stat">
+      <div class="value" style="font-size: 20px; color: var(--text);">Sidebar</div>
+      <div class="label">Navigation principale<br>Collapsible (260px &rarr; 64px)</div>
+    </div>
+    <div class="stat">
+      <div class="value" style="font-size: 20px; color: var(--text);">Topbar</div>
+      <div class="label">Breadcrumb + Notifications<br>+ Avatar utilisateur</div>
+    </div>
+    <div class="stat">
+      <div class="value" style="font-size: 20px; color: var(--text);">Content</div>
+      <div class="label">Zone de contenu<br>Fond gris clair, scroll</div>
+    </div>
+  </div>
+
+  <h3>Mockup — Layout complet (sidebar ouverte)</h3>
+  <div class="layout-mockup">
+    <div class="layout-sidebar">
+      <div class="brand">
+        <div class="brand-icon">S</div>
+        <div class="brand-text">SOLUVIA</div>
+      </div>
+      <div class="sidebar-nav" style="flex: 1; overflow-y: auto;">
+        <div class="nav-section">Principal</div>
+        <div class="nav-item active"><span class="ico">&#9776;</span> <span class="nav-label">Projets</span></div>
+        <div class="nav-item"><span class="ico">&#9733;</span> <span class="nav-label">Qualite</span> <span class="nav-badge">3</span></div>
+        <div class="nav-item"><span class="ico">&#128337;</span> <span class="nav-label">Suivi de Temps</span></div>
+        <div class="nav-item"><span class="ico">&#128200;</span> <span class="nav-label">Suivi de Projet</span></div>
+        <div class="nav-section">Finance</div>
+        <div class="nav-item"><span class="ico">&#8364;</span> <span class="nav-label">Finance</span></div>
+        <div class="nav-item"><span class="ico">&#128196;</span> <span class="nav-label">Comptabilite</span> <span class="nav-badge">2</span></div>
+        <div class="nav-item"><span class="ico">&#128188;</span> <span class="nav-label">Performance</span></div>
+        <div class="nav-section">Administration</div>
+        <div class="nav-item"><span class="ico">&#128101;</span> <span class="nav-label">Clients</span></div>
+        <div class="nav-item"><span class="ico">&#9881;</span> <span class="nav-label">Administration</span></div>
+        <div class="nav-item"><span class="ico">&#128736;</span> <span class="nav-label">Parametres</span></div>
+      </div>
+      <div class="collapse-btn">&#9664; <span class="collapse-text">Reduire</span></div>
+    </div>
+    <div class="layout-topbar">
+      <div class="breadcrumb">
+        <a href="#">Projets</a>
+      </div>
+      <div class="topbar-right">
+        <div class="notif-bell">
+          &#128276;
+          <div class="notif-dot"></div>
+        </div>
+        <div class="user-avatar">MD</div>
+      </div>
+    </div>
+    <div class="layout-content">
+      <div class="content-placeholder">
+        Zone de contenu de la page active<br><br>
+        <span style="font-size: 12px;">Fond : #f5f7f5 | Cartes blanches | Padding : 24px</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Mockup — Layout (sidebar reduite)</h3>
+  <div class="layout-mockup collapsed" style="min-height: 400px;">
+    <div class="layout-sidebar">
+      <div class="brand">
+        <div class="brand-icon">S</div>
+        <div class="brand-text">SOLUVIA</div>
+      </div>
+      <div class="sidebar-nav" style="flex: 1;">
+        <div class="nav-section">&nbsp;</div>
+        <div class="nav-item active"><span class="ico">&#9776;</span> <span class="nav-label">Projets</span></div>
+        <div class="nav-item"><span class="ico">&#9733;</span> <span class="nav-label">Qualite</span></div>
+        <div class="nav-item"><span class="ico">&#128337;</span> <span class="nav-label">Suivi de Temps</span></div>
+        <div class="nav-item"><span class="ico">&#128200;</span> <span class="nav-label">Suivi de Projet</span></div>
+        <div class="nav-section">&nbsp;</div>
+        <div class="nav-item"><span class="ico">&#8364;</span> <span class="nav-label">Finance</span></div>
+        <div class="nav-item"><span class="ico">&#128196;</span> <span class="nav-label">Comptabilite</span></div>
+        <div class="nav-item"><span class="ico">&#128188;</span> <span class="nav-label">Performance</span></div>
+        <div class="nav-section">&nbsp;</div>
+        <div class="nav-item"><span class="ico">&#128101;</span> <span class="nav-label">Clients</span></div>
+        <div class="nav-item"><span class="ico">&#9881;</span> <span class="nav-label">Administration</span></div>
+        <div class="nav-item"><span class="ico">&#128736;</span> <span class="nav-label">Parametres</span></div>
+      </div>
+      <div class="collapse-btn">&#9654; <span class="collapse-text">Agrandir</span></div>
+    </div>
+    <div class="layout-topbar">
+      <div class="breadcrumb">
+        <a href="#">Projets</a> <span>/</span> <a href="#">APP-0001</a> <span>/</span> Contrats
+      </div>
+      <div class="topbar-right">
+        <div class="notif-bell">
+          &#128276;
+          <div class="notif-dot"></div>
+        </div>
+        <div class="user-avatar">MD</div>
+      </div>
+    </div>
+    <div class="layout-content">
+      <div class="content-placeholder">
+        Zone de contenu elargie quand la sidebar est reduite<br><br>
+        <span style="font-size: 12px;">La sidebar passe de 260px a 64px (icones seules)</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Specifications sidebar</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Propriete</th><th>Ouverte</th><th>Reduite</th></tr></thead>
+      <tbody>
+        <tr><td>Largeur</td><td><code>260px</code></td><td><code>64px</code></td></tr>
+        <tr><td>Contenu</td><td>Icone + label texte</td><td>Icone seule (tooltip au hover)</td></tr>
+        <tr><td>Sections</td><td>Titres visibles (PRINCIPAL, FINANCE, ADMINISTRATION)</td><td>Separateur horizontal fin</td></tr>
+        <tr><td>Badges</td><td>Badges numeriques visibles</td><td>Dot rouge sur l'icone</td></tr>
+        <tr><td>Bouton collapse</td><td>&#9664; Reduire (en bas)</td><td>&#9654; (en bas)</td></tr>
+        <tr><td>Etat persiste</td><td colspan="2">Sauvegarde en <code>localStorage</code> — l'etat est conserve entre les sessions</td></tr>
+        <tr><td>Animation</td><td colspan="2">Transition <code>width 200ms ease</code></td></tr>
+        <tr><td>Mobile (&lt; 768px)</td><td colspan="2">Drawer overlay avec bouton hamburger dans la topbar</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Sidebar — Visibilite par role</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Item sidebar</th><th>Admin</th><th>CDP</th></tr></thead>
+      <tbody>
+        <tr><td>Projets</td><td><span class="badge badge-green">Visible</span></td><td><span class="badge badge-green">Visible</span></td></tr>
+        <tr><td>Qualite</td><td><span class="badge badge-green">Visible</span></td><td><span class="badge badge-green">Visible</span></td></tr>
+        <tr><td>Suivi de Temps</td><td><span class="badge badge-green">Visible</span></td><td><span class="badge badge-green">Visible</span></td></tr>
+        <tr><td>Suivi de Projet</td><td><span class="badge badge-green">Visible</span></td><td><span class="badge badge-green">Visible</span></td></tr>
+        <tr><td>Finance</td><td><span class="badge badge-green">Visible</span></td><td><span class="badge badge-green">Visible</span></td></tr>
+        <tr><td>Comptabilite</td><td><span class="badge badge-green">Visible</span></td><td><span class="badge badge-green">Visible</span></td></tr>
+        <tr><td>Performance</td><td><span class="badge badge-green">Visible</span></td><td><span class="badge badge-red">Masque</span></td></tr>
+        <tr><td>Section "Administration"</td><td><span class="badge badge-green">Visible</span></td><td><span class="badge badge-red">Masque entierement</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 6. TOPBAR & NOTIFICATIONS                                         -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">6</span> Topbar &amp; Notifications</h2>
+  <p>Barre superieure avec breadcrumb, cloche de notifications et avatar utilisateur.</p>
+
+  <h3>Composants de la topbar</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Element</th><th>Position</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Breadcrumb</strong></td><td>Gauche</td><td>Chemin de navigation : Page &rarr; Projet (si applicable) &rarr; Onglet. Chaque segment est cliquable.</td></tr>
+        <tr><td><strong>Cloche notifications</strong></td><td>Droite</td><td>Icone cloche avec dot rouge si notifications non lues. Clic ouvre le panneau notifications.</td></tr>
+        <tr><td><strong>Avatar utilisateur</strong></td><td>Extreme droite</td><td>Initiales du user. Clic ouvre dropdown : Mon profil, Deconnexion.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Breadcrumb — Exemples</h3>
+  <div class="card">
+    <div style="display: flex; flex-direction: column; gap: 12px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px;">
+      <div><span style="color: var(--text); font-weight: 600;">Projets</span></div>
+      <div><span style="color: var(--primary);">Projets</span> <span style="color: var(--muted);">/</span> <span style="color: var(--text); font-weight: 600;">APP-0001 Heol Academy</span></div>
+      <div><span style="color: var(--primary);">Projets</span> <span style="color: var(--muted);">/</span> <span style="color: var(--primary);">APP-0001</span> <span style="color: var(--muted);">/</span> <span style="color: var(--text); font-weight: 600;">Contrats</span></div>
+      <div><span style="color: var(--text); font-weight: 600;">Qualite</span></div>
+      <div><span style="color: var(--text); font-weight: 600;">Finance</span></div>
+      <div><span style="color: var(--primary);">Administration</span> <span style="color: var(--muted);">/</span> <span style="color: var(--text); font-weight: 600;">Clients</span></div>
+    </div>
+  </div>
+
+  <h3>Systeme de notifications</h3>
+  <div class="features">
+    <div class="feature">
+      <div class="icon" style="background: var(--red-bg); color: var(--red);">&#128680;</div>
+      <h4>Alertes factures</h4>
+      <p>Facture en retard de paiement, echeance depassee. Envoyee a l'admin + CDP concerne.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--orange-bg); color: var(--orange);">&#9733;</div>
+      <h4>Alertes qualite</h4>
+      <p>Tache en retard sur Eduvia, echeance depassee. Envoyee au CDP du projet.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">&#128337;</div>
+      <h4>Rappel saisie temps</h4>
+      <p>Notification en fin de journee si aucune heure saisie. Envoyee au CDP.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">&#128260;</div>
+      <h4>Erreurs sync</h4>
+      <p>Echec de synchronisation Eduvia ou Odoo. Envoyee a l'admin uniquement.</p>
+    </div>
+  </div>
+
+  <h3>Mockup — Panneau notifications</h3>
+  <div class="notif-panel">
+    <div class="notif-header">
+      <h4>Notifications</h4>
+      <span class="notif-count">3</span>
+    </div>
+    <div class="notif-item unread">
+      <div class="notif-icon" style="background: var(--red-bg); color: var(--red);">&#128680;</div>
+      <div class="notif-body">
+        <div class="notif-text"><strong>Facture en retard</strong> — FAC-2026-0038 (MET — Inst. des Metiers) : 5 400 &euro; non reglee depuis 35 jours</div>
+        <div class="notif-time">Il y a 2 heures</div>
+      </div>
+    </div>
+    <div class="notif-item unread">
+      <div class="notif-icon" style="background: var(--orange-bg); color: var(--orange);">&#9733;</div>
+      <div class="notif-body">
+        <div class="notif-text"><strong>Tache en retard</strong> — "Completer les livrets d'apprentissage" sur APP-0001 (echeance : 15/04)</div>
+        <div class="notif-time">Il y a 4 heures</div>
+      </div>
+    </div>
+    <div class="notif-item unread">
+      <div class="notif-icon" style="background: var(--blue-bg); color: var(--blue);">&#128337;</div>
+      <div class="notif-body">
+        <div class="notif-text"><strong>Rappel temps</strong> — Vous n'avez pas saisi de temps aujourd'hui</div>
+        <div class="notif-time">Il y a 6 heures</div>
+      </div>
+    </div>
+    <div class="notif-item">
+      <div class="notif-icon" style="background: var(--primary-bg); color: var(--primary);">&#10003;</div>
+      <div class="notif-body">
+        <div class="notif-text"><strong>Sync reussie</strong> — 48 taches qualite synchronisees depuis Eduvia</div>
+        <div class="notif-time">Hier, 14:32</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Regles notifications</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Type</th><th>Destinataire</th><th>Declencheur</th><th>Frequence</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-red">Facture retard</span></td><td>Admin + CDP du projet</td><td>Date echeance depassee + statut != payee</td><td>1x puis rappel a J+7</td></tr>
+        <tr><td><span class="badge badge-orange">Tache retard</span></td><td>CDP du projet</td><td>Date echeance depassee + statut != fait</td><td>1x lors du sync Eduvia</td></tr>
+        <tr><td><span class="badge badge-blue">Rappel temps</span></td><td>CDP (chaque user)</td><td>18h00 si aucune saisie pour la journee</td><td>Quotidien (jours ouvres)</td></tr>
+        <tr><td><span class="badge badge-green">Periode facturation</span></td><td>CDP</td><td>Le 25 du mois : rappel de facturer ses contrats</td><td>1x par mois</td></tr>
+        <tr><td><span class="badge badge-gray">Erreur sync</span></td><td>Admin uniquement</td><td>3 echecs consecutifs de sync API</td><td>A chaque occurrence</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Implementation</strong> — Les notifications sont stockees dans une table <code>notifications</code> (Supabase). Le panneau utilise Supabase Realtime pour afficher les nouvelles notifs en temps reel sans refresh. Les notifications lues sont marquees avec un timestamp <code>read_at</code>.</p>
+  </div>
+
+  <h3>Table notifications</h3>
+  <div class="card" style="font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 2;">
+    <span style="color: var(--primary); font-weight: 700;">notifications</span><br>
+    &nbsp;&nbsp;<span style="color: var(--primary);">id</span> UUID PK<br>
+    &nbsp;&nbsp;<span style="color: var(--orange);">user_id</span> FK &rarr; users&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">-- destinataire</span><br>
+    &nbsp;&nbsp;type TEXT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">-- facture_retard, tache_retard, rappel_temps, etc.</span><br>
+    &nbsp;&nbsp;titre TEXT<br>
+    &nbsp;&nbsp;message TEXT<br>
+    &nbsp;&nbsp;lien TEXT&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">-- URL de redirection au clic</span><br>
+    &nbsp;&nbsp;read_at TIMESTAMPTZ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--muted);">-- NULL si non lue</span><br>
+    &nbsp;&nbsp;created_at TIMESTAMPTZ
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 7. DESIGN SYSTEM                                                  -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">7</span> Design System</h2>
+  <p>Conventions visuelles partagees par toutes les pages de SOLUVIA.</p>
+
+  <h3>Palette de couleurs</h3>
+  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 24px;">
+    <div style="text-align: center;">
+      <div style="width: 100%; height: 48px; background: var(--primary); border-radius: 8px; margin-bottom: 4px;"></div>
+      <div style="font-size: 11px; color: var(--muted);">Primary<br>#16a34a</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 100%; height: 48px; background: var(--blue); border-radius: 8px; margin-bottom: 4px;"></div>
+      <div style="font-size: 11px; color: var(--muted);">Info / CDP<br>#2563eb</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 100%; height: 48px; background: var(--orange); border-radius: 8px; margin-bottom: 4px;"></div>
+      <div style="font-size: 11px; color: var(--muted);">Warning<br>#d97706</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 100%; height: 48px; background: var(--red); border-radius: 8px; margin-bottom: 4px;"></div>
+      <div style="font-size: 11px; color: var(--muted);">Danger<br>#dc2626</div>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 100%; height: 48px; background: var(--gray); border-radius: 8px; margin-bottom: 4px;"></div>
+      <div style="font-size: 11px; color: var(--muted);">Muted<br>#6b7280</div>
+    </div>
+  </div>
+
+  <h3>Code couleur semantique</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Couleur</th><th>Usage</th><th>Exemples</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-green">Vert</span></td><td>Succes, objectif atteint, OK</td><td>7h/jour atteint, facture payee, tache terminee, sync reussie</td></tr>
+        <tr><td><span class="badge badge-orange">Orange</span></td><td>Attention, en cours, partiel</td><td>Tache en cours, en dessous de l'objectif, negociation</td></tr>
+        <tr><td><span class="badge badge-red">Rouge</span></td><td>Erreur, retard, critique</td><td>Facture en retard, tache en retard, erreur sync, abandon</td></tr>
+        <tr><td><span class="badge badge-blue">Bleu</span></td><td>Information, CDP, secondaire</td><td>Badge CDP, statut envoye, type PDC, info neutre</td></tr>
+        <tr><td><span class="badge badge-purple">Violet</span></td><td>Admin, special</td><td>Badge admin, type POEI</td></tr>
+        <tr><td><span class="badge badge-gray">Gris</span></td><td>Inactif, non applicable, desactive</td><td>Pas d'acces, statut inactif, non commence</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Typographie</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Element</th><th>Font</th><th>Taille</th><th>Poids</th></tr></thead>
+      <tbody>
+        <tr><td>Texte general</td><td>System UI (TailwindCSS default)</td><td>14px (base)</td><td>400</td></tr>
+        <tr><td>Titres de page</td><td>System UI</td><td>22-24px</td><td>600-700</td></tr>
+        <tr><td>Titres de section</td><td>System UI</td><td>16-18px</td><td>600</td></tr>
+        <tr><td>Codes projet, montants</td><td>SF Mono / Fira Code (monospace)</td><td>11-13px</td><td>700</td></tr>
+        <tr><td>Labels, muted</td><td>System UI</td><td>12px</td><td>400-600</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Composants TailwindCSS</h3>
+  <div class="card">
+    <h3>Classes a definir dans le design system</h3>
+    <ul style="padding-left: 20px; color: var(--muted); font-size: 14px; line-height: 2;">
+      <li><code>rounded-lg</code> — Border radius 10px pour les cartes et mockups</li>
+      <li><code>shadow-sm</code> — Ombre legere pour les cartes sureleves</li>
+      <li><code>bg-background</code> — Fond de page : #f5f7f5</li>
+      <li><code>bg-card</code> — Fond de carte : #f8faf8</li>
+      <li><code>border-border</code> — Bordure standard : #d4e4d4</li>
+      <li><code>text-muted</code> — Texte secondaire : #6b8a6b</li>
+      <li><code>font-mono</code> — Font monospace pour codes et montants</li>
+    </ul>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- FOOTER                                                            -->
+<!-- ================================================================= -->
+<div style="text-align: center; padding: 48px 0; color: var(--muted); font-size: 13px;">
+  <div style="font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">SOLUVIA</div>
+  <div>Section 00 — Architecture &amp; Vue d'ensemble — v1.0 — Avril 2026</div>
+  <div style="margin-top: 4px;">Page suivante : <strong>01 — Systeme d'identification</strong></div>
+</div>
+
+</body>
+</html>

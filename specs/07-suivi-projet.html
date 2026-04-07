@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLUVIA — 07 Suivi de Projet</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f8faf8;
+    --card-alt: #f0f5f0;
+    --border: #d4e4d4;
+    --border-light: #e8f0e8;
+    --text: #1a2e1a;
+    --text-secondary: #2d4a2d;
+    --muted: #6b8a6b;
+    --primary: #16a34a;
+    --primary-light: #22c55e;
+    --primary-dark: #15803d;
+    --primary-bg: rgba(22, 163, 74, 0.08);
+    --primary-bg-strong: rgba(22, 163, 74, 0.15);
+    --accent: #059669;
+    --green: #16a34a;
+    --green-light: #4ade80;
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --blue: #2563eb;
+    --blue-bg: rgba(37, 99, 235, 0.08);
+    --purple: #7c3aed;
+    --purple-bg: rgba(124, 58, 237, 0.08);
+    --gray: #6b7280;
+    --gray-bg: rgba(107, 114, 128, 0.08);
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 32px; max-width: 1200px; margin: 0 auto; }
+
+  .spec-header { text-align: center; padding: 48px 0 40px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .spec-header .logo { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 12px; }
+  .spec-header h1 { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .spec-header .subtitle { font-size: 16px; color: var(--muted); }
+  .spec-header .meta { margin-top: 20px; display: flex; justify-content: center; gap: 24px; font-size: 13px; color: var(--muted); }
+  .spec-header .meta span { background: var(--card-alt); border: 1px solid var(--border-light); padding: 4px 12px; border-radius: 999px; }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  section h2 .num { background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+  .mockup { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-ui-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .mockup-ui-body { padding: 20px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--card-alt); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .badge-green { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+  .badge-orange { background: rgba(217, 119, 6, 0.12); color: var(--orange); }
+  .badge-red { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .badge-blue { background: rgba(37, 99, 235, 0.12); color: var(--blue); }
+  .badge-gray { background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+  .badge-purple { background: rgba(124, 58, 237, 0.12); color: var(--purple); }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .features.three { grid-template-columns: 1fr 1fr 1fr; }
+  .feature { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; }
+  .feature .icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+  .feature h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text); }
+  .feature p { font-size: 13px; color: var(--muted); }
+
+  .annotation { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; background: var(--primary-bg); border-radius: var(--radius); margin: 16px 0; font-size: 13px; color: var(--text-secondary); }
+  .annotation .icon { font-size: 18px; flex-shrink: 0; }
+  .annotation.warn { background: var(--orange-bg); }
+  .annotation.danger { background: var(--red-bg); }
+
+  code { background: var(--card-alt); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--primary-dark); border: 1px solid var(--border-light); }
+  .id-ref { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; font-weight: 700; color: var(--primary); background: var(--primary-bg); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(22, 163, 74, 0.2); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stats-row.six { grid-template-columns: repeat(6, 1fr); }
+  .stat-card { background: white; border: 1px solid var(--border-light); border-radius: var(--radius); padding: 14px; text-align: center; }
+  .stat-card .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .stat-card .stat-value { font-size: 20px; font-weight: 700; color: var(--text); font-family: 'SF Mono', monospace; }
+  .stat-card .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.orange .stat-value { color: var(--orange); }
+  .stat-card.red .stat-value { color: var(--red); }
+  .stat-card.blue .stat-value { color: var(--blue); }
+
+  .section-block { background: white; border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .section-block h4 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .section-block h4 .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .progress-bar { height: 8px; background: var(--card-alt); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .progress-bar .fill { height: 100%; border-radius: 4px; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="spec-header">
+  <div class="logo">SOLUVIA</div>
+  <h1>07 — Suivi de Projet</h1>
+  <div class="subtitle">Page detail projet enrichie : volets financier, qualite, pedagogie, reussite, abandons, rentabilite</div>
+  <div class="meta">
+    <span>v1.0</span>
+    <span>Avril 2026</span>
+    <span>Spec 07 / 11</span>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. PRINCIPES                                                       -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">1</span> Principes</h2>
+  <p>Cette spec enrichit la page detail projet <code>/projets/[ref]</code> (spec 02) avec 6 volets de suivi. L'objectif est de maximiser les indicateurs en pourcentage pour chaque projet.</p>
+
+  <div class="features three">
+    <div class="feature">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">&#128200;</div>
+      <h4>6 volets de suivi</h4>
+      <p>Financier, Qualite, Pedagogie, Reussite, Financement, Abandons. Chaque volet a ses indicateurs en %.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">&#128176;</div>
+      <h4>Rentabilite</h4>
+      <p>Indicateur de rentabilite par projet. Formule a definir.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--purple-bg); color: var(--purple);">&#128260;</div>
+      <h4>Remplace la spec 02</h4>
+      <p>Les sections Finance, Temps et Qualite de la page detail projet (spec 02) sont remplacees par ces volets enrichis.</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Page</strong></td><td><code>/projets/[ref]</code> — meme URL que la spec 02. Cette spec enrichit le contenu de la page detail.</td></tr>
+        <tr><td><strong>Backup CDP</strong></td><td>Champ backup CDP (chef de projet referent si le CDP principal est absent). Deja defini en spec 02.</td></tr>
+        <tr><td><strong>Permissions</strong></td><td>CDP voit ses projets (RLS). Admin voit tout. Lecture seule — les donnees viennent des autres modules.</td></tr>
+        <tr><td><strong>Objectif</strong></td><td>Maximiser les indicateurs en %. Chaque volet doit permettre d'identifier rapidement les points faibles du projet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 2. STRUCTURE DE LA PAGE                                            -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">2</span> Structure de la page detail projet</h2>
+  <p>La page <code>/projets/[ref]</code> est reorganisee en sections. Les informations generales (spec 02) restent en haut, suivies des volets de suivi.</p>
+
+  <h3>Layout de la page</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>#</th><th>Section</th><th>Source</th><th>Statut</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Informations generales</strong></td><td>Spec 02 (inchange)</td><td><span class="badge badge-green">Existant</span></td></tr>
+        <tr><td>2</td><td><strong>Volet Financier</strong></td><td>Specs 05 + 06 (production, facture, encaisse, retard)</td><td><span class="badge badge-green">Defini</span></td></tr>
+        <tr><td>3</td><td><strong>Volet Temps</strong></td><td>Spec 04 (temps du mois, ventilation par axe)</td><td><span class="badge badge-green">Defini</span></td></tr>
+        <tr><td>4</td><td><strong>Volet Qualite</strong></td><td>Spec 03 (taches Qualiopi) + indicateur %</td><td><span class="badge badge-orange">% a definir</span></td></tr>
+        <tr><td>5</td><td><strong>Volet Pedagogie</strong></td><td>Eduvia (progressions apprenants)</td><td><span class="badge badge-orange">% a definir</span></td></tr>
+        <tr><td>6</td><td><strong>Volet Reussite</strong></td><td>Eduvia (resultats examens)</td><td><span class="badge badge-orange">% a definir</span></td></tr>
+        <tr><td>7</td><td><strong>Volet Financement</strong></td><td>Specs 05 + 06 (financement OPCO)</td><td><span class="badge badge-orange">% a definir</span></td></tr>
+        <tr><td>8</td><td><strong>Volet Abandons</strong></td><td>Eduvia (contrats resilies)</td><td><span class="badge badge-orange">% a definir</span></td></tr>
+        <tr><td>9</td><td><strong>Rentabilite</strong></td><td>Calcul interne SOLUVIA</td><td><span class="badge badge-orange">Formule a definir</span></td></tr>
+        <tr><td>10</td><td><strong>Contrats du projet</strong></td><td>Spec 02 (inchange)</td><td><span class="badge badge-green">Existant</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 3. VOLET FINANCIER                                                 -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">3</span> Volet Financier</h2>
+  <p>Remplace la section "Finance" de la spec 02. Affiche les metriques de la spec 05 filtrees sur ce projet.</p>
+
+  <h3>Mockup — Finance projet</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Finance — <span class="id-ref">0042-DUP-APP</span></div>
+      <div style="font-size: 12px; color: var(--muted);">Commission : 10%</div>
+    </div>
+    <div class="mockup-ui-body">
+      <div class="features">
+        <div class="section-block">
+          <h4><span class="dot" style="background: var(--orange);"></span> Cote OPCO (client)</h4>
+          <div class="stats-row">
+            <div class="stat-card green">
+              <div class="stat-label">Production</div>
+              <div class="stat-value" style="font-size: 16px;">45 000 &euro;</div>
+            </div>
+            <div class="stat-card blue">
+              <div class="stat-label">Facture</div>
+              <div class="stat-value" style="font-size: 16px;">38 000 &euro;</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Encaisse</div>
+              <div class="stat-value" style="font-size: 16px;">32 000 &euro;</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-block">
+          <h4><span class="dot" style="background: var(--primary);"></span> Cote SOLUVIA (commission 10%)</h4>
+          <div class="stats-row">
+            <div class="stat-card green">
+              <div class="stat-label">Production</div>
+              <div class="stat-value" style="font-size: 16px;">4 500 &euro;</div>
+            </div>
+            <div class="stat-card blue">
+              <div class="stat-label">Facture</div>
+              <div class="stat-value" style="font-size: 16px;">3 800 &euro;</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Encaisse</div>
+              <div class="stat-value" style="font-size: 16px;">3 200 &euro;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card red">
+          <div class="stat-label">En retard</div>
+          <div class="stat-value" style="font-size: 16px;">1 200 &euro;</div>
+          <div class="stat-sub">Solde cumule</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-label">Reste a facturer (RAF)</div>
+          <div class="stat-value" style="font-size: 16px;">2 500 &euro;</div>
+          <div class="stat-sub">Solde cumule</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Reste a encaisser (RAE)</div>
+          <div class="stat-value" style="font-size: 16px;">2 800 &euro;</div>
+          <div class="stat-sub">Solde cumule</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Source</strong> — Donnees calculees a partir des specs 05 (production) et 06 (facturation), filtrees sur ce projet. Formules identiques : production lineaire, commission %, RAF, RAE, En retard ≤ RAE.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 4. VOLET TEMPS                                                     -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">4</span> Volet Temps</h2>
+  <p>Remplace la section "Temps" de la spec 02. Affiche le temps du mois en cours ventile par axe.</p>
+
+  <h3>Mockup — Temps projet</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Temps — Avril 2026</div>
+      <div style="font-size: 12px; color: var(--muted);">Total : 32h</div>
+    </div>
+    <div class="mockup-ui-body">
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
+        <div class="stat-card">
+          <div class="stat-label">Accompagnement</div>
+          <div class="stat-value" style="font-size: 16px;">12h</div>
+          <div class="progress-bar"><div class="fill" style="width: 37%; background: #16a34a;"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Pedagogie</div>
+          <div class="stat-value" style="font-size: 16px;">8h</div>
+          <div class="progress-bar"><div class="fill" style="width: 25%; background: #059669;"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Administratif</div>
+          <div class="stat-value" style="font-size: 16px;">6h</div>
+          <div class="progress-bar"><div class="fill" style="width: 19%; background: #0d9488;"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Qualite</div>
+          <div class="stat-value" style="font-size: 16px;">4h</div>
+          <div class="progress-bar"><div class="fill" style="width: 12%; background: #0891b2;"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Commercial</div>
+          <div class="stat-value" style="font-size: 16px;">2h</div>
+          <div class="progress-bar"><div class="fill" style="width: 6%; background: #6366f1;"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Source</strong> — Donnees de la table <code>saisies_temps</code> + <code>saisies_temps_axes</code> (spec 04), filtrees sur ce projet et le mois en cours.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 5. VOLETS QUALITE & PEDAGOGIE (PLACEHOLDERS)                       -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">5</span> Volets de performance — Indicateurs %</h2>
+  <p>6 volets d'indicateurs qualitatifs. L'objectif est de maximiser chaque pourcentage. Les formules exactes seront definies ulterieurement.</p>
+
+  <h3>Mockup — Vue d'ensemble des volets</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Performance — <span class="id-ref">0042-DUP-APP</span></div>
+      <div><span class="badge badge-orange">Formules a definir</span></div>
+    </div>
+    <div class="mockup-ui-body">
+      <div class="features three">
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <div class="icon" style="background: var(--green-light); color: white; margin: 0 auto 12px; font-size: 14px; font-weight: 700;">Q</div>
+          <h4>Qualite Qualiopi</h4>
+          <div style="font-size: 32px; font-weight: 700; color: var(--border); font-family: monospace; margin: 8px 0;">&mdash;%</div>
+          <p>% de taches conformes sur le projet. Relatif au nombre total de livrables Qualiopi (109 livrables, 10 familles).</p>
+          <div style="margin-top: 8px; font-size: 11px; color: var(--muted);">Source : Eduvia (spec 03)</div>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <div class="icon" style="background: #059669; color: white; margin: 0 auto 12px; font-size: 14px; font-weight: 700;">P</div>
+          <h4>Pedagogie</h4>
+          <div style="font-size: 32px; font-weight: 700; color: var(--border); font-family: monospace; margin: 8px 0;">&mdash;%</div>
+          <p>% d'avancement global des apprenants par rapport au % theorique. Relatif a la progression attendue.</p>
+          <div style="margin-top: 8px; font-size: 11px; color: var(--muted);">Source : Eduvia (progressions)</div>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <div class="icon" style="background: var(--blue); color: white; margin: 0 auto 12px; font-size: 14px; font-weight: 700;">R</div>
+          <h4>Reussite</h4>
+          <div style="font-size: 32px; font-weight: 700; color: var(--border); font-family: monospace; margin: 8px 0;">&mdash;%</div>
+          <p>Taux de reussite aux examens. Relatif au nombre d'apprenants presentes.</p>
+          <div style="margin-top: 8px; font-size: 11px; color: var(--muted);">Source : Eduvia (resultats)</div>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <div class="icon" style="background: var(--orange); color: white; margin: 0 auto 12px; font-size: 14px; font-weight: 700;">F</div>
+          <h4>Financement</h4>
+          <div style="font-size: 32px; font-weight: 700; color: var(--border); font-family: monospace; margin: 8px 0;">&mdash;%</div>
+          <p>% du financement OPCO consomme. Relatif au montant total de prise en charge.</p>
+          <div style="margin-top: 8px; font-size: 11px; color: var(--muted);">Source : Specs 05/06</div>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <div class="icon" style="background: var(--red); color: white; margin: 0 auto 12px; font-size: 14px; font-weight: 700;">A</div>
+          <h4>Abandons</h4>
+          <div style="font-size: 32px; font-weight: 700; color: var(--border); font-family: monospace; margin: 8px 0;">&mdash;%</div>
+          <p>Taux d'abandons. Nb contrats resilies / nb contrats total du projet. A minimiser.</p>
+          <div style="margin-top: 8px; font-size: 11px; color: var(--muted);">Source : Eduvia (contract_state)</div>
+        </div>
+        <div class="feature" style="text-align: center; border: 2px dashed var(--border);">
+          <div class="icon" style="background: var(--purple); color: white; margin: 0 auto 12px; font-size: 14px; font-weight: 700;">&euro;</div>
+          <h4>Rentabilite</h4>
+          <div style="font-size: 32px; font-weight: 700; color: var(--border); font-family: monospace; margin: 8px 0;">&mdash; &euro;</div>
+          <p>Indicateur de rentabilite du projet. Formule a definir (recettes, temps passe, commission).</p>
+          <div style="margin-top: 8px; font-size: 11px; color: var(--muted);">Source : Specs 04/05/06</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation warn">
+    <span class="icon">&#9888;</span>
+    <p><strong>A definir</strong> — Les formules de calcul, les sources de donnees et les seuils de ces 6 indicateurs seront specifies ulterieurement. Les emplacements sont reserves dans l'interface. Pour chaque indicateur, il faudra definir : (1) la formule exacte, (2) le "relatif a quoi" (denominateur du %), (3) les seuils de couleur (vert/orange/rouge), (4) la source de donnees.</p>
+  </div>
+
+  <h3>Principes de conception</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Principe</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Relatif a quoi</strong></td><td>Chaque % doit avoir un denominateur clair. Ex: Qualite = livrables faits / livrables totaux. Abandons = resilies / total contrats. Le "relatif a quoi" est le point le plus important a definir.</td></tr>
+        <tr><td><strong>Objectif</strong></td><td>Tous les indicateurs doivent tendre vers 100% (sauf Abandons qui doit tendre vers 0%).</td></tr>
+        <tr><td><strong>Seuils de couleur</strong></td><td><span style="color: var(--green); font-weight: 600;">Vert</span> = bon (&ge; 80%). <span style="color: var(--orange); font-weight: 600;">Orange</span> = attention (50-79%). <span style="color: var(--red); font-weight: 600;">Rouge</span> = critique (&lt; 50%). Seuils ajustables par indicateur.</td></tr>
+        <tr><td><strong>Configurable</strong></td><td>Chaque volet est masquable. L'utilisateur choisit les indicateurs affiches.</td></tr>
+        <tr><td><strong>Ajout sans refonte</strong></td><td>L'ajout d'un indicateur ne necessite pas de refonte de l'interface — juste la configuration de la formule et de la source.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 6. CONTRATS DU PROJET                                              -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">6</span> Contrats du projet</h2>
+  <p>Reprise de la liste de contrats de la spec 02 (inchangee). Enrichie avec le % d'avancement global vs theorique.</p>
+
+  <h3>Rappel colonnes (spec 02)</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Ref contrat</strong> (CTR-XXXXX)</td><td>SOLUVIA</td></tr>
+        <tr><td><strong>Nom apprenant</strong></td><td>Eduvia</td></tr>
+        <tr><td><strong>Formation</strong></td><td>Eduvia</td></tr>
+        <tr><td><strong>Dates debut/fin</strong></td><td>Eduvia</td></tr>
+        <tr><td><strong>Statut contrat</strong></td><td>Eduvia (Actif, Suspendu, Resilie, Termine)</td></tr>
+        <tr><td><strong>Niveau prise en charge</strong></td><td>Eduvia (a venir)</td></tr>
+        <tr><td><strong>Progression reelle</strong></td><td>Eduvia (progression_percentage)</td></tr>
+        <tr><td><strong>Progression theorique</strong></td><td>Calcul : temps ecoule / duree totale &times; 100</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>% avancement global</strong> — En haut de la liste des contrats, afficher la moyenne ponderee de la progression reelle vs la progression theorique de tous les apprenants du projet. Ce chiffre alimente le volet Pedagogie (section 5).</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 7. PERMISSIONS                                                     -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">7</span> Permissions &amp; RLS</h2>
+  <p>Meme modele que la spec 02.</p>
+
+  <div class="features">
+    <div class="feature" style="border-color: var(--purple);">
+      <div class="icon" style="background: var(--purple-bg); color: var(--purple);">A</div>
+      <h4>Admin</h4>
+      <p>Voit le detail de <strong>tous</strong> les projets avec tous les volets. Peut modifier le statut du projet.</p>
+    </div>
+    <div class="feature" style="border-color: var(--blue);">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">C</div>
+      <h4>CDP</h4>
+      <p>Voit le detail de ses projets uniquement (<code>cdp_id</code> ou <code>backup_cdp_id</code>). Tous les volets en lecture seule.</p>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- FOOTER -->
+<div style="text-align: center; padding: 48px 0; color: var(--muted); font-size: 13px;">
+  <div style="font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">SOLUVIA</div>
+  <div>Section 07 — Suivi de Projet — v1.0 — Avril 2026</div>
+  <div style="margin-top: 4px;">Page suivante : <strong>08 — Dashboard & Metriques</strong></div>
+</div>
+
+</body>
+</html>

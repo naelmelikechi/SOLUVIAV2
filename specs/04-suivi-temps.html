@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLUVIA — 04 Suivi de Temps</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f8faf8;
+    --card-alt: #f0f5f0;
+    --border: #d4e4d4;
+    --border-light: #e8f0e8;
+    --text: #1a2e1a;
+    --text-secondary: #2d4a2d;
+    --muted: #6b8a6b;
+    --primary: #16a34a;
+    --primary-light: #22c55e;
+    --primary-dark: #15803d;
+    --primary-bg: rgba(22, 163, 74, 0.08);
+    --primary-bg-strong: rgba(22, 163, 74, 0.15);
+    --accent: #059669;
+    --green: #16a34a;
+    --green-light: #4ade80;
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --blue: #2563eb;
+    --blue-bg: rgba(37, 99, 235, 0.08);
+    --purple: #7c3aed;
+    --purple-bg: rgba(124, 58, 237, 0.08);
+    --gray: #6b7280;
+    --gray-bg: rgba(107, 114, 128, 0.08);
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .spec-header { text-align: center; padding: 48px 0 40px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .spec-header .logo { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 12px; }
+  .spec-header h1 { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .spec-header .subtitle { font-size: 16px; color: var(--muted); }
+  .spec-header .meta { margin-top: 20px; display: flex; justify-content: center; gap: 24px; font-size: 13px; color: var(--muted); }
+  .spec-header .meta span { background: var(--card-alt); border: 1px solid var(--border-light); padding: 4px 12px; border-radius: 999px; }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  section h2 .num { background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+  .mockup { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--card-alt); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .badge-green { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+  .badge-orange { background: rgba(217, 119, 6, 0.12); color: var(--orange); }
+  .badge-red { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .badge-blue { background: rgba(37, 99, 235, 0.12); color: var(--blue); }
+  .badge-gray { background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .features.three { grid-template-columns: 1fr 1fr 1fr; }
+  .feature { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; }
+  .feature .icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+  .feature h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text); }
+  .feature p { font-size: 13px; color: var(--muted); }
+
+  .annotation { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; background: var(--primary-bg); border-radius: var(--radius); margin: 16px 0; font-size: 13px; color: var(--text-secondary); }
+  .annotation .icon { font-size: 18px; flex-shrink: 0; }
+  .annotation.warn { background: var(--orange-bg); }
+  .annotation.danger { background: var(--red-bg); }
+
+  code { background: var(--card-alt); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--primary-dark); border: 1px solid var(--border-light); }
+
+  .id-ref { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; font-weight: 700; color: var(--primary); background: var(--primary-bg); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(22, 163, 74, 0.2); }
+  .id-abs { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; font-weight: 700; color: var(--orange); background: var(--orange-bg); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(217, 119, 6, 0.2); }
+
+  .flow { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+  .flow-step { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; text-align: center; min-width: 130px; }
+  .flow-step .step-num { font-size: 11px; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
+  .flow-step .step-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .flow-step .step-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .flow-arrow { font-size: 20px; color: var(--muted); margin: 0 12px; }
+
+  .mockup-ui { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-ui-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .mockup-ui-body { padding: 20px; }
+
+  .grid-input { width: 52px; text-align: center; background: white; border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 6px 4px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; }
+  .grid-input:disabled { opacity: 0.3; }
+  .grid-input.today { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15); }
+
+  .row-total { font-weight: 700; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--primary); }
+  .today-col { background: var(--primary-bg); }
+  .weekend-col { background: var(--card-alt); }
+
+  .total-badge { display: inline-block; background: var(--primary); color: white; padding: 4px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; font-family: 'SF Mono', monospace; }
+
+  .axis-bar { display: flex; height: 24px; border-radius: 6px; overflow: hidden; margin: 8px 0; }
+  .axis-bar div { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: white; }
+  .axis-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+  .axis-legend span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .axis-legend .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  .detail-panel { background: white; border: 1px solid var(--border); border-radius: var(--radius); max-width: 340px; overflow: hidden; }
+  .detail-panel-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--card-alt); }
+  .detail-panel-body { padding: 14px 18px; }
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border-light); }
+  .detail-row:last-child { border-bottom: none; }
+
+  .evo-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 16px; }
+  .evo-table th, .evo-table td { padding: 8px 10px; text-align: center; border: 1px solid var(--border-light); }
+  .evo-table th { background: var(--card-alt); font-size: 11px; }
+  .evo-table td { font-family: 'SF Mono', monospace; font-size: 12px; }
+
+  .view-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .view-tab { padding: 6px 16px; border-radius: 6px; font-size: 13px; color: var(--muted); cursor: pointer; border: 1px solid var(--border-light); background: white; }
+  .view-tab.active { background: var(--primary); color: white; border-color: var(--primary); font-weight: 600; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="spec-header">
+  <div class="logo">SOLUVIA</div>
+  <h1>04 — Suivi de Temps</h1>
+  <div class="subtitle">Grille multi-projets hebdomadaire, ventilation par axe, vues admin</div>
+  <div class="meta">
+    <span>v1.0</span>
+    <span>Avril 2026</span>
+    <span>Spec 04 / 11</span>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. PRINCIPES                                                       -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">1</span> Principes</h2>
+  <p>Saisie du temps sur une grille unique multi-projets. Tous les projets du CDP visibles en meme temps.</p>
+
+  <div class="features three">
+    <div class="feature">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">7</div>
+      <h4>Max 7h / jour</h4>
+      <p>Plafond technique. Cellules verrouillees une fois 7h atteintes. Pas de minimum.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">5</div>
+      <h4>5 axes obligatoires</h4>
+      <p>Accompagnement, Pedagogie, Administratif, Qualite, Commercial. Ventilation requise.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">35</div>
+      <h4>35h / semaine</h4>
+      <p>Objectif hebdo. Badge vert quand atteint, orange en dessous.</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Vue</strong></td><td>Grille hebdomadaire. Tous les projets actifs du CDP sur une seule page.</td></tr>
+        <tr><td><strong>Saisie</strong></td><td>1 cellule = 1 projet x 1 jour. Clic sur la cellule &rarr; panneau lateral de ventilation par axe.</td></tr>
+        <tr><td><strong>Ventilation</strong></td><td>Obligatoire. Le CDP repartit ses heures sur les 5 axes avant de valider.</td></tr>
+        <tr><td><strong>Auto-save</strong></td><td>Sauvegarde automatique apres 2 secondes d'inactivite. Pas de bouton "Enregistrer".</td></tr>
+        <tr><td><strong>Navigation</strong></td><td>Fleches &larr; &rarr; pour changer de semaine. Bouton "Aujourd'hui" pour revenir a la semaine courante.</td></tr>
+        <tr><td><strong>Weekend</strong></td><td>Samedi/Dimanche affiches mais desactives (inputs grises).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 2. PROJETS ABSENCES                                                -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">2</span> Projets absences</h2>
+  <p>Les conges, arrets et jours feries sont geres comme des projets systeme. Le CDP saisit 7h dessus comme sur un projet normal.</p>
+
+  <div class="features three">
+    <div class="feature" style="border-color: var(--orange); text-align: center;">
+      <div style="font-family: monospace; font-size: 16px; font-weight: 700; color: var(--orange); margin-bottom: 8px;">9999-CON-ABS</div>
+      <h4>Conges payes</h4>
+      <p>CP, RTT, conges sans solde</p>
+    </div>
+    <div class="feature" style="border-color: var(--red); text-align: center;">
+      <div style="font-family: monospace; font-size: 16px; font-weight: 700; color: var(--red); margin-bottom: 8px;">9998-MAL-ABS</div>
+      <h4>Arret maladie</h4>
+      <p>Maladie, accident du travail</p>
+    </div>
+    <div class="feature" style="border-color: var(--gray); text-align: center;">
+      <div style="font-family: monospace; font-size: 16px; font-weight: 700; color: var(--gray); margin-bottom: 8px;">9997-FER-ABS</div>
+      <h4>Jour ferie</h4>
+      <p>Pre-rempli automatiquement</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Numeros reserves</strong></td><td>9997, 9998, 9999 ne peuvent pas etre attribues a des projets classiques.</td></tr>
+        <tr><td><strong>Typologie</strong></td><td><code>ABS</code> — typologie speciale, non modifiable.</td></tr>
+        <tr><td><strong>Jours feries</strong></td><td><code>9997-FER-ABS</code> pre-rempli a 7h automatiquement en debut d'annee.</td></tr>
+        <tr><td><strong>Reporting</strong></td><td>Les absences apparaissent dans les exports et le recap admin (ex: "3 jours conges en mars").</td></tr>
+        <tr><td><strong>Pas de ventilation</strong></td><td>Les projets absences n'ont pas de ventilation par axe.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 3. GRILLE MULTI-PROJETS (VUE CDP)                                  -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">3</span> Grille multi-projets — Vue CDP</h2>
+  <p>Le CDP voit tous ses projets actifs sur une seule grille hebdomadaire. Filtre RLS : seuls les projets ou <code>cdp_id = auth.uid()</code> ou <code>backup_cdp_id = auth.uid()</code> sont affiches.</p>
+
+  <h3>Mockup — Ma semaine</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Ma semaine</div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; cursor: pointer; background: white;">&larr;</div>
+        <div style="font-size: 13px; font-weight: 500; color: var(--text-secondary); min-width: 160px; text-align: center;">17 — 23 mars 2026</div>
+        <div style="padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; cursor: pointer; background: white;">&rarr;</div>
+        <div style="padding: 5px 10px; background: var(--primary); color: white; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-left: 4px;">Aujourd'hui</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th style="min-width: 220px; text-align: left; padding-left: 20px;">Projet</th>
+            <th style="text-align: center;">Lun 17</th>
+            <th style="text-align: center;">Mar 18</th>
+            <th style="text-align: center;" class="today-col">Mer 19</th>
+            <th style="text-align: center;">Jeu 20</th>
+            <th style="text-align: center;">Ven 21</th>
+            <th style="text-align: center;" class="weekend-col">Sam</th>
+            <th style="text-align: center;" class="weekend-col">Dim</th>
+            <th style="text-align: center;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding-left: 20px;">
+              <span class="id-ref">0001-HEO-APP</span>
+              <span style="margin-left: 8px; font-size: 13px; color: var(--text);">Heol Academy</span>
+            </td>
+            <td style="text-align: center;"><input class="grid-input" value="2"></td>
+            <td style="text-align: center;"><input class="grid-input" value="3"></td>
+            <td style="text-align: center;" class="today-col"><input class="grid-input today" value="4"></td>
+            <td style="text-align: center;"><input class="grid-input" value="2"></td>
+            <td style="text-align: center;"><input class="grid-input" value="2"></td>
+            <td style="text-align: center;" class="weekend-col"><input class="grid-input" disabled placeholder="—"></td>
+            <td style="text-align: center;" class="weekend-col"><input class="grid-input" disabled placeholder="—"></td>
+            <td style="text-align: center;" class="row-total">13h</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px;">
+              <span class="id-ref">0002-BNP-PDC</span>
+              <span style="margin-left: 8px; font-size: 13px; color: var(--text);">BNP Paribas</span>
+            </td>
+            <td style="text-align: center;"><input class="grid-input" value="4"></td>
+            <td style="text-align: center;"><input class="grid-input" value="2"></td>
+            <td style="text-align: center;" class="today-col"><input class="grid-input today" value="" placeholder="0"></td>
+            <td style="text-align: center;"><input class="grid-input" value="3"></td>
+            <td style="text-align: center;"><input class="grid-input" value="3"></td>
+            <td style="text-align: center;" class="weekend-col"><input class="grid-input" disabled placeholder="—"></td>
+            <td style="text-align: center;" class="weekend-col"><input class="grid-input" disabled placeholder="—"></td>
+            <td style="text-align: center;" class="row-total">12h</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px;">
+              <span class="id-ref">0003-SOL-POE</span>
+              <span style="margin-left: 8px; font-size: 13px; color: var(--text);">Soluvia</span>
+            </td>
+            <td style="text-align: center;"><input class="grid-input" value="1"></td>
+            <td style="text-align: center;"><input class="grid-input" value="2"></td>
+            <td style="text-align: center;" class="today-col"><input class="grid-input today" value="3"></td>
+            <td style="text-align: center;"><input class="grid-input" value="2"></td>
+            <td style="text-align: center;"><input class="grid-input" value="2"></td>
+            <td style="text-align: center;" class="weekend-col"><input class="grid-input" disabled placeholder="—"></td>
+            <td style="text-align: center;" class="weekend-col"><input class="grid-input" disabled placeholder="—"></td>
+            <td style="text-align: center;" class="row-total">10h</td>
+          </tr>
+          <tr style="background: var(--orange-bg);">
+            <td style="padding-left: 20px;">
+              <span class="id-abs">9999-CON-ABS</span>
+              <span style="margin-left: 8px; font-size: 13px; color: var(--orange);">Conges payes</span>
+            </td>
+            <td style="text-align: center;"><input class="grid-input" value="" placeholder="0" style="opacity: 0.4;"></td>
+            <td style="text-align: center;"><input class="grid-input" value="" placeholder="0" style="opacity: 0.4;"></td>
+            <td style="text-align: center;" class="today-col"><input class="grid-input" value="" placeholder="0" style="opacity: 0.4;"></td>
+            <td style="text-align: center;"><input class="grid-input" value="" placeholder="0" style="opacity: 0.4;"></td>
+            <td style="text-align: center;"><input class="grid-input" value="" placeholder="0" style="opacity: 0.4;"></td>
+            <td style="text-align: center;" class="weekend-col"><input class="grid-input" disabled placeholder="—"></td>
+            <td style="text-align: center;" class="weekend-col"><input class="grid-input" disabled placeholder="—"></td>
+            <td style="text-align: center; font-family: monospace; font-weight: 700; color: var(--muted);">0h</td>
+          </tr>
+          <tr style="background: var(--card-alt); font-weight: 700;">
+            <td style="padding-left: 20px;"><strong>Total journalier</strong></td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);" class="today-col">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center;" class="weekend-col">—</td>
+            <td style="text-align: center;" class="weekend-col">—</td>
+            <td style="text-align: center;"><span class="total-badge">35h</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <!-- Quick add -->
+      <div style="padding: 12px 20px; border-top: 1px solid var(--border);">
+        <div style="border: 2px dashed var(--border); border-radius: var(--radius); padding: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--muted); font-size: 14px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: var(--primary-bg-strong); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 18px;">+</span>
+          Ajouter un projet a ma semaine...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Panneau de ventilation par axe</h3>
+  <p>Clic sur une cellule &rarr; panneau lateral avec la repartition obligatoire sur les 5 axes.</p>
+
+  <div style="display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: start;">
+    <div class="mockup">
+      <table>
+        <thead><tr><th>Comportement</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Ouverture</strong></td><td>Clic sur une cellule de la grille</td></tr>
+          <tr><td><strong>Ventilation</strong></td><td>Obligatoire — le total des 5 axes doit etre egal au total de la cellule</td></tr>
+          <tr><td><strong>Navigation clavier</strong></td><td>Tab / Shift+Tab entre axes. Fleches haut/bas changent d'axe. Entree valide. Echap ferme.</td></tr>
+          <tr><td><strong>Projets absences</strong></td><td>Pas de ventilation par axe — le panneau ne s'ouvre pas</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="detail-panel">
+      <div class="detail-panel-header">
+        <h4 style="font-size: 13px; font-weight: 600;">Detail — Mer 19</h4>
+        <span class="id-ref" style="font-size: 11px;">0001-HEO-APP</span>
+      </div>
+      <div class="detail-panel-body">
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 10px;">Repartition par axe :</div>
+        <div class="detail-row"><span style="font-size: 13px; color: var(--muted);">Accompagnement</span><input class="grid-input" value="1.5" style="width: 50px;"></div>
+        <div class="detail-row"><span style="font-size: 13px; color: var(--muted);">Pedagogie</span><input class="grid-input" value="1" style="width: 50px;"></div>
+        <div class="detail-row"><span style="font-size: 13px; color: var(--muted);">Administratif</span><input class="grid-input" value="0.5" style="width: 50px;"></div>
+        <div class="detail-row"><span style="font-size: 13px; color: var(--muted);">Qualite</span><input class="grid-input" value="0.5" style="width: 50px;"></div>
+        <div class="detail-row"><span style="font-size: 13px; color: var(--muted);">Commercial</span><input class="grid-input" value="0.5" style="width: 50px;"></div>
+        <div class="detail-row" style="padding-top: 10px; border-top: 2px solid var(--border);">
+          <span style="font-weight: 600; font-size: 13px;">Total</span>
+          <span style="font-weight: 700; font-size: 15px; color: var(--primary); font-family: monospace;">4h</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 4. FACILITES DE SAISIE                                             -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">4</span> Facilites de saisie</h2>
+  <p>Tout est pense pour reduire les frictions et encourager la saisie quotidienne.</p>
+
+  <div class="features">
+    <div class="feature">
+      <h4>Navigation clavier</h4>
+      <p>Tab passe a la cellule suivante. Entree sauvegarde. Fleches changent de projet. Pas besoin de la souris.</p>
+    </div>
+    <div class="feature">
+      <h4>Auto-save</h4>
+      <p>Sauvegarde automatique apres 2 secondes d'inactivite. Pas de bouton "Enregistrer".</p>
+    </div>
+    <div class="feature">
+      <h4>Copier une semaine</h4>
+      <p>"Recopier S-1" pre-remplit la grille avec la semaine passee. "Copier une semaine" permet de choisir n'importe quelle semaine anterieure.</p>
+    </div>
+    <div class="feature">
+      <h4>Saisie decimale</h4>
+      <p>"1.5" ou "1h30" &rarr; 1h30. "0.25" ou "15m" &rarr; 15 min. Les deux formats acceptes.</p>
+    </div>
+    <div class="feature">
+      <h4>Indicateur 35h</h4>
+      <p>Total hebdo : <strong style="color: var(--green);">vert a 35h</strong>, <strong style="color: var(--orange);">orange en dessous</strong>. 5 x 7h max = 35h max.</p>
+    </div>
+    <div class="feature">
+      <h4>Rappel de saisie</h4>
+      <p>Notification discrete en fin de journee si aucune heure saisie. Configurable dans les parametres.</p>
+    </div>
+  </div>
+
+  <div class="annotation danger">
+    <span class="icon">&#9940;</span>
+    <p><strong>Maximum 7h / jour</strong> — Des que le total d'une colonne atteint 7h, les cellules restantes sont <strong>verrouillees</strong> (input desactive). Pour modifier la repartition, le CDP doit d'abord reduire un projet existant. Blocage technique, pas un avertissement. <strong>Aucun minimum journalier.</strong></p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 5. VUE ADMIN — RECAP EQUIPE                                        -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">5</span> Vue Admin — Recap equipe</h2>
+  <p>L'admin voit un tableau de tous les collaborateurs avec leurs totaux hebdomadaires.</p>
+
+  <h3>Mockup — Recapitulatif equipe</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Recapitulatif equipe — Semaine 12</div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; cursor: pointer; background: white;">&larr;</div>
+        <div style="font-size: 13px; min-width: 160px; text-align: center; color: var(--text-secondary);">17 — 23 mars 2026</div>
+        <div style="padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; cursor: pointer; background: white;">&rarr;</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th style="min-width: 180px; text-align: left; padding-left: 20px;">Collaborateur</th>
+            <th style="text-align: center;">Lun</th>
+            <th style="text-align: center;">Mar</th>
+            <th style="text-align: center;">Mer</th>
+            <th style="text-align: center;">Jeu</th>
+            <th style="text-align: center;">Ven</th>
+            <th style="text-align: center;">Total</th>
+            <th style="text-align: center;">Dont absences</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding-left: 20px; font-weight: 500;">Ilies Benkoussa</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; font-weight: 700; color: var(--green);">35h</td>
+            <td style="text-align: center; color: var(--muted);">—</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px; font-weight: 500;">Sophie Martin</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--orange);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; font-weight: 700; color: var(--green);">35h</td>
+            <td style="text-align: center; color: var(--orange);">7h conges</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px; font-weight: 500;">Marc Dupont</td>
+            <td style="text-align: center; color: var(--muted);">—</td>
+            <td style="text-align: center; color: var(--muted);">—</td>
+            <td style="text-align: center; color: var(--muted);">—</td>
+            <td style="text-align: center; color: var(--muted);">—</td>
+            <td style="text-align: center; color: var(--muted);">—</td>
+            <td style="text-align: center; font-weight: 700; color: var(--red);">0h</td>
+            <td style="text-align: center; color: var(--muted);">—</td>
+          </tr>
+          <tr>
+            <td style="padding-left: 20px; font-weight: 500;">Julie Leroy</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--green);">7h</td>
+            <td style="text-align: center; color: var(--orange);">5h</td>
+            <td style="text-align: center; color: var(--muted);">—</td>
+            <td style="text-align: center; font-weight: 700; color: var(--orange);">26h</td>
+            <td style="text-align: center; color: var(--muted);">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Comportement</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Codes couleur</strong></td><td><span style="color: var(--green); font-weight: 700;">Vert</span> = 7h/jour ou 35h/semaine | <span style="color: var(--orange); font-weight: 700;">Orange</span> = en dessous ou absence | <span style="color: var(--red); font-weight: 700;">Rouge</span> = aucune saisie</td></tr>
+        <tr><td><strong>Clic sur un collaborateur</strong></td><td>Ouvre sa grille multi-projets en <strong>lecture seule</strong>. L'admin voit le detail par projet et par axe sans pouvoir modifier.</td></tr>
+        <tr><td><strong>Colonne absences</strong></td><td>Affiche le total heures sur les projets ABS avec le type (conges, maladie...).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 6. VUE ADMIN — REPARTITION PAR AXE                                 -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">6</span> Vue Admin — Repartition par axe</h2>
+  <p>Vue analytique : repartition du temps par axe en pourcentage, globale et par collaborateur.</p>
+
+  <div class="view-tabs">
+    <div class="view-tab">Semaine</div>
+    <div class="view-tab active">Mois</div>
+    <div class="view-tab">Annee</div>
+  </div>
+
+  <h3>Repartition globale</h3>
+  <div class="card">
+    <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Tous collaborateurs — Mars 2026</div>
+    <div class="axis-bar">
+      <div style="width: 32%; background: #16a34a;">32%</div>
+      <div style="width: 25%; background: #059669;">25%</div>
+      <div style="width: 18%; background: #0d9488;">18%</div>
+      <div style="width: 15%; background: #0891b2;">15%</div>
+      <div style="width: 10%; background: #6366f1;">10%</div>
+    </div>
+    <div class="axis-legend">
+      <span><span class="dot" style="background: #16a34a;"></span> Accompagnement 32%</span>
+      <span><span class="dot" style="background: #059669;"></span> Pedagogie 25%</span>
+      <span><span class="dot" style="background: #0d9488;"></span> Administratif 18%</span>
+      <span><span class="dot" style="background: #0891b2;"></span> Qualite 15%</span>
+      <span><span class="dot" style="background: #6366f1;"></span> Commercial 10%</span>
+    </div>
+  </div>
+
+  <h3>Par collaborateur</h3>
+  <div class="card">
+    <div style="margin-bottom: 16px;">
+      <div style="font-size: 12px; color: var(--muted); margin-bottom: 4px;">Ilies Benkoussa — 140h</div>
+      <div class="axis-bar">
+        <div style="width: 40%; background: #16a34a;">40%</div>
+        <div style="width: 20%; background: #059669;">20%</div>
+        <div style="width: 15%; background: #0d9488;">15%</div>
+        <div style="width: 15%; background: #0891b2;">15%</div>
+        <div style="width: 10%; background: #6366f1;">10%</div>
+      </div>
+    </div>
+    <div style="margin-bottom: 16px;">
+      <div style="font-size: 12px; color: var(--muted); margin-bottom: 4px;">Sophie Martin — 133h</div>
+      <div class="axis-bar">
+        <div style="width: 25%; background: #16a34a;">25%</div>
+        <div style="width: 30%; background: #059669;">30%</div>
+        <div style="width: 20%; background: #0d9488;">20%</div>
+        <div style="width: 15%; background: #0891b2;">15%</div>
+        <div style="width: 10%; background: #6366f1;">10%</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size: 12px; color: var(--muted); margin-bottom: 4px;">Julie Leroy — 126h</div>
+      <div class="axis-bar">
+        <div style="width: 20%; background: #16a34a;">20%</div>
+        <div style="width: 25%; background: #059669;">25%</div>
+        <div style="width: 25%; background: #0d9488;">25%</div>
+        <div style="width: 20%; background: #0891b2;">20%</div>
+        <div style="width: 10%; background: #6366f1;">10%</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Evolution 12 mois glissants</h3>
+  <div class="mockup" style="overflow-x: auto;">
+    <table class="evo-table">
+      <thead>
+        <tr>
+          <th style="text-align: left; padding-left: 16px;">Axe</th>
+          <th>Avr 25</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Aou</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th><th>Jan 26</th><th>Fev</th>
+          <th style="background: var(--primary-bg); font-weight: 700;">Mar 26</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="text-align: left; padding-left: 16px; font-weight: 600;"><span class="dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #16a34a; margin-right: 6px;"></span>Accompagnement</td>
+          <td>28%</td><td>29%</td><td>30%</td><td>27%</td><td>25%</td><td>28%</td><td>30%</td><td>31%</td><td>29%</td><td>30%</td><td>31%</td>
+          <td style="background: var(--primary-bg); font-weight: 700;">32%</td>
+        </tr>
+        <tr>
+          <td style="text-align: left; padding-left: 16px; font-weight: 600;"><span class="dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #059669; margin-right: 6px;"></span>Pedagogie</td>
+          <td>26%</td><td>27%</td><td>25%</td><td>28%</td><td>30%</td><td>27%</td><td>26%</td><td>25%</td><td>26%</td><td>25%</td><td>26%</td>
+          <td style="background: var(--primary-bg); font-weight: 700;">25%</td>
+        </tr>
+        <tr>
+          <td style="text-align: left; padding-left: 16px; font-weight: 600;"><span class="dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0d9488; margin-right: 6px;"></span>Administratif</td>
+          <td>22%</td><td>20%</td><td>21%</td><td>22%</td><td>20%</td><td>20%</td><td>19%</td><td>19%</td><td>20%</td><td>19%</td><td>18%</td>
+          <td style="background: var(--primary-bg); font-weight: 700;">18%</td>
+        </tr>
+        <tr>
+          <td style="text-align: left; padding-left: 16px; font-weight: 600;"><span class="dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0891b2; margin-right: 6px;"></span>Qualite</td>
+          <td>14%</td><td>14%</td><td>14%</td><td>13%</td><td>15%</td><td>15%</td><td>15%</td><td>15%</td><td>15%</td><td>16%</td><td>15%</td>
+          <td style="background: var(--primary-bg); font-weight: 700;">15%</td>
+        </tr>
+        <tr>
+          <td style="text-align: left; padding-left: 16px; font-weight: 600;"><span class="dot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #6366f1; margin-right: 6px;"></span>Commercial</td>
+          <td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td>
+          <td style="background: var(--primary-bg); font-weight: 700;">10%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128270;</span>
+    <p><strong>Filtres</strong> — Par collaborateur, par projet, par type de projet (APP, PDC, POE). En vue Annee, affichage des 12 mois. Exportable en CSV.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 7. PARCOURS CDP                                                    -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">7</span> Parcours type — CDP</h2>
+  <p>Saisie d'une semaine complete en moins de 2 minutes.</p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="step-title">Ouvrir /temps</div>
+      <div class="step-desc">Semaine courante<br>affichee directement</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="step-title">Saisir les heures</div>
+      <div class="step-desc">1 champ par projet x jour<br>Tab pour naviguer</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div class="step-title">Ventiler par axe</div>
+      <div class="step-desc">Clic sur cellule<br>5 axes obligatoires</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div class="step-title">Auto-save</div>
+      <div class="step-desc">Rien a cliquer<br>Tout est enregistre</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: var(--green);">
+      <div class="step-num" style="color: var(--green);">&#10003;</div>
+      <div class="step-title">35h atteintes</div>
+      <div class="step-desc">Badge vert<br>Semaine complete</div>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 8. SCHEMA BDD                                                      -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">8</span> Schema base de donnees</h2>
+  <p>Tables Supabase pour le suivi de temps.</p>
+
+  <h3>Table <code>saisies_temps</code></h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Type</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td><code>UUID</code></td><td>Cle primaire</td></tr>
+        <tr><td><code>user_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>users.id</code> (le CDP)</td></tr>
+        <tr><td><code>projet_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>projets.id</code></td></tr>
+        <tr><td><code>date</code></td><td><code>DATE</code></td><td>Jour concerne</td></tr>
+        <tr><td><code>heures</code></td><td><code>NUMERIC(4,2)</code></td><td>Total heures pour ce projet ce jour (ex: 4.5)</td></tr>
+        <tr><td><code>created_at</code></td><td><code>TIMESTAMPTZ</code></td><td>Date de creation</td></tr>
+        <tr><td><code>updated_at</code></td><td><code>TIMESTAMPTZ</code></td><td>Derniere modification</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Table <code>saisies_temps_axes</code></h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Type</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td><code>UUID</code></td><td>Cle primaire</td></tr>
+        <tr><td><code>saisie_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>saisies_temps.id</code></td></tr>
+        <tr><td><code>axe</code></td><td><code>TEXT</code></td><td><code>accompagnement</code> | <code>pedagogie</code> | <code>administratif</code> | <code>qualite</code> | <code>commercial</code></td></tr>
+        <tr><td><code>heures</code></td><td><code>NUMERIC(4,2)</code></td><td>Heures sur cet axe (ex: 1.5)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Table <code>axes_temps</code> (reference)</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Type</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td><code>UUID</code></td><td>Cle primaire</td></tr>
+        <tr><td><code>code</code></td><td><code>TEXT UNIQUE</code></td><td><code>accompagnement</code>, <code>pedagogie</code>, <code>administratif</code>, <code>qualite</code>, <code>commercial</code></td></tr>
+        <tr><td><code>libelle</code></td><td><code>TEXT</code></td><td>Nom affiche</td></tr>
+        <tr><td><code>couleur</code></td><td><code>TEXT</code></td><td>Code couleur hex pour les graphiques</td></tr>
+        <tr><td><code>ordre</code></td><td><code>INTEGER</code></td><td>Ordre d'affichage</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Contraintes</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Contrainte</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Max 7h/jour</strong></td><td><code>CHECK</code> en base : <code>SUM(heures) par user_id + date &le; 7</code>. Double securite front (inputs verrouilles) + back (rejet si depassement).</td></tr>
+        <tr><td><strong>Ventilation = total</strong></td><td><code>CHECK</code> : <code>SUM(saisies_temps_axes.heures) = saisies_temps.heures</code> pour chaque saisie.</td></tr>
+        <tr><td><strong>Unicite</strong></td><td><code>UNIQUE(user_id, projet_id, date)</code> — une seule saisie par user/projet/jour.</td></tr>
+        <tr><td><strong>RLS</strong></td><td>CDP : lecture/ecriture sur ses propres saisies (<code>user_id = auth.uid()</code>). Admin : lecture de toutes les saisies.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Projets absences — Seed</h3>
+  <div class="card" style="font-family: 'SF Mono', monospace; font-size: 12px; line-height: 2.2;">
+    <span style="color: var(--muted);">-- Projets systeme reserves (a inserer en seed)</span><br>
+    <span style="color: var(--primary);">INSERT INTO</span> projets (ref, statut, est_absence) <span style="color: var(--primary);">VALUES</span><br>
+    &nbsp;&nbsp;('9999-CON-ABS', 'actif', true),<br>
+    &nbsp;&nbsp;('9998-MAL-ABS', 'actif', true),<br>
+    &nbsp;&nbsp;('9997-FER-ABS', 'actif', true);
+  </div>
+</section>
+
+<hr>
+
+<!-- FOOTER -->
+<div style="text-align: center; padding: 48px 0; color: var(--muted); font-size: 13px;">
+  <div style="font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">SOLUVIA</div>
+  <div>Section 04 — Suivi de Temps — v1.0 — Avril 2026</div>
+  <div style="margin-top: 4px;">Page suivante : <strong>05 — Finance</strong></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLUVIA — 06 Facturation</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --card: #f8faf8;
+    --card-alt: #f0f5f0;
+    --border: #d4e4d4;
+    --border-light: #e8f0e8;
+    --text: #1a2e1a;
+    --text-secondary: #2d4a2d;
+    --muted: #6b8a6b;
+    --primary: #16a34a;
+    --primary-light: #22c55e;
+    --primary-dark: #15803d;
+    --primary-bg: rgba(22, 163, 74, 0.08);
+    --primary-bg-strong: rgba(22, 163, 74, 0.15);
+    --accent: #059669;
+    --green: #16a34a;
+    --green-light: #4ade80;
+    --orange: #d97706;
+    --orange-bg: rgba(217, 119, 6, 0.08);
+    --red: #dc2626;
+    --red-bg: rgba(220, 38, 38, 0.06);
+    --blue: #2563eb;
+    --blue-bg: rgba(37, 99, 235, 0.08);
+    --purple: #7c3aed;
+    --purple-bg: rgba(124, 58, 237, 0.08);
+    --gray: #6b7280;
+    --gray-bg: rgba(107, 114, 128, 0.08);
+    --radius: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .spec-header { text-align: center; padding: 48px 0 40px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .spec-header .logo { font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--primary); font-weight: 700; margin-bottom: 12px; }
+  .spec-header h1 { font-size: 36px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .spec-header .subtitle { font-size: 16px; color: var(--muted); }
+  .spec-header .meta { margin-top: 20px; display: flex; justify-content: center; gap: 24px; font-size: 13px; color: var(--muted); }
+  .spec-header .meta span { background: var(--card-alt); border: 1px solid var(--border-light); padding: 4px 12px; border-radius: 999px; }
+
+  section { margin-bottom: 56px; }
+  section h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+  section h2 .num { background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  section > p { color: var(--muted); margin-bottom: 24px; font-size: 15px; }
+  h3 { font-size: 17px; font-weight: 600; margin: 24px 0 12px; color: var(--text); }
+
+  .card { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; }
+  .mockup { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .mockup-ui-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt); }
+  .mockup-ui-header .title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .mockup-ui-body { padding: 20px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-light); }
+  th { background: var(--card-alt); font-weight: 600; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 600; }
+  .badge-green { background: rgba(22, 163, 74, 0.12); color: var(--green); }
+  .badge-orange { background: rgba(217, 119, 6, 0.12); color: var(--orange); }
+  .badge-red { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+  .badge-blue { background: rgba(37, 99, 235, 0.12); color: var(--blue); }
+  .badge-gray { background: rgba(107, 114, 128, 0.12); color: var(--gray); }
+  .badge-purple { background: rgba(124, 58, 237, 0.12); color: var(--purple); }
+
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .features.three { grid-template-columns: 1fr 1fr 1fr; }
+  .feature { background: var(--card); border: 1px solid var(--border-light); border-radius: var(--radius); padding: 20px; }
+  .feature .icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 12px; }
+  .feature h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; margin-top: 0; color: var(--text); }
+  .feature p { font-size: 13px; color: var(--muted); }
+
+  .annotation { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; background: var(--primary-bg); border-radius: var(--radius); margin: 16px 0; font-size: 13px; color: var(--text-secondary); }
+  .annotation .icon { font-size: 18px; flex-shrink: 0; }
+  .annotation.warn { background: var(--orange-bg); }
+  .annotation.danger { background: var(--red-bg); }
+
+  code { background: var(--card-alt); padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: 'SF Mono', 'Fira Code', monospace; color: var(--primary-dark); border: 1px solid var(--border-light); }
+  .id-ref { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; font-weight: 700; color: var(--primary); background: var(--primary-bg); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(22, 163, 74, 0.2); }
+  .id-fac { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; font-weight: 700; color: var(--blue); background: var(--blue-bg); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(37, 99, 235, 0.2); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: white; border: 1px solid var(--border-light); border-radius: var(--radius); padding: 14px; text-align: center; }
+  .stat-card .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .stat-card .stat-value { font-size: 20px; font-weight: 700; color: var(--text); font-family: 'SF Mono', monospace; }
+  .stat-card .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.orange .stat-value { color: var(--orange); }
+  .stat-card.red .stat-value { color: var(--red); }
+  .stat-card.blue .stat-value { color: var(--blue); }
+
+  .flow { display: flex; align-items: center; justify-content: center; gap: 0; padding: 24px 0; flex-wrap: wrap; }
+  .flow-step { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; text-align: center; min-width: 120px; }
+  .flow-step .step-num { font-size: 11px; color: var(--primary); font-weight: 700; margin-bottom: 4px; }
+  .flow-step .step-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .flow-step .step-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .flow-arrow { font-size: 20px; color: var(--muted); margin: 0 8px; }
+
+  .pdf-mockup { background: white; border: 2px solid var(--border); border-radius: var(--radius); padding: 40px; max-width: 700px; margin: 0 auto 24px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+  .pdf-mockup .pdf-header { display: flex; justify-content: space-between; margin-bottom: 32px; }
+  .pdf-mockup .pdf-section { margin-bottom: 24px; }
+  .pdf-mockup .pdf-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="spec-header">
+  <div class="logo">SOLUVIA</div>
+  <h1>06 — Facturation</h1>
+  <div class="subtitle">Cycle de vie des factures, avoirs, template PDF et integration Odoo</div>
+  <div class="meta">
+    <span>v1.0</span>
+    <span>Avril 2026</span>
+    <span>Spec 06 / 11</span>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- 1. PRINCIPES                                                       -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">1</span> Principes</h2>
+  <p>Page <code>/facturation</code> — seule page de SOLUVIA ou le CDP cree des documents financiers.</p>
+
+  <div class="features three">
+    <div class="feature">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">&#128196;</div>
+      <h4>Commission SOLUVIA</h4>
+      <p>Les factures portent le montant de la commission SOLUVIA, pas le montant OPCO. Pas de toggle.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--primary-bg); color: var(--primary);">&#128274;</div>
+      <h4>Sequence sans trou</h4>
+      <p>Numerotation <span class="id-fac">FAC-TRI-NNNN</span> sequentielle globale. Factures et avoirs dans la meme sequence.</p>
+    </div>
+    <div class="feature">
+      <div class="icon" style="background: var(--orange-bg); color: var(--orange);">&#128197;</div>
+      <h4>Fenetre 25 — 3</h4>
+      <p>Facturation entre le 25 du mois et le 3 du mois suivant. Avertissement hors fenetre (pas de blocage).</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Page</strong></td><td><code>/facturation</code> — accessible depuis la navigation principale</td></tr>
+        <tr><td><strong>Actions</strong></td><td>Le CDP peut : valider des echeances, emettre des factures, emettre des avoirs, telecharger des PDF</td></tr>
+        <tr><td><strong>Perspective</strong></td><td>SOLUVIA uniquement (commission). Le cote OPCO est visible sur <code>/production</code> (spec 05)</td></tr>
+        <tr><td><strong>Numerotation</strong></td><td><span class="id-fac">FAC-TRI-NNNN</span> — FAC + trigramme client + sequentiel global sans trou. Pas de suppression, on emet un avoir.</td></tr>
+        <tr><td><strong>Pas de previsionnel</strong></td><td>Aucune facture previsionnelle. Seules les echeances atteintes apparaissent.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 2. FLUX DE FACTURATION                                             -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">2</span> Flux de facturation</h2>
+  <p>De la generation automatique des echeances jusqu'au paiement trace dans Odoo.</p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="step-title">Echeances auto</div>
+      <div class="step-desc">SOLUVIA genere<br>les lignes eligibles</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="step-title">Revue CDP</div>
+      <div class="step-desc">Le CDP revoit<br>enleve des lignes</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: var(--primary);">
+      <div class="step-num">3</div>
+      <div class="step-title">Validation</div>
+      <div class="step-desc">CDP confirme<br>FAC-TRI-NNNN creee</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div class="step-title">PDF genere</div>
+      <div class="step-desc">Document PDF<br>cree automatiquement</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">
+      <div class="step-num">5</div>
+      <div class="step-title">Envoi</div>
+      <div class="step-desc">Email au client<br>+ push vers Odoo</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: var(--green);">
+      <div class="step-num">6</div>
+      <div class="step-title">Paiement</div>
+      <div class="step-desc">Odoo renvoie<br>le statut paiement</div>
+    </div>
+  </div>
+
+  <h3>Echeances automatiques</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Modele</strong></td><td>Decalage de 2 mois. Le mois 1 du contrat est facture fin M+2 (echeance fin M+3). Mensuel jusqu'a M+10. Derniere facture a M12 couvrant les mois 10, 11, 12 (3/12). Total = 10 factures par contrat.</td></tr>
+        <tr><td><strong>Generation</strong></td><td>SOLUVIA calcule les echeances atteintes (date du jour &ge; date d'emission prevue) et les propose au CDP.</td></tr>
+        <tr><td><strong>Montant</strong></td><td>Commission SOLUVIA = montant contrat OPCO &times; taux commission projet &divide; 12 (ou &times; 3/12 pour la derniere).</td></tr>
+        <tr><td><strong>Regroupement</strong></td><td>1 facture = 1 projet &times; 1 mois. Tous les contrats du projet sont regroupes comme lignes de la meme facture.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Fenetre de facturation</h3>
+  <div class="features">
+    <div class="feature" style="border-color: var(--green);">
+      <h4>Dans la fenetre (25 — 3)</h4>
+      <p>Bandeau vert : "Periode de facturation en cours". Le CDP peut valider ses echeances normalement.</p>
+    </div>
+    <div class="feature" style="border-color: var(--orange);">
+      <h4>Hors fenetre</h4>
+      <p>Bandeau orange : "Hors periode de facturation (25-3). Vous pouvez tout de meme facturer." Avertissement uniquement, pas de blocage.</p>
+    </div>
+  </div>
+
+  <h3>Mockup — Echeances a valider</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Echeances a facturer — Avril 2026</div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="padding: 4px 10px; background: rgba(22, 163, 74, 0.1); color: var(--green); border-radius: 6px; font-size: 11px; font-weight: 600;">Fenetre ouverte (25/03 — 03/04)</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th style="width: 40px; text-align: center;"><input type="checkbox" checked></th>
+            <th>Projet</th>
+            <th>Client</th>
+            <th>Mois concerne</th>
+            <th style="text-align: center;">Nb contrats</th>
+            <th style="text-align: right;">Montant HT</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="text-align: center;"><input type="checkbox" checked></td>
+            <td><span class="id-ref">0001-HEO-APP</span></td>
+            <td>Heol Formation</td>
+            <td>Fevrier 2026 (M1)</td>
+            <td style="text-align: center;">42</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">4 500 &euro;</td>
+          </tr>
+          <tr>
+            <td style="text-align: center;"><input type="checkbox" checked></td>
+            <td><span class="id-ref">0002-BNP-PDC</span></td>
+            <td>BNP Paribas</td>
+            <td>Fevrier 2026 (M1)</td>
+            <td style="text-align: center;">18</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700;">3 800 &euro;</td>
+          </tr>
+          <tr style="opacity: 0.5;">
+            <td style="text-align: center;"><input type="checkbox"></td>
+            <td><span class="id-ref">0003-SOL-POE</span></td>
+            <td>Soluvia</td>
+            <td>Fevrier 2026 (M1)</td>
+            <td style="text-align: center;">8</td>
+            <td style="text-align: right; font-family: monospace;">1 200 &euro;</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="padding: 16px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 13px; color: var(--muted);">2 echeances selectionnees &middot; Total : <strong style="color: var(--text); font-family: monospace;">8 300 &euro; HT</strong></div>
+        <div style="padding: 8px 20px; background: var(--primary); color: white; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Emettre les factures</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Decochage</strong> — Le CDP peut decocher une ligne pour ne pas la facturer ce mois-ci. L'echeance reste en attente et sera reproposee le mois suivant. L'echeance 0003-SOL-POE ci-dessus a ete decochee par le CDP.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 3. LISTE DES FACTURES                                              -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">3</span> Liste des factures</h2>
+  <p>Tableau global de toutes les factures emises. Filtrable, triable, colonnes configurables.</p>
+
+  <h3>Colonnes</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Contenu</th><th>Clic &rarr;</th></tr></thead>
+      <tbody>
+        <tr><td><strong>N° Facture</strong></td><td><span class="id-fac">FAC-HEO-0012</span></td><td>Modale preview</td></tr>
+        <tr><td><strong>N° Projet</strong></td><td><span class="id-ref">0001-HEO-APP</span></td><td>Page detail projet</td></tr>
+        <tr><td><strong>Client</strong></td><td>Raison sociale</td><td>Fiche client</td></tr>
+        <tr><td><strong>Date emission</strong></td><td>Date a laquelle la facture a ete emise</td><td>—</td></tr>
+        <tr><td><strong>Mois concerne</strong></td><td>Mois du contrat facture (ex: "Fev 2026" ou "Oct-Dec 2026")</td><td>—</td></tr>
+        <tr><td><strong>Montant HT</strong></td><td>Montant commission SOLUVIA</td><td>—</td></tr>
+        <tr><td><strong>Echeance</strong></td><td>Date de paiement attendue (fin M+3)</td><td>—</td></tr>
+        <tr><td><strong>Etat</strong></td><td>Badge : A emettre, Emise, Payee, En retard, Avoir</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Mockup — Liste factures</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">Factures</div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <div style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); background: white;">Rechercher...</div>
+        <div style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); background: white;">Colonnes &#9662;</div>
+        <div style="padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--muted); background: white;">Export &#9662;</div>
+      </div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th>N° Facture &#9662;</th>
+            <th>Projet &#9662;</th>
+            <th>Client &#9662;</th>
+            <th>Emission &#9662;</th>
+            <th>Mois</th>
+            <th style="text-align: right;">Montant HT &#9662;</th>
+            <th>Echeance</th>
+            <th>Etat &#9662;</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="cursor: pointer;">
+            <td><span class="id-fac">FAC-HEO-0012</span></td>
+            <td><span class="id-ref">0001-HEO-APP</span></td>
+            <td>Heol Formation</td>
+            <td>28/03/2026</td>
+            <td>Fev 2026</td>
+            <td style="text-align: right; font-family: monospace;">4 500 &euro;</td>
+            <td>30/04/2026</td>
+            <td><span class="badge badge-green">Payee</span></td>
+          </tr>
+          <tr style="cursor: pointer;">
+            <td><span class="id-fac">FAC-BNP-0013</span></td>
+            <td><span class="id-ref">0002-BNP-PDC</span></td>
+            <td>BNP Paribas</td>
+            <td>28/03/2026</td>
+            <td>Fev 2026</td>
+            <td style="text-align: right; font-family: monospace;">3 800 &euro;</td>
+            <td>30/04/2026</td>
+            <td><span class="badge badge-blue">Emise</span></td>
+          </tr>
+          <tr style="cursor: pointer;">
+            <td><span class="id-fac">FAC-HEO-0014</span></td>
+            <td><span class="id-ref">0001-HEO-APP</span></td>
+            <td>Heol Formation</td>
+            <td>27/02/2026</td>
+            <td>Jan 2026</td>
+            <td style="text-align: right; font-family: monospace;">4 500 &euro;</td>
+            <td>31/03/2026</td>
+            <td><span class="badge badge-red">En retard</span></td>
+          </tr>
+          <tr style="cursor: pointer; opacity: 0.7;">
+            <td><span class="id-fac">FAC-HEO-0015</span></td>
+            <td><span class="id-ref">0001-HEO-APP</span></td>
+            <td>Heol Formation</td>
+            <td>27/02/2026</td>
+            <td>Jan 2026</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red);">-1 200 &euro;</td>
+            <td>—</td>
+            <td><span class="badge badge-purple">Avoir</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Etats</strong> — <span class="badge badge-gray">A emettre</span> echeance prete, pas encore validee. <span class="badge badge-blue">Emise</span> facture creee, en attente de paiement. <span class="badge badge-green">Payee</span> paiement recu (via Odoo). <span class="badge badge-red">En retard</span> echeance depassee, non payee. <span class="badge badge-purple">Avoir</span> document d'annulation.</p>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Export CSV / XLSX</strong> — Bouton "Export" en haut de la liste. Exporte les donnees visibles (colonnes affichees, filtres actifs). Disponible a tous les niveaux (liste globale et drill-down par contrat).</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 4. DRILL-DOWN PAR PROJET                                           -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">4</span> Drill-down par projet</h2>
+  <p>Clic sur un projet &rarr; detail par contrat avec facture, encaisse et retard pour chaque contrat.</p>
+
+  <div class="flow">
+    <div class="flow-step" style="border-color: var(--primary);">
+      <div class="step-num">NIVEAU 1</div>
+      <div class="step-title">Liste factures</div>
+      <div class="step-desc">Toutes les factures<br>Vue globale</div>
+    </div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step" style="border-color: var(--blue);">
+      <div class="step-num">NIVEAU 2</div>
+      <div class="step-title">Par contrat</div>
+      <div class="step-desc">Clic sur un projet<br>Detail contrat par contrat</div>
+    </div>
+  </div>
+
+  <h3>Mockup — Detail par contrat (0001-HEO-APP)</h3>
+  <div class="mockup-ui">
+    <div class="mockup-ui-header">
+      <div class="title">
+        <span style="color: var(--muted); cursor: pointer;">Factures</span>
+        <span style="color: var(--muted); margin: 0 6px;">&#8250;</span>
+        <span class="id-ref">0001-HEO-APP</span> &nbsp; Heol Formation
+      </div>
+      <div style="font-size: 12px; color: var(--muted);">Commission : 10%</div>
+    </div>
+    <div class="mockup-ui-body" style="padding: 0; overflow-x: auto;">
+      <table style="margin: 0;">
+        <thead>
+          <tr>
+            <th>Ref contrat</th>
+            <th>Apprenant</th>
+            <th style="text-align: right;">Facture</th>
+            <th style="text-align: right;">Encaisse</th>
+            <th style="text-align: right;">En retard</th>
+            <th>Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span style="font-family: monospace; color: var(--orange);">CTR-00187</span></td>
+            <td>Jean Dupont</td>
+            <td style="text-align: right; font-family: monospace;">850 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">850 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--muted);">0 &euro;</td>
+            <td><span class="badge badge-green">A jour</span></td>
+          </tr>
+          <tr>
+            <td><span style="font-family: monospace; color: var(--orange);">CTR-00188</span></td>
+            <td>Marie Martin</td>
+            <td style="text-align: right; font-family: monospace;">620 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">620 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--muted);">0 &euro;</td>
+            <td><span class="badge badge-green">A jour</span></td>
+          </tr>
+          <tr>
+            <td><span style="font-family: monospace; color: var(--orange);">CTR-00189</span></td>
+            <td>Ahmed Ben Ali</td>
+            <td style="text-align: right; font-family: monospace;">850 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">0 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red);">850 &euro;</td>
+            <td><span class="badge badge-red">En retard</span></td>
+          </tr>
+          <tr style="background: var(--card-alt); font-weight: 700;">
+            <td colspan="2"><strong>Total projet</strong></td>
+            <td style="text-align: right; font-family: monospace;">2 320 &euro;</td>
+            <td style="text-align: right; font-family: monospace;">1 470 &euro;</td>
+            <td style="text-align: right; font-family: monospace; color: var(--red);">850 &euro;</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Retard exigible uniquement</strong> — La colonne "En retard" ne montre que les montants dont l'echeance est depassee. Les factures emises mais dont l'echeance n'est pas encore arrivee ne sont pas comptees comme en retard.</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 5. MODALE PREVISUALISATION                                         -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">5</span> Modale de previsualisation</h2>
+  <p>Clic sur un numero de facture &rarr; modale centree avec le detail complet et les actions disponibles.</p>
+
+  <h3>Contenu de la modale</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Zone</th><th>Contenu</th></tr></thead>
+      <tbody>
+        <tr><td><strong>En-tete</strong></td><td>N° facture, date emission, echeance, etat (badge)</td></tr>
+        <tr><td><strong>Emetteur</strong></td><td>SOLUVIA — raison sociale, adresse, SIRET, TVA intracommunautaire</td></tr>
+        <tr><td><strong>Destinataire</strong></td><td>Client — raison sociale, adresse, SIRET</td></tr>
+        <tr><td><strong>Lignes</strong></td><td>1 ligne par contrat : ref contrat, apprenant, mois concerne, montant HT</td></tr>
+        <tr><td><strong>Totaux</strong></td><td>Sous-total HT, TVA (20%), Total TTC</td></tr>
+        <tr><td><strong>Paiement</strong></td><td>Si payee : date et montant du paiement. Si en retard : nb jours de retard.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Actions</h3>
+  <div class="features three">
+    <div class="feature" style="text-align: center;">
+      <h4>Telecharger PDF</h4>
+      <p>Telecharge le document PDF de la facture</p>
+    </div>
+    <div class="feature" style="text-align: center;">
+      <h4>Renvoyer par email</h4>
+      <p>Renvoie la facture par email au client</p>
+    </div>
+    <div class="feature" style="text-align: center; border-color: var(--red);">
+      <h4>Emettre un avoir</h4>
+      <p>Cree un avoir lie a cette facture (modale de saisie du motif)</p>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 6. AVOIRS                                                          -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">6</span> Avoirs</h2>
+  <p>Document d'annulation totale ou partielle d'une facture. Meme sequence de numerotation.</p>
+
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Declenchement</strong></td><td>Depuis la modale d'une facture, bouton "Emettre un avoir". CDP ou admin.</td></tr>
+        <tr><td><strong>Motifs</strong></td><td>Rupture anticipee de contrat, erreur de facturation, remise commerciale, ajustement. Motif obligatoire (champ texte).</td></tr>
+        <tr><td><strong>Numerotation</strong></td><td>Meme sequence <span class="id-fac">FAC-TRI-NNNN</span>. L'avoir prend le numero suivant dans la sequence globale.</td></tr>
+        <tr><td><strong>Montant</strong></td><td>Negatif. Avoir total = montant de la facture en negatif. Avoir partiel = montant saisi par le CDP.</td></tr>
+        <tr><td><strong>Rupture</strong></td><td>Calcul automatique au <strong>pro-rata temporis</strong> : montant contrat &times; duree realisee / duree totale. Le CDP peut ajuster.</td></tr>
+        <tr><td><strong>PDF</strong></td><td>Meme template que la facture avec mention <strong>"AVOIR"</strong> en rouge et reference a la facture d'origine.</td></tr>
+        <tr><td><strong>Odoo</strong></td><td>L'avoir est pousse vers Odoo comme la facture (ecriture comptable d'annulation).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation danger">
+    <span class="icon">&#9940;</span>
+    <p><strong>Pas de suppression</strong> — Une facture emise ne peut jamais etre supprimee (obligation legale). Pour annuler, on emet un avoir. La facture d'origine reste visible avec le badge <span class="badge badge-purple">Avoir</span> et un lien vers l'avoir correspondant.</p>
+  </div>
+
+  <div class="annotation">
+    <span class="icon">&#128204;</span>
+    <p><strong>Avoir emis par erreur</strong> — Un avoir ne peut pas etre supprime non plus. Si un avoir a ete emis par erreur, on emet une nouvelle facture (dans la meme sequence FAC-TRI-NNNN) pour compenser l'avoir errone. Le motif doit mentionner "Compensation avoir FAC-TRI-NNNN emis par erreur".</p>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 7. TEMPLATE PDF                                                    -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">7</span> Template PDF facture</h2>
+  <p>Modele du document PDF genere automatiquement. Meme template pour les avoirs (avec mention "AVOIR").</p>
+
+  <h3>Mockup — Facture PDF</h3>
+  <div class="pdf-mockup">
+    <!-- Header -->
+    <div class="pdf-header">
+      <div>
+        <div style="font-size: 24px; font-weight: 700; color: var(--primary); letter-spacing: 2px;">SOLUVIA</div>
+        <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">
+          123 Rue de la Formation<br>
+          75001 Paris<br>
+          SIRET : 123 456 789 00012<br>
+          TVA : FR12 123456789
+        </div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 20px; font-weight: 700; color: var(--text);">FACTURE</div>
+        <div style="font-size: 16px; font-weight: 700; color: var(--blue); font-family: monospace; margin-top: 4px;">FAC-HEO-0012</div>
+        <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">
+          Date : 28/03/2026<br>
+          Echeance : 30/04/2026
+        </div>
+      </div>
+    </div>
+
+    <!-- Destinataire -->
+    <div class="pdf-section">
+      <div class="pdf-label">Facturer a</div>
+      <div style="font-size: 14px; font-weight: 600;">Heol Formation</div>
+      <div style="font-size: 12px; color: var(--muted);">
+        456 Avenue de l'Apprentissage<br>
+        69001 Lyon<br>
+        SIRET : 987 654 321 00034
+      </div>
+    </div>
+
+    <!-- Objet -->
+    <div class="pdf-section">
+      <div class="pdf-label">Objet</div>
+      <div style="font-size: 13px;">Commission de gestion — Projet <span style="font-family: monospace; font-weight: 600;">0001-HEO-APP</span> — Mois de Fevrier 2026</div>
+    </div>
+
+    <!-- Lignes -->
+    <div class="pdf-section">
+      <table style="font-size: 12px;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--text);">
+            <th style="background: none; color: var(--text); text-transform: none; padding: 8px 0;">Ref contrat</th>
+            <th style="background: none; color: var(--text); text-transform: none; padding: 8px 0;">Apprenant</th>
+            <th style="background: none; color: var(--text); text-transform: none; padding: 8px 0;">Description</th>
+            <th style="background: none; color: var(--text); text-transform: none; padding: 8px 0; text-align: right;">Montant HT</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-family: monospace; padding: 6px 0;">CTR-00187</td>
+            <td style="padding: 6px 0;">Jean Dupont</td>
+            <td style="padding: 6px 0;">Commission 10% — BTS Commerce — Fev 2026</td>
+            <td style="text-align: right; font-family: monospace; padding: 6px 0;">70,83 &euro;</td>
+          </tr>
+          <tr>
+            <td style="font-family: monospace; padding: 6px 0;">CTR-00188</td>
+            <td style="padding: 6px 0;">Marie Martin</td>
+            <td style="padding: 6px 0;">Commission 10% — CAP Electricien — Fev 2026</td>
+            <td style="text-align: right; font-family: monospace; padding: 6px 0;">51,67 &euro;</td>
+          </tr>
+          <tr>
+            <td style="font-family: monospace; padding: 6px 0;">CTR-00189</td>
+            <td style="padding: 6px 0;">Ahmed Ben Ali</td>
+            <td style="padding: 6px 0;">Commission 10% — BTS Commerce — Fev 2026</td>
+            <td style="text-align: right; font-family: monospace; padding: 6px 0;">70,83 &euro;</td>
+          </tr>
+          <tr style="font-size: 11px; color: var(--muted);">
+            <td colspan="3" style="padding: 4px 0;">... 39 autres contrats</td>
+            <td style="text-align: right; font-family: monospace; padding: 4px 0;">4 306,67 &euro;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totaux -->
+    <div style="display: flex; justify-content: flex-end;">
+      <div style="min-width: 240px;">
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px;">
+          <span>Sous-total HT</span>
+          <span style="font-family: monospace; font-weight: 600;">4 500,00 &euro;</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px;">
+          <span>TVA 20%</span>
+          <span style="font-family: monospace;">900,00 &euro;</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 10px 0; font-size: 15px; font-weight: 700; border-top: 2px solid var(--text);">
+          <span>Total TTC</span>
+          <span style="font-family: monospace;">5 400,00 &euro;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mentions legales -->
+    <div style="margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 10px; color: var(--muted); line-height: 1.8;">
+      Conditions de paiement : 30 jours fin de mois. En cas de retard de paiement, une penalite de 3 fois le taux d'interet legal sera appliquee, ainsi qu'une indemnite forfaitaire de 40 &euro; pour frais de recouvrement.
+      <br>Pas d'escompte pour paiement anticipe. TVA non applicable, art. 293 B du CGI (si applicable).
+    </div>
+  </div>
+
+  <h3>Champs obligatoires</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Champ</th><th>Source</th><th>Obligatoire</th></tr></thead>
+      <tbody>
+        <tr><td><strong>N° facture</strong></td><td>Genere (FAC-TRI-NNNN)</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>Date emission</strong></td><td>Date de validation par le CDP</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>Date echeance</strong></td><td>Fin M+3 (30j fin de mois)</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>Emetteur</strong></td><td>Coordonnees SOLUVIA (config admin)</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>SIRET emetteur</strong></td><td>Config admin</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>TVA intracommunautaire</strong></td><td>Config admin</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>Destinataire</strong></td><td>Fiche client (API Pappers + saisie)</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>SIRET destinataire</strong></td><td>Fiche client</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>Lignes de detail</strong></td><td>Contrats du projet</td><td>Oui</td></tr>
+        <tr><td><strong>Sous-total HT</strong></td><td>Calcule</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>TVA</strong></td><td>20% (ou art. 293 B)</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>Total TTC</strong></td><td>Calcule</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>Mentions legales</strong></td><td>Config admin (penalites retard, escompte)</td><td>Oui (legal)</td></tr>
+        <tr><td><strong>Mention AVOIR</strong></td><td>Si avoir : mention en rouge + ref facture d'origine</td><td>Si avoir</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 8. INTEGRATION ODOO                                                -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">8</span> Integration Odoo</h2>
+  <p>Odoo n'est pas encore en production. Cette section decrit le flux prevu et les endpoints a implementer.</p>
+
+  <h3>Flux SOLUVIA &rarr; Odoo (push facture)</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Etape</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Declencheur</strong></td><td>A la validation d'une facture par le CDP (etape 3 du flux).</td></tr>
+        <tr><td><strong>Donnees envoyees</strong></td><td>N° facture, date emission, date echeance, client (SIRET), lignes de detail (contrat, montant HT), TVA, total TTC.</td></tr>
+        <tr><td><strong>Action Odoo</strong></td><td>Creation d'une ecriture comptable (facture client) dans le journal de vente.</td></tr>
+        <tr><td><strong>Retour</strong></td><td>Odoo renvoie un <code>odoo_id</code> stocke dans la table <code>factures</code> pour le suivi.</td></tr>
+        <tr><td><strong>Avoirs</strong></td><td>Meme flux. L'avoir est pousse comme une facture d'avoir (montant negatif).</td></tr>
+        <tr><td><strong>PDF</strong></td><td>Le PDF genere par SOLUVIA est joint a l'ecriture Odoo comme piece jointe.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Flux Odoo &rarr; SOLUVIA (pull paiements)</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Etape</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Frequence</strong></td><td>CRON Supabase Edge Function — toutes les heures (a ajuster selon le volume).</td></tr>
+        <tr><td><strong>Donnees recuperees</strong></td><td>Pour chaque facture ayant un <code>odoo_id</code> : statut paiement, montant paye, date paiement, paiement partiel.</td></tr>
+        <tr><td><strong>Mise a jour SOLUVIA</strong></td><td>Table <code>paiements</code> mise a jour. Statut de la facture passe a "Payee" (si total) ou reste "Emise" (si partiel).</td></tr>
+        <tr><td><strong>Retard</strong></td><td>Si echeance depassee et montant non paye &rarr; statut passe a "En retard" automatiquement (CRON ou calcul temps reel).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>API prevue</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Direction</th><th>Methode</th><th>Endpoint (previsionnel)</th><th>Format</th></tr></thead>
+      <tbody>
+        <tr><td>Push facture</td><td><code>XML-RPC</code> ou <code>REST</code></td><td><code>/api/v1/account.move/create</code></td><td>JSON : partner_id, invoice_date, invoice_line_ids, ...</td></tr>
+        <tr><td>Push avoir</td><td><code>XML-RPC</code> ou <code>REST</code></td><td><code>/api/v1/account.move/create</code> (type = out_refund)</td><td>JSON : idem + reference facture d'origine</td></tr>
+        <tr><td>Pull paiements</td><td><code>XML-RPC</code> ou <code>REST</code></td><td><code>/api/v1/account.payment/search_read</code></td><td>Filtre sur invoice_ids, retour : amount, payment_date, state</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="annotation warn">
+    <span class="icon">&#9888;</span>
+    <p><strong>Odoo non disponible</strong> — En attendant Odoo, l'admin peut saisir manuellement les encaissements (date + montant) depuis la modale facture. Cette saisie manuelle sera remplacee par le pull automatique une fois Odoo connecte.</p>
+  </div>
+
+  <h3>Mode degrade &amp; gestion d'erreurs</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Scenario</th><th>Comportement</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Push facture echoue</strong></td><td>La facture est creee dans SOLUVIA (PDF + email envoyes). Le push Odoo est marque en erreur. Retry automatique toutes les heures (max 5 tentatives). Alerte admin apres 5 echecs.</td></tr>
+        <tr><td><strong>Pull paiements echoue</strong></td><td>Le CRON log l'erreur. Les statuts de factures restent inchanges. Retry au prochain cycle. Alerte admin si echec &gt; 24h.</td></tr>
+        <tr><td><strong>Odoo non configure</strong></td><td>Pas de push ni pull. L'admin saisit manuellement les encaissements. La colonne <code>paiements.saisie_manuelle = true</code> permet d'identifier les saisies manuelles a migrer.</td></tr>
+        <tr><td><strong>Logs</strong></td><td>Toutes les interactions Odoo (push, pull, erreurs) sont tracees dans une table <code>odoo_sync_logs</code> (timestamp, direction, statut, payload, erreur).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Envoi email client</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Regle</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Declencheur</strong></td><td>Automatique apres validation de la facture par le CDP.</td></tr>
+        <tr><td><strong>Destinataire</strong></td><td>Contact principal du client (email depuis la fiche client).</td></tr>
+        <tr><td><strong>Contenu</strong></td><td>Email avec objet "Facture FAC-TRI-NNNN — SOLUVIA", corps standard, PDF en piece jointe.</td></tr>
+        <tr><td><strong>Renvoi</strong></td><td>Bouton "Renvoyer par email" dans la modale de previsualisation.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 9. MODELE DE DONNEES                                               -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">9</span> Modele de donnees</h2>
+  <p>Tables Supabase pour la facturation.</p>
+
+  <h3>Table <code>factures</code></h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Type</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td><code>UUID</code></td><td>Cle primaire</td></tr>
+        <tr><td><code>ref</code></td><td><code>TEXT UNIQUE</code></td><td>FAC-TRI-NNNN — sequentiel global sans trou</td></tr>
+        <tr><td><code>projet_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>projets.id</code></td></tr>
+        <tr><td><code>client_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>clients.id</code></td></tr>
+        <tr><td><code>date_emission</code></td><td><code>DATE</code></td><td>Date de validation par le CDP</td></tr>
+        <tr><td><code>date_echeance</code></td><td><code>DATE</code></td><td>Fin M+3 (30j fin de mois)</td></tr>
+        <tr><td><code>mois_concerne</code></td><td><code>TEXT</code></td><td>Mois facture (ex: "2026-02" ou "2026-10/2026-12")</td></tr>
+        <tr><td><code>montant_ht</code></td><td><code>NUMERIC(12,2)</code></td><td>Montant HT (negatif si avoir)</td></tr>
+        <tr><td><code>taux_tva</code></td><td><code>NUMERIC(5,2)</code></td><td>Taux TVA (20% par defaut)</td></tr>
+        <tr><td><code>montant_tva</code></td><td><code>NUMERIC(12,2)</code></td><td>Montant TVA calcule</td></tr>
+        <tr><td><code>montant_ttc</code></td><td><code>NUMERIC(12,2)</code></td><td>Montant TTC</td></tr>
+        <tr><td><code>statut</code></td><td><code>TEXT</code></td><td><code>a_emettre</code> | <code>emise</code> | <code>payee</code> | <code>en_retard</code> | <code>avoir</code></td></tr>
+        <tr><td><code>est_avoir</code></td><td><code>BOOLEAN</code></td><td>True si document d'avoir</td></tr>
+        <tr><td><code>avoir_motif</code></td><td><code>TEXT</code></td><td>Motif de l'avoir (obligatoire si est_avoir = true)</td></tr>
+        <tr><td><code>facture_origine_id</code></td><td><code>UUID FK NULL</code></td><td>Ref vers la facture annulee (si avoir)</td></tr>
+        <tr><td><code>odoo_id</code></td><td><code>TEXT NULL</code></td><td>ID de l'ecriture dans Odoo (apres push)</td></tr>
+        <tr><td><code>pdf_url</code></td><td><code>TEXT NULL</code></td><td>URL du PDF dans Supabase Storage</td></tr>
+        <tr><td><code>email_envoye</code></td><td><code>BOOLEAN</code></td><td>True si email envoye au client</td></tr>
+        <tr><td><code>created_by</code></td><td><code>UUID FK</code></td><td>CDP qui a valide la facture</td></tr>
+        <tr><td><code>created_at</code></td><td><code>TIMESTAMPTZ</code></td><td>Date de creation</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Table <code>facture_lignes</code></h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Type</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td><code>UUID</code></td><td>Cle primaire</td></tr>
+        <tr><td><code>facture_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>factures.id</code></td></tr>
+        <tr><td><code>contrat_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>contrats.id</code></td></tr>
+        <tr><td><code>description</code></td><td><code>TEXT</code></td><td>Libelle de la ligne (ex: "Commission 10% — BTS Commerce — Fev 2026")</td></tr>
+        <tr><td><code>montant_ht</code></td><td><code>NUMERIC(12,2)</code></td><td>Montant HT de la ligne</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Table <code>paiements</code></h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Colonne</th><th>Type</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><code>id</code></td><td><code>UUID</code></td><td>Cle primaire</td></tr>
+        <tr><td><code>facture_id</code></td><td><code>UUID FK</code></td><td>Ref vers <code>factures.id</code></td></tr>
+        <tr><td><code>montant</code></td><td><code>NUMERIC(12,2)</code></td><td>Montant du paiement recu</td></tr>
+        <tr><td><code>date_reception</code></td><td><code>DATE</code></td><td>Date du paiement</td></tr>
+        <tr><td><code>odoo_id</code></td><td><code>TEXT NULL</code></td><td>ID du paiement dans Odoo</td></tr>
+        <tr><td><code>saisie_manuelle</code></td><td><code>BOOLEAN</code></td><td>True si saisi manuellement (fallback sans Odoo)</td></tr>
+        <tr><td><code>created_at</code></td><td><code>TIMESTAMPTZ</code></td><td>Date de creation</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Contraintes</h3>
+  <div class="mockup">
+    <table>
+      <thead><tr><th>Contrainte</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Sequence sans trou</strong></td><td>La ref <code>FAC-TRI-NNNN</code> utilise une sequence PostgreSQL. Le NNNN est global (pas par client). Pas de rollback possible.</td></tr>
+        <tr><td><strong>Pas de suppression</strong></td><td>Aucun <code>DELETE</code> autorise sur <code>factures</code>. Politique RLS : pas de policy DELETE.</td></tr>
+        <tr><td><strong>Avoir lie</strong></td><td><code>facture_origine_id</code> obligatoire si <code>est_avoir = true</code>. FK vers une facture existante.</td></tr>
+        <tr><td><strong>RLS</strong></td><td>CDP : lecture/creation sur les factures de ses projets (<code>projets.cdp_id = auth.uid()</code> ou <code>backup_cdp_id</code>). Admin : tout.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<!-- ================================================================= -->
+<!-- 10. PERMISSIONS                                                    -->
+<!-- ================================================================= -->
+<section>
+  <h2><span class="num">10</span> Permissions &amp; RLS</h2>
+  <p>Meme modele de permissions que le reste de SOLUVIA, avec des specificites pour la facturation.</p>
+
+  <div class="features">
+    <div class="feature" style="border-color: var(--purple);">
+      <div class="icon" style="background: var(--purple-bg); color: var(--purple);">A</div>
+      <h4>Admin</h4>
+      <p>Voit toutes les factures. Peut facturer hors fenetre <strong>sans avertissement</strong>. Peut emettre des avoirs. Peut saisir manuellement les encaissements (fallback Odoo).</p>
+    </div>
+    <div class="feature" style="border-color: var(--blue);">
+      <div class="icon" style="background: var(--blue-bg); color: var(--blue);">C</div>
+      <h4>CDP</h4>
+      <p>Voit uniquement les factures de ses projets (<code>cdp_id</code> ou <code>backup_cdp_id</code>). Peut valider les echeances et emettre des avoirs. Avertissement hors fenetre 25-3.</p>
+    </div>
+  </div>
+</section>
+
+<hr>
+
+<!-- FOOTER -->
+<div style="text-align: center; padding: 48px 0; color: var(--muted); font-size: 13px;">
+  <div style="font-weight: 700; color: var(--primary); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px;">SOLUVIA</div>
+  <div>Section 06 — Facturation — v1.0 — Avril 2026</div>
+  <div style="margin-top: 4px;">Page suivante : <strong>07 — Suivi de Projet</strong></div>
+</div>
+
+</body>
+</html>

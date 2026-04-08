@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 
@@ -10,6 +11,25 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [user, setUser] = useState<{
+    nom: string;
+    prenom: string;
+    role: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+      if (authUser) {
+        supabase
+          .from('users')
+          .select('nom, prenom, role')
+          .eq('id', authUser.id)
+          .single()
+          .then(({ data }) => setUser(data));
+      }
+    });
+  }, []);
 
   return (
     <div
@@ -22,6 +42,7 @@ export default function DashboardLayout({
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        user={user}
       />
       <Topbar />
       <main className="bg-background overflow-y-auto p-6">{children}</main>

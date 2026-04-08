@@ -1,21 +1,10 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
+import type { ClientListItem } from '@/lib/queries/clients';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
-import { MOCK_PROJETS, type MockClient } from '@/lib/mock-data';
 
-export interface ClientListRow extends MockClient {
-  nb_projets: number;
-}
-
-export function buildClientListData(clients: MockClient[]): ClientListRow[] {
-  return clients.map((c) => ({
-    ...c,
-    nb_projets: MOCK_PROJETS.filter((p) => p.client.id === c.id).length,
-  }));
-}
-
-export const clientListColumns: ColumnDef<ClientListRow>[] = [
+export const clientListColumns: ColumnDef<ClientListItem>[] = [
   {
     accessorKey: 'trigramme',
     header: ({ column }) => (
@@ -54,15 +43,6 @@ export const clientListColumns: ColumnDef<ClientListRow>[] = [
     ),
     cell: ({ row }) => (
       <span className="text-sm">{row.original.localisation}</span>
-    ),
-  },
-  {
-    accessorKey: 'nb_projets',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Projets" />
-    ),
-    cell: ({ row }) => (
-      <span className="text-sm tabular-nums">{row.original.nb_projets}</span>
     ),
   },
 ];

@@ -4,7 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import type { BadgeColor } from '@/components/shared/status-badge';
-import type { UserListRow } from '@/lib/mock-data';
+import type { UserListItem } from '@/lib/queries/users';
 import { formatDateLong } from '@/lib/utils/formatters';
 
 const roleBadge: Record<string, { label: string; color: BadgeColor }> = {
@@ -12,7 +12,7 @@ const roleBadge: Record<string, { label: string; color: BadgeColor }> = {
   cdp: { label: 'CDP', color: 'blue' },
 };
 
-export const userListColumns: ColumnDef<UserListRow>[] = [
+export const userListColumns: ColumnDef<UserListItem>[] = [
   {
     accessorKey: 'nom',
     header: ({ column }) => (
@@ -44,17 +44,6 @@ export const userListColumns: ColumnDef<UserListRow>[] = [
       const badge = roleBadge[row.original.role];
       return <StatusBadge label={badge.label} color={badge.color} />;
     },
-  },
-  {
-    accessorKey: 'nb_projets',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Projets" />
-    ),
-    cell: ({ row }) => (
-      <span className="text-sm tabular-nums">
-        {row.original.role === 'admin' ? '—' : row.original.nb_projets}
-      </span>
-    ),
   },
   {
     accessorKey: 'derniere_connexion',

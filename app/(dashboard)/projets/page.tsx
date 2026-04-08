@@ -1,42 +1,28 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
-import { MOCK_PROJETS, type MockProjet } from '@/lib/mock-data';
-import { DataTable } from '@/components/shared/data-table';
-import { projetListColumns } from '@/components/projets/projet-list-columns';
+import { getProjetsList } from '@/lib/queries/projets';
 import { PageHeader } from '@/components/shared/page-header';
-import { cn } from '@/lib/utils';
+import { ProjetsDataTable } from '@/components/projets/projets-data-table';
 
-export default function ProjetsPage() {
-  const router = useRouter();
-
-  const handleRowClick = (row: MockProjet) => {
-    router.push(`/projets/${row.ref}`);
-  };
+export default async function ProjetsPage() {
+  const projets = await getProjetsList();
 
   // Sort: actif first, then en_pause, termine, archive
-  const sortedProjets = [...MOCK_PROJETS].sort((a, b) => {
-    const order = { actif: 0, en_pause: 1, termine: 2, archive: 3 };
-    return order[a.statut] - order[b.statut];
-  });
+  const order: Record<string, number> = {
+    actif: 0,
+    en_pause: 1,
+    termine: 2,
+    archive: 3,
+  };
+  const sorted = [...projets].sort(
+    (a, b) => (order[a.statut] ?? 99) - (order[b.statut] ?? 99),
+  );
 
   return (
     <div>
       <PageHeader
         title="Projets"
-        description="Liste des projets actifs et archives"
+        description="Liste des projets actifs et archivés"
       />
-      <div
-        className={cn('[&_tr:hover]:bg-card-alt/50 [&_tr]:transition-colors')}
-      >
-        <DataTable
-          columns={projetListColumns}
-          data={sortedProjets}
-          searchKey="ref"
-          searchPlaceholder="Rechercher un projet..."
-          onRowClick={handleRowClick}
-        />
-      </div>
+      <ProjetsDataTable data={sorted} />
     </div>
   );
 }

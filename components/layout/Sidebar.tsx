@@ -38,9 +38,10 @@ const adminNavItems = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  user?: { nom: string; prenom: string; role: string } | null;
 }
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -162,7 +163,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <div className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold">
-              ?
+              {user ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}` : '?'}
             </div>
             <button
               onClick={handleLogout}
@@ -176,13 +177,15 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         ) : (
           <div className="flex items-center gap-3">
             <div className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold">
-              ?
+              {user ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}` : '?'}
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-medium">
-                Utilisateur
+                {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
               </div>
-              <div className="text-muted-foreground text-[11px]">—</div>
+              <div className="text-muted-foreground text-[11px]">
+                {user ? (user.role === 'admin' ? 'Admin' : 'CDP') : '—'}
+              </div>
             </div>
             <button
               onClick={handleLogout}

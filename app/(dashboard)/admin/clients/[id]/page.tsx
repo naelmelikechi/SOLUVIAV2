@@ -5,7 +5,7 @@ import {
   getContactsByClientId,
   getNotesByClientId,
   getDocumentsByClientId,
-} from '@/lib/mock-data';
+} from '@/lib/queries/clients';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
@@ -30,16 +30,18 @@ export default async function ClientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const client = getClientById(id);
+  const client = await getClientById(id);
 
   if (!client) {
     notFound();
   }
 
-  const projets = getProjetsByClientId(id);
-  const contacts = getContactsByClientId(id);
-  const notes = getNotesByClientId(id);
-  const documents = getDocumentsByClientId(id);
+  const [projets, contacts, notes, documents] = await Promise.all([
+    getProjetsByClientId(id),
+    getContactsByClientId(id),
+    getNotesByClientId(id),
+    getDocumentsByClientId(id),
+  ]);
 
   return (
     <div>
@@ -80,25 +82,29 @@ export default async function ClientDetailPage({
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               N° Qualiopi
             </div>
-            <div className="mt-1 font-mono">—</div>
+            <div className="mt-1 font-mono">
+              {client.numero_qualiopi || '—'}
+            </div>
           </div>
           <div>
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               N° NDA
             </div>
-            <div className="mt-1 font-mono">—</div>
+            <div className="mt-1 font-mono">{client.numero_nda || '—'}</div>
           </div>
           <div>
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               N° UAI
             </div>
-            <div className="mt-1 font-mono">—</div>
+            <div className="mt-1 font-mono">{client.numero_uai || '—'}</div>
           </div>
           <div>
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-              Date d&apos;entrée
+              Date d&apos;entr&eacute;e
             </div>
-            <div className="mt-1">—</div>
+            <div className="mt-1">
+              {client.date_entree ? formatDate(client.date_entree) : '—'}
+            </div>
           </div>
         </div>
       </Card>
@@ -128,10 +134,12 @@ export default async function ClientDetailPage({
                       {c.nom}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {c.poste}
+                      {c.poste || '—'}
                     </TableCell>
-                    <TableCell className="text-sm">{c.email}</TableCell>
-                    <TableCell className="text-sm">{c.telephone}</TableCell>
+                    <TableCell className="text-sm">{c.email || '—'}</TableCell>
+                    <TableCell className="text-sm">
+                      {c.telephone || '—'}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -158,7 +166,7 @@ export default async function ClientDetailPage({
                   <TableHead>Ref</TableHead>
                   <TableHead>Typologie</TableHead>
                   <TableHead>CDP</TableHead>
-                  <TableHead>Contrats</TableHead>
+                  <TableHead>Commission</TableHead>
                   <TableHead>Statut</TableHead>
                 </TableRow>
               </TableHeader>
@@ -166,21 +174,21 @@ export default async function ClientDetailPage({
                 {projets.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>
-                      <ProjectRef ref_={p.ref} />
+                      <ProjectRef ref_={p.ref ?? ''} />
                     </TableCell>
                     <TableCell className="text-sm">
-                      {p.typologie.libelle}
+                      {p.typologie?.libelle ?? '—'}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {p.cdp.prenom} {p.cdp.nom}
+                      {p.cdp ? `${p.cdp.prenom} ${p.cdp.nom}` : '—'}
                     </TableCell>
                     <TableCell className="text-sm tabular-nums">
-                      {p.apprentis_actifs}
+                      {p.taux_commission}%
                     </TableCell>
                     <TableCell>
                       <StatusBadge
-                        label={STATUT_PROJET_LABELS[p.statut]}
-                        color={STATUT_PROJET_COLORS[p.statut]}
+                        label={STATUT_PROJET_LABELS[p.statut] || p.statut}
+                        color={STATUT_PROJET_COLORS[p.statut] || 'gray'}
                       />
                     </TableCell>
                   </TableRow>
@@ -206,12 +214,14 @@ export default async function ClientDetailPage({
                   <span>{formatDateLong(note.created_at)}</span>
                   <span>—</span>
                   <span className="font-medium">
-                    {note.user.prenom} {note.user.nom}
+                    {note.user?.prenom} {note.user?.nom}
                   </span>
-                  <StatusBadge
-                    label={note.user.role === 'admin' ? 'Admin' : 'CDP'}
-                    color={note.user.role === 'admin' ? 'purple' : 'blue'}
-                  />
+                  {note.user?.role && (
+                    <StatusBadge
+                      label={note.user.role === 'admin' ? 'Admin' : 'CDP'}
+                      color={note.user.role === 'admin' ? 'purple' : 'blue'}
+                    />
+                  )}
                 </div>
                 <p className="mt-1 text-sm">{note.contenu}</p>
               </div>
@@ -245,13 +255,16 @@ export default async function ClientDetailPage({
                       {doc.nom_fichier}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge label={doc.type_document} color="gray" />
+                      <StatusBadge
+                        label={doc.type_document ?? '—'}
+                        color="gray"
+                      />
                     </TableCell>
                     <TableCell className="text-sm tabular-nums">
                       {formatDate(doc.created_at)}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {doc.user.prenom} {doc.user.nom}
+                      {doc.user ? `${doc.user.prenom} ${doc.user.nom}` : '—'}
                     </TableCell>
                   </TableRow>
                 ))}

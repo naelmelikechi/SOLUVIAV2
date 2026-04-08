@@ -1,18 +1,18 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
-import type { QualiteProjetSummary } from '@/lib/mock-data';
+import type { QualiteSummary } from '@/lib/queries/qualite';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
 import { ProjectRef } from '@/components/shared/project-ref';
 
-export const qualiteListColumns: ColumnDef<QualiteProjetSummary>[] = [
+export const qualiteListColumns: ColumnDef<QualiteSummary>[] = [
   {
     accessorKey: 'projet.ref',
     id: 'ref',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="N° Projet" />
     ),
-    cell: ({ row }) => <ProjectRef ref_={row.original.projet.ref} />,
+    cell: ({ row }) => <ProjectRef ref_={row.original.projet.ref ?? ''} />,
   },
   {
     accessorKey: 'projet.client.raison_sociale',
@@ -22,7 +22,7 @@ export const qualiteListColumns: ColumnDef<QualiteProjetSummary>[] = [
     ),
     cell: ({ row }) => (
       <span className="text-sm">
-        {row.original.projet.client.raison_sociale}
+        {row.original.projet.client?.raison_sociale}
       </span>
     ),
   },
@@ -34,14 +34,14 @@ export const qualiteListColumns: ColumnDef<QualiteProjetSummary>[] = [
     ),
     cell: ({ row }) => (
       <span className="text-sm">
-        {row.original.projet.cdp.prenom} {row.original.projet.cdp.nom}
+        {row.original.projet.cdp?.prenom} {row.original.projet.cdp?.nom}
       </span>
     ),
   },
   {
     accessorKey: 'pct',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Completion" />
+      <DataTableColumnHeader column={column} title="Complétion" />
     ),
     cell: ({ row }) => {
       const pct = row.original.pct;
@@ -67,7 +67,7 @@ export const qualiteListColumns: ColumnDef<QualiteProjetSummary>[] = [
   {
     accessorKey: 'terminees',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Terminees" />
+      <DataTableColumnHeader column={column} title="Terminées" />
     ),
     cell: ({ row }) => (
       <span className="text-primary text-sm font-medium tabular-nums">
@@ -78,7 +78,7 @@ export const qualiteListColumns: ColumnDef<QualiteProjetSummary>[] = [
   {
     accessorKey: 'a_realiser',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="A realiser" />
+      <DataTableColumnHeader column={column} title="À réaliser" />
     ),
     cell: ({ row }) => {
       const count = row.original.a_realiser;

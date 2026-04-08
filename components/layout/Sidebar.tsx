@@ -30,9 +30,24 @@ const mainNavItems = [
 ];
 
 const adminNavItems = [
-  { href: '/admin/clients', label: 'Clients', icon: Building2 },
-  { href: '/admin/utilisateurs', label: 'Utilisateurs', icon: Users },
-  { href: '/admin/parametres', label: 'Paramètres', icon: Settings },
+  {
+    href: '/admin/clients',
+    label: 'Clients',
+    icon: Building2,
+    adminOnly: false,
+  },
+  {
+    href: '/admin/utilisateurs',
+    label: 'Utilisateurs',
+    icon: Users,
+    adminOnly: false,
+  },
+  {
+    href: '/admin/parametres',
+    label: 'Paramètres',
+    icon: Settings,
+    adminOnly: true,
+  },
 ];
 
 interface SidebarProps {
@@ -134,28 +149,30 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
           </div>
         )}
 
-        {adminNavItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
-          const Icon = item.icon;
+        {adminNavItems
+          .filter((item) => !item.adminOnly || user?.role === 'admin')
+          .map((item) => {
+            const isActive = pathname.startsWith(item.href);
+            const Icon = item.icon;
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
-                collapsed ? 'justify-center' : 'pl-11',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
-                  : 'text-muted-foreground hover:text-sidebar-foreground',
-              )}
-            >
-              {collapsed && <Icon className="h-[18px] w-[18px] shrink-0" />}
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={collapsed ? item.label : undefined}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
+                  collapsed ? 'justify-center' : 'pl-11',
+                  isActive
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                    : 'text-muted-foreground hover:text-sidebar-foreground',
+                )}
+              >
+                {collapsed && <Icon className="h-[18px] w-[18px] shrink-0" />}
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            );
+          })}
       </nav>
 
       {/* Profile */}

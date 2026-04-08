@@ -546,11 +546,1130 @@ export const MOCK_QUALITE: Record<string, MockQualiteProjet> = {
   p5: { terminees: 14, a_realiser: 8 },
 };
 
-// Helper to get project data by ref
+// ============================================================
+// CLIENT DETAIL DATA
+// ============================================================
+export interface MockClientContact {
+  id: string;
+  client_id: string;
+  nom: string;
+  poste: string;
+  email: string;
+  telephone: string;
+}
+
+export interface MockClientNote {
+  id: string;
+  client_id: string;
+  user: MockUser;
+  contenu: string;
+  created_at: string;
+}
+
+export interface MockClientDocument {
+  id: string;
+  client_id: string;
+  user: MockUser;
+  nom_fichier: string;
+  type_document: string;
+  created_at: string;
+}
+
+export interface MockFactureLigne {
+  id: string;
+  facture_id: string;
+  contrat_ref: string;
+  apprenant_nom: string;
+  description: string;
+  montant_ht: number;
+}
+
+export interface MockFacture {
+  id: string;
+  ref: string;
+  projet_id: string;
+  projet_ref: string;
+  client_id: string;
+  client_trigramme: string;
+  client_raison_sociale: string;
+  date_emission: string;
+  date_echeance: string;
+  mois_concerne: string;
+  montant_ht: number;
+  taux_tva: number;
+  montant_tva: number;
+  montant_ttc: number;
+  statut: 'a_emettre' | 'emise' | 'payee' | 'en_retard' | 'avoir';
+  est_avoir: boolean;
+  avoir_motif: string | null;
+  facture_origine_ref: string | null;
+  lignes: MockFactureLigne[];
+  created_by: string;
+}
+
+export interface MockPaiement {
+  id: string;
+  facture_id: string;
+  montant: number;
+  date_reception: string;
+  saisie_manuelle: boolean;
+}
+
+export interface MockEcheance {
+  id: string;
+  projet_id: string;
+  projet_ref: string;
+  client_trigramme: string;
+  client_raison_sociale: string;
+  mois_concerne: string;
+  date_emission_prevue: string;
+  montant_prevu_ht: number;
+  nb_contrats: number;
+  facture_id: string | null;
+  validee: boolean;
+}
+
+export const MOCK_CLIENT_CONTACTS: MockClientContact[] = [
+  {
+    id: 'cc1',
+    client_id: 'c1',
+    nom: 'Jean Dupont',
+    poste: 'Directeur',
+    email: 'j.dupont@dupont-formation.fr',
+    telephone: '01 23 45 67 89',
+  },
+  {
+    id: 'cc2',
+    client_id: 'c1',
+    nom: 'Marie Legrand',
+    poste: 'Referent pedagogique',
+    email: 'm.legrand@dupont-formation.fr',
+    telephone: '01 23 45 67 90',
+  },
+  {
+    id: 'cc3',
+    client_id: 'c2',
+    nom: 'Pierre Techman',
+    poste: 'Directeur technique',
+    email: 'p.techman@techform.fr',
+    telephone: '04 56 78 90 12',
+  },
+  {
+    id: 'cc4',
+    client_id: 'c3',
+    nom: 'Sophie Forma',
+    poste: 'Responsable formation',
+    email: 's.forma@formapro.com',
+    telephone: '04 91 23 45 67',
+  },
+  {
+    id: 'cc5',
+    client_id: 'c4',
+    nom: 'Luc Numeris',
+    poste: 'Directeur general',
+    email: 'l.numeris@academie-num.fr',
+    telephone: '05 61 23 45 67',
+  },
+  {
+    id: 'cc6',
+    client_id: 'c5',
+    nom: 'Anne Excellence',
+    poste: 'Directrice',
+    email: 'a.excellence@excel-formation.fr',
+    telephone: '02 40 12 34 56',
+  },
+];
+
+export const MOCK_CLIENT_NOTES: MockClientNote[] = [
+  {
+    id: 'cn1',
+    client_id: 'c1',
+    user: MOCK_USERS[1],
+    contenu:
+      'Reunion de lancement effectuee. Le client souhaite demarrer avec 42 apprentis pour la rentree 2025.',
+    created_at: '2025-07-15T10:30:00Z',
+  },
+  {
+    id: 'cn2',
+    client_id: 'c1',
+    user: MOCK_USERS[0],
+    contenu:
+      'Cle API Eduvia configuree et testee avec succes. Synchronisation initiale des contrats effectuee.',
+    created_at: '2025-08-02T14:00:00Z',
+  },
+  {
+    id: 'cn3',
+    client_id: 'c1',
+    user: MOCK_USERS[1],
+    contenu:
+      'Point mensuel : 2 contrats resilies (Emma Bernard, Clara Roux). Le client demande un suivi renforce sur les apprenants en difficulte.',
+    created_at: '2026-02-10T09:15:00Z',
+  },
+  {
+    id: 'cn4',
+    client_id: 'c2',
+    user: MOCK_USERS[2],
+    contenu:
+      'Nouveau projet POEI demarre. 18 apprenants en Developpeur Web Fullstack.',
+    created_at: '2025-10-20T11:00:00Z',
+  },
+  {
+    id: 'cn5',
+    client_id: 'c3',
+    user: MOCK_USERS[1],
+    contenu:
+      "Client tres satisfait de l'accompagnement. Envisage un 2e projet pour septembre 2026.",
+    created_at: '2026-03-05T16:30:00Z',
+  },
+];
+
+export const MOCK_CLIENT_DOCUMENTS: MockClientDocument[] = [
+  {
+    id: 'cd1',
+    client_id: 'c1',
+    user: MOCK_USERS[0],
+    nom_fichier: 'Convention_Dupont_2025.pdf',
+    type_document: 'Convention',
+    created_at: '2025-07-10T08:00:00Z',
+  },
+  {
+    id: 'cd2',
+    client_id: 'c1',
+    user: MOCK_USERS[1],
+    nom_fichier: 'Avenant_tarifs_2026.pdf',
+    type_document: 'Avenant',
+    created_at: '2026-01-15T09:30:00Z',
+  },
+  {
+    id: 'cd3',
+    client_id: 'c2',
+    user: MOCK_USERS[2],
+    nom_fichier: 'Contrat_TechForm_POEI.pdf',
+    type_document: 'Contrat signe',
+    created_at: '2025-10-01T10:00:00Z',
+  },
+  {
+    id: 'cd4',
+    client_id: 'c3',
+    user: MOCK_USERS[1],
+    nom_fichier: 'Attestation_Qualiopi_FormaPro.pdf',
+    type_document: 'Attestation',
+    created_at: '2025-12-20T14:00:00Z',
+  },
+];
+
+// ============================================================
+// QUALITE DETAIL (per project, per family)
+// ============================================================
+export interface MockTacheQualite {
+  id: string;
+  projet_id: string;
+  famille_code: string;
+  famille_libelle: string;
+  livrable: string;
+  fait: boolean;
+}
+
+export const FAMILLES_QUALITE = [
+  { code: 'C1', libelle: 'Information au public', nb_livrables: 1 },
+  { code: 'C2', libelle: 'Objectif et adaptation', nb_livrables: 8 },
+  { code: 'C3', libelle: 'Accueil, suivi et evaluation', nb_livrables: 26 },
+  { code: 'C4', libelle: 'Adequation des moyens', nb_livrables: 11 },
+  { code: 'C5', libelle: 'Qualification du personnel', nb_livrables: 7 },
+  { code: 'C6', libelle: 'Investissement environnement pro', nb_livrables: 18 },
+  { code: 'C7', libelle: 'Appréciations et amélioration', nb_livrables: 12 },
+  { code: 'ADM', libelle: 'Administration & Organisation', nb_livrables: 20 },
+  { code: 'HQ', libelle: 'Handicap & Qualité Transversale', nb_livrables: 1 },
+  { code: 'RGPD', libelle: 'Protection des Données', nb_livrables: 5 },
+];
+
+function generateTaches(
+  projetId: string,
+  doneRate: number,
+): MockTacheQualite[] {
+  const taches: MockTacheQualite[] = [];
+  let idx = 0;
+  for (const famille of FAMILLES_QUALITE) {
+    for (let i = 0; i < famille.nb_livrables; i++) {
+      idx++;
+      // Deterministic: mark first N livrables as done based on doneRate
+      const doneCount = Math.round(famille.nb_livrables * doneRate);
+      taches.push({
+        id: `tq-${projetId}-${idx}`,
+        projet_id: projetId,
+        famille_code: famille.code,
+        famille_libelle: famille.libelle,
+        livrable: `Livrable ${famille.code}-${i + 1}`,
+        fait: i < doneCount,
+      });
+    }
+  }
+  return taches;
+}
+
+export const MOCK_TACHES_QUALITE: MockTacheQualite[] = [
+  ...generateTaches('p1', 0.78),
+  ...generateTaches('p2', 0.4),
+  ...generateTaches('p3', 0.92),
+  ...generateTaches('p4', 1.0),
+  ...generateTaches('p5', 0.63),
+];
+
+export function getTachesByProjetId(projetId: string): MockTacheQualite[] {
+  return MOCK_TACHES_QUALITE.filter((t) => t.projet_id === projetId);
+}
+
+export interface QualiteProjetSummary {
+  projet: MockProjet;
+  total: number;
+  terminees: number;
+  a_realiser: number;
+  pct: number;
+}
+
+export function getQualiteSummaries(): QualiteProjetSummary[] {
+  return MOCK_PROJETS.filter(
+    (p) => p.statut === 'actif' || p.statut === 'en_pause',
+  ).map((p) => {
+    const taches = getTachesByProjetId(p.id);
+    const terminees = taches.filter((t) => t.fait).length;
+    return {
+      projet: p,
+      total: taches.length,
+      terminees,
+      a_realiser: taches.length - terminees,
+      pct:
+        taches.length > 0 ? Math.round((terminees / taches.length) * 100) : 0,
+    };
+  });
+}
+
+// ============================================================
+// TIME TRACKING (weekly grid)
+// ============================================================
+export interface MockSaisieTemps {
+  projet_id: string;
+  projet_ref: string;
+  projet_label: string;
+  est_absence: boolean;
+  absence_type?: 'conges' | 'maladie' | 'ferie';
+  // Keyed by ISO date string (YYYY-MM-DD)
+  heures: Record<string, number>;
+  // Axes per day: Record<date, Record<axe_code, heures>>
+  axes: Record<string, Record<string, number>>;
+}
+
+export function getMockWeekDates(weekOffset: number = 0): string[] {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(
+    today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1) + weekOffset * 7,
+  );
+
+  const dates: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  return dates;
+}
+
+export function getMockSaisiesForWeek(weekDates: string[]): MockSaisieTemps[] {
+  const weekdays = weekDates.slice(0, 5); // Mon-Fri only
+
+  return [
+    {
+      projet_id: 'p1',
+      projet_ref: '0042-DUP-APP',
+      projet_label: 'Dupont Formation — Apprentissage',
+      est_absence: false,
+      heures: Object.fromEntries(
+        weekdays.map((d, i) => [d, [3, 2.5, 3, 2, 2.5][i]]),
+      ),
+      axes: Object.fromEntries(
+        weekdays.map((d, i) => [
+          d,
+          {
+            accompagnement: [1.5, 1, 1.5, 1, 1][i],
+            pedagogie: [0.5, 0.5, 0.5, 0.5, 0.5][i],
+            administratif: [0.5, 0.5, 0.5, 0.25, 0.5][i],
+            qualite: [0.25, 0.25, 0.25, 0.25, 0.25][i],
+            commercial: [0.25, 0.25, 0.25, 0, 0.25][i],
+          },
+        ]),
+      ),
+    },
+    {
+      projet_id: 'p3',
+      projet_ref: '0044-FOR-APP',
+      projet_label: 'FormaPro — Apprentissage',
+      est_absence: false,
+      heures: Object.fromEntries(
+        weekdays.map((d, i) => [d, [2.5, 3, 2, 3.5, 2.5][i]]),
+      ),
+      axes: Object.fromEntries(
+        weekdays.map((d, i) => [
+          d,
+          {
+            accompagnement: [1, 1.5, 1, 2, 1][i],
+            pedagogie: [0.5, 0.5, 0.5, 0.5, 0.5][i],
+            administratif: [0.5, 0.5, 0.25, 0.5, 0.5][i],
+            qualite: [0.25, 0.25, 0.25, 0.25, 0.25][i],
+            commercial: [0.25, 0.25, 0, 0.25, 0.25][i],
+          },
+        ]),
+      ),
+    },
+    {
+      projet_id: 'p5',
+      projet_ref: '0046-EXC-APP',
+      projet_label: 'Excellence Formation — Apprentissage',
+      est_absence: false,
+      heures: Object.fromEntries(
+        weekdays.map((d, i) => [d, [1.5, 1.5, 2, 1.5, 1][i]]),
+      ),
+      axes: Object.fromEntries(
+        weekdays.map((d, i) => [
+          d,
+          {
+            accompagnement: [0.5, 0.5, 1, 0.5, 0.5][i],
+            pedagogie: [0.5, 0.5, 0.5, 0.5, 0.25][i],
+            administratif: [0.25, 0.25, 0.25, 0.25, 0.25][i],
+            qualite: [0.25, 0.25, 0.25, 0.25, 0][i],
+            commercial: [0, 0, 0, 0, 0][i],
+          },
+        ]),
+      ),
+    },
+    {
+      projet_id: 'abs-conges',
+      projet_ref: '9999-CON-ABS',
+      projet_label: 'Conges payes',
+      est_absence: true,
+      absence_type: 'conges',
+      heures: {},
+      axes: {},
+    },
+    {
+      projet_id: 'abs-maladie',
+      projet_ref: '9998-MAL-ABS',
+      projet_label: 'Arret maladie',
+      est_absence: true,
+      absence_type: 'maladie',
+      heures: {},
+      axes: {},
+    },
+    {
+      projet_id: 'abs-ferie',
+      projet_ref: '9997-FER-ABS',
+      projet_label: 'Jour ferie',
+      est_absence: true,
+      absence_type: 'ferie',
+      heures: {},
+      axes: {},
+    },
+  ];
+}
+
+// ============================================================
+// FACTURATION
+// ============================================================
+export const MOCK_FACTURES: MockFacture[] = [
+  {
+    id: 'fac1',
+    ref: 'FAC-DUP-0001',
+    projet_id: 'p1',
+    projet_ref: '0042-DUP-APP',
+    client_id: 'c1',
+    client_trigramme: 'DUP',
+    client_raison_sociale: 'Dupont Formation SAS',
+    date_emission: '2026-01-28',
+    date_echeance: '2026-02-28',
+    mois_concerne: 'Janvier 2026',
+    montant_ht: 4500,
+    taux_tva: 20,
+    montant_tva: 900,
+    montant_ttc: 5400,
+    statut: 'payee',
+    est_avoir: false,
+    avoir_motif: null,
+    facture_origine_ref: null,
+    lignes: [
+      {
+        id: 'fl1',
+        facture_id: 'fac1',
+        contrat_ref: 'CTR-00187',
+        apprenant_nom: 'Lefevre Antoine',
+        description: 'Commission Janvier 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+      {
+        id: 'fl2',
+        facture_id: 'fac1',
+        contrat_ref: 'CTR-00188',
+        apprenant_nom: 'Moreau Julie',
+        description: 'Commission Janvier 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+      {
+        id: 'fl3',
+        facture_id: 'fac1',
+        contrat_ref: 'CTR-00189',
+        apprenant_nom: 'Garcia Lucas',
+        description: 'Commission Janvier 2026 — BTS Gestion PME',
+        montant_ht: 65.0,
+      },
+      {
+        id: 'fl4',
+        facture_id: 'fac1',
+        contrat_ref: 'CTR-00190',
+        apprenant_nom: 'Bernard Emma',
+        description: 'Commission Janvier 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+      {
+        id: 'fl5',
+        facture_id: 'fac1',
+        contrat_ref: 'CTR-00191',
+        apprenant_nom: 'Petit Nathan',
+        description: 'Commission Janvier 2026 — BTS Gestion PME',
+        montant_ht: 65.0,
+      },
+      {
+        id: 'fl6',
+        facture_id: 'fac1',
+        contrat_ref: 'CTR-00192',
+        apprenant_nom: 'Roux Clara',
+        description: 'Commission Janvier 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+    ],
+    created_by: 'u2',
+  },
+  {
+    id: 'fac2',
+    ref: 'FAC-DUP-0002',
+    projet_id: 'p1',
+    projet_ref: '0042-DUP-APP',
+    client_id: 'c1',
+    client_trigramme: 'DUP',
+    client_raison_sociale: 'Dupont Formation SAS',
+    date_emission: '2026-02-28',
+    date_echeance: '2026-03-31',
+    mois_concerne: 'Février 2026',
+    montant_ht: 4500,
+    taux_tva: 20,
+    montant_tva: 900,
+    montant_ttc: 5400,
+    statut: 'payee',
+    est_avoir: false,
+    avoir_motif: null,
+    facture_origine_ref: null,
+    lignes: [
+      {
+        id: 'fl7',
+        facture_id: 'fac2',
+        contrat_ref: 'CTR-00187',
+        apprenant_nom: 'Lefevre Antoine',
+        description: 'Commission Février 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+      {
+        id: 'fl8',
+        facture_id: 'fac2',
+        contrat_ref: 'CTR-00188',
+        apprenant_nom: 'Moreau Julie',
+        description: 'Commission Février 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+      {
+        id: 'fl9',
+        facture_id: 'fac2',
+        contrat_ref: 'CTR-00189',
+        apprenant_nom: 'Garcia Lucas',
+        description: 'Commission Février 2026 — BTS Gestion PME',
+        montant_ht: 65.0,
+      },
+      {
+        id: 'fl10',
+        facture_id: 'fac2',
+        contrat_ref: 'CTR-00190',
+        apprenant_nom: 'Bernard Emma',
+        description: 'Commission Février 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+      {
+        id: 'fl11',
+        facture_id: 'fac2',
+        contrat_ref: 'CTR-00191',
+        apprenant_nom: 'Petit Nathan',
+        description: 'Commission Février 2026 — BTS Gestion PME',
+        montant_ht: 65.0,
+      },
+      {
+        id: 'fl12',
+        facture_id: 'fac2',
+        contrat_ref: 'CTR-00192',
+        apprenant_nom: 'Roux Clara',
+        description: 'Commission Février 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+    ],
+    created_by: 'u2',
+  },
+  {
+    id: 'fac3',
+    ref: 'FAC-DUP-0003',
+    projet_id: 'p1',
+    projet_ref: '0042-DUP-APP',
+    client_id: 'c1',
+    client_trigramme: 'DUP',
+    client_raison_sociale: 'Dupont Formation SAS',
+    date_emission: '2026-03-28',
+    date_echeance: '2026-04-30',
+    mois_concerne: 'Mars 2026',
+    montant_ht: 4500,
+    taux_tva: 20,
+    montant_tva: 900,
+    montant_ttc: 5400,
+    statut: 'emise',
+    est_avoir: false,
+    avoir_motif: null,
+    facture_origine_ref: null,
+    lignes: [
+      {
+        id: 'fl13',
+        facture_id: 'fac3',
+        contrat_ref: 'CTR-00187',
+        apprenant_nom: 'Lefevre Antoine',
+        description: 'Commission Mars 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+      {
+        id: 'fl14',
+        facture_id: 'fac3',
+        contrat_ref: 'CTR-00188',
+        apprenant_nom: 'Moreau Julie',
+        description: 'Commission Mars 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+      {
+        id: 'fl15',
+        facture_id: 'fac3',
+        contrat_ref: 'CTR-00189',
+        apprenant_nom: 'Garcia Lucas',
+        description: 'Commission Mars 2026 — BTS Gestion PME',
+        montant_ht: 65.0,
+      },
+      {
+        id: 'fl16',
+        facture_id: 'fac3',
+        contrat_ref: 'CTR-00190',
+        apprenant_nom: 'Bernard Emma',
+        description: 'Commission Mars 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+      {
+        id: 'fl17',
+        facture_id: 'fac3',
+        contrat_ref: 'CTR-00191',
+        apprenant_nom: 'Petit Nathan',
+        description: 'Commission Mars 2026 — BTS Gestion PME',
+        montant_ht: 65.0,
+      },
+      {
+        id: 'fl18',
+        facture_id: 'fac3',
+        contrat_ref: 'CTR-00192',
+        apprenant_nom: 'Roux Clara',
+        description: 'Commission Mars 2026 — BTS Commerce International',
+        montant_ht: 70.83,
+      },
+    ],
+    created_by: 'u2',
+  },
+  {
+    id: 'fac4',
+    ref: 'FAC-DUP-0004',
+    projet_id: 'p1',
+    projet_ref: '0042-DUP-APP',
+    client_id: 'c1',
+    client_trigramme: 'DUP',
+    client_raison_sociale: 'Dupont Formation SAS',
+    date_emission: '2026-04-02',
+    date_echeance: '2026-04-30',
+    mois_concerne: 'Avril 2026',
+    montant_ht: -4500,
+    taux_tva: 20,
+    montant_tva: -900,
+    montant_ttc: -5400,
+    statut: 'avoir',
+    est_avoir: true,
+    avoir_motif: 'Erreur de facturation',
+    facture_origine_ref: 'FAC-DUP-0003',
+    lignes: [
+      {
+        id: 'fl19',
+        facture_id: 'fac4',
+        contrat_ref: 'CTR-00187',
+        apprenant_nom: 'Lefevre Antoine',
+        description: 'Avoir sur FAC-DUP-0003 — BTS Commerce International',
+        montant_ht: -70.83,
+      },
+      {
+        id: 'fl20',
+        facture_id: 'fac4',
+        contrat_ref: 'CTR-00188',
+        apprenant_nom: 'Moreau Julie',
+        description: 'Avoir sur FAC-DUP-0003 — BTS Commerce International',
+        montant_ht: -70.83,
+      },
+      {
+        id: 'fl21',
+        facture_id: 'fac4',
+        contrat_ref: 'CTR-00189',
+        apprenant_nom: 'Garcia Lucas',
+        description: 'Avoir sur FAC-DUP-0003 — BTS Gestion PME',
+        montant_ht: -65.0,
+      },
+      {
+        id: 'fl22',
+        facture_id: 'fac4',
+        contrat_ref: 'CTR-00190',
+        apprenant_nom: 'Bernard Emma',
+        description: 'Avoir sur FAC-DUP-0003 — BTS Commerce International',
+        montant_ht: -70.83,
+      },
+      {
+        id: 'fl23',
+        facture_id: 'fac4',
+        contrat_ref: 'CTR-00191',
+        apprenant_nom: 'Petit Nathan',
+        description: 'Avoir sur FAC-DUP-0003 — BTS Gestion PME',
+        montant_ht: -65.0,
+      },
+      {
+        id: 'fl24',
+        facture_id: 'fac4',
+        contrat_ref: 'CTR-00192',
+        apprenant_nom: 'Roux Clara',
+        description: 'Avoir sur FAC-DUP-0003 — BTS Commerce International',
+        montant_ht: -70.83,
+      },
+    ],
+    created_by: 'u2',
+  },
+  {
+    id: 'fac5',
+    ref: 'FAC-TEC-0005',
+    projet_id: 'p2',
+    projet_ref: '0043-TEC-POE',
+    client_id: 'c2',
+    client_trigramme: 'TEC',
+    client_raison_sociale: 'TechForm Academy',
+    date_emission: '2026-01-28',
+    date_echeance: '2026-02-28',
+    mois_concerne: 'Janvier 2026',
+    montant_ht: 1600,
+    taux_tva: 20,
+    montant_tva: 320,
+    montant_ttc: 1920,
+    statut: 'payee',
+    est_avoir: false,
+    avoir_motif: null,
+    facture_origine_ref: null,
+    lignes: [
+      {
+        id: 'fl25',
+        facture_id: 'fac5',
+        contrat_ref: 'CTR-00210',
+        apprenant_nom: 'Dubois Leo',
+        description: 'Commission Janvier 2026 — Developpeur Web Fullstack',
+        montant_ht: 80.0,
+      },
+      {
+        id: 'fl26',
+        facture_id: 'fac5',
+        contrat_ref: 'CTR-00211',
+        apprenant_nom: 'Laurent Lea',
+        description: 'Commission Janvier 2026 — Developpeur Web Fullstack',
+        montant_ht: 80.0,
+      },
+    ],
+    created_by: 'u3',
+  },
+  {
+    id: 'fac6',
+    ref: 'FAC-TEC-0006',
+    projet_id: 'p2',
+    projet_ref: '0043-TEC-POE',
+    client_id: 'c2',
+    client_trigramme: 'TEC',
+    client_raison_sociale: 'TechForm Academy',
+    date_emission: '2026-02-28',
+    date_echeance: '2026-03-31',
+    mois_concerne: 'Février 2026',
+    montant_ht: 1600,
+    taux_tva: 20,
+    montant_tva: 320,
+    montant_ttc: 1920,
+    statut: 'en_retard',
+    est_avoir: false,
+    avoir_motif: null,
+    facture_origine_ref: null,
+    lignes: [
+      {
+        id: 'fl27',
+        facture_id: 'fac6',
+        contrat_ref: 'CTR-00210',
+        apprenant_nom: 'Dubois Leo',
+        description: 'Commission Février 2026 — Developpeur Web Fullstack',
+        montant_ht: 80.0,
+      },
+      {
+        id: 'fl28',
+        facture_id: 'fac6',
+        contrat_ref: 'CTR-00211',
+        apprenant_nom: 'Laurent Lea',
+        description: 'Commission Février 2026 — Developpeur Web Fullstack',
+        montant_ht: 80.0,
+      },
+    ],
+    created_by: 'u3',
+  },
+  {
+    id: 'fac7',
+    ref: 'FAC-FOR-0007',
+    projet_id: 'p3',
+    projet_ref: '0044-FOR-APP',
+    client_id: 'c3',
+    client_trigramme: 'FOR',
+    client_raison_sociale: 'FormaPro International',
+    date_emission: '2026-03-28',
+    date_echeance: '2026-04-30',
+    mois_concerne: 'Mars 2026',
+    montant_ht: 1033,
+    taux_tva: 20,
+    montant_tva: 206.6,
+    montant_ttc: 1239.6,
+    statut: 'emise',
+    est_avoir: false,
+    avoir_motif: null,
+    facture_origine_ref: null,
+    lignes: [
+      {
+        id: 'fl29',
+        facture_id: 'fac7',
+        contrat_ref: 'CTR-00230',
+        apprenant_nom: 'Simon Camille',
+        description: 'Commission Mars 2026 — CAP Cuisine',
+        montant_ht: 51.67,
+      },
+      {
+        id: 'fl30',
+        facture_id: 'fac7',
+        contrat_ref: 'CTR-00231',
+        apprenant_nom: 'Michel Hugo',
+        description: 'Commission Mars 2026 — CAP Cuisine',
+        montant_ht: 51.67,
+      },
+    ],
+    created_by: 'u2',
+  },
+  {
+    id: 'fac8',
+    ref: 'FAC-FOR-0008',
+    projet_id: 'p3',
+    projet_ref: '0044-FOR-APP',
+    client_id: 'c3',
+    client_trigramme: 'FOR',
+    client_raison_sociale: 'FormaPro International',
+    date_emission: '2026-02-28',
+    date_echeance: '2026-03-31',
+    mois_concerne: 'Février 2026',
+    montant_ht: 1033,
+    taux_tva: 20,
+    montant_tva: 206.6,
+    montant_ttc: 1239.6,
+    statut: 'en_retard',
+    est_avoir: false,
+    avoir_motif: null,
+    facture_origine_ref: null,
+    lignes: [
+      {
+        id: 'fl31',
+        facture_id: 'fac8',
+        contrat_ref: 'CTR-00230',
+        apprenant_nom: 'Simon Camille',
+        description: 'Commission Février 2026 — CAP Cuisine',
+        montant_ht: 51.67,
+      },
+      {
+        id: 'fl32',
+        facture_id: 'fac8',
+        contrat_ref: 'CTR-00231',
+        apprenant_nom: 'Michel Hugo',
+        description: 'Commission Février 2026 — CAP Cuisine',
+        montant_ht: 51.67,
+      },
+    ],
+    created_by: 'u2',
+  },
+  {
+    id: 'fac9',
+    ref: 'FAC-EXC-0009',
+    projet_id: 'p5',
+    projet_ref: '0046-EXC-APP',
+    client_id: 'c5',
+    client_trigramme: 'EXC',
+    client_raison_sociale: 'Excellence Formation',
+    date_emission: '2026-03-28',
+    date_echeance: '2026-04-30',
+    mois_concerne: 'Mars 2026',
+    montant_ht: 2500,
+    taux_tva: 20,
+    montant_tva: 500,
+    montant_ttc: 3000,
+    statut: 'a_emettre',
+    est_avoir: false,
+    avoir_motif: null,
+    facture_origine_ref: null,
+    lignes: [
+      {
+        id: 'fl33',
+        facture_id: 'fac9',
+        contrat_ref: 'CTR-00250',
+        apprenant_nom: 'Dupuis Manon',
+        description: 'Commission Mars 2026 — BTS Management Commercial',
+        montant_ht: 83.33,
+      },
+      {
+        id: 'fl34',
+        facture_id: 'fac9',
+        contrat_ref: 'CTR-00251',
+        apprenant_nom: 'Renard Paul',
+        description: 'Commission Mars 2026 — BTS Management Commercial',
+        montant_ht: 83.33,
+      },
+      {
+        id: 'fl35',
+        facture_id: 'fac9',
+        contrat_ref: 'CTR-00252',
+        apprenant_nom: 'Blanchard Ines',
+        description: 'Commission Mars 2026 — BTS Comptabilite Gestion',
+        montant_ht: 83.33,
+      },
+    ],
+    created_by: 'u2',
+  },
+  {
+    id: 'fac10',
+    ref: 'FAC-EXC-0010',
+    projet_id: 'p5',
+    projet_ref: '0046-EXC-APP',
+    client_id: 'c5',
+    client_trigramme: 'EXC',
+    client_raison_sociale: 'Excellence Formation',
+    date_emission: '2026-02-28',
+    date_echeance: '2026-03-31',
+    mois_concerne: 'Février 2026',
+    montant_ht: 2500,
+    taux_tva: 20,
+    montant_tva: 500,
+    montant_ttc: 3000,
+    statut: 'emise',
+    est_avoir: false,
+    avoir_motif: null,
+    facture_origine_ref: null,
+    lignes: [
+      {
+        id: 'fl36',
+        facture_id: 'fac10',
+        contrat_ref: 'CTR-00250',
+        apprenant_nom: 'Dupuis Manon',
+        description: 'Commission Février 2026 — BTS Management Commercial',
+        montant_ht: 83.33,
+      },
+      {
+        id: 'fl37',
+        facture_id: 'fac10',
+        contrat_ref: 'CTR-00251',
+        apprenant_nom: 'Renard Paul',
+        description: 'Commission Février 2026 — BTS Management Commercial',
+        montant_ht: 83.33,
+      },
+      {
+        id: 'fl38',
+        facture_id: 'fac10',
+        contrat_ref: 'CTR-00252',
+        apprenant_nom: 'Blanchard Ines',
+        description: 'Commission Février 2026 — BTS Comptabilite Gestion',
+        montant_ht: 83.33,
+      },
+    ],
+    created_by: 'u2',
+  },
+];
+
+export const MOCK_PAIEMENTS: MockPaiement[] = [
+  {
+    id: 'pay1',
+    facture_id: 'fac1',
+    montant: 5400,
+    date_reception: '2026-02-25',
+    saisie_manuelle: false,
+  },
+  {
+    id: 'pay2',
+    facture_id: 'fac2',
+    montant: 5400,
+    date_reception: '2026-03-28',
+    saisie_manuelle: false,
+  },
+  {
+    id: 'pay3',
+    facture_id: 'fac5',
+    montant: 1920,
+    date_reception: '2026-02-20',
+    saisie_manuelle: false,
+  },
+];
+
+export const MOCK_ECHEANCES: MockEcheance[] = [
+  {
+    id: 'ech1',
+    projet_id: 'p1',
+    projet_ref: '0042-DUP-APP',
+    client_trigramme: 'DUP',
+    client_raison_sociale: 'Dupont Formation SAS',
+    mois_concerne: 'Mai 2026',
+    date_emission_prevue: '2026-05-28',
+    montant_prevu_ht: 4500,
+    nb_contrats: 6,
+    facture_id: null,
+    validee: false,
+  },
+  {
+    id: 'ech2',
+    projet_id: 'p2',
+    projet_ref: '0043-TEC-POE',
+    client_trigramme: 'TEC',
+    client_raison_sociale: 'TechForm Academy',
+    mois_concerne: 'Mars 2026',
+    date_emission_prevue: '2026-03-28',
+    montant_prevu_ht: 1600,
+    nb_contrats: 2,
+    facture_id: null,
+    validee: false,
+  },
+  {
+    id: 'ech3',
+    projet_id: 'p3',
+    projet_ref: '0044-FOR-APP',
+    client_trigramme: 'FOR',
+    client_raison_sociale: 'FormaPro International',
+    mois_concerne: 'Avril 2026',
+    date_emission_prevue: '2026-04-28',
+    montant_prevu_ht: 1033,
+    nb_contrats: 2,
+    facture_id: null,
+    validee: false,
+  },
+  {
+    id: 'ech4',
+    projet_id: 'p5',
+    projet_ref: '0046-EXC-APP',
+    client_trigramme: 'EXC',
+    client_raison_sociale: 'Excellence Formation',
+    mois_concerne: 'Avril 2026',
+    date_emission_prevue: '2026-04-28',
+    montant_prevu_ht: 2500,
+    nb_contrats: 3,
+    facture_id: null,
+    validee: false,
+  },
+];
+
+// ============================================================
+// HELPERS
+// ============================================================
 export function getProjetByRef(ref: string): MockProjet | undefined {
   return MOCK_PROJETS.find((p) => p.ref === ref);
 }
 
 export function getContratsByProjetId(projetId: string): MockContrat[] {
   return MOCK_CONTRATS.filter((c) => c.projet_id === projetId);
+}
+
+export function getClientById(id: string): MockClient | undefined {
+  return MOCK_CLIENTS.find((c) => c.id === id);
+}
+
+export function getProjetsByClientId(clientId: string): MockProjet[] {
+  return MOCK_PROJETS.filter((p) => p.client.id === clientId);
+}
+
+export function getContactsByClientId(clientId: string): MockClientContact[] {
+  return MOCK_CLIENT_CONTACTS.filter((c) => c.client_id === clientId);
+}
+
+export function getNotesByClientId(clientId: string): MockClientNote[] {
+  return MOCK_CLIENT_NOTES.filter((n) => n.client_id === clientId).sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+}
+
+export function getDocumentsByClientId(clientId: string): MockClientDocument[] {
+  return MOCK_CLIENT_DOCUMENTS.filter((d) => d.client_id === clientId);
+}
+
+export function getFactures(): MockFacture[] {
+  return MOCK_FACTURES;
+}
+
+export function getFactureByRef(ref: string): MockFacture | undefined {
+  return MOCK_FACTURES.find((f) => f.ref === ref);
+}
+
+export function getPaiementsByFactureId(factureId: string): MockPaiement[] {
+  return MOCK_PAIEMENTS.filter((p) => p.facture_id === factureId);
+}
+
+export function getEcheancesPending(): MockEcheance[] {
+  return MOCK_ECHEANCES.filter((e) => !e.facture_id && !e.validee);
+}
+
+// ============================================================
+// USERS — list view
+// ============================================================
+export interface UserListRow {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  role: 'admin' | 'cdp';
+  actif: boolean;
+  derniere_connexion: string | null;
+  nb_projets: number;
+}
+
+export function getUserListData(): UserListRow[] {
+  return MOCK_USERS.map((u) => ({
+    ...u,
+    actif: true,
+    derniere_connexion:
+      u.id === 'u1'
+        ? '2026-04-08T14:32:00Z'
+        : u.id === 'u2'
+          ? '2026-04-08T09:15:00Z'
+          : u.id === 'u3'
+            ? '2026-04-07T17:45:00Z'
+            : '2026-04-05T11:00:00Z',
+    nb_projets: MOCK_PROJETS.filter(
+      (p) => p.cdp.id === u.id || p.backup_cdp?.id === u.id,
+    ).length,
+  }));
 }

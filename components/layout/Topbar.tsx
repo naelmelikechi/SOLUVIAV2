@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 
 const routeLabels: Record<string, string> = {
   projets: 'Projets',
-  qualite: 'Qualite',
+  qualite: 'Qualité',
   temps: 'Temps',
   production: 'Production',
   facturation: 'Facturation',
@@ -15,7 +15,7 @@ const routeLabels: Record<string, string> = {
   admin: 'Administration',
   clients: 'Clients',
   utilisateurs: 'Utilisateurs',
-  parametres: 'Parametres',
+  parametres: 'Paramètres',
 };
 
 export function Topbar() {
@@ -31,7 +31,10 @@ export function Topbar() {
   return (
     <header className="border-border bg-card flex items-center justify-between border-b px-6">
       {/* Breadcrumbs */}
-      <nav className="flex items-center gap-1.5 text-sm">
+      <nav
+        aria-label="Fil d'Ariane"
+        className="flex items-center gap-1.5 text-sm"
+      >
         {breadcrumbs.map((crumb, index) => (
           <span key={crumb.href} className="flex items-center gap-1.5">
             {index > 0 && (
@@ -53,7 +56,12 @@ export function Topbar() {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label="Notifications"
+        >
           <Bell className="h-[18px] w-[18px]" />
         </Button>
       </div>

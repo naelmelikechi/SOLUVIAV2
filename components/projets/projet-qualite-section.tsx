@@ -1,5 +1,6 @@
 import type { MockQualiteProjet } from '@/lib/mock-data';
 import { Card } from '@/components/ui/card';
+import { StatusBadge } from '@/components/shared/status-badge';
 
 export function ProjetQualiteSection({
   qualite,
@@ -9,9 +10,9 @@ export function ProjetQualiteSection({
   if (!qualite) {
     return (
       <Card className="p-6">
-        <h3 className="mb-2 text-sm font-semibold">Taches qualite</h3>
+        <h3 className="mb-2 text-sm font-semibold">Tâches qualité</h3>
         <p className="text-muted-foreground text-sm">
-          Aucune tache synchronisee
+          Aucune tâche synchronisée
         </p>
       </Card>
     );
@@ -20,10 +21,8 @@ export function ProjetQualiteSection({
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center gap-2">
-        <h3 className="text-sm font-semibold">Taches qualite</h3>
-        <span className="badge-orange rounded-full px-2 py-0.5 text-[10px] font-semibold">
-          Eduvia
-        </span>
+        <h3 className="text-sm font-semibold">Tâches qualité</h3>
+        <StatusBadge label="Eduvia" color="orange" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -31,13 +30,13 @@ export function ProjetQualiteSection({
           <div className="text-primary text-2xl font-bold">
             {qualite.terminees}
           </div>
-          <div className="text-muted-foreground text-xs">Terminees</div>
+          <div className="text-muted-foreground text-xs">Terminées</div>
         </div>
         <div className="border-border rounded-lg border p-4 text-center">
           <div className="text-2xl font-bold text-[var(--warning)]">
             {qualite.a_realiser}
           </div>
-          <div className="text-muted-foreground text-xs">A realiser</div>
+          <div className="text-muted-foreground text-xs">À réaliser</div>
         </div>
       </div>
     </Card>

@@ -25,9 +25,10 @@ export function formatPercent(value: number): string {
 }
 
 export function formatHeures(h: number): string {
-  if (h === 0) return '0h';
+  if (!Number.isFinite(h) || h <= 0) return '0h';
   const hours = Math.floor(h);
   const minutes = Math.round((h - hours) * 60);
+  if (minutes === 60) return `${hours + 1}h`;
   if (minutes === 0) return `${hours}h`;
   return `${hours}h${minutes.toString().padStart(2, '0')}`;
 }

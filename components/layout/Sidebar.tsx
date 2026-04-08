@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   ClipboardList,
   CheckCircle,
@@ -13,14 +14,15 @@ import {
   Building2,
   Settings,
   ChevronLeft,
-  ChevronRight,
+  LogOut,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
 const mainNavItems = [
   { href: '/projets', label: 'Projets', icon: ClipboardList },
-  { href: '/qualite', label: 'Qualite', icon: CheckCircle },
+  { href: '/qualite', label: 'Qualité', icon: CheckCircle },
   { href: '/temps', label: 'Temps', icon: Clock },
   { href: '/production', label: 'Production', icon: TrendingUp },
   { href: '/facturation', label: 'Facturation', icon: FileText },
@@ -30,7 +32,7 @@ const mainNavItems = [
 const adminNavItems = [
   { href: '/admin/clients', label: 'Clients', icon: Building2 },
   { href: '/admin/utilisateurs', label: 'Utilisateurs', icon: Users },
-  { href: '/admin/parametres', label: 'Parametres', icon: Settings },
+  { href: '/admin/parametres', label: 'Paramètres', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -40,6 +42,13 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
 
   return (
     <aside
@@ -49,22 +58,46 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
     >
       {/* Logo */}
-      <div className="border-sidebar-border flex h-14 items-center justify-between border-b px-4">
-        {!collapsed && (
-          <span className="text-primary text-base font-bold tracking-[3px]">
-            SOLUVIA
-          </span>
+      <div
+        className={cn(
+          'border-sidebar-border flex h-14 items-center border-b',
+          collapsed ? 'justify-center px-2' : 'justify-between px-4',
         )}
-        <button
-          onClick={onToggle}
-          className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md p-1.5"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </button>
+      >
+        {collapsed ? (
+          <button
+            onClick={onToggle}
+            aria-label="Ouvrir la sidebar"
+            className="transition-opacity hover:opacity-80"
+          >
+            <Image
+              src="/logo-icon.svg"
+              alt="Soluvia"
+              width={26}
+              height={32}
+              priority
+            />
+          </button>
+        ) : (
+          <>
+            <Link href="/projets" className="flex shrink-0 items-center">
+              <Image
+                src="/logo.svg"
+                alt="Soluvia"
+                width={140}
+                height={28}
+                priority
+              />
+            </Link>
+            <button
+              onClick={onToggle}
+              aria-label="Réduire la sidebar"
+              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md p-1.5"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Navigation */}
@@ -126,19 +159,40 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Profile */}
       <div className="border-sidebar-border border-t px-3 py-3">
-        <div className="flex items-center gap-3">
-          <div className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold">
-            ?
+        {collapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            <div className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold">
+              ?
+            </div>
+            <button
+              onClick={handleLogout}
+              aria-label="Se déconnecter"
+              title="Déconnexion"
+              className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
-          {!collapsed && (
-            <div className="min-w-0">
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold">
+              ?
+            </div>
+            <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-medium">
                 Utilisateur
               </div>
               <div className="text-muted-foreground text-[11px]">—</div>
             </div>
-          )}
-        </div>
+            <button
+              onClick={handleLogout}
+              aria-label="Se déconnecter"
+              className="text-muted-foreground hover:text-foreground shrink-0 text-[11px] transition-colors"
+            >
+              Déconnexion
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );

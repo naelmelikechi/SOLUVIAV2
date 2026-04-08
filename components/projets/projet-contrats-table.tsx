@@ -1,6 +1,6 @@
 import type { MockContrat } from '@/lib/mock-data';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
 import { Card } from '@/components/ui/card';
 import {
   Table,
@@ -14,11 +14,11 @@ import {
 const CONTRACT_STATE_LABELS: Record<string, string> = {
   actif: 'Actif',
   suspendu: 'Suspendu',
-  resilie: 'Resilie',
-  termine: 'Termine',
+  resilie: 'Résilié',
+  termine: 'Terminé',
 };
 
-const CONTRACT_STATE_COLORS: Record<string, string> = {
+const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
   actif: 'green',
   suspendu: 'orange',
   resilie: 'red',
@@ -60,9 +60,7 @@ export function ProjetContratsTable({ contrats }: { contrats: MockContrat[] }) {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold">Contrats</h3>
-          <span className="badge-orange rounded-full px-2 py-0.5 text-[10px] font-semibold">
-            Eduvia
-          </span>
+          <StatusBadge label="Eduvia" color="orange" />
         </div>
         <span className="text-muted-foreground text-sm">
           {actifs} contrat{actifs > 1 ? 's' : ''} actif{actifs > 1 ? 's' : ''}
@@ -71,7 +69,7 @@ export function ProjetContratsTable({ contrats }: { contrats: MockContrat[] }) {
 
       {contrats.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          Aucun contrat synchronise
+          Aucun contrat synchronisé
         </p>
       ) : (
         <div className="border-border overflow-x-auto rounded-lg border">
@@ -81,12 +79,12 @@ export function ProjetContratsTable({ contrats }: { contrats: MockContrat[] }) {
                 <TableHead>Ref</TableHead>
                 <TableHead>Apprenant</TableHead>
                 <TableHead>Formation</TableHead>
-                <TableHead>Debut</TableHead>
+                <TableHead>Début</TableHead>
                 <TableHead>Fin</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Prise en charge</TableHead>
-                <TableHead>Prog. reelle</TableHead>
-                <TableHead>Prog. theorique</TableHead>
+                <TableHead>Prog. réelle</TableHead>
+                <TableHead>Prog. théorique</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -100,7 +98,10 @@ export function ProjetContratsTable({ contrats }: { contrats: MockContrat[] }) {
                   <TableCell className="text-sm">
                     {c.apprenant_prenom} {c.apprenant_nom}
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-sm">
+                  <TableCell
+                    className="max-w-[200px] truncate text-sm"
+                    title={c.formation_titre}
+                  >
                     {c.formation_titre}
                   </TableCell>
                   <TableCell className="text-sm tabular-nums">

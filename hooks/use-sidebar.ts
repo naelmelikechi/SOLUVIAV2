@@ -1,37 +1,49 @@
 'use client';
 
-import { useState, useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'soluvia-sidebar-collapsed';
 
+let currentValue = false;
+
 function getSnapshot(): boolean {
   if (typeof window === 'undefined') return false;
-  return localStorage.getItem(STORAGE_KEY) === 'true';
+  currentValue = localStorage.getItem(STORAGE_KEY) === 'true';
+  return currentValue;
 }
 
 function getServerSnapshot(): boolean {
   return false;
 }
 
+const listeners = new Set<() => void>();
+
 function subscribe(callback: () => void): () => void {
+  listeners.add(callback);
   window.addEventListener('storage', callback);
-  return () => window.removeEventListener('storage', callback);
+  return () => {
+    listeners.delete(callback);
+    window.removeEventListener('storage', callback);
+  };
+}
+
+function emitChange() {
+  for (const listener of listeners) {
+    listener();
+  }
 }
 
 export function useSidebar() {
-  const storedValue = useSyncExternalStore(
+  const collapsed = useSyncExternalStore(
     subscribe,
     getSnapshot,
     getServerSnapshot,
   );
-  const [collapsed, setCollapsed] = useState(storedValue);
 
   const toggle = useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem(STORAGE_KEY, String(next));
-      return next;
-    });
+    const next = !getSnapshot();
+    localStorage.setItem(STORAGE_KEY, String(next));
+    emitChange();
   }, []);
 
   return { collapsed, toggle };

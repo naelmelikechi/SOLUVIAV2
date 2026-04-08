@@ -1,7 +1,6 @@
 import type { MockTempsProjet } from '@/lib/mock-data';
 import { formatHeures } from '@/lib/utils/formatters';
 import { Card } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 
 export function ProjetTempsSection({
   temps,

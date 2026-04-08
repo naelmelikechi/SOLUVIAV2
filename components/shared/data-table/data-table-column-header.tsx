@@ -26,6 +26,7 @@ export function DataTableColumnHeader<TData, TValue>({
         className,
       )}
       onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      aria-label={`Trier par ${title}`}
     >
       {title}
       {column.getIsSorted() === 'asc' ? (

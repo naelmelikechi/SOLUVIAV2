@@ -9,9 +9,17 @@ const colorStyles: Record<string, string> = {
   gray: 'badge-gray',
 };
 
+export type BadgeColor =
+  | 'green'
+  | 'orange'
+  | 'red'
+  | 'blue'
+  | 'purple'
+  | 'gray';
+
 interface StatusBadgeProps {
   label: string;
-  color: string;
+  color: BadgeColor;
   className?: string;
 }
 

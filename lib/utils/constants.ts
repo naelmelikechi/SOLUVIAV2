@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import type { BadgeColor } from '@/components/shared/status-badge';
 import {
   ClipboardList,
   CheckCircle,
@@ -30,11 +31,11 @@ export const TAUX_TVA_DEFAUT = 20;
 export const STATUT_PROJET_LABELS: Record<string, string> = {
   actif: 'Actif',
   en_pause: 'En pause',
-  termine: 'Termine',
-  archive: 'Archive',
+  termine: 'Terminé',
+  archive: 'Archivé',
 };
 
-export const STATUT_PROJET_COLORS: Record<string, string> = {
+export const STATUT_PROJET_COLORS: Record<string, BadgeColor> = {
   actif: 'green',
   en_pause: 'orange',
   termine: 'blue',
@@ -43,14 +44,14 @@ export const STATUT_PROJET_COLORS: Record<string, string> = {
 
 // Invoice statuses
 export const STATUT_FACTURE_LABELS: Record<string, string> = {
-  a_emettre: 'A emettre',
-  emise: 'Emise',
-  payee: 'Payee',
+  a_emettre: 'À émettre',
+  emise: 'Émise',
+  payee: 'Payée',
   en_retard: 'En retard',
   avoir: 'Avoir',
 };
 
-export const STATUT_FACTURE_COLORS: Record<string, string> = {
+export const STATUT_FACTURE_COLORS: Record<string, BadgeColor> = {
   a_emettre: 'gray',
   emise: 'blue',
   payee: 'green',
@@ -61,9 +62,9 @@ export const STATUT_FACTURE_COLORS: Record<string, string> = {
 // Time axes
 export const AXES_TEMPS = [
   { code: 'accompagnement', label: 'Accompagnement', color: '#16a34a' },
-  { code: 'pedagogie', label: 'Pedagogie', color: '#059669' },
+  { code: 'pedagogie', label: 'Pédagogie', color: '#059669' },
   { code: 'administratif', label: 'Administratif', color: '#0d9488' },
-  { code: 'qualite', label: 'Qualite', color: '#0891b2' },
+  { code: 'qualite', label: 'Qualité', color: '#0891b2' },
   { code: 'commercial', label: 'Commercial', color: '#6366f1' },
 ] as const;
 
@@ -77,7 +78,7 @@ export interface NavItem {
 
 export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: '/projets', label: 'Projets', icon: ClipboardList },
-  { href: '/qualite', label: 'Qualite', icon: CheckCircle },
+  { href: '/qualite', label: 'Qualité', icon: CheckCircle },
   { href: '/temps', label: 'Temps', icon: Clock },
   { href: '/production', label: 'Production', icon: TrendingUp },
   { href: '/facturation', label: 'Facturation', icon: FileText },
@@ -89,7 +90,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: '/admin/utilisateurs', label: 'Utilisateurs', icon: Users },
   {
     href: '/admin/parametres',
-    label: 'Parametres',
+    label: 'Paramètres',
     icon: Settings,
     adminOnly: true,
   },

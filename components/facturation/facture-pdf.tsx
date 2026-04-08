@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import type { MockFacture } from '@/lib/mock-data';
+import type { FactureDetail } from '@/lib/queries/factures';
 
 const EMETTEUR = {
   raison_sociale: 'SOLUVIA SAS',
@@ -143,7 +143,12 @@ function formatEur(n: number): string {
   }).format(n);
 }
 
-export function FacturePdf({ facture }: { facture: MockFacture }) {
+interface FacturePdfProps {
+  facture: FactureDetail;
+  origineRef?: string | null;
+}
+
+export function FacturePdf({ facture, origineRef }: FacturePdfProps) {
   const isAvoir = facture.est_avoir;
 
   return (
@@ -163,20 +168,24 @@ export function FacturePdf({ facture }: { facture: MockFacture }) {
             <Text style={styles.docRef}>{facture.ref}</Text>
             <Text>
               Date :{' '}
-              {new Date(facture.date_emission).toLocaleDateString('fr-FR')}
+              {facture.date_emission
+                ? new Date(facture.date_emission).toLocaleDateString('fr-FR')
+                : '—'}
             </Text>
             <Text>
               Échéance :{' '}
-              {new Date(facture.date_echeance).toLocaleDateString('fr-FR')}
+              {facture.date_echeance
+                ? new Date(facture.date_echeance).toLocaleDateString('fr-FR')
+                : '—'}
             </Text>
           </View>
         </View>
 
         {/* Avoir reference */}
-        {isAvoir && facture.facture_origine_ref && (
+        {isAvoir && origineRef && (
           <View style={styles.avoirBanner}>
             <Text style={styles.avoirText}>
-              Avoir sur la facture {facture.facture_origine_ref}
+              Avoir sur la facture {origineRef}
             </Text>
             {facture.avoir_motif && (
               <Text style={{ marginTop: 2 }}>
@@ -189,14 +198,20 @@ export function FacturePdf({ facture }: { facture: MockFacture }) {
         {/* Destinataire */}
         <View style={styles.sectionBox}>
           <Text style={styles.label}>Facturer à</Text>
-          <Text style={styles.bold}>{facture.client_raison_sociale}</Text>
+          <Text style={styles.bold}>
+            {facture.client?.raison_sociale ?? ''}
+          </Text>
+          {facture.client?.adresse && <Text>{facture.client.adresse}</Text>}
+          {facture.client?.siret && (
+            <Text style={styles.muted}>SIRET {facture.client.siret}</Text>
+          )}
         </View>
 
         {/* Objet */}
         <View style={{ marginBottom: 16 }}>
           <Text style={styles.label}>Objet</Text>
           <Text>
-            Commission de gestion — Projet {facture.projet_ref} —{' '}
+            Commission de gestion — Projet {facture.projet?.ref ?? ''} —{' '}
             {facture.mois_concerne}
           </Text>
         </View>
@@ -212,8 +227,12 @@ export function FacturePdf({ facture }: { facture: MockFacture }) {
         {/* Table rows */}
         {facture.lignes.map((ligne) => (
           <View key={ligne.id} style={styles.tableRow}>
-            <Text style={styles.colContrat}>{ligne.contrat_ref}</Text>
-            <Text style={styles.colApprenant}>{ligne.apprenant_nom}</Text>
+            <Text style={styles.colContrat}>{ligne.contrat?.ref ?? ''}</Text>
+            <Text style={styles.colApprenant}>
+              {ligne.contrat
+                ? `${ligne.contrat.apprenant_prenom ?? ''} ${ligne.contrat.apprenant_nom ?? ''}`.trim()
+                : ''}
+            </Text>
             <Text style={[styles.colDescription, styles.muted]}>
               {ligne.description}
             </Text>

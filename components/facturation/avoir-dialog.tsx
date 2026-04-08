@@ -20,7 +20,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import type { MockFacture } from '@/lib/mock-data';
 
 const MOTIFS_AVOIR = [
   'Rupture anticipee',
@@ -31,15 +30,21 @@ const MOTIFS_AVOIR = [
 ] as const;
 
 interface AvoirDialogProps {
-  facture: MockFacture;
+  factureRef: string;
+  montantHtDefault: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function AvoirDialog({ facture, open, onOpenChange }: AvoirDialogProps) {
+export function AvoirDialog({
+  factureRef,
+  montantHtDefault,
+  open,
+  onOpenChange,
+}: AvoirDialogProps) {
   const [motif, setMotif] = useState<string>('');
   const [montantHt, setMontantHt] = useState<string>(
-    facture.montant_ht.toString(),
+    montantHtDefault.toString(),
   );
   const [note, setNote] = useState<string>('');
 
@@ -61,7 +66,7 @@ export function AvoirDialog({ facture, open, onOpenChange }: AvoirDialogProps) {
 
     // Reset form
     setMotif('');
-    setMontantHt(facture.montant_ht.toString());
+    setMontantHt(montantHtDefault.toString());
     setNote('');
   }
 
@@ -69,7 +74,7 @@ export function AvoirDialog({ facture, open, onOpenChange }: AvoirDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Emettre un avoir sur {facture.ref}</DialogTitle>
+          <DialogTitle>Emettre un avoir sur {factureRef}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">

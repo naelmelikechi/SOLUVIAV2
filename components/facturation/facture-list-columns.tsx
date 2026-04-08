@@ -1,7 +1,7 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
-import type { MockFacture } from '@/lib/mock-data';
+import type { FactureListItem } from '@/lib/queries/factures';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
@@ -11,7 +11,7 @@ import {
   STATUT_FACTURE_COLORS,
 } from '@/lib/utils/constants';
 
-export const factureListColumns: ColumnDef<MockFacture>[] = [
+export const factureListColumns: ColumnDef<FactureListItem>[] = [
   {
     accessorKey: 'ref',
     header: ({ column }) => (
@@ -24,20 +24,23 @@ export const factureListColumns: ColumnDef<MockFacture>[] = [
     ),
   },
   {
-    accessorKey: 'projet_ref',
+    id: 'projet',
+    accessorFn: (row) => row.projet?.ref,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Projet" />
     ),
-    cell: ({ row }) => <ProjectRef ref_={row.original.projet_ref} />,
+    cell: ({ row }) => <ProjectRef ref_={row.original.projet?.ref ?? ''} />,
   },
   {
-    accessorKey: 'client_raison_sociale',
     id: 'client',
+    accessorFn: (row) => row.client?.raison_sociale,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Client" />
     ),
     cell: ({ row }) => (
-      <span className="text-sm">{row.original.client_raison_sociale}</span>
+      <span className="text-sm">
+        {row.original.client?.raison_sociale ?? ''}
+      </span>
     ),
   },
   {
@@ -46,7 +49,11 @@ export const factureListColumns: ColumnDef<MockFacture>[] = [
       <DataTableColumnHeader column={column} title="Émission" />
     ),
     cell: ({ row }) => (
-      <span className="text-sm">{formatDate(row.original.date_emission)}</span>
+      <span className="text-sm">
+        {row.original.date_emission
+          ? formatDate(row.original.date_emission)
+          : '—'}
+      </span>
     ),
   },
   {
@@ -55,7 +62,7 @@ export const factureListColumns: ColumnDef<MockFacture>[] = [
       <DataTableColumnHeader column={column} title="Mois" />
     ),
     cell: ({ row }) => (
-      <span className="text-sm">{row.original.mois_concerne}</span>
+      <span className="text-sm">{row.original.mois_concerne ?? ''}</span>
     ),
   },
   {
@@ -80,7 +87,11 @@ export const factureListColumns: ColumnDef<MockFacture>[] = [
       <DataTableColumnHeader column={column} title="Échéance" />
     ),
     cell: ({ row }) => (
-      <span className="text-sm">{formatDate(row.original.date_echeance)}</span>
+      <span className="text-sm">
+        {row.original.date_echeance
+          ? formatDate(row.original.date_echeance)
+          : '—'}
+      </span>
     ),
   },
   {

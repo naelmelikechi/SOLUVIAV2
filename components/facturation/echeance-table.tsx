@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import type { MockEcheance } from '@/lib/mock-data';
+import type { EcheancePending } from '@/lib/queries/factures';
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
 
-export function EcheanceTable({ echeances }: { echeances: MockEcheance[] }) {
+export function EcheanceTable({ echeances }: { echeances: EcheancePending[] }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const allSelected =
@@ -75,55 +75,53 @@ export function EcheanceTable({ echeances }: { echeances: MockEcheance[] }) {
               <TableHead>Projet</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Mois concerné</TableHead>
-              <TableHead>Nb contrats</TableHead>
               <TableHead className="text-right">Montant HT</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {echeances.length > 0 ? (
-              echeances.map((echeance) => (
-                <TableRow
-                  key={echeance.id}
-                  data-state={
-                    selectedIds.has(echeance.id) ? 'selected' : undefined
-                  }
-                >
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedIds.has(echeance.id)}
-                      onCheckedChange={() => toggleOne(echeance.id)}
-                      aria-label={`Sélectionner ${echeance.projet_ref}`}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
-                      {echeance.projet_ref}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">
-                      {echeance.client_raison_sociale}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{echeance.mois_concerne}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm tabular-nums">
-                      {echeance.nb_contrats}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className="font-mono text-sm tabular-nums">
-                      {formatCurrency(echeance.montant_prevu_ht)}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))
+              echeances.map((echeance) => {
+                const projetRef = echeance.projet?.ref ?? '';
+                const clientName =
+                  echeance.projet?.client?.raison_sociale ?? '';
+
+                return (
+                  <TableRow
+                    key={echeance.id}
+                    data-state={
+                      selectedIds.has(echeance.id) ? 'selected' : undefined
+                    }
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(echeance.id)}
+                        onCheckedChange={() => toggleOne(echeance.id)}
+                        aria-label={`Sélectionner ${projetRef}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
+                        {projetRef}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{clientName}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{echeance.mois_concerne}</span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="font-mono text-sm tabular-nums">
+                        {formatCurrency(echeance.montant_prevu_ht)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={5}
                   className="text-muted-foreground h-24 text-center"
                 >
                   Aucune échéance à facturer.

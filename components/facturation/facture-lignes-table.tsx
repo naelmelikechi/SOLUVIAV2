@@ -7,10 +7,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/utils/formatters';
-import type { MockFactureLigne } from '@/lib/mock-data';
+import type { FactureDetail } from '@/lib/queries/factures';
 
 interface FactureLignesTableProps {
-  lignes: MockFactureLigne[];
+  lignes: FactureDetail['lignes'];
   est_avoir: boolean;
 }
 
@@ -33,10 +33,14 @@ export function FactureLignesTable({
           <TableRow key={ligne.id}>
             <TableCell>
               <span className="font-mono text-orange-600 dark:text-orange-400">
-                {ligne.contrat_ref}
+                {ligne.contrat?.ref ?? ''}
               </span>
             </TableCell>
-            <TableCell>{ligne.apprenant_nom}</TableCell>
+            <TableCell>
+              {ligne.contrat
+                ? `${ligne.contrat.apprenant_prenom ?? ''} ${ligne.contrat.apprenant_nom ?? ''}`.trim()
+                : ''}
+            </TableCell>
             <TableCell className="text-muted-foreground">
               {ligne.description}
             </TableCell>

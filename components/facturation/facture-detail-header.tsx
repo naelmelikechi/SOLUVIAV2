@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { StatusBadge } from '@/components/shared/status-badge';
-import type { MockFacture } from '@/lib/mock-data';
+import type { FactureDetail } from '@/lib/queries/factures';
 import {
   STATUT_FACTURE_LABELS,
   STATUT_FACTURE_COLORS,
@@ -9,28 +9,36 @@ import { formatDate } from '@/lib/utils/formatters';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-export function FactureDetailHeader({ facture }: { facture: MockFacture }) {
-  const moisLabel = format(
-    parseISO(facture.mois_concerne + '-01'),
-    'MMMM yyyy',
-    {
-      locale: fr,
-    },
-  );
-  const moisCapitalized =
-    moisLabel.charAt(0).toUpperCase() + moisLabel.slice(1);
+interface FactureDetailHeaderProps {
+  facture: FactureDetail;
+  avoirRef?: string | null;
+}
+
+export function FactureDetailHeader({
+  facture,
+  avoirRef,
+}: FactureDetailHeaderProps) {
+  let moisCapitalized = '';
+  if (facture.mois_concerne) {
+    const moisLabel = format(
+      parseISO(facture.mois_concerne + '-01'),
+      'MMMM yyyy',
+      { locale: fr },
+    );
+    moisCapitalized = moisLabel.charAt(0).toUpperCase() + moisLabel.slice(1);
+  }
 
   return (
     <div className="mb-6 space-y-2">
-      {/* Avoir banner */}
-      {facture.est_avoir && facture.facture_origine_ref && (
+      {/* Avoir banner — this facture IS an avoir referencing another */}
+      {facture.est_avoir && facture.facture_origine_id && avoirRef && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
           Avoir sur la facture{' '}
           <Link
-            href={`/facturation/${facture.facture_origine_ref}`}
+            href={`/facturation/${avoirRef}`}
             className="font-semibold underline underline-offset-2 hover:text-red-900 dark:hover:text-red-300"
           >
-            {facture.facture_origine_ref}
+            {avoirRef}
           </Link>
         </div>
       )}
@@ -53,17 +61,19 @@ export function FactureDetailHeader({ facture }: { facture: MockFacture }) {
 
       {/* Client + Projet + Mois */}
       <p className="text-muted-foreground text-sm">
-        {facture.client_raison_sociale} · Projet{' '}
+        {facture.client?.raison_sociale ?? ''} · Projet{' '}
         <span className="font-mono text-orange-600 dark:text-orange-400">
-          {facture.projet_ref}
+          {facture.projet?.ref ?? ''}
         </span>{' '}
         · {moisCapitalized}
       </p>
 
       {/* Dates */}
       <p className="text-muted-foreground text-xs">
-        Emise le {formatDate(facture.date_emission)} · Echeance{' '}
-        {formatDate(facture.date_echeance)}
+        Emise le{' '}
+        {facture.date_emission ? formatDate(facture.date_emission) : '—'} ·
+        Echeance{' '}
+        {facture.date_echeance ? formatDate(facture.date_echeance) : '—'}
       </p>
     </div>
   );

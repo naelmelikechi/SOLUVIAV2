@@ -8,12 +8,18 @@ import {
 } from '@/components/ui/table';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { differenceInDays, parseISO } from 'date-fns';
-import type { MockPaiement } from '@/lib/mock-data';
+
+interface Paiement {
+  id: string;
+  montant: number;
+  date_reception: string;
+  saisie_manuelle: boolean;
+}
 
 interface FacturePaiementsProps {
-  paiements: MockPaiement[];
+  paiements: Paiement[];
   statut: string;
-  date_echeance: string;
+  date_echeance: string | null;
 }
 
 export function FacturePaiements({
@@ -29,9 +35,10 @@ export function FacturePaiements({
     return null;
   }
 
-  const joursRetard = isEnRetard
-    ? differenceInDays(new Date(), parseISO(date_echeance))
-    : 0;
+  const joursRetard =
+    isEnRetard && date_echeance
+      ? differenceInDays(new Date(), parseISO(date_echeance))
+      : 0;
 
   return (
     <div className="space-y-3">

@@ -32,5 +32,5 @@ CREATE TABLE projets (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  CONSTRAINT chk_cdp_different CHECK (cdp_id IS DISTINCT FROM backup_cdp_id)
+  CONSTRAINT chk_cdp_different CHECK (cdp_id IS NULL OR backup_cdp_id IS NULL OR cdp_id != backup_cdp_id)
 );

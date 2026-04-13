@@ -19,6 +19,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { useBadgeCounts } from '@/hooks/use-badge-counts';
 
 const mainNavItems = [
   { href: '/projets', label: 'Projets', icon: ClipboardList },
@@ -56,9 +57,19 @@ interface SidebarProps {
   user?: { nom: string; prenom: string; role: string } | null;
 }
 
+// Map nav hrefs → badge keys + colours
+const badgeConfig: Record<
+  string,
+  { key: 'facturesEnRetard' | 'tempsNonSaisi' | 'notifications'; color: string }
+> = {
+  '/facturation': { key: 'facturesEnRetard', color: 'bg-red-500' },
+  '/temps': { key: 'tempsNonSaisi', color: 'bg-orange-500' },
+};
+
 export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const badgeCounts = useBadgeCounts();
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -121,6 +132,8 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
         {mainNavItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           const Icon = item.icon;
+          const badge = badgeConfig[item.href];
+          const count = badge ? badgeCounts[badge.key] : 0;
 
           return (
             <Link
@@ -135,8 +148,34 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
                   : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
               )}
             >
-              <Icon className="h-[18px] w-[18px] shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              <span className="relative shrink-0">
+                <Icon className="h-[18px] w-[18px]" />
+                {collapsed && badge && count > 0 && (
+                  <span
+                    className={cn(
+                      'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
+                      badge.color,
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
+              </span>
+              {!collapsed && (
+                <>
+                  <span>{item.label}</span>
+                  {badge && count > 0 && (
+                    <span
+                      className={cn(
+                        'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
+                        badge.color,
+                      )}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </>
+              )}
             </Link>
           );
         })}

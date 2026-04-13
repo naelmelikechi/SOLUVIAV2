@@ -1,12 +1,16 @@
 'use client';
 
 import { useState, useCallback, useTransition } from 'react';
+import { Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import { fetchWeekData, saveSaisieTempsAxes } from '@/lib/actions/temps';
 import { PageHeader } from '@/components/shared/page-header';
+import { Button } from '@/components/ui/button';
 import { TimeWeekNavigator } from '@/components/temps/time-week-navigator';
 import { TimeGrid } from '@/components/temps/time-grid';
 import { TimeAxisPanel } from '@/components/temps/time-axis-panel';
+import { formatHeures } from '@/lib/utils/formatters';
 
 interface TempsPageClientProps {
   weekDates: string[];
@@ -87,9 +91,38 @@ export function TempsPageClient({
     [selectedCell],
   );
 
+  const handleExport = () => {
+    const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+    const rows = saisies.map((s) => {
+      const row: Record<string, string | number> = {
+        Projet: s.projet_label,
+      };
+      weekDates.forEach((date, i) => {
+        row[dayLabels[i]!] = s.heures[date] || 0;
+      });
+      const total = weekDates
+        .slice(0, 5)
+        .reduce((sum, d) => sum + (s.heures[d] || 0), 0);
+      row['Total'] = formatHeures(total);
+      return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Temps');
+    XLSX.writeFile(
+      wb,
+      `temps_export_${new Date().toISOString().split('T')[0]}.xlsx`,
+    );
+  };
+
   return (
     <div>
-      <PageHeader title="Suivi de temps" description="Ma semaine" />
+      <PageHeader title="Suivi de temps" description="Ma semaine">
+        <Button variant="outline" size="sm" onClick={handleExport}>
+          <Download className="mr-1.5 h-4 w-4" />
+          Export Excel
+        </Button>
+      </PageHeader>
 
       <TimeWeekNavigator
         weekDates={weekDates}

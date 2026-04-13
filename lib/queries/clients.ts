@@ -7,7 +7,9 @@ export async function getClientsList() {
 
   const { data, error } = await supabase
     .from('clients')
-    .select('id, trigramme, raison_sociale, siret, adresse, localisation')
+    .select(
+      'id, trigramme, raison_sociale, siret, adresse, localisation, date_entree',
+    )
     .eq('archive', false)
     .order('raison_sociale');
 

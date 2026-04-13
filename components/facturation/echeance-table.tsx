@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useTransition } from 'react';
 import type { EcheancePending } from '@/lib/queries/factures';
 import {
   Table,
@@ -14,9 +14,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
+import { createFactures } from '@/lib/actions/factures';
 
 export function EcheanceTable({ echeances }: { echeances: EcheancePending[] }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
 
   const allSelected =
     echeances.length > 0 && selectedIds.size === echeances.length;
@@ -51,11 +53,17 @@ export function EcheanceTable({ echeances }: { echeances: EcheancePending[] }) {
   );
 
   const handleEmettre = () => {
-    const count = selectedIds.size;
-    toast.success(
-      `${count} facture${count > 1 ? 's' : ''} émise${count > 1 ? 's' : ''} avec succès`,
-    );
-    setSelectedIds(new Set());
+    startTransition(async () => {
+      const result = await createFactures(Array.from(selectedIds));
+      if (result.success) {
+        toast.success(
+          `${result.refs.length} facture${result.refs.length > 1 ? 's' : ''} émise${result.refs.length > 1 ? 's' : ''} avec succès`,
+        );
+        setSelectedIds(new Set());
+      } else {
+        toast.error(result.error ?? 'Erreur lors de la création');
+      }
+    });
   };
 
   return (
@@ -141,8 +149,11 @@ export function EcheanceTable({ echeances }: { echeances: EcheancePending[] }) {
             {formatCurrency(selectedTotal)} HT
           </span>
         </p>
-        <Button disabled={selectedIds.size === 0} onClick={handleEmettre}>
-          Émettre les factures
+        <Button
+          disabled={selectedIds.size === 0 || isPending}
+          onClick={handleEmettre}
+        >
+          {isPending ? 'Émission en cours...' : 'Émettre les factures'}
         </Button>
       </div>
     </div>

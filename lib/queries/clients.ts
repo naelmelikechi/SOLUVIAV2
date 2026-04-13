@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { AppError } from '@/lib/errors';
+import { logger } from '@/lib/utils/logger';
 
 export async function getClientsList() {
   const supabase = await createClient();
@@ -9,7 +11,14 @@ export async function getClientsList() {
     .eq('archive', false)
     .order('raison_sociale');
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.clients', 'getClientsList failed', { error });
+    throw new AppError(
+      'CLIENTS_FETCH_FAILED',
+      'Impossible de charger les clients',
+      { cause: error },
+    );
+  }
   return data;
 }
 
@@ -24,7 +33,10 @@ export async function getClientById(id: string) {
     .eq('id', id)
     .single();
 
-  if (error) return null;
+  if (error) {
+    logger.error('queries.clients', 'getClientById failed', { id, error });
+    return null;
+  }
   return data;
 }
 
@@ -41,7 +53,17 @@ export async function getContactsByClientId(clientId: string) {
     .eq('client_id', clientId)
     .order('nom');
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.clients', 'getContactsByClientId failed', {
+      clientId,
+      error,
+    });
+    throw new AppError(
+      'CLIENTS_CONTACTS_FETCH_FAILED',
+      'Impossible de charger les contacts',
+      { cause: error },
+    );
+  }
   return data;
 }
 
@@ -58,7 +80,17 @@ export async function getNotesByClientId(clientId: string) {
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.clients', 'getNotesByClientId failed', {
+      clientId,
+      error,
+    });
+    throw new AppError(
+      'CLIENTS_NOTES_FETCH_FAILED',
+      'Impossible de charger les notes',
+      { cause: error },
+    );
+  }
   return data;
 }
 
@@ -73,7 +105,17 @@ export async function getDocumentsByClientId(clientId: string) {
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.clients', 'getDocumentsByClientId failed', {
+      clientId,
+      error,
+    });
+    throw new AppError(
+      'CLIENTS_DOCUMENTS_FETCH_FAILED',
+      'Impossible de charger les documents',
+      { cause: error },
+    );
+  }
   return data;
 }
 
@@ -97,7 +139,17 @@ export async function getProjetsByClientId(clientId: string) {
     .eq('est_absence', false)
     .order('ref');
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.clients', 'getProjetsByClientId failed', {
+      clientId,
+      error,
+    });
+    throw new AppError(
+      'CLIENTS_PROJETS_FETCH_FAILED',
+      'Impossible de charger les projets du client',
+      { cause: error },
+    );
+  }
   return data;
 }
 

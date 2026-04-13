@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { AppError } from '@/lib/errors';
+import { logger } from '@/lib/utils/logger';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -40,7 +42,14 @@ export async function getProjetsList() {
     .eq('archive', false)
     .order('ref', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.projets', 'getProjetsList failed', { error });
+    throw new AppError(
+      'PROJETS_FETCH_FAILED',
+      'Impossible de charger les projets',
+      { cause: error },
+    );
+  }
   return data;
 }
 
@@ -88,7 +97,10 @@ export async function getProjetByRef(ref: string) {
     .eq('ref', ref)
     .single();
 
-  if (error) return null;
+  if (error) {
+    logger.error('queries.projets', 'getProjetByRef failed', { ref, error });
+    return null;
+  }
   return data;
 }
 
@@ -106,7 +118,17 @@ export async function getContratsByProjetId(projetId: string) {
     .eq('archive', false)
     .order('ref', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.projets', 'getContratsByProjetId failed', {
+      projetId,
+      error,
+    });
+    throw new AppError(
+      'PROJETS_CONTRATS_FETCH_FAILED',
+      'Impossible de charger les contrats du projet',
+      { cause: error },
+    );
+  }
   return data;
 }
 

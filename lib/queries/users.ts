@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { AppError } from '@/lib/errors';
+import { logger } from '@/lib/utils/logger';
 
 export async function getUsersList() {
   const supabase = await createClient();
@@ -8,7 +10,14 @@ export async function getUsersList() {
     .select('id, email, nom, prenom, role, actif, derniere_connexion')
     .order('nom');
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.users', 'getUsersList failed', { error });
+    throw new AppError(
+      'USERS_FETCH_FAILED',
+      'Impossible de charger les utilisateurs',
+      { cause: error },
+    );
+  }
   return data;
 }
 

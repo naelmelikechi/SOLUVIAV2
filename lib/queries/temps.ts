@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { AppError } from '@/lib/errors';
+import { logger } from '@/lib/utils/logger';
 import { ABSENCE_PROJECTS } from '@/lib/utils/constants';
 
 // ---------------------------------------------------------------------------
@@ -79,7 +81,16 @@ export async function getSaisiesForWeek(
     .eq('user_id', user.id)
     .in('date', weekDates);
 
-  if (saisiesError) throw saisiesError;
+  if (saisiesError) {
+    logger.error('queries.temps', 'getSaisiesForWeek failed (saisies)', {
+      error: saisiesError,
+    });
+    throw new AppError(
+      'TEMPS_FETCH_FAILED',
+      'Impossible de charger les saisies temps',
+      { cause: saisiesError },
+    );
+  }
   if (!saisies || saisies.length === 0) return [];
 
   // 2. Fetch axes for those saisies
@@ -89,7 +100,16 @@ export async function getSaisiesForWeek(
     .select('saisie_id, axe, heures')
     .in('saisie_id', saisieIds);
 
-  if (axesError) throw axesError;
+  if (axesError) {
+    logger.error('queries.temps', 'getSaisiesForWeek failed (axes)', {
+      error: axesError,
+    });
+    throw new AppError(
+      'TEMPS_FETCH_FAILED',
+      'Impossible de charger les axes temps',
+      { cause: axesError },
+    );
+  }
 
   // Build a lookup: saisie_id -> { axe -> heures }
   const axesBySaisie: Record<string, Record<string, number>> = {};
@@ -165,7 +185,14 @@ export async function getUserProjets(): Promise<
     .or(`cdp_id.eq.${user.id},backup_cdp_id.eq.${user.id}`)
     .order('ref', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.temps', 'getUserProjets failed', { error });
+    throw new AppError(
+      'TEMPS_FETCH_FAILED',
+      'Impossible de charger les projets utilisateur',
+      { cause: error },
+    );
+  }
 
   return (data ?? []).map((p) => {
     const client = p.client as unknown as { raison_sociale: string } | null;
@@ -197,7 +224,14 @@ export async function getAbsenceProjets(): Promise<
     .eq('est_absence', true)
     .eq('archive', false);
 
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.temps', 'getAbsenceProjets failed', { error });
+    throw new AppError(
+      'TEMPS_FETCH_FAILED',
+      'Impossible de charger les projets absence',
+      { cause: error },
+    );
+  }
 
   return (data ?? []).map((p) => ({
     id: p.id,

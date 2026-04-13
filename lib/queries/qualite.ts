@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { AppError } from '@/lib/errors';
+import { logger } from '@/lib/utils/logger';
 
 export async function getQualiteSummaries() {
   const supabase = await createClient();
@@ -12,13 +14,31 @@ export async function getQualiteSummaries() {
     .in('statut', ['actif', 'en_pause'])
     .eq('est_absence', false)
     .order('ref');
-  if (pError) throw pError;
+  if (pError) {
+    logger.error('queries.qualite', 'getQualiteSummaries failed (projets)', {
+      error: pError,
+    });
+    throw new AppError(
+      'QUALITE_FETCH_FAILED',
+      'Impossible de charger les données qualité',
+      { cause: pError },
+    );
+  }
 
   // Get all quality tasks
   const { data: taches, error: tError } = await supabase
     .from('taches_qualite')
     .select('projet_id, fait');
-  if (tError) throw tError;
+  if (tError) {
+    logger.error('queries.qualite', 'getQualiteSummaries failed (taches)', {
+      error: tError,
+    });
+    throw new AppError(
+      'QUALITE_FETCH_FAILED',
+      'Impossible de charger les tâches qualité',
+      { cause: tError },
+    );
+  }
 
   // Aggregate per project
   return projets.map((p) => {
@@ -48,7 +68,13 @@ export async function getTachesByProjetRef(ref: string) {
     .select('id, ref, client:clients!projets_client_id_fkey(raison_sociale)')
     .eq('ref', ref)
     .single();
-  if (pError || !projet) return null;
+  if (pError || !projet) {
+    logger.error('queries.qualite', 'getTachesByProjetRef failed (projet)', {
+      ref,
+      error: pError,
+    });
+    return null;
+  }
 
   // Get tasks
   const { data: taches, error: tError } = await supabase
@@ -57,7 +83,17 @@ export async function getTachesByProjetRef(ref: string) {
     .eq('projet_id', projet.id)
     .order('famille_code')
     .order('livrable');
-  if (tError) throw tError;
+  if (tError) {
+    logger.error('queries.qualite', 'getTachesByProjetRef failed (taches)', {
+      ref,
+      error: tError,
+    });
+    throw new AppError(
+      'QUALITE_FETCH_FAILED',
+      'Impossible de charger les tâches qualité',
+      { cause: tError },
+    );
+  }
 
   return { projet, taches };
 }

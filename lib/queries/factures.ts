@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
+import { AppError } from '@/lib/errors';
+import { logger } from '@/lib/utils/logger';
 
 export async function getFacturesList() {
   const supabase = await createClient();
@@ -14,7 +16,14 @@ export async function getFacturesList() {
     `,
     )
     .order('numero_seq', { ascending: false });
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.factures', 'getFacturesList failed', { error });
+    throw new AppError(
+      'FACTURES_FETCH_FAILED',
+      'Impossible de charger les factures',
+      { cause: error },
+    );
+  }
   return data;
 }
 
@@ -38,7 +47,10 @@ export async function getFactureByRef(ref: string) {
     )
     .eq('ref', ref)
     .single();
-  if (error) return null;
+  if (error) {
+    logger.error('queries.factures', 'getFactureByRef failed', { ref, error });
+    return null;
+  }
   return data;
 }
 
@@ -53,7 +65,17 @@ export async function getPaiementsByFactureId(factureId: string) {
     .select('id, montant, date_reception, saisie_manuelle')
     .eq('facture_id', factureId)
     .order('date_reception');
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.factures', 'getPaiementsByFactureId failed', {
+      factureId,
+      error,
+    });
+    throw new AppError(
+      'FACTURES_PAIEMENTS_FETCH_FAILED',
+      'Impossible de charger les paiements',
+      { cause: error },
+    );
+  }
   return data;
 }
 
@@ -70,7 +92,14 @@ export async function getEcheancesPending() {
     .is('facture_id', null)
     .eq('validee', false)
     .order('date_emission_prevue');
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.factures', 'getEcheancesPending failed', { error });
+    throw new AppError(
+      'FACTURES_ECHEANCES_FETCH_FAILED',
+      'Impossible de charger les échéances',
+      { cause: error },
+    );
+  }
   return data;
 }
 
@@ -87,7 +116,13 @@ export async function getAvoirForFacture(factureOrigineId: string) {
     .eq('est_avoir', true)
     .eq('facture_origine_id', factureOrigineId)
     .maybeSingle();
-  if (error) return null;
+  if (error) {
+    logger.error('queries.factures', 'getAvoirForFacture failed', {
+      factureOrigineId,
+      error,
+    });
+    return null;
+  }
   return data;
 }
 
@@ -99,6 +134,12 @@ export async function getFactureRefById(factureId: string) {
     .select('ref')
     .eq('id', factureId)
     .single();
-  if (error) return null;
+  if (error) {
+    logger.error('queries.factures', 'getFactureRefById failed', {
+      factureId,
+      error,
+    });
+    return null;
+  }
   return data?.ref ?? null;
 }

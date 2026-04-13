@@ -18,8 +18,9 @@ export function TimeWeekNavigator({
   onNext,
   onToday,
 }: TimeWeekNavigatorProps) {
-  const monday = parseISO(weekDates[0]);
-  const sunday = parseISO(weekDates[6]);
+  // weekDates is always 7 entries (Mon-Sun) per TimeWeekNavigatorProps contract.
+  const monday = parseISO(weekDates[0]!);
+  const sunday = parseISO(weekDates[6]!);
 
   const rangeLabel = `${format(monday, 'd', { locale: fr })} — ${format(sunday, 'd MMMM yyyy', { locale: fr })}`;
 

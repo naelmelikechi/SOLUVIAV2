@@ -41,7 +41,10 @@ export const userListColumns: ColumnDef<UserListItem>[] = [
       <DataTableColumnHeader column={column} title="Rôle" />
     ),
     cell: ({ row }) => {
-      const badge = roleBadge[row.original.role];
+      const badge = roleBadge[row.original.role] ?? {
+        label: row.original.role,
+        color: 'gray' as const,
+      };
       return <StatusBadge label={badge.label} color={badge.color} />;
     },
   },

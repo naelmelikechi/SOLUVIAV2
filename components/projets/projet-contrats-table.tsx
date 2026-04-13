@@ -112,8 +112,11 @@ export function ProjetContratsTable({ contrats }: { contrats: MockContrat[] }) {
                   </TableCell>
                   <TableCell>
                     <StatusBadge
-                      label={CONTRACT_STATE_LABELS[c.contract_state]}
-                      color={CONTRACT_STATE_COLORS[c.contract_state]}
+                      label={
+                        CONTRACT_STATE_LABELS[c.contract_state] ??
+                        c.contract_state
+                      }
+                      color={CONTRACT_STATE_COLORS[c.contract_state] ?? 'gray'}
                     />
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm tabular-nums">

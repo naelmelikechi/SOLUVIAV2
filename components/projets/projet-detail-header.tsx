@@ -17,8 +17,8 @@ export function ProjetDetailHeader({ projet }: { projet: MockProjet }) {
         {projet.typologie.libelle}
       </span>
       <StatusBadge
-        label={STATUT_PROJET_LABELS[projet.statut]}
-        color={STATUT_PROJET_COLORS[projet.statut]}
+        label={STATUT_PROJET_LABELS[projet.statut] ?? projet.statut}
+        color={STATUT_PROJET_COLORS[projet.statut] ?? 'gray'}
       />
     </div>
   );

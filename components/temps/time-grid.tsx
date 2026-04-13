@@ -204,7 +204,7 @@ export function TimeGrid({
             {weekDates.map((date, i) => {
               const weekend = i >= 5;
               const today = isToday(parseISO(date));
-              const total = dailyTotals[i];
+              const total = dailyTotals[i] ?? 0;
               return (
                 <td
                   key={date}
@@ -238,7 +238,8 @@ function parseTimeInput(value: string): number | null {
   // "1h30" format
   const hm = trimmed.match(/^(\d+)h(\d+)?$/);
   if (hm) {
-    const h = parseInt(hm[1], 10);
+    // Capture group 1 always exists when match succeeds for this pattern.
+    const h = parseInt(hm[1]!, 10);
     const m = hm[2] ? parseInt(hm[2], 10) : 0;
     return h + m / 60;
   }
@@ -246,7 +247,7 @@ function parseTimeInput(value: string): number | null {
   // "15m" format
   const mOnly = trimmed.match(/^(\d+)m$/);
   if (mOnly) {
-    return parseInt(mOnly[1], 10) / 60;
+    return parseInt(mOnly[1]!, 10) / 60;
   }
 
   // Numeric

@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
+import { env } from '@/lib/env';
+import { logger } from '@/lib/utils/logger';
 
 /**
  * Validates CRON_SECRET bearer token on protected API routes.
  * Returns a NextResponse error if invalid, or null if authorized.
  */
 export function verifyCronAuth(request: Request): NextResponse | null {
-  const secret = process.env.CRON_SECRET;
+  const secret = env.CRON_SECRET;
   if (!secret) {
-    console.error('CRON_SECRET is not configured');
+    logger.error('cron_auth', 'CRON_SECRET is not configured');
     return NextResponse.json(
       { error: 'Server misconfigured' },
       { status: 500 },

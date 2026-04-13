@@ -54,8 +54,8 @@ export function FactureDetailHeader({
           {facture.ref}
         </span>
         <StatusBadge
-          label={STATUT_FACTURE_LABELS[facture.statut]}
-          color={STATUT_FACTURE_COLORS[facture.statut]}
+          label={STATUT_FACTURE_LABELS[facture.statut] ?? facture.statut}
+          color={STATUT_FACTURE_COLORS[facture.statut] ?? 'gray'}
         />
       </div>
 

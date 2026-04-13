@@ -9,7 +9,7 @@ import {
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
-import { formatDate, formatDateLong } from '@/lib/utils/formatters';
+import { formatDate } from '@/lib/utils/formatters';
 import {
   STATUT_PROJET_LABELS,
   STATUT_PROJET_COLORS,
@@ -22,7 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { FileText, MessageSquare, Users, FolderOpen } from 'lucide-react';
+import { FileText, FolderOpen } from 'lucide-react';
+import { ClientDetailActions } from '@/components/admin/client-detail-actions';
+import { ClientContactsSection } from '@/components/admin/client-contacts-section';
+import { ClientNotesSection } from '@/components/admin/client-notes-section';
 
 export default async function ClientDetailPage({
   params,
@@ -46,18 +49,21 @@ export default async function ClientDetailPage({
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3">
-          <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2.5 py-1 font-mono text-sm font-bold">
-            {client.trigramme}
-          </span>
-          <h1 className="text-2xl font-semibold">{client.raison_sociale}</h1>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2.5 py-1 font-mono text-sm font-bold">
+              {client.trigramme}
+            </span>
+            <h1 className="text-2xl font-semibold">{client.raison_sociale}</h1>
+          </div>
+          {client.siret && (
+            <p className="text-muted-foreground mt-1 font-mono text-sm">
+              SIRET {client.siret}
+            </p>
+          )}
         </div>
-        {client.siret && (
-          <p className="text-muted-foreground mt-1 font-mono text-sm">
-            SIRET {client.siret}
-          </p>
-        )}
+        <ClientDetailActions client={client} />
       </div>
 
       {/* Info Card */}
@@ -110,43 +116,7 @@ export default async function ClientDetailPage({
       </Card>
 
       {/* Contacts */}
-      <Card className="mb-6 p-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-          <Users className="h-4 w-4" /> Contacts
-        </h3>
-        {contacts.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Aucun contact</p>
-        ) : (
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Poste</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Téléphone</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {contacts.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="text-sm font-medium">
-                      {c.nom}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {c.poste || '—'}
-                    </TableCell>
-                    <TableCell className="text-sm">{c.email || '—'}</TableCell>
-                    <TableCell className="text-sm">
-                      {c.telephone || '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </Card>
+      <ClientContactsSection clientId={id} contacts={contacts} />
 
       {/* Projets associes */}
       <Card className="mb-6 p-6">
@@ -200,35 +170,7 @@ export default async function ClientDetailPage({
       </Card>
 
       {/* Notes */}
-      <Card className="mb-6 p-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-          <MessageSquare className="h-4 w-4" /> Historique / Notes
-        </h3>
-        {notes.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Aucune note</p>
-        ) : (
-          <div className="space-y-4">
-            {notes.map((note) => (
-              <div key={note.id} className="border-primary/30 border-l-2 pl-4">
-                <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                  <span>{formatDateLong(note.created_at)}</span>
-                  <span>—</span>
-                  <span className="font-medium">
-                    {note.user?.prenom} {note.user?.nom}
-                  </span>
-                  {note.user?.role && (
-                    <StatusBadge
-                      label={note.user.role === 'admin' ? 'Admin' : 'CDP'}
-                      color={note.user.role === 'admin' ? 'purple' : 'blue'}
-                    />
-                  )}
-                </div>
-                <p className="mt-1 text-sm">{note.contenu}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <ClientNotesSection clientId={id} notes={notes} />
 
       {/* Documents */}
       <Card className="p-6">

@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/shared/data-table';
 import { BillingPeriodBanner } from '@/components/facturation/billing-period-banner';
 import { EcheanceTable } from '@/components/facturation/echeance-table';
 import { factureListColumns } from '@/components/facturation/facture-list-columns';
+import { EmptyState } from '@/components/shared/empty-state';
 import type { FactureListItem, EcheancePending } from '@/lib/queries/factures';
 import * as XLSX from 'xlsx';
 import { formatDate } from '@/lib/utils/formatters';
@@ -49,6 +50,16 @@ export function FacturationPageClient({
       `factures_export_${new Date().toISOString().split('T')[0]}.xlsx`,
     );
   };
+
+  if (factures.length === 0 && echeances.length === 0) {
+    return (
+      <EmptyState
+        icon={FileText}
+        title="Aucune facture"
+        description="Aucune facture n'a encore ete emise. Les factures apparaitront ici une fois generees depuis les echeances."
+      />
+    );
+  }
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>

@@ -16,10 +16,12 @@ import {
   Settings,
   ChevronLeft,
   LogOut,
+  User,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { useBadgeCounts } from '@/hooks/use-badge-counts';
 
 const mainNavItems = [
@@ -221,9 +223,14 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
       <div className="border-sidebar-border border-t px-3 py-3">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
-            <div className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold">
+            <Link
+              href="/parametres-compte"
+              title="Mon compte"
+              className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold transition-opacity hover:opacity-80"
+            >
               {user ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}` : '?'}
-            </div>
+            </Link>
+            <ThemeToggle />
             <button
               onClick={handleLogout}
               aria-label="Se déconnecter"
@@ -234,25 +241,44 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <div className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold">
-              {user ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}` : '?'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-medium">
-                {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Link
+                href="/parametres-compte"
+                className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold transition-opacity hover:opacity-80"
+              >
+                {user ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}` : '?'}
+              </Link>
+              <div className="min-w-0 flex-1">
+                <Link
+                  href="/parametres-compte"
+                  className="hover:text-foreground block truncate text-[13px] font-medium transition-colors"
+                >
+                  {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
+                </Link>
+                <div className="text-muted-foreground text-[11px]">
+                  {user ? (user.role === 'admin' ? 'Admin' : 'CDP') : '—'}
+                </div>
               </div>
-              <div className="text-muted-foreground text-[11px]">
-                {user ? (user.role === 'admin' ? 'Admin' : 'CDP') : '—'}
-              </div>
+              <ThemeToggle />
             </div>
-            <button
-              onClick={handleLogout}
-              aria-label="Se déconnecter"
-              className="text-muted-foreground hover:text-foreground shrink-0 text-[11px] transition-colors"
-            >
-              Déconnexion
-            </button>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/parametres-compte"
+                className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-[11px] transition-colors"
+              >
+                <User className="h-3 w-3" />
+                Mon compte
+              </Link>
+              <span className="text-border">|</span>
+              <button
+                onClick={handleLogout}
+                aria-label="Se déconnecter"
+                className="text-muted-foreground hover:text-foreground text-[11px] transition-colors"
+              >
+                Déconnexion
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { ThemeProvider } from 'next-themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import './globals.css';
@@ -15,12 +16,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className="h-full antialiased">
+    <html lang="fr" className="h-full antialiased" suppressHydrationWarning>
       <body className="flex min-h-full flex-col">
-        <TooltipProvider>
-          {children}
-          <Toaster />
-        </TooltipProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <TooltipProvider>
+            {children}
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

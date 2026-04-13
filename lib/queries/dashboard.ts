@@ -433,6 +433,144 @@ export async function getKpiSnapshots(mois: string): Promise<KpiSnapshotMap> {
 }
 
 // ---------------------------------------------------------------------------
+// Monthly trend data (last 6 months) for dashboard charts
+// ---------------------------------------------------------------------------
+
+export interface MonthlyTrendRow {
+  mois: string; // "Janv. 2026" etc.
+  production: number;
+  facture: number;
+  encaisse: number;
+}
+
+export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
+  const supabase = await createClient();
+
+  const now = new Date();
+  const months: string[] = [];
+  for (let offset = -5; offset <= 0; offset++) {
+    const d = startOfMonth(addMonths(now, offset));
+    months.push(format(d, 'yyyy-MM-dd'));
+  }
+  const firstMonth = months[0];
+  const lastMonth = months[months.length - 1];
+
+  const [facturesRes, paiementsRes, contratsRes] = await Promise.all([
+    supabase
+      .from('factures')
+      .select('montant_ht, statut, mois_concerne')
+      .gte('mois_concerne', firstMonth)
+      .lte('mois_concerne', lastMonth)
+      .neq('statut', 'avoir'),
+    supabase
+      .from('paiements')
+      .select(
+        'montant, facture:factures!paiements_facture_id_fkey(mois_concerne)',
+      )
+      .gte('facture.mois_concerne', firstMonth)
+      .lte('facture.mois_concerne', lastMonth),
+    supabase
+      .from('contrats')
+      .select(
+        'date_debut, duree_mois, montant_prise_en_charge, projet:projets!contrats_projet_id_fkey(taux_commission)',
+      )
+      .eq('archive', false),
+  ]);
+
+  if (facturesRes.error)
+    logger.error('queries.dashboard', 'getMonthlyTrend failed (factures)', {
+      error: facturesRes.error,
+    });
+  if (paiementsRes.error)
+    logger.error('queries.dashboard', 'getMonthlyTrend failed (paiements)', {
+      error: paiementsRes.error,
+    });
+  if (contratsRes.error)
+    logger.error('queries.dashboard', 'getMonthlyTrend failed (contrats)', {
+      error: contratsRes.error,
+    });
+
+  // Production from contrats
+  const productionByMonth = new Map<string, number>();
+  for (const c of contratsRes.data ?? []) {
+    if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
+    if (!c.montant_prise_en_charge || c.montant_prise_en_charge <= 0) continue;
+    const projet = c.projet as { taux_commission: number } | null;
+    if (!projet) continue;
+    const monthlyProduction =
+      Math.round((c.montant_prise_en_charge / c.duree_mois) * 100) / 100;
+    const start = startOfMonth(new Date(c.date_debut + 'T00:00:00'));
+    for (let i = 0; i < c.duree_mois; i++) {
+      const m = addMonths(start, i);
+      const key = format(m, 'yyyy-MM');
+      productionByMonth.set(
+        key,
+        (productionByMonth.get(key) ?? 0) + monthlyProduction,
+      );
+    }
+  }
+
+  // Facturé by month
+  const factureByMonth = new Map<string, number>();
+  for (const f of facturesRes.data ?? []) {
+    if (!f.mois_concerne) continue;
+    const key = f.mois_concerne.slice(0, 7);
+    factureByMonth.set(key, (factureByMonth.get(key) ?? 0) + f.montant_ht);
+  }
+
+  // Encaissé by month
+  const encaisseByMonth = new Map<string, number>();
+  for (const p of paiementsRes.data ?? []) {
+    const facture = p.facture as { mois_concerne: string | null } | null;
+    if (!facture?.mois_concerne) continue;
+    const key = facture.mois_concerne.slice(0, 7);
+    encaisseByMonth.set(key, (encaisseByMonth.get(key) ?? 0) + p.montant);
+  }
+
+  return months.map((mois) => {
+    const key = mois.slice(0, 7);
+    const d = new Date(mois + 'T00:00:00');
+    const label = capitalize(format(d, 'MMM yyyy', { locale: fr }));
+    return {
+      mois: label,
+      production: Math.round((productionByMonth.get(key) ?? 0) * 100) / 100,
+      facture: Math.round((factureByMonth.get(key) ?? 0) * 100) / 100,
+      encaisse: Math.round((encaisseByMonth.get(key) ?? 0) * 100) / 100,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Invoice status breakdown for dashboard pie chart
+// ---------------------------------------------------------------------------
+
+export interface InvoiceStatusBreakdown {
+  emises: number;
+  payees: number;
+  en_retard: number;
+  avoirs: number;
+}
+
+export async function getInvoiceStatusBreakdown(): Promise<InvoiceStatusBreakdown> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.from('factures').select('statut');
+
+  if (error)
+    logger.error('queries.dashboard', 'getInvoiceStatusBreakdown failed', {
+      error,
+    });
+
+  const factures = data ?? [];
+  return {
+    emises: factures.filter((f) => f.statut === 'emise').length,
+    payees: factures.filter((f) => f.statut === 'payee').length,
+    en_retard: factures.filter((f) => f.statut === 'en_retard').length,
+    avoirs: factures.filter((f) => f.statut === 'avoir').length,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Taux saisie temps (standalone, for KPI card)
 // ---------------------------------------------------------------------------
 

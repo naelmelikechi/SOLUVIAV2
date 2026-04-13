@@ -1,12 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Download } from 'lucide-react';
+import { Download, CheckCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import type { QualiteSummary } from '@/lib/queries/qualite';
 import { DataTable } from '@/components/shared/data-table';
 import { qualiteListColumns } from '@/components/qualite/qualite-list-columns';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/shared/empty-state';
 
 export function QualiteDataTable({ data }: { data: QualiteSummary[] }) {
   const router = useRouter();
@@ -33,6 +34,16 @@ export function QualiteDataTable({ data }: { data: QualiteSummary[] }) {
       `qualite_export_${new Date().toISOString().split('T')[0]}.xlsx`,
     );
   };
+
+  if (data.length === 0) {
+    return (
+      <EmptyState
+        icon={CheckCircle}
+        title="Aucune tache qualite"
+        description="Aucun projet actif n'a de taches qualite associees. Les taches apparaitront ici pour les projets actifs."
+      />
+    );
+  }
 
   return (
     <div>

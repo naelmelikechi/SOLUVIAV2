@@ -2,12 +2,12 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Bell, ChevronRight } from 'lucide-react';
+import { Bell, ChevronRight, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const routeLabels: Record<string, string> = {
   projets: 'Projets',
-  qualite: 'Qualité',
+  qualite: 'Qualite',
   temps: 'Temps',
   production: 'Production',
   facturation: 'Facturation',
@@ -15,7 +15,8 @@ const routeLabels: Record<string, string> = {
   admin: 'Administration',
   clients: 'Clients',
   utilisateurs: 'Utilisateurs',
-  parametres: 'Paramètres',
+  parametres: 'Parametres',
+  'parametres-compte': 'Mon compte',
 };
 
 export function Topbar() {
@@ -27,6 +28,16 @@ export function Topbar() {
     const label = routeLabels[segment] || segment;
     return { href, label };
   });
+
+  const openCommandPalette = () => {
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'k',
+        metaKey: true,
+        bubbles: true,
+      }),
+    );
+  };
 
   return (
     <header className="border-border bg-card flex items-center justify-between border-b px-6">
@@ -56,6 +67,16 @@ export function Topbar() {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
+        <button
+          onClick={openCommandPalette}
+          className="border-input bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-colors"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Rechercher...</span>
+          <kbd className="bg-background pointer-events-none ml-1 hidden rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium sm:inline-flex">
+            &#8984;K
+          </kbd>
+        </button>
         <Button
           variant="ghost"
           size="icon"

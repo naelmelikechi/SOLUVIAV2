@@ -1,12 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Download } from 'lucide-react';
+import { Download, ClipboardList } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import type { ProjetListItem } from '@/lib/queries/projets';
 import { DataTable } from '@/components/shared/data-table';
 import { projetListColumns } from '@/components/projets/projet-list-columns';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/shared/empty-state';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_PROJET_LABELS } from '@/lib/utils/constants';
 
@@ -34,6 +35,16 @@ export function ProjetsDataTable({ data }: { data: ProjetListItem[] }) {
       `projets_export_${new Date().toISOString().split('T')[0]}.xlsx`,
     );
   };
+
+  if (data.length === 0) {
+    return (
+      <EmptyState
+        icon={ClipboardList}
+        title="Aucun projet"
+        description="Il n'y a pas encore de projet enregistre. Les projets apparaitront ici une fois synchronises depuis Eduvia."
+      />
+    );
+  }
 
   return (
     <div>

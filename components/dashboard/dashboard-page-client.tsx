@@ -31,7 +31,11 @@ import {
 import type {
   DashboardFinancials,
   KpiSnapshotMap,
+  MonthlyTrendRow,
+  InvoiceStatusBreakdown,
 } from '@/lib/queries/dashboard';
+import { RevenueTrendChart } from '@/components/dashboard/revenue-trend-chart';
+import { InvoiceStatusChart } from '@/components/dashboard/invoice-status-chart';
 
 // ============================================================
 // Types
@@ -129,7 +133,7 @@ function KpiCard({
     trendUp !== undefined ? (isNegativeMetric ? !trendUp : trendUp) : undefined;
 
   return (
-    <Card className="p-5">
+    <Card className="p-5 transition-shadow hover:shadow-md">
       <div className="mb-2 flex items-center gap-2">
         <div
           className={cn(
@@ -215,10 +219,14 @@ export function DashboardPageClient({
   data,
   financials,
   previousKpis,
+  monthlyTrend,
+  invoiceBreakdown,
 }: {
   data: DashboardData;
   financials: DashboardFinancials;
   previousKpis: KpiSnapshotMap;
+  monthlyTrend: MonthlyTrendRow[];
+  invoiceBreakdown: InvoiceStatusBreakdown;
 }) {
   // ---- Alerts from real data ----
   const tempsNonSaisi = financials.tempsNonSaisi;
@@ -510,6 +518,17 @@ export function DashboardPageClient({
             icon={Calendar}
             color={tauxSaisieTemps >= 80 ? 'green' : 'orange'}
           />
+        </div>
+      </section>
+
+      {/* ========== Charts ========== */}
+      <section>
+        <h2 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
+          Visualisations
+        </h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <RevenueTrendChart data={monthlyTrend} />
+          <InvoiceStatusChart data={invoiceBreakdown} />
         </div>
       </section>
 

@@ -24,6 +24,10 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils/formatters';
+import {
+  ProductionChart,
+  type ProductionChartRow,
+} from '@/components/production/production-chart';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -186,7 +190,10 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
       {/* KPI Cards */}
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label} className="p-5">
+          <Card
+            key={kpi.label}
+            className="p-5 transition-shadow hover:shadow-md"
+          >
             <div className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
               <kpi.icon className={cn('h-4 w-4', kpi.color)} />
               {kpi.label}
@@ -202,6 +209,20 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
           </Card>
         ))}
       </div>
+
+      {/* Stacked bar chart */}
+      <ProductionChart
+        data={displayData
+          .filter((m) => !m.isFuture)
+          .map(
+            (m): ProductionChartRow => ({
+              label: m.label,
+              production: m.production,
+              facture: m.facture,
+              encaisse: m.encaisse,
+            }),
+          )}
+      />
 
       {/* Export button */}
       <div className="mb-4 flex justify-end">

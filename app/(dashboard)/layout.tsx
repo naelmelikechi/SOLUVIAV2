@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
+import { CommandPalette } from '@/components/shared/command-palette';
 
 export default function DashboardLayout({
   children,
@@ -46,6 +47,7 @@ export default function DashboardLayout({
       />
       <Topbar />
       <main className="bg-background overflow-y-auto p-6">{children}</main>
+      <CommandPalette />
     </div>
   );
 }

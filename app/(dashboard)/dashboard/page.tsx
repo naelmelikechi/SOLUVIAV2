@@ -2,6 +2,8 @@ import {
   getDashboardData,
   getDashboardFinancials,
   getKpiSnapshots,
+  getMonthlyTrend,
+  getInvoiceStatusBreakdown,
 } from '@/lib/queries/dashboard';
 import { PageHeader } from '@/components/shared/page-header';
 import { DashboardPageClient } from '@/components/dashboard/dashboard-page-client';
@@ -11,11 +13,14 @@ export default async function DashboardPage() {
   const now = new Date();
   const previousMonth = format(startOfMonth(addMonths(now, -1)), 'yyyy-MM-dd');
 
-  const [data, financials, previousKpis] = await Promise.all([
-    getDashboardData(),
-    getDashboardFinancials(),
-    getKpiSnapshots(previousMonth),
-  ]);
+  const [data, financials, previousKpis, monthlyTrend, invoiceBreakdown] =
+    await Promise.all([
+      getDashboardData(),
+      getDashboardFinancials(),
+      getKpiSnapshots(previousMonth),
+      getMonthlyTrend(),
+      getInvoiceStatusBreakdown(),
+    ]);
 
   return (
     <div>
@@ -27,6 +32,8 @@ export default async function DashboardPage() {
         data={data}
         financials={financials}
         previousKpis={previousKpis}
+        monthlyTrend={monthlyTrend}
+        invoiceBreakdown={invoiceBreakdown}
       />
     </div>
   );

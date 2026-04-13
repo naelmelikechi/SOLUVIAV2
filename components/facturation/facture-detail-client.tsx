@@ -83,6 +83,7 @@ export function FactureDetailActions({
       {!facture.est_avoir && (
         <AvoirDialog
           factureRef={facture.ref ?? ''}
+          factureOrigineId={facture.id}
           montantHtDefault={facture.montant_ht}
           open={avoirOpen}
           onOpenChange={setAvoirOpen}

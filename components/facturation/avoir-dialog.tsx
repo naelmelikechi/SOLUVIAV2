@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { createAvoir } from '@/lib/actions/factures';
 
 const MOTIFS_AVOIR = [
   'Rupture anticipee',
@@ -31,6 +32,7 @@ const MOTIFS_AVOIR = [
 
 interface AvoirDialogProps {
   factureRef: string;
+  factureOrigineId: string;
   montantHtDefault: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -38,6 +40,7 @@ interface AvoirDialogProps {
 
 export function AvoirDialog({
   factureRef,
+  factureOrigineId,
   montantHtDefault,
   open,
   onOpenChange,
@@ -47,27 +50,40 @@ export function AvoirDialog({
     montantHtDefault.toString(),
   );
   const [note, setNote] = useState<string>('');
+  const [isPending, startTransition] = useTransition();
 
   function handleConfirm() {
     if (!motif) {
-      toast.error('Veuillez selectionner un motif');
+      toast.error('Veuillez sélectionner un motif');
+      return;
+    }
+    const montantValue = parseFloat(montantHt);
+    if (isNaN(montantValue) || montantValue <= 0) {
+      toast.error('Le montant doit être supérieur à zéro');
+      return;
+    }
+    if (montantValue > montantHtDefault) {
+      toast.error('Le montant ne peut pas dépasser le montant de la facture');
       return;
     }
 
-    const montant = parseFloat(montantHt);
-    if (isNaN(montant) || montant <= 0) {
-      toast.error('Le montant doit etre superieur a zero');
-      return;
-    }
-
-    // TODO: call server action to create avoir
-    toast.success('Avoir emis avec succes');
-    onOpenChange(false);
-
-    // Reset form
-    setMotif('');
-    setMontantHt(montantHtDefault.toString());
-    setNote('');
+    startTransition(async () => {
+      const result = await createAvoir({
+        factureOrigineId,
+        motif,
+        montant: montantValue,
+        note: note || undefined,
+      });
+      if (result.success) {
+        toast.success(`Avoir ${result.ref} émis avec succès`);
+        onOpenChange(false);
+        setMotif('');
+        setMontantHt(montantHtDefault.toString());
+        setNote('');
+      } else {
+        toast.error(result.error ?? 'Erreur lors de la création');
+      }
+    });
   }
 
   return (
@@ -124,8 +140,12 @@ export function AvoirDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
-          <Button variant="destructive" onClick={handleConfirm}>
-            Confirmer l&apos;avoir
+          <Button
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={isPending}
+          >
+            {isPending ? 'Création...' : "Confirmer l'avoir"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,13 +1,20 @@
+import { redirect } from 'next/navigation';
 import {
   getParametresByCategorie,
   getTypologies,
   getAxesTemps,
   getJoursFeries,
 } from '@/lib/queries/parametres';
+import { getCurrentUser } from '@/lib/queries/users';
 import { PageHeader } from '@/components/shared/page-header';
 import { ParametresForm } from '@/components/admin/parametres-form';
 
 export default async function ParametresPage() {
+  const user = await getCurrentUser();
+  if (user?.role !== 'admin') {
+    redirect('/projets');
+  }
+
   const [entrepriseParams, facturationParams, typologies, axes, joursFeries] =
     await Promise.all([
       getParametresByCategorie('entreprise'),

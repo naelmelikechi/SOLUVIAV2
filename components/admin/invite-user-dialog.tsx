@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { inviteUser } from '@/lib/actions/users';
 
 interface InviteUserDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function InviteUserDialog({
 }: InviteUserDialogProps) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<string>('cdp');
+  const [isPending, startTransition] = useTransition();
 
   function handleSubmit() {
     if (!email) {
@@ -38,12 +40,17 @@ export function InviteUserDialog({
       return;
     }
 
-    toast.success(`Invitation envoyée à ${email}`);
-    onOpenChange(false);
-
-    // Reset form
-    setEmail('');
-    setRole('cdp');
+    startTransition(async () => {
+      const result = await inviteUser(email, role as 'admin' | 'cdp');
+      if (result.success) {
+        toast.success(`Invitation envoyee a ${email}`);
+        onOpenChange(false);
+        setEmail('');
+        setRole('cdp');
+      } else {
+        toast.error(result.error ?? "Erreur lors de l'invitation");
+      }
+    });
   }
 
   return (
@@ -81,10 +88,16 @@ export function InviteUserDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
             Annuler
           </Button>
-          <Button onClick={handleSubmit}>Inviter</Button>
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending ? 'Envoi...' : 'Inviter'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

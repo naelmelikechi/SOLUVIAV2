@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 // ---------------------------------------------------------------------------
 // updateUserRole — admin-only: change a user's role
@@ -70,6 +71,78 @@ export async function toggleUserActive(
     .eq('id', userId);
 
   if (error) return { success: false, error: error.message };
+
+  revalidatePath('/admin/utilisateurs');
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// inviteUser — admin-only: invite a new user by email
+// ---------------------------------------------------------------------------
+
+export async function inviteUser(
+  email: string,
+  role: 'admin' | 'cdp',
+): Promise<{ success: boolean; error?: string }> {
+  if (!email?.trim()) {
+    return { success: false, error: "L'adresse email est requise" };
+  }
+
+  const supabase = await createClient();
+
+  // Check caller is admin
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) return { success: false, error: 'Non authentifie' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', authUser.id)
+    .single();
+  if (caller?.role !== 'admin') {
+    return { success: false, error: 'Acces refuse — reserve aux admins' };
+  }
+
+  // Use admin client for auth operations (requires SUPABASE_SERVICE_ROLE_KEY)
+  let adminClient;
+  try {
+    adminClient = createAdminClient();
+  } catch {
+    return {
+      success: false,
+      error: 'Configuration serveur manquante (SUPABASE_SERVICE_ROLE_KEY)',
+    };
+  }
+
+  const { data: inviteData, error: inviteError } =
+    await adminClient.auth.admin.inviteUserByEmail(email.trim(), {
+      data: { role },
+    });
+
+  if (inviteError) {
+    return { success: false, error: inviteError.message };
+  }
+
+  if (!inviteData.user) {
+    return { success: false, error: "Erreur inattendue lors de l'invitation" };
+  }
+
+  // Insert the user row so they appear in the users table immediately
+  // nom/prenom will be updated when the user accepts the invite and completes their profile
+  const { error: insertError } = await adminClient.from('users').insert({
+    id: inviteData.user.id,
+    email: email.trim(),
+    nom: '',
+    prenom: '',
+    role,
+    actif: true,
+  });
+
+  if (insertError) {
+    return { success: false, error: insertError.message };
+  }
 
   revalidatePath('/admin/utilisateurs');
   return { success: true };

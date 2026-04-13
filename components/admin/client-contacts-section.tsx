@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { addClientContact, deleteClientContact } from '@/lib/actions/clients';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import type { ClientContact } from '@/lib/queries/clients';
 
 interface ClientContactsSectionProps {
@@ -32,6 +33,10 @@ export function ClientContactsSection({
   const [email, setEmail] = useState('');
   const [telephone, setTelephone] = useState('');
   const [isPending, startTransition] = useTransition();
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    nom: string;
+  } | null>(null);
 
   function resetForm() {
     setNom('');
@@ -64,13 +69,17 @@ export function ClientContactsSection({
   }
 
   function handleDelete(contactId: string, contactNom: string) {
-    const confirmed = window.confirm(`Supprimer le contact "${contactNom}" ?`);
-    if (!confirmed) return;
+    setDeleteTarget({ id: contactId, nom: contactNom });
+  }
+
+  function handleDeleteConfirm() {
+    if (!deleteTarget) return;
 
     startTransition(async () => {
-      const result = await deleteClientContact(contactId, clientId);
+      const result = await deleteClientContact(deleteTarget.id, clientId);
       if (result.success) {
         toast.success('Contact supprime');
+        setDeleteTarget(null);
       } else {
         toast.error(result.error ?? 'Erreur lors de la suppression');
       }
@@ -171,6 +180,19 @@ export function ClientContactsSection({
           </Table>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Supprimer le contact"
+        description={`Voulez-vous vraiment supprimer le contact "${deleteTarget?.nom}" ? Cette action est irreversible.`}
+        confirmText="Supprimer"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+        isPending={isPending}
+      />
     </Card>
   );
 }

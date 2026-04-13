@@ -10,6 +10,7 @@ import {
   TrendingUp,
   FileText,
   BarChart3,
+  Bell,
   Users,
   Building2,
   Settings,
@@ -28,6 +29,7 @@ const mainNavItems = [
   { href: '/production', label: 'Production', icon: TrendingUp },
   { href: '/facturation', label: 'Facturation', icon: FileText },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+  { href: '/notifications', label: 'Notifications', icon: Bell },
 ];
 
 const adminNavItems = [
@@ -64,6 +66,7 @@ const badgeConfig: Record<
 > = {
   '/facturation': { key: 'facturesEnRetard', color: 'bg-red-500' },
   '/temps': { key: 'tempsNonSaisi', color: 'bg-orange-500' },
+  '/notifications': { key: 'notifications', color: 'bg-blue-500' },
 };
 
 export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {

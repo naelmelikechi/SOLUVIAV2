@@ -47,7 +47,9 @@ export type AppErrorCode =
   | 'PARAMETRES_FETCH_FAILED'
   | 'PARAMETRES_UPDATE_FAILED'
   // Dashboard
-  | 'DASHBOARD_FETCH_FAILED';
+  | 'DASHBOARD_FETCH_FAILED'
+  // Notifications
+  | 'NOTIFICATIONS_FETCH_FAILED';
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

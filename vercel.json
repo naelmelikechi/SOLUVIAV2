@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/echeances",
+      "schedule": "0 2 1 * *"
+    },
+    {
+      "path": "/api/cron/snapshot",
+      "schedule": "0 3 1 * *"
+    },
+    {
+      "path": "/api/cron/factures-retard",
+      "schedule": "0 9 * * 1-5"
+    }
+  ]
+}

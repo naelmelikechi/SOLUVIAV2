@@ -257,3 +257,24 @@
   background: rgba(107, 114, 128, 0.12);
   color: #6b7280;
 }
+
+/* Print styles */
+@media print {
+  aside,
+  nav,
+  .topbar,
+  [data-sidebar] {
+    display: none !important;
+  }
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

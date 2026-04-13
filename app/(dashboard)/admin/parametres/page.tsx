@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import {
   getParametresByCategorie,
@@ -8,6 +9,8 @@ import {
 import { getCurrentUser } from '@/lib/queries/users';
 import { PageHeader } from '@/components/shared/page-header';
 import { ParametresForm } from '@/components/admin/parametres-form';
+
+export const metadata: Metadata = { title: 'Paramètres — SOLUVIA' };
 
 export default async function ParametresPage() {
   const user = await getCurrentUser();

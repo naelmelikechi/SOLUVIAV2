@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
   getProjetByRef,
@@ -6,6 +7,15 @@ import {
   getProjetTempsStats,
   getProjetQualiteStats,
 } from '@/lib/queries/projets';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ref: string }>;
+}): Promise<Metadata> {
+  const { ref } = await params;
+  return { title: `${ref} — Projets — SOLUVIA` };
+}
 import { ProjetFinanceSection } from '@/components/projets/projet-finance-section';
 import { ProjetTempsSection } from '@/components/projets/projet-temps-section';
 import { ProjetQualiteSection } from '@/components/projets/projet-qualite-section';

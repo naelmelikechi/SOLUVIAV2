@@ -2,12 +2,12 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Bell, ChevronRight, Search } from 'lucide-react';
+import { Bell, ChevronRight, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const routeLabels: Record<string, string> = {
   projets: 'Projets',
-  qualite: 'Qualite',
+  qualite: 'Qualité',
   temps: 'Temps',
   production: 'Production',
   facturation: 'Facturation',
@@ -15,11 +15,14 @@ const routeLabels: Record<string, string> = {
   admin: 'Administration',
   clients: 'Clients',
   utilisateurs: 'Utilisateurs',
-  parametres: 'Parametres',
+  parametres: 'Paramètres',
   'parametres-compte': 'Mon compte',
+  notifications: 'Notifications',
 };
 
-export function Topbar() {
+export function Topbar({
+  onHamburgerClick,
+}: { onHamburgerClick?: () => void } = {}) {
   const pathname = usePathname();
   const segments = pathname.split('/').filter(Boolean);
 
@@ -40,7 +43,19 @@ export function Topbar() {
   };
 
   return (
-    <header className="border-border bg-card flex items-center justify-between border-b px-6">
+    <header className="border-border bg-card flex h-14 items-center justify-between border-b px-4 md:px-6">
+      {/* Mobile hamburger */}
+      {onHamburgerClick && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="mr-2 md:hidden"
+          onClick={onHamburgerClick}
+          aria-label="Ouvrir le menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
       {/* Breadcrumbs */}
       <nav
         aria-label="Fil d'Ariane"

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
   getFactureByRef,
@@ -5,6 +6,15 @@ import {
   getAvoirForFacture,
   getFactureRefById,
 } from '@/lib/queries/factures';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ ref: string }>;
+}): Promise<Metadata> {
+  const { ref } = await params;
+  return { title: `${ref} — Facturation — SOLUVIA` };
+}
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { FactureDetailHeader } from '@/components/facturation/facture-detail-header';

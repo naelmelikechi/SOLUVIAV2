@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import { createAvoir } from '@/lib/actions/factures';
 
 const MOTIFS_AVOIR = [
-  'Rupture anticipee',
+  'Rupture anticipée',
   'Erreur de facturation',
   'Remise commerciale',
   'Ajustement',
@@ -59,7 +59,12 @@ export function AvoirDialog({
     }
     const montantValue = parseFloat(montantHt);
     if (isNaN(montantValue) || montantValue <= 0) {
-      toast.error('Le montant doit être supérieur à zéro');
+      toast.error('Le montant doit être strictement positif');
+      return;
+    }
+    // Check max 2 decimal places
+    if (!/^\d+(\.\d{1,2})?$/.test(montantHt.trim())) {
+      toast.error('Le montant ne peut avoir que 2 décimales maximum');
       return;
     }
     if (montantValue > montantHtDefault) {
@@ -70,9 +75,9 @@ export function AvoirDialog({
     startTransition(async () => {
       const result = await createAvoir({
         factureOrigineId,
-        motif,
+        motif: motif.trim(),
         montant: montantValue,
-        note: note || undefined,
+        note: note.trim() || undefined,
       });
       if (result.success) {
         toast.success(`Avoir ${result.ref} émis avec succès`);
@@ -90,7 +95,7 @@ export function AvoirDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Emettre un avoir sur {factureRef}</DialogTitle>
+          <DialogTitle>Émettre un avoir sur {factureRef}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -99,7 +104,7 @@ export function AvoirDialog({
             <Label htmlFor="motif">Motif</Label>
             <Select value={motif} onValueChange={(v) => setMotif(v ?? '')}>
               <SelectTrigger className="w-full" id="motif">
-                <SelectValue placeholder="Selectionner un motif" />
+                <SelectValue placeholder="Sélectionner un motif" />
               </SelectTrigger>
               <SelectContent>
                 {MOTIFS_AVOIR.map((m) => (

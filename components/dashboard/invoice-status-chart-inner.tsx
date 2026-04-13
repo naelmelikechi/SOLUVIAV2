@@ -20,8 +20,8 @@ const CHART_DATA_KEYS: {
   label: string;
   color: string;
 }[] = [
-  { key: 'emises', label: 'Emises', color: '#3b82f6' },
-  { key: 'payees', label: 'Payees', color: '#22c55e' },
+  { key: 'emises', label: 'Émises', color: '#3b82f6' },
+  { key: 'payees', label: 'Payées', color: '#22c55e' },
   { key: 'en_retard', label: 'En retard', color: '#ef4444' },
   { key: 'avoirs', label: 'Avoirs', color: '#f97316' },
 ];

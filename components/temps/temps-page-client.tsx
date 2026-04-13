@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useTransition } from 'react';
 import { Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import { fetchWeekData, saveSaisieTempsAxes } from '@/lib/actions/temps';
 import { PageHeader } from '@/components/shared/page-header';
@@ -91,7 +90,8 @@ export function TempsPageClient({
     [selectedCell],
   );
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import('xlsx');
     const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
     const rows = saisies.map((s) => {
       const row: Record<string, string | number> = {

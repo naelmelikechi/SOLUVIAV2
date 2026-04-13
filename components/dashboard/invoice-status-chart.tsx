@@ -28,13 +28,13 @@ export function InvoiceStatusChart({ data }: { data: InvoiceStatusBreakdown }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">
-            Repartition factures
+            Répartition factures
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex h-[280px] items-center justify-center">
             <p className="text-muted-foreground text-sm">
-              Aucune facture enregistree
+              Aucune facture enregistrée
             </p>
           </div>
         </CardContent>

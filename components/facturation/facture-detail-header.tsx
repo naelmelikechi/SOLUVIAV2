@@ -1,4 +1,8 @@
+'use client';
+
 import Link from 'next/link';
+import { Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { StatusBadge } from '@/components/shared/status-badge';
 import type { FactureDetail } from '@/lib/queries/factures';
 import {
@@ -53,6 +57,16 @@ export function FactureDetailHeader({
         <span className="font-mono text-xl font-bold text-orange-600 dark:text-orange-400">
           {facture.ref}
         </span>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(facture.ref ?? '');
+            toast.success('Référence copiée');
+          }}
+          className="text-muted-foreground hover:text-foreground ml-1 inline-flex items-center"
+          title="Copier la référence"
+        >
+          <Copy className="h-3.5 w-3.5" />
+        </button>
         <StatusBadge
           label={STATUT_FACTURE_LABELS[facture.statut] ?? facture.statut}
           color={STATUT_FACTURE_COLORS[facture.statut] ?? 'gray'}
@@ -70,9 +84,9 @@ export function FactureDetailHeader({
 
       {/* Dates */}
       <p className="text-muted-foreground text-xs">
-        Emise le{' '}
+        Émise le{' '}
         {facture.date_emission ? formatDate(facture.date_emission) : '—'} ·
-        Echeance{' '}
+        Échéance{' '}
         {facture.date_echeance ? formatDate(facture.date_echeance) : '—'}
       </p>
     </div>

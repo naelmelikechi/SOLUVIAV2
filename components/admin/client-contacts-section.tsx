@@ -60,7 +60,7 @@ export function ClientContactsSection({
         telephone: telephone || null,
       });
       if (result.success) {
-        toast.success('Contact ajoute');
+        toast.success('Contact ajouté');
         resetForm();
       } else {
         toast.error(result.error ?? "Erreur lors de l'ajout");
@@ -78,7 +78,7 @@ export function ClientContactsSection({
     startTransition(async () => {
       const result = await deleteClientContact(deleteTarget.id, clientId);
       if (result.success) {
-        toast.success('Contact supprime');
+        toast.success('Contact supprimé');
         setDeleteTarget(null);
       } else {
         toast.error(result.error ?? 'Erreur lors de la suppression');
@@ -120,7 +120,7 @@ export function ClientContactsSection({
               onChange={(e) => setEmail(e.target.value)}
             />
             <Input
-              placeholder="Telephone"
+              placeholder="Téléphone"
               value={telephone}
               onChange={(e) => setTelephone(e.target.value)}
             />
@@ -146,7 +146,7 @@ export function ClientContactsSection({
                 <TableHead>Nom</TableHead>
                 <TableHead>Poste</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Telephone</TableHead>
+                <TableHead>Téléphone</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>

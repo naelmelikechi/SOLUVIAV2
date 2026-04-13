@@ -40,10 +40,16 @@ export function InviteUserDialog({
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Adresse email invalide');
+      return;
+    }
+
     startTransition(async () => {
       const result = await inviteUser(email, role as 'admin' | 'cdp');
       if (result.success) {
-        toast.success(`Invitation envoyee a ${email}`);
+        toast.success(`Invitation envoyée à ${email}`);
         onOpenChange(false);
         setEmail('');
         setRole('cdp');

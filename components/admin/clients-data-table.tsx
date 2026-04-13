@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { Download } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import type { ClientListItem } from '@/lib/queries/clients';
 import { DataTable } from '@/components/shared/data-table';
 import { clientListColumns } from '@/components/admin/client-list-columns';
@@ -16,7 +15,8 @@ export function ClientsDataTable({ data }: { data: ClientListItem[] }) {
     router.push(`/admin/clients/${row.id}`);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import('xlsx');
     const rows = data.map((c) => ({
       Trigramme: c.trigramme,
       'Raison sociale': c.raison_sociale,

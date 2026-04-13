@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   LogOut,
   User,
+  X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -59,6 +60,10 @@ interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   user?: { nom: string; prenom: string; role: string } | null;
+  /** Mobile overlay mode */
+  mobile?: boolean;
+  /** Close the mobile sidebar */
+  onClose?: () => void;
 }
 
 // Map nav hrefs → badge keys + colours
@@ -71,7 +76,13 @@ const badgeConfig: Record<
   '/notifications': { key: 'notifications', color: 'bg-blue-500' },
 };
 
-export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
+export function Sidebar({
+  collapsed,
+  onToggle,
+  user,
+  mobile,
+  onClose,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const badgeCounts = useBadgeCounts();
@@ -85,18 +96,19 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'border-sidebar-border bg-sidebar row-span-full flex flex-col border-r transition-all',
-        collapsed ? 'w-16' : 'w-[260px]',
+        'border-sidebar-border bg-sidebar flex flex-col border-r transition-all',
+        mobile ? 'h-full w-full' : 'sticky top-0 h-screen',
+        !mobile && (collapsed ? 'w-16' : 'w-[260px]'),
       )}
     >
       {/* Logo */}
       <div
         className={cn(
           'border-sidebar-border flex h-14 items-center border-b',
-          collapsed ? 'justify-center px-2' : 'justify-between px-4',
+          collapsed && !mobile ? 'justify-center px-2' : 'justify-between px-4',
         )}
       >
-        {collapsed ? (
+        {collapsed && !mobile ? (
           <button
             onClick={onToggle}
             aria-label="Ouvrir la sidebar"
@@ -112,7 +124,11 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
           </button>
         ) : (
           <>
-            <Link href="/projets" className="flex shrink-0 items-center">
+            <Link
+              href="/projets"
+              className="flex shrink-0 items-center"
+              onClick={mobile ? onClose : undefined}
+            >
               <Image
                 src="/logo.svg"
                 alt="Soluvia"
@@ -121,13 +137,23 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
                 priority
               />
             </Link>
-            <button
-              onClick={onToggle}
-              aria-label="Réduire la sidebar"
-              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md p-1.5"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
+            {mobile ? (
+              <button
+                onClick={onClose}
+                aria-label="Fermer le menu"
+                className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md p-1.5"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            ) : (
+              <button
+                onClick={onToggle}
+                aria-label="Réduire la sidebar"
+                className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md p-1.5"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
           </>
         )}
       </div>
@@ -145,6 +171,7 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
+              onClick={mobile ? onClose : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
                 collapsed && 'justify-center',
@@ -204,6 +231,7 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 title={collapsed ? item.label : undefined}
+                onClick={mobile ? onClose : undefined}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
                   collapsed ? 'justify-center' : 'pl-11',
@@ -245,6 +273,7 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
             <div className="flex items-center gap-3">
               <Link
                 href="/parametres-compte"
+                onClick={mobile ? onClose : undefined}
                 className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold transition-opacity hover:opacity-80"
               >
                 {user ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}` : '?'}
@@ -252,6 +281,7 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
               <div className="min-w-0 flex-1">
                 <Link
                   href="/parametres-compte"
+                  onClick={mobile ? onClose : undefined}
                   className="hover:text-foreground block truncate text-[13px] font-medium transition-colors"
                 >
                   {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
@@ -265,6 +295,7 @@ export function Sidebar({ collapsed, onToggle, user }: SidebarProps) {
             <div className="flex items-center gap-2">
               <Link
                 href="/parametres-compte"
+                onClick={mobile ? onClose : undefined}
                 className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-[11px] transition-colors"
               >
                 <User className="h-3 w-3" />

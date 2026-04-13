@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   Download,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import type { ProductionRow } from '@/lib/queries/dashboard';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card } from '@/components/ui/card';
@@ -139,7 +138,8 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
   ];
 
   // Export handler
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import('xlsx');
     const rows = displayData.map((m) => ({
       Mois: m.label,
       'Production (€)': m.production,
@@ -233,7 +233,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
       </div>
 
       {/* Monthly Table */}
-      <Card>
+      <Card className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

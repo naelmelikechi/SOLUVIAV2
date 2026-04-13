@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { Download, ClipboardList } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import type { ProjetListItem } from '@/lib/queries/projets';
 import { DataTable } from '@/components/shared/data-table';
 import { projetListColumns } from '@/components/projets/projet-list-columns';
@@ -18,7 +17,8 @@ export function ProjetsDataTable({ data }: { data: ProjetListItem[] }) {
     router.push(`/projets/${row.ref}`);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import('xlsx');
     const rows = data.map((p) => ({
       Ref: p.ref ?? '',
       Client: p.client?.raison_sociale ?? '',
@@ -41,7 +41,7 @@ export function ProjetsDataTable({ data }: { data: ProjetListItem[] }) {
       <EmptyState
         icon={ClipboardList}
         title="Aucun projet"
-        description="Il n'y a pas encore de projet enregistre. Les projets apparaitront ici une fois synchronises depuis Eduvia."
+        description="Il n'y a pas encore de projet enregistré. Les projets apparaîtront ici une fois synchronisés depuis Eduvia."
       />
     );
   }

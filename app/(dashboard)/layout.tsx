@@ -12,6 +12,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<{
     nom: string;
     prenom: string;
@@ -33,20 +34,47 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <div
-      className="grid min-h-screen"
-      style={{
-        gridTemplateColumns: sidebarCollapsed ? '64px 1fr' : '260px 1fr',
-        gridTemplateRows: '56px 1fr',
-      }}
-    >
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        user={user}
-      />
-      <Topbar />
-      <main className="bg-background overflow-y-auto p-6">{children}</main>
+    <div className="flex min-h-screen">
+      {/* Desktop sidebar — hidden on mobile */}
+      <div className="hidden md:block">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          user={user}
+        />
+      </div>
+
+      {/* Right column: topbar + main */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar onHamburgerClick={() => setMobileOpen(true)} />
+        <main className="bg-background flex-1 overflow-y-auto p-4 md:p-6">
+          {children}
+        </main>
+      </div>
+
+      {/* Mobile sidebar overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop */}
+          <button
+            type="button"
+            aria-label="Fermer le menu"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* Sidebar panel */}
+          <div className="relative h-full w-[280px] shadow-xl">
+            <Sidebar
+              collapsed={false}
+              onToggle={() => setMobileOpen(false)}
+              user={user}
+              mobile
+              onClose={() => setMobileOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
       <CommandPalette />
     </div>
   );

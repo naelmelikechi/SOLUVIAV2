@@ -27,7 +27,7 @@ export function TimeWeekNavigator({
   const rangeLabel = `${format(monday, 'd', { locale: fr })} — ${format(sunday, 'd MMMM yyyy', { locale: fr })}`;
 
   return (
-    <div className="mb-4 flex items-center gap-3">
+    <div className="mb-4 flex flex-wrap items-center gap-2 md:gap-3">
       <Button
         variant="outline"
         size="icon"
@@ -36,7 +36,7 @@ export function TimeWeekNavigator({
       >
         <ChevronLeft className="h-4 w-4" />
       </Button>
-      <span className="min-w-[220px] text-center text-sm font-medium">
+      <span className="min-w-0 flex-1 text-center text-sm font-medium md:min-w-[220px] md:flex-none">
         {loading ? (
           <span className="text-muted-foreground animate-pulse">
             Chargement...

@@ -97,7 +97,7 @@ export default async function FactureDetailPage({
       </div>
 
       {/* Lignes */}
-      <Card className="mb-6 overflow-hidden">
+      <Card className="mb-6 overflow-x-auto">
         <div className="border-b px-5 py-3">
           <h3 className="text-sm font-semibold">
             Lignes ({facture.lignes.length})

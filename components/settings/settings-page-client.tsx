@@ -44,24 +44,24 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prenom.trim() || !nom.trim()) {
-      toast.error('Le prenom et le nom sont requis');
+      toast.error('Le prénom et le nom sont requis');
       return;
     }
     setProfileLoading(true);
     const result = await updateProfile(prenom.trim(), nom.trim());
     setProfileLoading(false);
     if (result.success) {
-      toast.success('Profil mis a jour');
+      toast.success('Profil mis à jour');
       router.refresh();
     } else {
-      toast.error(result.error ?? 'Erreur lors de la mise a jour');
+      toast.error(result.error ?? 'Erreur lors de la mise à jour');
     }
   };
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 8) {
-      toast.error('Le mot de passe doit contenir au moins 8 caracteres');
+      toast.error('Le mot de passe doit contenir au moins 8 caractères');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -72,11 +72,11 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
     const result = await updatePassword(newPassword);
     setPasswordLoading(false);
     if (result.success) {
-      toast.success('Mot de passe mis a jour');
+      toast.success('Mot de passe mis à jour');
       setNewPassword('');
       setConfirmPassword('');
     } else {
-      toast.error(result.error ?? 'Erreur lors de la mise a jour');
+      toast.error(result.error ?? 'Erreur lors de la mise à jour');
     }
   };
 
@@ -105,18 +105,18 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
                 className="bg-muted"
               />
               <p className="text-muted-foreground text-xs">
-                L&apos;email ne peut pas etre modifie
+                L&apos;email ne peut pas être modifié
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="prenom">Prenom</Label>
+                <Label htmlFor="prenom">Prénom</Label>
                 <Input
                   id="prenom"
                   value={prenom}
                   onChange={(e) => setPrenom(e.target.value)}
-                  placeholder="Votre prenom"
+                  placeholder="Votre prénom"
                   required
                 />
               </div>
@@ -172,7 +172,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Minimum 8 caracteres"
+                placeholder="Minimum 8 caractères"
                 minLength={8}
                 required
               />
@@ -187,7 +187,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repetez le nouveau mot de passe"
+                placeholder="Répétez le nouveau mot de passe"
                 minLength={8}
                 required
               />
@@ -195,7 +195,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
 
             <div className="flex justify-end">
               <Button type="submit" disabled={passwordLoading}>
-                {passwordLoading ? 'Mise a jour...' : 'Changer le mot de passe'}
+                {passwordLoading ? 'Mise à jour...' : 'Changer le mot de passe'}
               </Button>
             </div>
           </form>
@@ -207,7 +207,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
-            Preferences
+            Préférences
           </CardTitle>
           <CardDescription>
             Personnalisez l&apos;apparence de l&apos;application
@@ -216,16 +216,16 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">Theme</p>
+              <p className="text-sm font-medium">Thème</p>
               <p className="text-muted-foreground text-xs">
-                Choisissez entre le mode clair, sombre ou systeme
+                Choisissez entre le mode clair, sombre ou système
               </p>
             </div>
             <ThemeToggle />
           </div>
           <Separator className="my-4" />
           <p className="text-muted-foreground text-xs">
-            Le theme est sauvegarde automatiquement dans votre navigateur.
+            Le thème est sauvegardé automatiquement dans votre navigateur.
           </p>
         </CardContent>
       </Card>

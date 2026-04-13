@@ -32,7 +32,7 @@ export function ClientNotesSection({
     startTransition(async () => {
       const result = await addClientNote(clientId, contenu);
       if (result.success) {
-        toast.success('Note ajoutee');
+        toast.success('Note ajoutée');
         setContenu('');
       } else {
         toast.error(result.error ?? "Erreur lors de l'ajout");

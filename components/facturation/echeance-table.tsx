@@ -68,7 +68,7 @@ export function EcheanceTable({ echeances }: { echeances: EcheancePending[] }) {
 
   return (
     <div className="flex flex-col">
-      <div className="border-border rounded-lg border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>

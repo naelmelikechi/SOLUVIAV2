@@ -547,7 +547,7 @@ export function DashboardPageClient({
             Exporter
           </Button>
         </div>
-        <Card className="p-0">
+        <Card className="overflow-x-auto p-0">
           <Table>
             <TableHeader>
               <TableRow>

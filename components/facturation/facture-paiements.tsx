@@ -52,28 +52,30 @@ export function FacturePaiements({
       </div>
 
       {hasPaiements ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date reception</TableHead>
-              <TableHead>Montant</TableHead>
-              <TableHead>Source</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paiements.map((paiement) => (
-              <TableRow key={paiement.id}>
-                <TableCell>{formatDate(paiement.date_reception)}</TableCell>
-                <TableCell className="font-mono">
-                  {formatCurrency(paiement.montant)}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {paiement.saisie_manuelle ? 'Saisie manuelle' : 'Odoo'}
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date reception</TableHead>
+                <TableHead>Montant</TableHead>
+                <TableHead>Source</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {paiements.map((paiement) => (
+                <TableRow key={paiement.id}>
+                  <TableCell>{formatDate(paiement.date_reception)}</TableCell>
+                  <TableCell className="font-mono">
+                    {formatCurrency(paiement.montant)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {paiement.saisie_manuelle ? 'Saisie manuelle' : 'Odoo'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : (
         <p className="text-muted-foreground text-sm">Aucun paiement recu</p>
       )}

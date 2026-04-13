@@ -11,7 +11,6 @@ import { EcheanceTable } from '@/components/facturation/echeance-table';
 import { factureListColumns } from '@/components/facturation/facture-list-columns';
 import { EmptyState } from '@/components/shared/empty-state';
 import type { FactureListItem, EcheancePending } from '@/lib/queries/factures';
-import * as XLSX from 'xlsx';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_FACTURE_LABELS } from '@/lib/utils/constants';
 
@@ -31,7 +30,8 @@ export function FacturationPageClient({
     router.push(`/facturation/${row.ref}`);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import('xlsx');
     const data = factures.map((f) => ({
       'N° Facture': f.ref,
       Projet: f.projet?.ref ?? '',
@@ -56,7 +56,7 @@ export function FacturationPageClient({
       <EmptyState
         icon={FileText}
         title="Aucune facture"
-        description="Aucune facture n'a encore ete emise. Les factures apparaitront ici une fois generees depuis les echeances."
+        description="Aucune facture n'a encore été émise. Les factures apparaîtront ici une fois générées depuis les échéances."
       />
     );
   }

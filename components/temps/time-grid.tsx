@@ -106,7 +106,7 @@ export function TimeGrid({
 
   return (
     <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full border-collapse text-[13px]">
+      <table className="w-full min-w-[640px] border-collapse text-[13px]">
         <thead>
           <tr className="bg-[var(--card-alt)]">
             <th className="text-muted-foreground min-w-[220px] px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase">

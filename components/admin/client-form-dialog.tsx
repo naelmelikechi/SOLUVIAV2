@@ -67,6 +67,14 @@ function ClientFormContent({
       return;
     }
 
+    if (siret) {
+      const cleaned = siret.replace(/\s/g, '');
+      if (!/^\d{14}$/.test(cleaned)) {
+        toast.error('Le SIRET doit comporter 14 chiffres');
+        return;
+      }
+    }
+
     const data = {
       raison_sociale: raisonSociale,
       siret: siret || null,
@@ -82,18 +90,18 @@ function ClientFormContent({
       if (isEdit) {
         const result = await updateClientAction(client.id, data);
         if (result.success) {
-          toast.success('Client mis a jour');
+          toast.success('Client mis à jour');
           onOpenChange(false);
         } else {
-          toast.error(result.error ?? 'Erreur lors de la mise a jour');
+          toast.error(result.error ?? 'Erreur lors de la mise à jour');
         }
       } else {
         const result = await createClientAction(data);
         if (result.success) {
-          toast.success('Client cree avec succes');
+          toast.success('Client créé avec succès');
           onOpenChange(false);
         } else {
-          toast.error(result.error ?? 'Erreur lors de la creation');
+          toast.error(result.error ?? 'Erreur lors de la création');
         }
       }
     });
@@ -156,7 +164,7 @@ function ClientFormContent({
           <Label htmlFor="localisation">Localisation</Label>
           <Input
             id="localisation"
-            placeholder="Ville, region..."
+            placeholder="Ville, région..."
             value={localisation}
             onChange={(e) => setLocalisation(e.target.value)}
           />
@@ -197,11 +205,11 @@ function ClientFormContent({
         <Button onClick={handleSubmit} disabled={isPending}>
           {isPending
             ? isEdit
-              ? 'Mise a jour...'
-              : 'Creation...'
+              ? 'Mise à jour...'
+              : 'Création...'
             : isEdit
               ? 'Enregistrer'
-              : 'Creer le client'}
+              : 'Créer le client'}
         </Button>
       </DialogFooter>
     </DialogContent>

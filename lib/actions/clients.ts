@@ -151,6 +151,42 @@ export async function archiveClient(
 }
 
 // ---------------------------------------------------------------------------
+// unarchiveClient — restore (archive = false)
+// ---------------------------------------------------------------------------
+
+export async function unarchiveClient(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (caller?.role !== 'admin') {
+    return { success: false, error: 'Accès réservé aux administrateurs' };
+  }
+
+  const { error } = await supabase
+    .from('clients')
+    .update({ archive: false })
+    .eq('id', id);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath('/admin/clients');
+  revalidatePath(`/admin/clients/${id}`);
+
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
 // addClientContact — insert into client_contacts
 // ---------------------------------------------------------------------------
 

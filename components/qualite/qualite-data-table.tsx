@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { Download, CheckCircle } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import type { QualiteSummary } from '@/lib/queries/qualite';
 import { DataTable } from '@/components/shared/data-table';
 import { qualiteListColumns } from '@/components/qualite/qualite-list-columns';
@@ -16,7 +15,8 @@ export function QualiteDataTable({ data }: { data: QualiteSummary[] }) {
     router.push(`/qualite/${row.projet.ref ?? ''}`);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    const XLSX = await import('xlsx');
     const rows = data.map((q) => ({
       Projet: q.projet.ref ?? '',
       Client: q.projet.client?.raison_sociale ?? '',
@@ -39,8 +39,8 @@ export function QualiteDataTable({ data }: { data: QualiteSummary[] }) {
     return (
       <EmptyState
         icon={CheckCircle}
-        title="Aucune tache qualite"
-        description="Aucun projet actif n'a de taches qualite associees. Les taches apparaitront ici pour les projets actifs."
+        title="Aucune tâche qualité"
+        description="Aucun projet actif n'a de tâches qualité associées. Les tâches apparaîtront ici pour les projets actifs."
       />
     );
   }

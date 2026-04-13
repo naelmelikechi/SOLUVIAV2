@@ -10,6 +10,7 @@ interface TimeWeekNavigatorProps {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  loading?: boolean;
 }
 
 export function TimeWeekNavigator({
@@ -17,6 +18,7 @@ export function TimeWeekNavigator({
   onPrev,
   onNext,
   onToday,
+  loading,
 }: TimeWeekNavigatorProps) {
   // weekDates is always 7 entries (Mon-Sun) per TimeWeekNavigatorProps contract.
   const monday = parseISO(weekDates[0]!);
@@ -35,7 +37,13 @@ export function TimeWeekNavigator({
         <ChevronLeft className="h-4 w-4" />
       </Button>
       <span className="min-w-[220px] text-center text-sm font-medium">
-        {rangeLabel}
+        {loading ? (
+          <span className="text-muted-foreground animate-pulse">
+            Chargement...
+          </span>
+        ) : (
+          rangeLabel
+        )}
       </span>
       <Button
         variant="outline"

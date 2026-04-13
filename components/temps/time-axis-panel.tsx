@@ -7,10 +7,10 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AXES_TEMPS } from '@/lib/utils/constants';
 import { cn } from '@/lib/utils';
-import type { MockSaisieTemps } from '@/lib/mock-data';
+import type { SaisieTemps } from '@/lib/queries/temps';
 
 interface TimeAxisPanelProps {
-  saisie: MockSaisieTemps;
+  saisie: SaisieTemps;
   date: string;
   cellTotal: number;
   onClose: () => void;

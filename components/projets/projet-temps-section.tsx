@@ -1,13 +1,13 @@
-import type { MockTempsProjet } from '@/lib/mock-data';
+import type { ProjetTempsStats } from '@/lib/queries/projets';
 import { formatHeures } from '@/lib/utils/formatters';
 import { Card } from '@/components/ui/card';
 
 export function ProjetTempsSection({
   temps,
 }: {
-  temps: MockTempsProjet | undefined;
+  temps: ProjetTempsStats | null;
 }) {
-  if (!temps) {
+  if (!temps || temps.total === 0) {
     return (
       <Card className="p-6">
         <h3 className="mb-2 text-sm font-semibold">Temps</h3>

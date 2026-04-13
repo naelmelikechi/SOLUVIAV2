@@ -1,4 +1,4 @@
-import type { MockContrat } from '@/lib/mock-data';
+import type { ContratRow } from '@/lib/queries/projets';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
 import { Card } from '@/components/ui/card';
@@ -14,8 +14,8 @@ import {
 const CONTRACT_STATE_LABELS: Record<string, string> = {
   actif: 'Actif',
   suspendu: 'Suspendu',
-  resilie: 'Résilié',
-  termine: 'Terminé',
+  resilie: 'Resilie',
+  termine: 'Termine',
 };
 
 const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
@@ -24,6 +24,23 @@ const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
   resilie: 'red',
   termine: 'gray',
 };
+
+function computeProgressionTheorique(
+  dateDebut: string | null,
+  dateFin: string | null,
+): number {
+  if (!dateDebut || !dateFin) return 0;
+  const start = new Date(dateDebut).getTime();
+  const end = new Date(dateFin).getTime();
+  const now = Date.now();
+  const totalDays = (end - start) / (1000 * 60 * 60 * 24);
+  if (totalDays <= 0) return 100;
+  const elapsedDays = (now - start) / (1000 * 60 * 60 * 24);
+  return Math.min(
+    100,
+    Math.max(0, Math.round((elapsedDays / totalDays) * 100)),
+  );
+}
 
 function ProgressBar({
   value,
@@ -52,7 +69,7 @@ function ProgressBar({
   );
 }
 
-export function ProjetContratsTable({ contrats }: { contrats: MockContrat[] }) {
+export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
   const actifs = contrats.filter((c) => c.contract_state === 'actif').length;
 
   return (
@@ -69,7 +86,7 @@ export function ProjetContratsTable({ contrats }: { contrats: MockContrat[] }) {
 
       {contrats.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          Aucun contrat synchronisé
+          Aucun contrat synchronise
         </p>
       ) : (
         <div className="border-border overflow-x-auto rounded-lg border">
@@ -79,64 +96,66 @@ export function ProjetContratsTable({ contrats }: { contrats: MockContrat[] }) {
                 <TableHead>Ref</TableHead>
                 <TableHead>Apprenant</TableHead>
                 <TableHead>Formation</TableHead>
-                <TableHead>Début</TableHead>
+                <TableHead>Debut</TableHead>
                 <TableHead>Fin</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Prise en charge</TableHead>
-                <TableHead>Prog. réelle</TableHead>
-                <TableHead>Prog. théorique</TableHead>
+                <TableHead>Progression</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {contrats.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <span className="inline-block rounded bg-[var(--orange-bg)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--warning)]">
-                      {c.ref}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {c.apprenant_prenom} {c.apprenant_nom}
-                  </TableCell>
-                  <TableCell
-                    className="max-w-[200px] truncate text-sm"
-                    title={c.formation_titre}
-                  >
-                    {c.formation_titre}
-                  </TableCell>
-                  <TableCell className="text-sm tabular-nums">
-                    {formatDate(c.date_debut)}
-                  </TableCell>
-                  <TableCell className="text-sm tabular-nums">
-                    {formatDate(c.date_fin)}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      label={
-                        CONTRACT_STATE_LABELS[c.contract_state] ??
-                        c.contract_state
-                      }
-                      color={CONTRACT_STATE_COLORS[c.contract_state] ?? 'gray'}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm tabular-nums">
-                    {formatCurrency(c.montant_prise_en_charge)}
-                  </TableCell>
-                  <TableCell>
-                    <ProgressBar
-                      value={c.progression_reelle}
-                      comparison={c.progression_theorique}
-                      color="bg-primary"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <ProgressBar
-                      value={c.progression_theorique}
-                      color="bg-[var(--gray)]"
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {contrats.map((c) => {
+                const progression = computeProgressionTheorique(
+                  c.date_debut,
+                  c.date_fin,
+                );
+                return (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <span className="inline-block rounded bg-[var(--orange-bg)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--warning)]">
+                        {c.ref}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {c.apprenant_prenom} {c.apprenant_nom}
+                    </TableCell>
+                    <TableCell
+                      className="max-w-[200px] truncate text-sm"
+                      title={c.formation_titre ?? ''}
+                    >
+                      {c.formation_titre}
+                    </TableCell>
+                    <TableCell className="text-sm tabular-nums">
+                      {c.date_debut ? formatDate(c.date_debut) : '\u2014'}
+                    </TableCell>
+                    <TableCell className="text-sm tabular-nums">
+                      {c.date_fin ? formatDate(c.date_fin) : '\u2014'}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        label={
+                          CONTRACT_STATE_LABELS[c.contract_state] ??
+                          c.contract_state
+                        }
+                        color={
+                          CONTRACT_STATE_COLORS[c.contract_state] ?? 'gray'
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums">
+                      {c.montant_prise_en_charge
+                        ? formatCurrency(c.montant_prise_en_charge)
+                        : '\u2014'}
+                    </TableCell>
+                    <TableCell>
+                      <ProgressBar
+                        value={progression}
+                        color="bg-[var(--gray)]"
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

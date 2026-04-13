@@ -1,9 +1,15 @@
-import { getDashboardData } from '@/lib/queries/dashboard';
+import {
+  getDashboardData,
+  getDashboardFinancials,
+} from '@/lib/queries/dashboard';
 import { PageHeader } from '@/components/shared/page-header';
 import { DashboardPageClient } from '@/components/dashboard/dashboard-page-client';
 
 export default async function DashboardPage() {
-  const data = await getDashboardData();
+  const [data, financials] = await Promise.all([
+    getDashboardData(),
+    getDashboardFinancials(),
+  ]);
 
   return (
     <div>
@@ -11,7 +17,7 @@ export default async function DashboardPage() {
         title="Dashboard"
         description="KPIs et alertes opérationnelles"
       />
-      <DashboardPageClient data={data} />
+      <DashboardPageClient data={data} financials={financials} />
     </div>
   );
 }

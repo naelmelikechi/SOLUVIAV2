@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import type { DashboardFinancials } from '@/lib/queries/dashboard';
 
 // ============================================================
 // Types
@@ -165,7 +166,7 @@ function KpiCard({
 }
 
 // ============================================================
-// Evolution table data (mock M vs M-1, will be wired later)
+// Evolution table data
 // ============================================================
 
 interface EvolutionRow {
@@ -178,12 +179,14 @@ interface EvolutionRow {
 }
 
 function handleExportExcel(evolutionData: EvolutionRow[]) {
-  const headers = ['KPI', 'Avril 2026', 'Mars 2026', 'Évolution'];
+  const headers = ['KPI', 'Actuel', 'Précédent', 'Évolution'];
   const rows = evolutionData.map((row) => [
     row.label,
     row.current,
     row.previous,
-    `${row.change > 0 ? '+' : ''}${row.change}${row.unit}`,
+    row.change === 0
+      ? '—'
+      : `${row.change > 0 ? '+' : ''}${row.change}${row.unit}`,
   ]);
 
   const csvContent = [headers, ...rows]
@@ -196,7 +199,7 @@ function handleExportExcel(evolutionData: EvolutionRow[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'dashboard-evolution-avril-2026.csv';
+  link.download = `dashboard-evolution-${new Date().toISOString().split('T')[0]}.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -205,9 +208,15 @@ function handleExportExcel(evolutionData: EvolutionRow[]) {
 // Main Component
 // ============================================================
 
-export function DashboardPageClient({ data }: { data: DashboardData }) {
+export function DashboardPageClient({
+  data,
+  financials,
+}: {
+  data: DashboardData;
+  financials: DashboardFinancials;
+}) {
   // ---- Alerts from real data ----
-  const tempsNonSaisi = 2; // mock -- no production_mensuelle data yet
+  const tempsNonSaisi = financials.tempsNonSaisi;
 
   const alerts: Alert[] = [
     data.facturesEnRetard > 0
@@ -241,76 +250,66 @@ export function DashboardPageClient({ data }: { data: DashboardData }) {
       ? {
           count: tempsNonSaisi,
           title: 'Temps non saisi',
-          description: `${tempsNonSaisi} projets sans saisie aujourd'hui`,
+          description: `${tempsNonSaisi} jour(s) sans saisie cette semaine`,
           href: '/temps',
           color: 'orange' as const,
         }
       : null,
   ].filter((a): a is Alert => a !== null);
 
-  // ---- Financial KPIs (mock aggregates -- no production_mensuelle yet) ----
-  const totalProduction = 245_000;
-  const totalFacture = 198_000;
-  const totalEncaisse = 156_000;
-  const totalEnRetard = totalFacture - totalEncaisse;
+  // ---- Financial KPIs from real data ----
+  const { totalProduction, totalFacture, totalEncaisse, nbApprenantsActifs } =
+    financials;
+  const totalEnRetard = Math.max(0, totalFacture - totalEncaisse);
 
-  // ---- Operational KPIs ----
-  const nbApprenantsActifs = 48; // mock -- no contrats.apprenant aggregation yet
-  const tauxSaisieTemps = 87; // mock
-
-  // ---- Evolution data (mock) ----
-  const prevProduction = totalProduction * 0.948;
-  const prevFacture = totalFacture * 0.97;
-  const prevEncaisse = totalEncaisse * 1.029;
-  const prevEnRetard = totalEnRetard * 0.876;
-
+  // ---- Evolution data (no historical comparison yet) ----
   const evolutionData: EvolutionRow[] = [
     {
       label: 'Production',
       current: formatCurrency(totalProduction),
-      previous: formatCurrency(prevProduction),
-      change: 5.2,
+      previous: '—',
+      change: 0,
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'Facturé',
       current: formatCurrency(totalFacture),
-      previous: formatCurrency(prevFacture),
-      change: 3.1,
+      previous: '—',
+      change: 0,
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'Encaissé',
       current: formatCurrency(totalEncaisse),
-      previous: formatCurrency(prevEncaisse),
-      change: -2.8,
+      previous: '—',
+      change: 0,
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'En retard',
       current: formatCurrency(totalEnRetard),
-      previous: formatCurrency(prevEnRetard),
-      change: 12.4,
+      previous: '—',
+      change: 0,
       unit: '%',
       positiveIsGood: false,
     },
     {
       label: 'Projets actifs',
       current: String(data.projetsActifs),
-      previous: String(Math.max(0, data.projetsActifs - 1)),
-      change: 1,
+      previous: '—',
+      change: 0,
       unit: '%',
       positiveIsGood: true,
     },
     {
-      label: 'Taux complétion qualité',
-      current: '82%',
-      previous: '79%',
-      change: 3,
-      unit: 'pt',
+      label: 'Contrats actifs',
+      current: String(data.contratsActifs),
+      previous: '—',
+      change: 0,
+      unit: '%',
       positiveIsGood: true,
     },
   ];
@@ -374,32 +373,24 @@ export function DashboardPageClient({ data }: { data: DashboardData }) {
           <KpiCard
             label="Production"
             value={formatCurrency(totalProduction)}
-            trend="+5,2%"
-            trendUp
             icon={TrendingUp}
             color="green"
           />
           <KpiCard
             label="Facturé"
             value={formatCurrency(totalFacture)}
-            trend="+3,1%"
-            trendUp
             icon={FileText}
             color="blue"
           />
           <KpiCard
             label="Encaissé"
             value={formatCurrency(totalEncaisse)}
-            trend="-2,8%"
-            trendUp={false}
             icon={CircleCheck}
             color="green"
           />
           <KpiCard
             label="En retard"
             value={formatCurrency(totalEnRetard)}
-            trend="+12,4%"
-            trendUp
             isNegativeMetric
             icon={AlertTriangle}
             color="red"
@@ -430,16 +421,16 @@ export function DashboardPageClient({ data }: { data: DashboardData }) {
           <KpiCard
             label="Apprenants actifs"
             value={String(nbApprenantsActifs)}
-            subtitle="sur les projets actifs"
+            subtitle="contrats en cours"
             icon={GraduationCap}
             color="purple"
           />
           <KpiCard
-            label="Taux saisie temps"
-            value={`${tauxSaisieTemps}%`}
-            subtitle="18/20 jours ouvrables"
+            label="Temps non saisi"
+            value={`${tempsNonSaisi}j`}
+            subtitle="cette semaine"
             icon={Calendar}
-            color="orange"
+            color={tempsNonSaisi > 0 ? 'orange' : 'green'}
           />
         </div>
       </section>
@@ -464,8 +455,8 @@ export function DashboardPageClient({ data }: { data: DashboardData }) {
             <TableHeader>
               <TableRow>
                 <TableHead className="pl-4">KPI</TableHead>
-                <TableHead className="text-right">Avril 2026</TableHead>
-                <TableHead className="text-right">Mars 2026</TableHead>
+                <TableHead className="text-right">Actuel</TableHead>
+                <TableHead className="text-right">M-1</TableHead>
                 <TableHead className="pr-4 text-right">Évol.</TableHead>
               </TableRow>
             </TableHeader>
@@ -488,23 +479,27 @@ export function DashboardPageClient({ data }: { data: DashboardData }) {
                       {row.previous}
                     </TableCell>
                     <TableCell className="pr-4 text-right">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums',
-                          isGood
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-red-600 dark:text-red-400',
-                        )}
-                      >
-                        {isPositive ? (
-                          <ArrowUpRight className="h-3 w-3" />
-                        ) : (
-                          <ArrowDownRight className="h-3 w-3" />
-                        )}
-                        {changeSign}
-                        {row.change}
-                        {changeSuffix}
-                      </span>
+                      {row.change === 0 ? (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      ) : (
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums',
+                            isGood
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400',
+                          )}
+                        >
+                          {isPositive ? (
+                            <ArrowUpRight className="h-3 w-3" />
+                          ) : (
+                            <ArrowDownRight className="h-3 w-3" />
+                          )}
+                          {changeSign}
+                          {row.change}
+                          {changeSuffix}
+                        </span>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

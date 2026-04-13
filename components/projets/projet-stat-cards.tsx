@@ -1,4 +1,4 @@
-import type { MockProjet } from '@/lib/mock-data';
+import type { ProjetDetail } from '@/lib/queries/projets';
 import { formatDate } from '@/lib/utils/formatters';
 import { Card } from '@/components/ui/card';
 
@@ -24,20 +24,29 @@ function StatCard({
   );
 }
 
-export function ProjetStatCards({ projet }: { projet: MockProjet }) {
+export function ProjetStatCards({
+  projet,
+  apprentisActifs,
+}: {
+  projet: ProjetDetail;
+  apprentisActifs: number;
+}) {
   return (
     <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
       <StatCard
         label="Typologie"
-        value={projet.typologie.code}
-        sub={projet.typologie.libelle}
+        value={projet.typologie?.code ?? '—'}
+        sub={projet.typologie?.libelle ?? undefined}
       />
       <StatCard
         label="Client"
-        value={projet.client.trigramme}
-        sub={projet.client.raison_sociale}
+        value={projet.client?.trigramme ?? '—'}
+        sub={projet.client?.raison_sociale ?? undefined}
       />
-      <StatCard label="CDP" value={`${projet.cdp.prenom} ${projet.cdp.nom}`} />
+      <StatCard
+        label="CDP"
+        value={projet.cdp ? `${projet.cdp.prenom} ${projet.cdp.nom}` : '—'}
+      />
       <StatCard
         label="Backup CDP"
         value={
@@ -46,10 +55,13 @@ export function ProjetStatCards({ projet }: { projet: MockProjet }) {
             : '—'
         }
       />
-      <StatCard label="Date de debut" value={formatDate(projet.date_debut)} />
+      <StatCard
+        label="Date de debut"
+        value={projet.date_debut ? formatDate(projet.date_debut) : '—'}
+      />
       <StatCard
         label="Apprentis actifs"
-        value={String(projet.apprentis_actifs)}
+        value={String(apprentisActifs)}
         color="text-[var(--info)]"
       />
     </div>

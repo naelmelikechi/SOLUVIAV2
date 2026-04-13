@@ -1,4 +1,4 @@
-import type { MockFinanceProjet } from '@/lib/mock-data';
+import type { ProjetFinance } from '@/lib/queries/projets';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { Card } from '@/components/ui/card';
 
@@ -26,7 +26,7 @@ function FinanceStatCard({
 export function ProjetFinanceSection({
   finance,
 }: {
-  finance: MockFinanceProjet | undefined;
+  finance: ProjetFinance | null;
 }) {
   if (!finance) {
     return (

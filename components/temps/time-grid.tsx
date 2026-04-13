@@ -1,18 +1,20 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { format, parseISO, isToday, isWeekend } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
-import type { MockSaisieTemps } from '@/lib/mock-data';
+import type { SaisieTemps } from '@/lib/queries/temps';
+import { saveSaisieTemps } from '@/lib/actions/temps';
 import { cn } from '@/lib/utils';
 import { formatHeures } from '@/lib/utils/formatters';
-import { MAX_HEURES_JOUR } from '@/lib/utils/constants';
+import { MAX_HEURES_JOUR, DEBOUNCE_MS } from '@/lib/utils/constants';
 
 interface TimeGridProps {
   weekDates: string[];
-  initialSaisies: MockSaisieTemps[];
+  initialSaisies: SaisieTemps[];
   onCellClick?: (projetId: string, date: string) => void;
+  onSaveHours?: (projetId: string, date: string, heures: number) => void;
 }
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -27,8 +29,25 @@ export function TimeGrid({
   weekDates,
   initialSaisies,
   onCellClick,
+  onSaveHours,
 }: TimeGridProps) {
-  const [saisies, setSaisies] = useState<MockSaisieTemps[]>(initialSaisies);
+  const [saisies, setSaisies] = useState<SaisieTemps[]>(initialSaisies);
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
+    {},
+  );
+
+  // Sync saisies when initialSaisies changes (week navigation)
+  useEffect(() => {
+    setSaisies(initialSaisies);
+  }, [initialSaisies]);
+
+  // Cleanup debounce timers on unmount
+  useEffect(() => {
+    const timers = debounceTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+    };
+  }, []);
 
   // Calculate daily totals
   const dailyTotals = weekDates.map((date) =>
@@ -61,12 +80,28 @@ export function TimeGrid({
           return prev;
         }
 
-        // Auto-save feedback
-        toast.success('Sauvegarde automatique', { duration: 1000 });
         return updated;
       });
+
+      // Notify parent of optimistic update
+      onSaveHours?.(projetId, date, parsed);
+
+      // Debounced server save
+      const key = `${projetId}:${date}`;
+      if (debounceTimers.current[key]) {
+        clearTimeout(debounceTimers.current[key]);
+      }
+      debounceTimers.current[key] = setTimeout(async () => {
+        delete debounceTimers.current[key];
+        const result = await saveSaisieTemps(projetId, date, parsed);
+        if (result.success) {
+          toast.success('Sauvegardé', { duration: 1000 });
+        } else {
+          toast.error(result.error ?? 'Erreur lors de la sauvegarde');
+        }
+      }, DEBOUNCE_MS);
     },
-    [],
+    [onSaveHours],
   );
 
   return (

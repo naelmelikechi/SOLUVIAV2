@@ -1,5 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
-import { format, startOfMonth, addMonths } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  isWeekend,
+} from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export async function getDashboardData() {
@@ -25,6 +32,28 @@ export async function getDashboardData() {
         .eq('contract_state', 'actif')
         .eq('archive', false),
     ]);
+
+  // Log any individual query errors but don't throw — dashboard is best-effort
+  if (projetsRes.error)
+    logger.error('queries.dashboard', 'getDashboardData failed (projets)', {
+      error: projetsRes.error,
+    });
+  if (facturesRes.error)
+    logger.error('queries.dashboard', 'getDashboardData failed (factures)', {
+      error: facturesRes.error,
+    });
+  if (tachesRes.error)
+    logger.error('queries.dashboard', 'getDashboardData failed (taches)', {
+      error: tachesRes.error,
+    });
+  if (echeancesRes.error)
+    logger.error('queries.dashboard', 'getDashboardData failed (echeances)', {
+      error: echeancesRes.error,
+    });
+  if (contratsRes.error)
+    logger.error('queries.dashboard', 'getDashboardData failed (contrats)', {
+      error: contratsRes.error,
+    });
 
   return {
     projetsActifs: projetsRes.data?.length ?? 0,
@@ -103,6 +132,20 @@ export async function getProductionData(): Promise<ProductionRow[]> {
       )
       .eq('archive', false),
   ]);
+
+  // Log any individual query errors but don't throw — production page is best-effort
+  if (facturesRes.error)
+    logger.error('queries.dashboard', 'getProductionData failed (factures)', {
+      error: facturesRes.error,
+    });
+  if (paiementsRes.error)
+    logger.error('queries.dashboard', 'getProductionData failed (paiements)', {
+      error: paiementsRes.error,
+    });
+  if (contratsRes.error)
+    logger.error('queries.dashboard', 'getProductionData failed (contrats)', {
+      error: contratsRes.error,
+    });
 
   const factures = facturesRes.data;
   const paiements = paiementsRes.data;
@@ -258,6 +301,46 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
       .gte('date', monthStart)
       .lte('date', monthEnd),
   ]);
+
+  // Log any individual query errors but don't throw — dashboard is best-effort
+  if (facturesRes.error)
+    logger.error(
+      'queries.dashboard',
+      'getDashboardFinancials failed (factures)',
+      { error: facturesRes.error },
+    );
+  if (paiementsRes.error)
+    logger.error(
+      'queries.dashboard',
+      'getDashboardFinancials failed (paiements)',
+      { error: paiementsRes.error },
+    );
+  if (contratsRes.error)
+    logger.error(
+      'queries.dashboard',
+      'getDashboardFinancials failed (contrats)',
+      { error: contratsRes.error },
+    );
+  if (tempsRes.error)
+    logger.error('queries.dashboard', 'getDashboardFinancials failed (temps)', {
+      error: tempsRes.error,
+    });
+  if (tempsMonthRes.error)
+    logger.error(
+      'queries.dashboard',
+      'getDashboardFinancials failed (tempsMonth)',
+      { error: tempsMonthRes.error },
+    );
+  if (usersRes.error)
+    logger.error('queries.dashboard', 'getDashboardFinancials failed (users)', {
+      error: usersRes.error,
+    });
+  if (feriesRes.error)
+    logger.error(
+      'queries.dashboard',
+      'getDashboardFinancials failed (feries)',
+      { error: feriesRes.error },
+    );
 
   const totalFacture = (facturesRes.data ?? []).reduce(
     (sum, f) => sum + f.montant_ht,

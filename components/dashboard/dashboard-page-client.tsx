@@ -28,7 +28,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { DashboardFinancials } from '@/lib/queries/dashboard';
+import type {
+  DashboardFinancials,
+  KpiSnapshotMap,
+} from '@/lib/queries/dashboard';
 
 // ============================================================
 // Types
@@ -211,9 +214,11 @@ function handleExportExcel(evolutionData: EvolutionRow[]) {
 export function DashboardPageClient({
   data,
   financials,
+  previousKpis,
 }: {
   data: DashboardData;
   financials: DashboardFinancials;
+  previousKpis: KpiSnapshotMap;
 }) {
   // ---- Alerts from real data ----
   const tempsNonSaisi = financials.tempsNonSaisi;
@@ -258,61 +263,126 @@ export function DashboardPageClient({
   ].filter((a): a is Alert => a !== null);
 
   // ---- Financial KPIs from real data ----
-  const { totalProduction, totalFacture, totalEncaisse, nbApprenantsActifs } =
-    financials;
+  const {
+    totalProduction,
+    totalFacture,
+    totalEncaisse,
+    nbApprenantsActifs,
+    tauxSaisieTemps,
+  } = financials;
   const totalEnRetard = Math.max(0, totalFacture - totalEncaisse);
 
-  // ---- Evolution data (no historical comparison yet) ----
+  // ---- M-1 evolution helpers ----
+  const hasPrevious = Object.keys(previousKpis).length > 0;
+
+  /**
+   * Compute % change between current and previous values.
+   * Returns 0 if no previous data or division by zero.
+   */
+  function computeEvolution(
+    current: number,
+    previousValue: number | undefined,
+  ): number {
+    if (!hasPrevious || previousValue === undefined || previousValue === 0) {
+      return 0;
+    }
+    return Math.round(((current - previousValue) / previousValue) * 1000) / 10;
+  }
+
+  // Map current KPIs to their M-1 snapshot keys
+  const prevTotalFacture = previousKpis['total_facture_ht'];
+  const prevTotalEncaisse = previousKpis['total_encaisse'];
+  const _prevEnRetard = previousKpis['factures_en_retard'];
+  const prevProjetsActifs = previousKpis['projets_actifs'];
+  const prevContratsActifs = previousKpis['contrats_actifs'];
+
+  // Use total_facture_ht as proxy for production in M-1 (same as current)
+  const prevProduction = prevTotalFacture;
+  // Compute previous en retard amount (approximation: totalFacture - totalEncaisse)
+  const prevEnRetardAmount =
+    prevTotalFacture !== undefined && prevTotalEncaisse !== undefined
+      ? Math.max(0, prevTotalFacture - prevTotalEncaisse)
+      : undefined;
+
   const evolutionData: EvolutionRow[] = [
     {
       label: 'Production',
       current: formatCurrency(totalProduction),
-      previous: '—',
-      change: 0,
+      previous:
+        hasPrevious && prevProduction !== undefined
+          ? formatCurrency(prevProduction)
+          : '—',
+      change: computeEvolution(totalProduction, prevProduction),
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'Facturé',
       current: formatCurrency(totalFacture),
-      previous: '—',
-      change: 0,
+      previous:
+        hasPrevious && prevTotalFacture !== undefined
+          ? formatCurrency(prevTotalFacture)
+          : '—',
+      change: computeEvolution(totalFacture, prevTotalFacture),
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'Encaissé',
       current: formatCurrency(totalEncaisse),
-      previous: '—',
-      change: 0,
+      previous:
+        hasPrevious && prevTotalEncaisse !== undefined
+          ? formatCurrency(prevTotalEncaisse)
+          : '—',
+      change: computeEvolution(totalEncaisse, prevTotalEncaisse),
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'En retard',
       current: formatCurrency(totalEnRetard),
-      previous: '—',
-      change: 0,
+      previous:
+        hasPrevious && prevEnRetardAmount !== undefined
+          ? formatCurrency(prevEnRetardAmount)
+          : '—',
+      change: computeEvolution(totalEnRetard, prevEnRetardAmount),
       unit: '%',
       positiveIsGood: false,
     },
     {
       label: 'Projets actifs',
       current: String(data.projetsActifs),
-      previous: '—',
-      change: 0,
+      previous:
+        hasPrevious && prevProjetsActifs !== undefined
+          ? String(prevProjetsActifs)
+          : '—',
+      change: computeEvolution(data.projetsActifs, prevProjetsActifs),
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'Contrats actifs',
       current: String(data.contratsActifs),
-      previous: '—',
-      change: 0,
+      previous:
+        hasPrevious && prevContratsActifs !== undefined
+          ? String(prevContratsActifs)
+          : '—',
+      change: computeEvolution(data.contratsActifs, prevContratsActifs),
       unit: '%',
       positiveIsGood: true,
     },
   ];
+
+  // ---- Trends for KPI cards ----
+  function trendString(change: number): string | undefined {
+    if (change === 0) return undefined;
+    return `${change > 0 ? '+' : ''}${change}%`;
+  }
+
+  const productionTrend = computeEvolution(totalProduction, prevProduction);
+  const factureTrend = computeEvolution(totalFacture, prevTotalFacture);
+  const encaisseTrend = computeEvolution(totalEncaisse, prevTotalEncaisse);
+  const retardTrend = computeEvolution(totalEnRetard, prevEnRetardAmount);
 
   return (
     <div className="space-y-6">
@@ -373,24 +443,32 @@ export function DashboardPageClient({
           <KpiCard
             label="Production"
             value={formatCurrency(totalProduction)}
+            trend={trendString(productionTrend)}
+            trendUp={productionTrend > 0}
             icon={TrendingUp}
             color="green"
           />
           <KpiCard
             label="Facturé"
             value={formatCurrency(totalFacture)}
+            trend={trendString(factureTrend)}
+            trendUp={factureTrend > 0}
             icon={FileText}
             color="blue"
           />
           <KpiCard
             label="Encaissé"
             value={formatCurrency(totalEncaisse)}
+            trend={trendString(encaisseTrend)}
+            trendUp={encaisseTrend > 0}
             icon={CircleCheck}
             color="green"
           />
           <KpiCard
             label="En retard"
             value={formatCurrency(totalEnRetard)}
+            trend={trendString(retardTrend)}
+            trendUp={retardTrend > 0}
             isNegativeMetric
             icon={AlertTriangle}
             color="red"
@@ -426,11 +504,11 @@ export function DashboardPageClient({
             color="purple"
           />
           <KpiCard
-            label="Temps non saisi"
-            value={`${tempsNonSaisi}j`}
-            subtitle="cette semaine"
+            label="Taux saisie temps"
+            value={`${tauxSaisieTemps}%`}
+            subtitle={`${tempsNonSaisi}j non saisi(s) cette semaine`}
             icon={Calendar}
-            color={tempsNonSaisi > 0 ? 'orange' : 'green'}
+            color={tauxSaisieTemps >= 80 ? 'green' : 'orange'}
           />
         </div>
       </section>

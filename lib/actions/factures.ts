@@ -174,3 +174,121 @@ export async function createFactures(
 
   return { success: true, refs: createdRefs };
 }
+
+export async function createAvoir(params: {
+  factureOrigineId: string;
+  motif: string;
+  montant: number;
+  note?: string;
+}): Promise<{ success: boolean; ref?: string; error?: string }> {
+  const { factureOrigineId, motif, montant, note } = params;
+
+  if (!motif) return { success: false, error: 'Motif requis' };
+  if (montant <= 0) return { success: false, error: 'Montant invalide' };
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  // Fetch origin facture
+  const { data: origine, error: origineError } = await supabase
+    .from('factures')
+    .select(
+      'id, ref, projet_id, client_id, mois_concerne, montant_ht, taux_tva, statut, est_avoir',
+    )
+    .eq('id', factureOrigineId)
+    .single();
+
+  if (origineError || !origine) {
+    return { success: false, error: 'Facture origine introuvable' };
+  }
+
+  if (origine.est_avoir) {
+    return {
+      success: false,
+      error: 'Impossible de créer un avoir sur un avoir',
+    };
+  }
+
+  if (origine.statut !== 'emise' && origine.statut !== 'en_retard') {
+    return { success: false, error: 'La facture doit être émise ou en retard' };
+  }
+
+  if (montant > origine.montant_ht) {
+    return {
+      success: false,
+      error:
+        "Le montant de l'avoir ne peut pas dépasser le montant de la facture",
+    };
+  }
+
+  // Check no existing avoir
+  const { data: existingAvoir } = await supabase
+    .from('factures')
+    .select('id')
+    .eq('est_avoir', true)
+    .eq('facture_origine_id', factureOrigineId)
+    .maybeSingle();
+
+  if (existingAvoir) {
+    return { success: false, error: 'Un avoir existe déjà sur cette facture' };
+  }
+
+  // Calculate amounts (negative)
+  const montantHt = -Math.abs(montant);
+  const montantTva = Math.round(montantHt * origine.taux_tva) / 100;
+  const montantTtc = Math.round((montantHt + montantTva) * 100) / 100;
+
+  const { data: avoir, error: insertError } = await supabase
+    .from('factures')
+    .insert({
+      projet_id: origine.projet_id,
+      client_id: origine.client_id,
+      date_emission: new Date().toISOString().split('T')[0]!,
+      date_echeance: new Date().toISOString().split('T')[0]!,
+      mois_concerne: origine.mois_concerne,
+      montant_ht: montantHt,
+      taux_tva: origine.taux_tva,
+      montant_tva: montantTva,
+      montant_ttc: montantTtc,
+      statut: 'avoir',
+      est_avoir: true,
+      avoir_motif: note ? `${motif} — ${note}` : motif,
+      facture_origine_id: factureOrigineId,
+      created_by: user.id,
+    })
+    .select('id, ref')
+    .single();
+
+  if (insertError || !avoir) {
+    return {
+      success: false,
+      error: insertError?.message ?? 'Erreur de création',
+    };
+  }
+
+  // Fetch first contrat_id from origin facture lignes (required by schema)
+  const { data: origineLignes } = await supabase
+    .from('facture_lignes')
+    .select('contrat_id')
+    .eq('facture_id', factureOrigineId)
+    .limit(1)
+    .maybeSingle();
+
+  if (origineLignes?.contrat_id) {
+    await supabase.from('facture_lignes').insert({
+      facture_id: avoir.id,
+      contrat_id: origineLignes.contrat_id,
+      description: `Avoir sur ${origine.ref} — ${motif}`,
+      montant_ht: montantHt,
+    });
+  }
+
+  revalidatePath('/facturation');
+  revalidatePath(`/facturation/${origine.ref}`);
+
+  return { success: true, ref: avoir.ref ?? undefined };
+}

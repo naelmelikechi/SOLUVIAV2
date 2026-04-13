@@ -45,7 +45,7 @@ export async function getDashboardData() {
 export interface ProductionRow {
   mois: string; // YYYY-MM-DD (first of month)
   label: string; // "Janvier 2026" etc.
-  production: number; // revenue earned (uses facture as proxy)
+  production: number; // revenue earned (prorated from active contrats)
   facture: number; // invoiced amount
   encaisse: number; // collected amount
   en_retard: number; // overdue amount
@@ -76,24 +76,70 @@ export async function getProductionData(): Promise<ProductionRow[]> {
   const firstMonth = months[0];
   const lastMonth = months[months.length - 1];
 
-  // Fetch factures within the month range
-  const { data: factures } = await supabase
-    .from('factures')
-    .select('montant_ht, statut, mois_concerne')
-    .gte('mois_concerne', firstMonth)
-    .lte('mois_concerne', lastMonth)
-    .neq('statut', 'avoir');
+  // Fetch all data in parallel
+  const [facturesRes, paiementsRes, contratsRes] = await Promise.all([
+    // Factures within the month range
+    supabase
+      .from('factures')
+      .select('montant_ht, statut, mois_concerne')
+      .gte('mois_concerne', firstMonth)
+      .lte('mois_concerne', lastMonth)
+      .neq('statut', 'avoir'),
 
-  // Fetch paiements with their facture's mois_concerne
-  const { data: paiements } = await supabase
-    .from('paiements')
-    .select(
-      'montant, facture:factures!paiements_facture_id_fkey(mois_concerne)',
-    )
-    .gte('facture.mois_concerne', firstMonth)
-    .lte('facture.mois_concerne', lastMonth);
+    // Paiements with their facture's mois_concerne
+    supabase
+      .from('paiements')
+      .select(
+        'montant, facture:factures!paiements_facture_id_fkey(mois_concerne)',
+      )
+      .gte('facture.mois_concerne', firstMonth)
+      .lte('facture.mois_concerne', lastMonth),
 
-  // Build lookup maps keyed by mois (YYYY-MM)
+    // Non-archived contrats with their projet's taux_commission
+    supabase
+      .from('contrats')
+      .select(
+        'date_debut, duree_mois, montant_prise_en_charge, projet:projets!contrats_projet_id_fkey(taux_commission)',
+      )
+      .eq('archive', false),
+  ]);
+
+  const factures = facturesRes.data;
+  const paiements = paiementsRes.data;
+  const contrats = contratsRes.data;
+
+  // ---------------------------------------------------------------------------
+  // 1. Compute real production month-by-month from contrats
+  // ---------------------------------------------------------------------------
+  const productionByMonth = new Map<string, number>();
+
+  for (const c of contrats ?? []) {
+    if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
+    if (!c.montant_prise_en_charge || c.montant_prise_en_charge <= 0) continue;
+
+    // projet is returned as a single object (many-to-one relation)
+    const projet = c.projet as { taux_commission: number } | null;
+    if (!projet) continue;
+
+    // Monthly production at OPCO level = full montant / duration
+    const monthlyProduction =
+      Math.round((c.montant_prise_en_charge / c.duree_mois) * 100) / 100;
+
+    // Determine the months this contrat is active
+    const start = startOfMonth(new Date(c.date_debut + 'T00:00:00'));
+    for (let i = 0; i < c.duree_mois; i++) {
+      const m = addMonths(start, i);
+      const key = format(m, 'yyyy-MM');
+      productionByMonth.set(
+        key,
+        (productionByMonth.get(key) ?? 0) + monthlyProduction,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 2. Build facturé and encaissé lookup maps keyed by mois (YYYY-MM)
+  // ---------------------------------------------------------------------------
   const factureByMonth = new Map<
     string,
     { facture: number; en_retard: number }
@@ -120,16 +166,17 @@ export async function getProductionData(): Promise<ProductionRow[]> {
     encaisseByMonth.set(key, (encaisseByMonth.get(key) ?? 0) + p.montant);
   }
 
-  // Assemble rows
+  // ---------------------------------------------------------------------------
+  // 3. Assemble rows
+  // ---------------------------------------------------------------------------
   return months.map((mois) => {
     const key = mois.slice(0, 7);
     const fData = factureByMonth.get(key);
-    const facture = fData?.facture ?? 0;
-    const en_retard = fData?.en_retard ?? 0;
-    const encaisse = encaisseByMonth.get(key) ?? 0;
-
-    // Use facture as proxy for production (task spec says this is acceptable)
-    const production = facture;
+    const facture = Math.round((fData?.facture ?? 0) * 100) / 100;
+    const en_retard = Math.round((fData?.en_retard ?? 0) * 100) / 100;
+    const encaisse = Math.round((encaisseByMonth.get(key) ?? 0) * 100) / 100;
+    const production =
+      Math.round((productionByMonth.get(key) ?? 0) * 100) / 100;
 
     const d = new Date(mois + 'T00:00:00');
     const label = capitalize(format(d, 'MMM yyyy', { locale: fr }));
@@ -148,6 +195,7 @@ export interface DashboardFinancials {
   totalEncaisse: number; // sum of paiements.montant
   nbApprenantsActifs: number; // count of active contrats
   tempsNonSaisi: number; // days without time entries this week
+  tauxSaisieTemps: number; // % of time entries filled this month
 }
 
 export async function getDashboardFinancials(): Promise<DashboardFinancials> {
@@ -163,7 +211,19 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
   const mondayStr = format(monday, 'yyyy-MM-dd');
   const todayStr = format(now, 'yyyy-MM-dd');
 
-  const [facturesRes, paiementsRes, contratsRes, tempsRes] = await Promise.all([
+  // Month boundaries for taux saisie temps
+  const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
+  const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
+
+  const [
+    facturesRes,
+    paiementsRes,
+    contratsRes,
+    tempsRes,
+    tempsMonthRes,
+    usersRes,
+    feriesRes,
+  ] = await Promise.all([
     supabase
       .from('factures')
       .select('montant_ht, statut')
@@ -179,6 +239,24 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
       .select('date')
       .gte('date', mondayStr)
       .lte('date', todayStr),
+    // Monthly time entries for taux saisie
+    supabase
+      .from('saisies_temps')
+      .select('user_id, date')
+      .gte('date', monthStart)
+      .lte('date', monthEnd),
+    // Active users (admin + cdp)
+    supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .eq('actif', true)
+      .in('role', ['admin', 'cdp']),
+    // Public holidays for current month
+    supabase
+      .from('jours_feries')
+      .select('date')
+      .gte('date', monthStart)
+      .lte('date', monthEnd),
   ]);
 
   const totalFacture = (facturesRes.data ?? []).reduce(
@@ -210,11 +288,70 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
 
   const tempsNonSaisi = Math.max(0, businessDays - daysWithEntries);
 
+  // ---- Taux saisie temps (monthly) ----
+  const feriesSet = new Set((feriesRes.data ?? []).map((f) => f.date));
+  const allDaysInMonth = eachDayOfInterval({
+    start: startOfMonth(now),
+    end: now <= endOfMonth(now) ? now : endOfMonth(now),
+  });
+  const monthBusinessDays = allDaysInMonth.filter(
+    (d) => !isWeekend(d) && !feriesSet.has(format(d, 'yyyy-MM-dd')),
+  ).length;
+
+  const activeUsers = usersRes.count ?? 0;
+
+  // Count distinct (user_id, date) pairs
+  const monthEntryPairs = new Set(
+    (tempsMonthRes.data ?? []).map((t) => `${t.user_id}|${t.date}`),
+  );
+  const distinctEntries = monthEntryPairs.size;
+
+  const expectedEntries = monthBusinessDays * activeUsers;
+  const tauxSaisieTemps =
+    expectedEntries > 0
+      ? Math.round((distinctEntries / expectedEntries) * 100)
+      : 0;
+
   return {
     totalProduction,
     totalFacture,
     totalEncaisse,
     nbApprenantsActifs,
     tempsNonSaisi,
+    tauxSaisieTemps,
   };
+}
+
+// ---------------------------------------------------------------------------
+// KPI Snapshots (M-1 comparison)
+// ---------------------------------------------------------------------------
+
+export type KpiSnapshotMap = Record<string, number>;
+
+/**
+ * Fetch all global KPI snapshots for a given month.
+ * Returns a map of type_kpi -> valeur.
+ */
+export async function getKpiSnapshots(mois: string): Promise<KpiSnapshotMap> {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from('kpi_snapshots')
+    .select('type_kpi, valeur')
+    .eq('mois', mois)
+    .eq('scope', 'global');
+
+  const map: KpiSnapshotMap = {};
+  for (const row of data ?? []) {
+    map[row.type_kpi] = row.valeur;
+  }
+  return map;
+}
+
+// ---------------------------------------------------------------------------
+// Taux saisie temps (standalone, for KPI card)
+// ---------------------------------------------------------------------------
+
+export interface TauxSaisieTemps {
+  taux: number; // percentage 0-100
 }

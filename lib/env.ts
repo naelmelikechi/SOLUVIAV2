@@ -65,14 +65,16 @@ const isServer = typeof window === 'undefined';
 type Env = z.infer<typeof serverSchema>;
 
 function parseEnv(): Env {
+  // Trim all values to prevent issues from trailing newlines in env vars
   const source = {
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    CRON_SECRET: process.env.CRON_SECRET,
-    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
-    RESEND_API_KEY: process.env.RESEND_API_KEY,
-    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim(),
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
+    CRON_SECRET: process.env.CRON_SECRET?.trim(),
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY?.trim(),
+    RESEND_API_KEY: process.env.RESEND_API_KEY?.trim(),
+    NODE_ENV: process.env.NODE_ENV?.trim(),
   };
 
   const schema = isServer ? serverSchema : clientSchema;

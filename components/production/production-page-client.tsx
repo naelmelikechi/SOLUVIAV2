@@ -447,16 +447,72 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
         <Card className="overflow-x-auto" ref={tableRef}>
           <Table>
             <TableHeader>
+              {/* Grouped column header row */}
+              <TableRow className="border-b-0">
+                <TableHead rowSpan={2} className="align-bottom" />
+                {showGroups.mois && (
+                  <TableHead
+                    colSpan={3}
+                    className="border-l-2 border-l-emerald-500 text-center text-xs font-semibold tracking-wider uppercase"
+                  >
+                    Mois
+                  </TableHead>
+                )}
+                {showGroups.soldes && (
+                  <TableHead
+                    colSpan={3}
+                    className="border-l-2 border-l-blue-500 text-center text-xs font-semibold tracking-wider uppercase"
+                  >
+                    Soldes
+                  </TableHead>
+                )}
+                {showGroups.rolling12 && (
+                  <TableHead
+                    colSpan={1}
+                    className="border-l-accent border-l-2 text-center text-xs font-semibold tracking-wider uppercase"
+                  >
+                    12 Mois
+                  </TableHead>
+                )}
+                {showGroups.annee && (
+                  <TableHead
+                    colSpan={1}
+                    className="border-l-2 border-l-purple-500 text-center text-xs font-semibold tracking-wider uppercase"
+                  >
+                    Annee
+                  </TableHead>
+                )}
+              </TableRow>
+              {/* Column sub-headers */}
               <TableRow>
-                <TableHead>Mois</TableHead>
-                <TableHead className="text-right">Production</TableHead>
-                <TableHead className="text-right">Facturé</TableHead>
-                <TableHead className="text-right">Encaissé</TableHead>
-                <TableHead className="text-right">En retard</TableHead>
-                <TableHead className="text-right">RAF</TableHead>
-                <TableHead className="text-right">RAE</TableHead>
-                <TableHead className="text-right">12M</TableHead>
-                <TableHead className="text-right">Année</TableHead>
+                {showGroups.mois && (
+                  <>
+                    <TableHead className="border-l-2 border-l-emerald-500 text-right">
+                      Production
+                    </TableHead>
+                    <TableHead className="text-right">Facture</TableHead>
+                    <TableHead className="text-right">Encaisse</TableHead>
+                  </>
+                )}
+                {showGroups.soldes && (
+                  <>
+                    <TableHead className="border-l-2 border-l-blue-500 text-right">
+                      En retard
+                    </TableHead>
+                    <TableHead className="text-right">RAF</TableHead>
+                    <TableHead className="text-right">RAE</TableHead>
+                  </>
+                )}
+                {showGroups.rolling12 && (
+                  <TableHead className="border-l-accent border-l-2 text-right">
+                    12M
+                  </TableHead>
+                )}
+                {showGroups.annee && (
+                  <TableHead className="border-l-2 border-l-purple-500 text-right">
+                    Annee
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -473,41 +529,58 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                 >
                   <TableCell className="font-medium">
                     <span className="flex items-center gap-1.5">
+                      {row.isCurrent && (
+                        <span className="text-primary mr-1">&#9654;</span>
+                      )}
                       {row.label}
                       <ChevronRight className="text-muted-foreground h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
                     </span>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCurrency(row.production)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {row.isFuture ? '—' : formatCurrency(row.facture)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {row.isFuture ? '—' : formatCurrency(row.encaisse)}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right tabular-nums',
-                      !row.isFuture &&
-                        row.en_retard > 0 &&
-                        'font-semibold text-red-600',
-                    )}
-                  >
-                    {row.isFuture ? '—' : formatCurrency(row.en_retard)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCurrency(row.raf)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {row.isFuture ? '—' : formatCurrency(row.rae)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-right tabular-nums">
-                    {formatCurrency(row.rolling12)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-right tabular-nums">
-                    {formatCurrency(row.ytd)}
-                  </TableCell>
+                  {showGroups.mois && (
+                    <>
+                      <TableCell className="border-l-2 border-l-emerald-500 text-right tabular-nums">
+                        {formatCurrency(row.production)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {row.isFuture ? '\u2014' : formatCurrency(row.facture)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {row.isFuture ? '\u2014' : formatCurrency(row.encaisse)}
+                      </TableCell>
+                    </>
+                  )}
+                  {showGroups.soldes && (
+                    <>
+                      <TableCell
+                        className={cn(
+                          'border-l-2 border-l-blue-500 text-right tabular-nums',
+                          !row.isFuture &&
+                            row.en_retard > 0 &&
+                            'font-semibold text-red-600',
+                        )}
+                      >
+                        {row.isFuture
+                          ? '\u2014'
+                          : formatCurrency(row.en_retard)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCurrency(row.raf)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {row.isFuture ? '\u2014' : formatCurrency(row.rae)}
+                      </TableCell>
+                    </>
+                  )}
+                  {showGroups.rolling12 && (
+                    <TableCell className="border-l-accent text-muted-foreground border-l-2 text-right tabular-nums">
+                      {formatCurrency(row.rolling12)}
+                    </TableCell>
+                  )}
+                  {showGroups.annee && (
+                    <TableCell className="text-muted-foreground border-l-2 border-l-purple-500 text-right tabular-nums">
+                      {formatCurrency(row.ytd)}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -522,9 +595,10 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Client</TableHead>
+                <TableHead className="text-right">Projets</TableHead>
                 <TableHead className="text-right">Production</TableHead>
-                <TableHead className="text-right">Facturé</TableHead>
-                <TableHead className="text-right">Encaissé</TableHead>
+                <TableHead className="text-right">Facture</TableHead>
+                <TableHead className="text-right">Encaisse</TableHead>
                 <TableHead className="text-right">En retard</TableHead>
               </TableRow>
             </TableHeader>
@@ -532,10 +606,10 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
               {clientData.length === 0 && !isPending ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={6}
                     className="text-muted-foreground py-8 text-center"
                   >
-                    Aucune donnée pour ce mois
+                    Aucune donnee pour ce mois
                   </TableCell>
                 </TableRow>
               ) : (
@@ -552,6 +626,9 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                         {row.clientName}
                         <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
                       </span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                      {row.nbProjets}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(
@@ -585,6 +662,9 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
               {clientData.length > 0 && (
                 <TableRow className="border-t-2 font-semibold">
                   <TableCell>Total</TableCell>
+                  <TableCell className="text-muted-foreground text-right tabular-nums">
+                    {clientData.reduce((s, r) => s + r.nbProjets, 0)}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCurrency(
                       Math.round(
@@ -637,9 +717,11 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Projet</TableHead>
+                <TableHead className="text-right">Commission</TableHead>
+                <TableHead className="text-right">Contrats</TableHead>
                 <TableHead className="text-right">Production</TableHead>
-                <TableHead className="text-right">Facturé</TableHead>
-                <TableHead className="text-right">Encaissé</TableHead>
+                <TableHead className="text-right">Facture</TableHead>
+                <TableHead className="text-right">Encaisse</TableHead>
                 <TableHead className="text-right">En retard</TableHead>
               </TableRow>
             </TableHeader>
@@ -647,10 +729,10 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
               {projetData.length === 0 && !isPending ? (
                 <TableRow>
                   <TableCell
-                    colSpan={5}
+                    colSpan={7}
                     className="text-muted-foreground py-8 text-center"
                   >
-                    Aucune donnée pour ce client
+                    Aucune donnee pour ce client
                   </TableCell>
                 </TableRow>
               ) : (
@@ -658,6 +740,12 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                   <TableRow key={row.projetId}>
                     <TableCell className="font-medium">
                       {row.projetRef}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                      {row.commission > 0 ? `${row.commission} %` : '\u2014'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                      {row.nbContrats}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(
@@ -691,6 +779,10 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
               {projetData.length > 0 && (
                 <TableRow className="border-t-2 font-semibold">
                   <TableCell>Total</TableCell>
+                  <TableCell />
+                  <TableCell className="text-muted-foreground text-right tabular-nums">
+                    {projetData.reduce((s, r) => s + r.nbContrats, 0)}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCurrency(
                       Math.round(

@@ -5,6 +5,7 @@ import {
   getWeekDates,
   getSaisiesForWeek,
   getTeamWeekSummary,
+  getUserProjets,
 } from '@/lib/queries/temps';
 
 // ---------------------------------------------------------------------------
@@ -205,4 +206,44 @@ export async function copyPreviousWeek(
     return { success: false, copied: 0, error: insertError.message };
 
   return { success: true, copied: rowsToInsert.length };
+}
+
+// ---------------------------------------------------------------------------
+// fetchAvailableProjets — get projects user can add to their week
+// ---------------------------------------------------------------------------
+
+export async function fetchAvailableProjets(): Promise<
+  { id: string; ref: string; label: string }[]
+> {
+  return getUserProjets();
+}
+
+// ---------------------------------------------------------------------------
+// addProjetToWeek — create an empty saisie for a project on Monday
+// ---------------------------------------------------------------------------
+
+export async function addProjetToWeek(
+  projetId: string,
+  date: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  // Insert a 0h entry so the project row appears in the grid
+  const { error } = await supabase.from('saisies_temps').upsert(
+    {
+      user_id: user.id,
+      projet_id: projetId,
+      date,
+      heures: 0,
+    },
+    { onConflict: 'user_id,projet_id,date' },
+  );
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
 }

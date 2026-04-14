@@ -2,14 +2,22 @@
 
 import { useState, useCallback, useTransition } from 'react';
 import Link from 'next/link';
-import { Copy, Download, Users } from 'lucide-react';
+import { Copy, Download, Users, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import {
   fetchWeekData,
   saveSaisieTempsAxes,
   copyPreviousWeek,
+  fetchAvailableProjets,
+  addProjetToWeek,
 } from '@/lib/actions/temps';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { TimeWeekNavigator } from '@/components/temps/time-week-navigator';
@@ -38,6 +46,13 @@ export function TempsPageClient({
     date: string;
   } | null>(null);
 
+  // Add project dialog
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [availableProjets, setAvailableProjets] = useState<
+    { id: string; ref: string; label: string }[]
+  >([]);
+  const [addingProjet, setAddingProjet] = useState(false);
+
   const selectedSaisie = selectedCell
     ? saisies.find((s) => s.projet_id === selectedCell.projetId)
     : null;
@@ -55,6 +70,43 @@ export function TempsPageClient({
   const handleCellClick = useCallback((projetId: string, date: string) => {
     setSelectedCell({ projetId, date });
   }, []);
+
+  const handleOpenAddDialog = useCallback(async () => {
+    setAddDialogOpen(true);
+    const projets = await fetchAvailableProjets();
+    // Filter out projects already in the grid
+    const existingIds = new Set(saisies.map((s) => s.projet_id));
+    setAvailableProjets(projets.filter((p) => !existingIds.has(p.id)));
+  }, [saisies]);
+
+  const handleAddProjet = useCallback(
+    async (projet: { id: string; ref: string; label: string }) => {
+      setAddingProjet(true);
+      const monday = weekDates[0]!;
+      const result = await addProjetToWeek(projet.id, monday);
+      setAddingProjet(false);
+
+      if (result.success) {
+        // Add empty row to local state
+        setSaisies((prev) => [
+          ...prev,
+          {
+            projet_id: projet.id,
+            projet_ref: projet.ref,
+            projet_label: projet.label,
+            est_absence: false,
+            heures: {},
+            axes: {},
+          },
+        ]);
+        setAddDialogOpen(false);
+        toast.success(`${projet.ref} ajouté à votre semaine`);
+      } else {
+        toast.error(result.error ?? 'Erreur');
+      }
+    },
+    [weekDates],
+  );
 
   const handleClosePanel = useCallback(() => {
     setSelectedCell(null);
@@ -187,12 +239,45 @@ export function TempsPageClient({
           />
 
           {/* Add project */}
-          <button className="border-border text-muted-foreground hover:border-primary/30 hover:text-foreground mt-4 flex w-full items-center gap-3 rounded-[10px] border-2 border-dashed px-5 py-3.5 text-sm transition-colors">
+          <button
+            onClick={handleOpenAddDialog}
+            className="border-border text-muted-foreground hover:border-primary/30 hover:text-foreground mt-4 flex w-full items-center gap-3 rounded-[10px] border-2 border-dashed px-5 py-3.5 text-sm transition-colors"
+          >
             <span className="text-primary flex h-7 w-7 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-sm font-bold">
-              +
+              <Plus className="h-4 w-4" />
             </span>
             Ajouter un projet à ma semaine...
           </button>
+
+          {/* Add project dialog */}
+          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Ajouter un projet</DialogTitle>
+              </DialogHeader>
+              <div className="max-h-64 space-y-1 overflow-y-auto">
+                {availableProjets.length === 0 ? (
+                  <p className="text-muted-foreground py-6 text-center text-sm">
+                    Tous vos projets sont déjà dans la semaine
+                  </p>
+                ) : (
+                  availableProjets.map((projet) => (
+                    <button
+                      key={projet.id}
+                      disabled={addingProjet}
+                      onClick={() => handleAddProjet(projet)}
+                      className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
+                    >
+                      <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
+                        {projet.ref}
+                      </span>
+                      <span className="text-sm">{projet.label}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Axis panel */}

@@ -31,7 +31,9 @@ export async function getClientById(id: string) {
 
   const { data, error } = await supabase
     .from('clients')
-    .select('*')
+    .select(
+      'id, trigramme, raison_sociale, siret, adresse, localisation, numero_qualiopi, numero_nda, numero_uai, date_entree, archive, tva_intracommunautaire, created_at',
+    )
     .eq('id', id)
     .single();
 

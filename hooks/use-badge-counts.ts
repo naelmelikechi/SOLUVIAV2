@@ -53,48 +53,56 @@ function getBusinessDaysElapsed(): number {
 }
 
 // ---------------------------------------------------------------------------
-// Core fetch logic (returns a Promise so callers can use .then())
+// Targeted fetch functions — one per badge type
 // ---------------------------------------------------------------------------
 
-async function fetchBadgeCounts(): Promise<BadgeCounts> {
-  const supabase = createClient();
+const supabaseClient = () => createClient();
 
-  const [facturesRes, tempsRes, notifRes, tachesRes] = await Promise.all([
-    supabase
-      .from('factures')
-      .select('id', { count: 'exact', head: true })
-      .eq('statut', 'en_retard'),
+async function fetchFacturesCount(): Promise<number> {
+  const res = await supabaseClient()
+    .from('factures')
+    .select('id', { count: 'exact', head: true })
+    .eq('statut', 'en_retard');
+  return res.count ?? 0;
+}
 
-    // Get the dates this week that already have time entries for the user.
-    // RLS ensures we only see the current user's rows.
-    supabase
-      .from('saisies_temps')
-      .select('date')
-      .gte('date', getMondayISO())
-      .lte('date', getFridayISO()),
+async function fetchTempsCount(): Promise<number> {
+  const res = await supabaseClient()
+    .from('saisies_temps')
+    .select('date')
+    .gte('date', getMondayISO())
+    .lte('date', getFridayISO());
+  const uniqueDays = new Set((res.data ?? []).map((s) => s.date));
+  return Math.max(0, getBusinessDaysElapsed() - uniqueDays.size);
+}
 
-    // Unread notifications for the current user (RLS-filtered).
-    supabase
-      .from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .is('read_at', null),
+async function fetchNotificationsCount(): Promise<number> {
+  const res = await supabaseClient()
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .is('read_at', null);
+  return res.count ?? 0;
+}
 
-    // Quality tasks not yet completed.
-    supabase
-      .from('taches_qualite')
-      .select('id', { count: 'exact', head: true })
-      .eq('fait', false),
-  ]);
+async function fetchQualiteCount(): Promise<number> {
+  const res = await supabaseClient()
+    .from('taches_qualite')
+    .select('id', { count: 'exact', head: true })
+    .eq('fait', false);
+  return res.count ?? 0;
+}
 
-  const uniqueDays = new Set((tempsRes.data ?? []).map((s) => s.date));
-  const businessDaysElapsed = getBusinessDaysElapsed();
+/** Fetch all badge counts at once (used for initial load). */
+async function fetchAllBadgeCounts(): Promise<BadgeCounts> {
+  const [facturesEnRetard, tempsNonSaisi, notifications, tachesEnAttente] =
+    await Promise.all([
+      fetchFacturesCount(),
+      fetchTempsCount(),
+      fetchNotificationsCount(),
+      fetchQualiteCount(),
+    ]);
 
-  return {
-    facturesEnRetard: facturesRes.count ?? 0,
-    tempsNonSaisi: Math.max(0, businessDaysElapsed - uniqueDays.size),
-    notifications: notifRes.count ?? 0,
-    tachesEnAttente: tachesRes.count ?? 0,
-  };
+  return { facturesEnRetard, tempsNonSaisi, notifications, tachesEnAttente };
 }
 
 // ---------------------------------------------------------------------------
@@ -105,19 +113,48 @@ export function useBadgeCounts(): BadgeCounts {
   const [counts, setCounts] = useState<BadgeCounts>(INITIAL_COUNTS);
   const mountedRef = useRef(true);
 
-  const refresh = useCallback(() => {
-    fetchBadgeCounts().then((next) => {
+  // Targeted updaters — only re-fetch the count that changed
+  const refreshAll = useCallback(() => {
+    fetchAllBadgeCounts().then((next) => {
       if (mountedRef.current) setCounts(next);
+    });
+  }, []);
+
+  const refreshFactures = useCallback(() => {
+    fetchFacturesCount().then((v) => {
+      if (mountedRef.current)
+        setCounts((prev) => ({ ...prev, facturesEnRetard: v }));
+    });
+  }, []);
+
+  const refreshNotifications = useCallback(() => {
+    fetchNotificationsCount().then((v) => {
+      if (mountedRef.current)
+        setCounts((prev) => ({ ...prev, notifications: v }));
+    });
+  }, []);
+
+  const refreshTemps = useCallback(() => {
+    fetchTempsCount().then((v) => {
+      if (mountedRef.current)
+        setCounts((prev) => ({ ...prev, tempsNonSaisi: v }));
+    });
+  }, []);
+
+  const refreshQualite = useCallback(() => {
+    fetchQualiteCount().then((v) => {
+      if (mountedRef.current)
+        setCounts((prev) => ({ ...prev, tachesEnAttente: v }));
     });
   }, []);
 
   useEffect(() => {
     mountedRef.current = true;
 
-    // Initial fetch — setState happens inside .then(), not synchronously.
-    refresh();
+    // Initial fetch — all counts at once.
+    refreshAll();
 
-    // Subscribe to Realtime changes so badges stay up-to-date.
+    // Subscribe to Realtime changes — only refresh the relevant badge.
     const supabase = createClient();
 
     const channel = supabase
@@ -125,22 +162,22 @@ export function useBadgeCounts(): BadgeCounts {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'factures' },
-        () => refresh(),
+        () => refreshFactures(),
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications' },
-        () => refresh(),
+        () => refreshNotifications(),
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'saisies_temps' },
-        () => refresh(),
+        () => refreshTemps(),
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'taches_qualite' },
-        () => refresh(),
+        () => refreshQualite(),
       )
       .subscribe();
 
@@ -148,7 +185,13 @@ export function useBadgeCounts(): BadgeCounts {
       mountedRef.current = false;
       supabase.removeChannel(channel);
     };
-  }, [refresh]);
+  }, [
+    refreshAll,
+    refreshFactures,
+    refreshNotifications,
+    refreshTemps,
+    refreshQualite,
+  ]);
 
   return counts;
 }

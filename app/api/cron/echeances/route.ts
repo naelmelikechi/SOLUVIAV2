@@ -24,7 +24,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: projetsError.message }, { status: 500 });
   }
 
-  let created = 0;
+  const allEcheances: Array<{
+    projet_id: string;
+    mois_concerne: string;
+    date_emission_prevue: string;
+    montant_prevu_ht: number;
+  }> = [];
 
   for (const projet of projets ?? []) {
     const contrats = projet.contrats ?? [];
@@ -57,25 +62,33 @@ export async function POST(request: Request) {
         const montant =
           m === 10 && dureeMois >= 12 ? montantMensuel * 3 : montantMensuel;
 
-        const { error: insertError } = await supabase.from('echeances').upsert(
-          {
-            projet_id: projet.id,
-            mois_concerne: moisStr,
-            date_emission_prevue: new Date(
-              echeanceDate.getFullYear(),
-              echeanceDate.getMonth(),
-              25,
-            )
-              .toISOString()
-              .split('T')[0]!,
-            montant_prevu_ht: montant,
-          },
-          { onConflict: 'projet_id,mois_concerne', ignoreDuplicates: true },
-        );
-
-        if (!insertError) created++;
+        allEcheances.push({
+          projet_id: projet.id,
+          mois_concerne: moisStr,
+          date_emission_prevue: new Date(
+            echeanceDate.getFullYear(),
+            echeanceDate.getMonth(),
+            25,
+          )
+            .toISOString()
+            .split('T')[0]!,
+          montant_prevu_ht: montant,
+        });
       }
     }
+  }
+
+  // Single batch upsert instead of N+1 individual calls
+  let created = 0;
+  if (allEcheances.length > 0) {
+    const { error } = await supabase
+      .from('echeances')
+      .upsert(allEcheances, {
+        onConflict: 'projet_id,mois_concerne',
+        ignoreDuplicates: true,
+      });
+
+    if (!error) created = allEcheances.length;
   }
 
   return NextResponse.json({ success: true, echeances_created: created });

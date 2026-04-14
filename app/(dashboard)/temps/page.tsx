@@ -5,6 +5,7 @@ import { isAdmin } from '@/lib/utils/roles';
 import { TempsPageClient } from '@/components/temps/temps-page-client';
 
 export const metadata: Metadata = { title: 'Temps — SOLUVIA' };
+export const revalidate = 120;
 
 export default async function TempsPage() {
   const [weekDates, user] = await Promise.all([

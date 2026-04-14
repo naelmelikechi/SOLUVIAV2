@@ -9,6 +9,7 @@ import { ProjetsDataTable } from '@/components/projets/projets-data-table';
 import { ProjetCreateButton } from '@/components/projets/projet-create-button';
 
 export const metadata: Metadata = { title: 'Projets — SOLUVIA' };
+export const revalidate = 60;
 
 export default async function ProjetsPage() {
   const [projets, clients, typologies, users, currentUser] = await Promise.all([

@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { QualiteDataTable } from '@/components/qualite/qualite-data-table';
 
 export const metadata: Metadata = { title: 'Qualité — SOLUVIA' };
+export const revalidate = 60;
 
 export default async function QualitePage() {
   const data = await getQualiteSummaries();

@@ -11,6 +11,7 @@ import { DashboardPageClient } from '@/components/dashboard/dashboard-page-clien
 import { format, startOfMonth, addMonths } from 'date-fns';
 
 export const metadata: Metadata = { title: 'Tableau de bord — SOLUVIA' };
+export const revalidate = 30;
 
 export default async function DashboardPage() {
   const now = new Date();

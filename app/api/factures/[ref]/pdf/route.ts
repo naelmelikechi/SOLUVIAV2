@@ -38,6 +38,7 @@ export async function GET(
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="${facture.ref}.pdf"`,
+      'Cache-Control': 'public, max-age=86400, immutable',
     },
   });
 }

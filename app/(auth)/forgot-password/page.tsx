@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
           width={160}
           height={40}
           priority
-          className="dark:brightness-0 dark:invert"
+          className=""
         />
         <h2 className="text-foreground mt-4 text-lg font-semibold">
           Réinitialiser votre mot de passe

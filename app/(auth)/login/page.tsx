@@ -46,7 +46,7 @@ export default function LoginPage() {
           width={160}
           height={40}
           priority
-          className="dark:brightness-0 dark:invert"
+          className=""
         />
         <p className="text-muted-foreground mt-4 text-sm">
           Connectez-vous à votre compte

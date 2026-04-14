@@ -271,7 +271,7 @@ export function Sidebar({
             >
               {user ? (
                 <img
-                  src={`https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(user.email)}&radius=50`}
+                  src={`https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(user.email + new Date().toISOString().slice(0, 10))}&radius=50`}
                   alt={`${user.prenom} ${user.nom}`}
                   className="h-full w-full"
                 />
@@ -301,7 +301,7 @@ export function Sidebar({
               >
                 {user ? (
                   <img
-                    src={`https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(user.email)}&radius=50`}
+                    src={`https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(user.email + new Date().toISOString().slice(0, 10))}&radius=50`}
                     alt={`${user.prenom} ${user.nom}`}
                     className="h-full w-full"
                   />

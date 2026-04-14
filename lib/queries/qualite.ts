@@ -104,7 +104,9 @@ export async function getTachesByProjetRef(ref: string) {
   // Get tasks
   const { data: taches, error: tError } = await supabase
     .from('taches_qualite')
-    .select('id, famille_code, famille_libelle, livrable, fait, eduvia_url')
+    .select(
+      'id, famille_code, famille_libelle, indicateur, livrable, fait, eduvia_url',
+    )
     .eq('projet_id', projet.id)
     .order('famille_code')
     .order('livrable');

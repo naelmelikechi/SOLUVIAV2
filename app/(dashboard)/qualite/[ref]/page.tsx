@@ -41,6 +41,12 @@ export default async function QualiteDetailPage({
   }
   const familles = Array.from(famillesMap.values());
 
+  // Compute familles conformes count
+  const totalFamilles = familles.length;
+  const famillesConformes = familles.filter(
+    (f) => f.taches.length > 0 && f.taches.every((t) => t.fait),
+  ).length;
+
   return (
     <div>
       <PageHeader title="Qualité">
@@ -56,6 +62,14 @@ export default async function QualiteDetailPage({
           <span className="text-muted-foreground">Livrables : </span>
           <span className="text-primary font-semibold">{totalDone}</span>
           <span className="text-muted-foreground"> / {taches.length}</span>
+          <span className="text-muted-foreground"> · </span>
+          <span className="text-primary font-semibold">
+            {famillesConformes}
+          </span>
+          <span className="text-muted-foreground">
+            {' '}
+            / {totalFamilles} familles conformes
+          </span>
         </div>
         <StatusBadge label="Eduvia" color="orange" />
       </div>
@@ -66,6 +80,10 @@ export default async function QualiteDetailPage({
           const total = famille.taches.length;
           const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
+          const indicateurs = new Set(
+            famille.taches.map((t) => t.indicateur).filter(Boolean),
+          ).size;
+
           return (
             <FamilleCard
               key={famille.code}
@@ -74,6 +92,7 @@ export default async function QualiteDetailPage({
               done={done}
               total={total}
               pct={pct}
+              indicateurs={indicateurs}
               livrables={famille.taches.map((t) => ({
                 id: t.id,
                 label: t.livrable ?? '',

@@ -42,7 +42,7 @@ export const qualiteListColumns: ColumnDef<QualiteSummary>[] = [
   {
     accessorKey: 'pct',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Complétion" />
+      <DataTableColumnHeader column={column} title="Progression" />
     ),
     cell: ({ row }) => {
       const pct = row.original.pct;
@@ -67,35 +67,23 @@ export const qualiteListColumns: ColumnDef<QualiteSummary>[] = [
   },
   {
     accessorKey: 'terminees',
+    id: 'livrables',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Terminées" />
+      <DataTableColumnHeader column={column} title="Livrables" />
     ),
     cell: ({ row }) => (
-      <span className="text-primary text-sm font-medium tabular-nums">
-        {row.original.terminees}
+      <span className="text-sm tabular-nums">
+        <span className="text-primary font-medium">
+          {row.original.terminees}
+        </span>
+        <span className="text-muted-foreground"> / {row.original.total}</span>
       </span>
     ),
   },
   {
-    accessorKey: 'a_realiser',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="À réaliser" />
-    ),
-    cell: ({ row }) => {
-      const count = row.original.a_realiser;
-      return (
-        <span
-          className={`text-sm tabular-nums ${count > 0 ? 'font-medium text-[var(--warning)]' : ''}`}
-        >
-          {count}
-        </span>
-      );
-    },
-  },
-  {
     accessorKey: 'famillesConformes',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Familles" />
+      <DataTableColumnHeader column={column} title="Familles conformes" />
     ),
     cell: ({ row }) => (
       <span className="text-sm tabular-nums">

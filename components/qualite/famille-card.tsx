@@ -16,6 +16,7 @@ interface FamilleCardProps {
   done: number;
   total: number;
   pct: number;
+  indicateurs: number;
   livrables: {
     id: string;
     label: string;
@@ -30,9 +31,12 @@ export function FamilleCard({
   done,
   total,
   pct,
+  indicateurs,
   livrables,
 }: FamilleCardProps) {
   const [expanded, setExpanded] = useState(false);
+
+  const isConforme = done === total && total > 0;
 
   const color =
     pct >= 80
@@ -42,7 +46,9 @@ export function FamilleCard({
         : 'bg-[var(--destructive)]';
 
   return (
-    <Card className="overflow-hidden">
+    <Card
+      className={`overflow-hidden border-l-4 ${isConforme ? 'border-l-green-500' : 'border-l-orange-500'}`}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
@@ -59,6 +65,9 @@ export function FamilleCard({
             {code}
           </span>
           <span className="text-sm font-medium">{libelle}</span>
+          <span className="text-muted-foreground text-xs">
+            {indicateurs} indicateur{indicateurs > 1 ? 's' : ''}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <div className="h-2 w-20 overflow-hidden rounded-full bg-[var(--border-light)]">

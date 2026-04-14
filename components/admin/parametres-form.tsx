@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import {
   Building2,
@@ -11,6 +11,9 @@ import {
   Link,
   ChevronDown,
   ChevronRight,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -28,6 +31,7 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge';
 import { createClient } from '@/lib/supabase/client';
 import { formatDate } from '@/lib/utils/formatters';
+import { triggerOdooSync } from '@/lib/actions/sync';
 
 interface ParametresFormProps {
   entreprise: Record<string, string>;
@@ -89,6 +93,12 @@ export function ParametresForm({
   const [entreprise, setEntreprise] = useState(initialEntreprise);
   const [facturation, setFacturation] = useState(initialFacturation);
   const [saving, setSaving] = useState(false);
+  const [syncPending, startSyncTransition] = useTransition();
+  const [syncResult, setSyncResult] = useState<{
+    pushed: number;
+    pulled: number;
+    errors: string[];
+  } | null>(null);
 
   const saveParams = async (
     categorie: string,
@@ -365,11 +375,65 @@ export function ParametresForm({
       </SectionCard>
 
       {/* Section 6: Intégration Odoo */}
-      <SectionCard icon={Link} title="Odoo" muted>
-        <p className="text-muted-foreground text-sm">
-          Intégration Odoo non configurée. Sera disponible quand Odoo sera en
-          production.
-        </p>
+      <SectionCard icon={Link} title="Odoo">
+        <div className="space-y-3">
+          <p className="text-muted-foreground text-sm">
+            Synchronisation Odoo : pousse les factures vers Odoo et tire les
+            paiements. Mode stub actif (remplacer par l&apos;API XML-RPC quand
+            Odoo sera en production).
+          </p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              disabled={syncPending}
+              onClick={() => {
+                startSyncTransition(async () => {
+                  setSyncResult(null);
+                  const res = await triggerOdooSync();
+                  if (res.success && res.results) {
+                    setSyncResult(res.results);
+                    toast.success(
+                      `Sync Odoo : ${res.results.pushed} poussee(s), ${res.results.pulled} tiree(s)`,
+                    );
+                  } else {
+                    toast.error(res.error ?? 'Echec de la synchronisation');
+                  }
+                });
+              }}
+            >
+              {syncPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Synchronisation...
+                </>
+              ) : (
+                'Lancer la synchronisation'
+              )}
+            </Button>
+          </div>
+          {syncResult && (
+            <div className="bg-muted rounded-md px-3 py-2 text-sm">
+              <div className="flex items-center gap-2">
+                {syncResult.errors.length === 0 ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                )}
+                <span className="font-medium">
+                  {syncResult.pushed} facture(s) poussee(s) &middot;{' '}
+                  {syncResult.pulled} paiement(s) tire(s)
+                </span>
+              </div>
+              {syncResult.errors.length > 0 && (
+                <ul className="text-destructive mt-1 list-inside list-disc text-xs">
+                  {syncResult.errors.map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
       </SectionCard>
     </div>
   );

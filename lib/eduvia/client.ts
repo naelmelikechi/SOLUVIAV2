@@ -6,7 +6,12 @@ import { logger } from '@/lib/utils/logger';
 
 export interface EduviaApiResponse<T> {
   data: T[];
-  meta: { current_page: number; last_page: number; total: number };
+  meta: {
+    current_page: number;
+    total_pages: number;
+    total_count: number;
+    per_page: number;
+  };
 }
 
 export interface EduviaContract {
@@ -64,17 +69,19 @@ export async function fetchAllPages<T>(
   apiKey: string,
   resource: string,
 ): Promise<T[]> {
-  const baseUrl = instanceUrl.replace(/\/$/, '');
+  // instance_url is stored as "slug.eduvia.app" — API lives at "api.slug.eduvia.app"
+  const cleanUrl = instanceUrl.replace(/\/$/, '').replace(/^https?:\/\//, '');
+  const baseUrl = `https://api.${cleanUrl}`;
   const allItems: T[] = [];
 
   // Fetch first page to discover total pages
   const firstPage = await fetchPage<T>(baseUrl, apiKey, resource, 1);
   allItems.push(...firstPage.data);
 
-  const { last_page } = firstPage.meta;
+  const { total_pages } = firstPage.meta;
 
   // Fetch remaining pages sequentially to avoid rate limits
-  for (let page = 2; page <= last_page; page++) {
+  for (let page = 2; page <= total_pages; page++) {
     const result = await fetchPage<T>(baseUrl, apiKey, resource, page);
     allItems.push(...result.data);
   }
@@ -84,7 +91,7 @@ export async function fetchAllPages<T>(
     `Fetched ${allItems.length} items from ${resource}`,
     {
       resource,
-      totalPages: last_page,
+      totalPages: total_pages,
       totalItems: allItems.length,
     },
   );

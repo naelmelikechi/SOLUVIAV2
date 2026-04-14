@@ -129,6 +129,7 @@ export function Sidebar({
               width={26}
               height={32}
               priority
+              className="dark:brightness-0 dark:invert"
             />
           </button>
         ) : (
@@ -144,6 +145,7 @@ export function Sidebar({
                 width={140}
                 height={28}
                 priority
+                className="dark:brightness-0 dark:invert"
               />
             </Link>
             {mobile ? (

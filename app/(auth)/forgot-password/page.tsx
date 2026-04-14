@@ -37,7 +37,14 @@ export default function ForgotPasswordPage() {
   return (
     <div className="border-border bg-card rounded-lg border p-8">
       <div className="mb-6 flex flex-col items-center text-center">
-        <Image src="/logo.svg" alt="Soluvia" width={160} height={40} priority />
+        <Image
+          src="/logo.svg"
+          alt="Soluvia"
+          width={160}
+          height={40}
+          priority
+          className="dark:brightness-0 dark:invert"
+        />
         <h2 className="text-foreground mt-4 text-lg font-semibold">
           Réinitialiser votre mot de passe
         </h2>

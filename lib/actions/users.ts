@@ -3,23 +3,30 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdmin } from '@/lib/utils/roles';
+import { isAdmin, isSuperAdmin } from '@/lib/utils/roles';
 
 // ---------------------------------------------------------------------------
-// updateUserRole — admin-only: change a user's role
+// updateUserRole — change a user's role (with hierarchy guards)
 // ---------------------------------------------------------------------------
 
 export async function updateUserRole(
   userId: string,
-  role: 'admin' | 'cdp',
+  role: 'admin' | 'cdp' | 'superadmin',
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
-  // Check caller is admin
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
   if (!authUser) return { success: false, error: 'Non authentifié' };
+
+  // Cannot change own role
+  if (authUser.id === userId) {
+    return {
+      success: false,
+      error: 'Vous ne pouvez pas modifier votre propre rôle',
+    };
+  }
 
   const { data: caller } = await supabase
     .from('users')
@@ -28,6 +35,32 @@ export async function updateUserRole(
     .single();
   if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Accès refusé — réservé aux admins' };
+  }
+
+  // Fetch target user's current role
+  const { data: target } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .single();
+
+  // Hierarchy guards:
+  // - Only superadmin can assign 'superadmin' or 'admin' roles
+  // - Only superadmin can modify another admin or superadmin
+  // - Admin can only manage CDPs
+  if (!isSuperAdmin(caller?.role)) {
+    if (role === 'superadmin' || role === 'admin') {
+      return {
+        success: false,
+        error: 'Seul un superadmin peut attribuer ce rôle',
+      };
+    }
+    if (target?.role === 'admin' || target?.role === 'superadmin') {
+      return {
+        success: false,
+        error: 'Seul un superadmin peut modifier un administrateur',
+      };
+    }
   }
 
   const { error } = await supabase
@@ -51,11 +84,17 @@ export async function toggleUserActive(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
-  // Check caller is admin
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
   if (!authUser) return { success: false, error: 'Non authentifié' };
+
+  if (authUser.id === userId) {
+    return {
+      success: false,
+      error: 'Vous ne pouvez pas modifier votre propre compte',
+    };
+  }
 
   const { data: caller } = await supabase
     .from('users')
@@ -64,6 +103,22 @@ export async function toggleUserActive(
     .single();
   if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Accès refusé — réservé aux admins' };
+  }
+
+  // Admin cannot deactivate another admin or superadmin
+  const { data: target } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .single();
+  if (
+    !isSuperAdmin(caller?.role) &&
+    (target?.role === 'admin' || target?.role === 'superadmin')
+  ) {
+    return {
+      success: false,
+      error: 'Seul un superadmin peut modifier un administrateur',
+    };
   }
 
   const { error } = await supabase
@@ -91,11 +146,10 @@ export async function inviteUser(
 
   const supabase = await createClient();
 
-  // Check caller is admin
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifie' };
+  if (!authUser) return { success: false, error: 'Non authentifié' };
 
   const { data: caller } = await supabase
     .from('users')
@@ -103,7 +157,15 @@ export async function inviteUser(
     .eq('id', authUser.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Acces refuse — reserve aux admins' };
+    return { success: false, error: 'Accès refusé — réservé aux admins' };
+  }
+
+  // Only superadmin can invite admins
+  if (role === 'admin' && !isSuperAdmin(caller?.role)) {
+    return {
+      success: false,
+      error: 'Seul un superadmin peut inviter un administrateur',
+    };
   }
 
   // Use admin client for auth operations (requires SUPABASE_SERVICE_ROLE_KEY)

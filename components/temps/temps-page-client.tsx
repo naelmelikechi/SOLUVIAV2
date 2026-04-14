@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback, useTransition } from 'react';
-import { Copy, Download } from 'lucide-react';
+import Link from 'next/link';
+import { Copy, Download, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import {
@@ -19,11 +20,13 @@ import { formatHeures } from '@/lib/utils/formatters';
 interface TempsPageClientProps {
   weekDates: string[];
   initialSaisies: SaisieTemps[];
+  isAdmin?: boolean;
 }
 
 export function TempsPageClient({
   weekDates: initialWeekDates,
   initialSaisies,
+  isAdmin,
 }: TempsPageClientProps) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekDates, setWeekDates] = useState(initialWeekDates);
@@ -142,6 +145,14 @@ export function TempsPageClient({
   return (
     <div>
       <PageHeader title="Suivi de temps" description="Ma semaine">
+        {isAdmin && (
+          <Link href="/temps/equipe">
+            <Button variant="outline" size="sm">
+              <Users className="mr-1.5 h-4 w-4" />
+              Vue équipe
+            </Button>
+          </Link>
+        )}
         <Button
           variant="outline"
           size="sm"

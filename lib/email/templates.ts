@@ -3,6 +3,15 @@
  * All HTML uses inline styles only (no CSS classes) for email client compatibility.
  */
 
+import type { EmetteurInfo } from '@/lib/queries/parametres';
+
+const EMETTEUR_FALLBACK: EmetteurInfo = {
+  raison_sociale: 'SOLUVIA SAS',
+  adresse: '15 Rue de la Formation, 75008 Paris',
+  siret: '891 234 567 00015',
+  tva: 'FR89 891 234 567',
+};
+
 function formatEur(n: number): string {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
@@ -24,8 +33,12 @@ export function buildFactureEmailHtml(params: {
   isAvoir: boolean;
   montantTtc: number;
   dateEcheance: string;
+  emetteur?: EmetteurInfo;
 }): string {
   const { factureRef, isAvoir, montantTtc, dateEcheance } = params;
+  const emetteur = params.emetteur ?? EMETTEUR_FALLBACK;
+  const companyName =
+    emetteur.raison_sociale.split(' ')[0] ?? emetteur.raison_sociale;
 
   const docType = isAvoir ? "l'avoir" : 'la facture';
   const montantFormatted = formatEur(Math.abs(montantTtc));
@@ -49,7 +62,7 @@ export function buildFactureEmailHtml(params: {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <span style="font-size:22px;font-weight:bold;color:#ffffff;letter-spacing:1px;">SOLUVIA</span>
+                    <span style="font-size:22px;font-weight:bold;color:#ffffff;letter-spacing:1px;">${companyName}</span>
                   </td>
                   <td align="right">
                     <span style="font-size:13px;color:#dcfce7;">${isAvoir ? 'Avoir' : 'Facture'} ${factureRef}</span>
@@ -103,7 +116,7 @@ export function buildFactureEmailHtml(params: {
                 Cordialement,
               </p>
               <p style="margin:0;font-size:15px;color:#1a1a1a;line-height:1.6;font-weight:bold;">
-                L'equipe SOLUVIA
+                L'equipe ${companyName}
               </p>
             </td>
           </tr>
@@ -112,10 +125,10 @@ export function buildFactureEmailHtml(params: {
           <tr>
             <td style="background-color:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;line-height:1.5;">
-                SOLUVIA SAS — 15 Rue de la Formation, 75008 Paris
+                ${emetteur.raison_sociale} — ${emetteur.adresse}
               </p>
               <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;line-height:1.5;">
-                SIRET 891 234 567 00015 — TVA FR89 891 234 567
+                SIRET ${emetteur.siret} — TVA ${emetteur.tva}
               </p>
               <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5;">
                 Cet email a ete envoye automatiquement. Merci de ne pas y repondre directement.

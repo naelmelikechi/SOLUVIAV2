@@ -6,6 +6,7 @@ import {
   getAvoirForFacture,
   getFactureRefById,
 } from '@/lib/queries/factures';
+import { getEmetteurInfo } from '@/lib/queries/parametres';
 
 export async function generateMetadata({
   params,
@@ -23,14 +24,6 @@ import { FactureTotaux } from '@/components/facturation/facture-totaux';
 import { FacturePaiements } from '@/components/facturation/facture-paiements';
 import { FactureDetailActions } from '@/components/facturation/facture-detail-client';
 
-// SOLUVIA company info (will come from admin params in production)
-const EMETTEUR = {
-  raison_sociale: 'SOLUVIA SAS',
-  adresse: '15 Rue de la Formation, 75008 Paris',
-  siret: '891 234 567 00015',
-  tva: 'FR89 891 234 567',
-};
-
 export default async function FactureDetailPage({
   params,
 }: {
@@ -43,14 +36,18 @@ export default async function FactureDetailPage({
     notFound();
   }
 
-  // Fetch paiements, avoir-on-this-facture, and origin ref (for avoirs) in parallel
-  const [paiements, avoirSurCetteFacture, origineRef] = await Promise.all([
-    getPaiementsByFactureId(facture.id),
-    facture.est_avoir ? Promise.resolve(null) : getAvoirForFacture(facture.id),
-    facture.est_avoir && facture.facture_origine_id
-      ? getFactureRefById(facture.facture_origine_id)
-      : Promise.resolve(null),
-  ]);
+  // Fetch paiements, avoir-on-this-facture, origin ref, and emetteur in parallel
+  const [paiements, avoirSurCetteFacture, origineRef, EMETTEUR] =
+    await Promise.all([
+      getPaiementsByFactureId(facture.id),
+      facture.est_avoir
+        ? Promise.resolve(null)
+        : getAvoirForFacture(facture.id),
+      facture.est_avoir && facture.facture_origine_id
+        ? getFactureRefById(facture.facture_origine_id)
+        : Promise.resolve(null),
+      getEmetteurInfo(),
+    ]);
 
   return (
     <div>

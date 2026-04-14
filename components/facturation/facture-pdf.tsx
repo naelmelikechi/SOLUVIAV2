@@ -1,10 +1,10 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { FactureDetail } from '@/lib/queries/factures';
+import type { EmetteurInfo } from '@/lib/queries/parametres';
 
-const EMETTEUR = {
+const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA SAS',
-  adresse: '15 Rue de la Formation',
-  ville: '75008 Paris',
+  adresse: '15 Rue de la Formation, 75008 Paris',
   siret: '891 234 567 00015',
   tva: 'FR89 891 234 567',
 };
@@ -146,10 +146,16 @@ function formatEur(n: number): string {
 interface FacturePdfProps {
   facture: FactureDetail;
   origineRef?: string | null;
+  emetteur?: EmetteurInfo;
 }
 
-export function FacturePdf({ facture, origineRef }: FacturePdfProps) {
+export function FacturePdf({ facture, origineRef, emetteur }: FacturePdfProps) {
   const isAvoir = facture.est_avoir;
+  const EMETTEUR = emetteur ?? EMETTEUR_FALLBACK;
+  // Split adresse into street + city if it contains a comma
+  const adresseParts = EMETTEUR.adresse.split(',').map((s) => s.trim());
+  const adresseLigne1 = adresseParts[0] ?? EMETTEUR.adresse;
+  const adresseLigne2 = adresseParts.slice(1).join(', ');
 
   return (
     <Document>
@@ -158,8 +164,8 @@ export function FacturePdf({ facture, origineRef }: FacturePdfProps) {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.companyName}>{EMETTEUR.raison_sociale}</Text>
-            <Text>{EMETTEUR.adresse}</Text>
-            <Text>{EMETTEUR.ville}</Text>
+            <Text>{adresseLigne1}</Text>
+            {adresseLigne2 ? <Text>{adresseLigne2}</Text> : null}
             <Text style={styles.muted}>SIRET {EMETTEUR.siret}</Text>
             <Text style={styles.muted}>TVA {EMETTEUR.tva}</Text>
           </View>

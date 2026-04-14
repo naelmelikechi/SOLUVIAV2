@@ -75,6 +75,44 @@ export async function getLastEduviaSyncDate(): Promise<string | null> {
   return data?.last_sync_at ?? null;
 }
 
+// ---------------------------------------------------------------------------
+// getEmetteurInfo — company info for invoices (from parametres table)
+// ---------------------------------------------------------------------------
+
+export interface EmetteurInfo {
+  raison_sociale: string;
+  adresse: string;
+  siret: string;
+  tva: string;
+}
+
+const EMETTEUR_FALLBACK: EmetteurInfo = {
+  raison_sociale: 'SOLUVIA SAS',
+  adresse: '15 Rue de la Formation, 75008 Paris',
+  siret: '891 234 567 00015',
+  tva: 'FR89 891 234 567',
+};
+
+export async function getEmetteurInfo(): Promise<EmetteurInfo> {
+  try {
+    const params = await getParametresByCategorie('entreprise');
+    const map = new Map(params.map((p) => [p.cle, p.valeur]));
+
+    return {
+      raison_sociale:
+        map.get('raison_sociale') ?? EMETTEUR_FALLBACK.raison_sociale,
+      adresse: map.get('adresse') ?? EMETTEUR_FALLBACK.adresse,
+      siret: map.get('siret') ?? EMETTEUR_FALLBACK.siret,
+      tva: map.get('tva') ?? EMETTEUR_FALLBACK.tva,
+    };
+  } catch (err) {
+    logger.warn('queries.parametres', 'getEmetteurInfo fallback used', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return EMETTEUR_FALLBACK;
+  }
+}
+
 export async function getJoursFeries(annee: number) {
   const supabase = await createClient();
   const { data, error } = await supabase

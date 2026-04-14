@@ -1,7 +1,11 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { getWeekDates, getSaisiesForWeek } from '@/lib/queries/temps';
+import {
+  getWeekDates,
+  getSaisiesForWeek,
+  getTeamWeekSummary,
+} from '@/lib/queries/temps';
 
 // ---------------------------------------------------------------------------
 // saveSaisieTemps — upsert a single time entry
@@ -112,6 +116,17 @@ export async function fetchWeekData(weekOffset: number) {
   const saisies = await getSaisiesForWeek(weekDates);
 
   return { weekDates, saisies };
+}
+
+// ---------------------------------------------------------------------------
+// fetchTeamWeekData — server action to get team recap for a different week
+// ---------------------------------------------------------------------------
+
+export async function fetchTeamWeekData(weekOffset: number) {
+  const weekDates = getWeekDates(weekOffset);
+  const summary = await getTeamWeekSummary(weekDates);
+
+  return { weekDates, summary };
 }
 
 // ---------------------------------------------------------------------------

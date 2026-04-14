@@ -154,6 +154,94 @@ export async function getSaisiesForWeek(
 }
 
 // ---------------------------------------------------------------------------
+// Team week summary (admin only — RLS ensures admin sees all)
+// ---------------------------------------------------------------------------
+
+export interface TeamMemberSummary {
+  userId: string;
+  nom: string;
+  prenom: string;
+  /** date (ISO) -> total heures for the day */
+  dailyTotals: Record<string, number>;
+  weekTotal: number;
+}
+
+export async function getTeamWeekSummary(
+  weekDates: string[],
+): Promise<TeamMemberSummary[]> {
+  const supabase = await createClient();
+
+  // Fetch all saisies_temps for the given dates (admin sees all via RLS)
+  const { data: saisies, error: saisiesError } = await supabase
+    .from('saisies_temps')
+    .select('user_id, date, heures')
+    .in('date', weekDates);
+
+  if (saisiesError) {
+    logger.error('queries.temps', 'getTeamWeekSummary failed (saisies)', {
+      error: saisiesError,
+    });
+    throw new AppError(
+      'TEMPS_FETCH_FAILED',
+      'Impossible de charger le récapitulatif équipe',
+      { cause: saisiesError },
+    );
+  }
+
+  // Fetch all active users
+  const { data: users, error: usersError } = await supabase
+    .from('users')
+    .select('id, nom, prenom')
+    .eq('actif', true)
+    .order('nom');
+
+  if (usersError) {
+    logger.error('queries.temps', 'getTeamWeekSummary failed (users)', {
+      error: usersError,
+    });
+    throw new AppError(
+      'TEMPS_FETCH_FAILED',
+      'Impossible de charger les utilisateurs',
+      { cause: usersError },
+    );
+  }
+
+  // Group saisies by user_id -> date -> total heures
+  const userTotals: Record<string, Record<string, number>> = {};
+  for (const s of saisies ?? []) {
+    if (!userTotals[s.user_id]) {
+      userTotals[s.user_id] = {};
+    }
+    userTotals[s.user_id]![s.date] =
+      (userTotals[s.user_id]![s.date] ?? 0) + s.heures;
+  }
+
+  // Only weekdays for the week total (Mon-Fri = first 5 dates)
+  const weekdayDates = weekDates.slice(0, 5);
+
+  return (users ?? []).map((u) => {
+    const dailyTotals: Record<string, number> = {};
+    let weekTotal = 0;
+
+    for (const date of weekDates) {
+      const total = userTotals[u.id]?.[date] ?? 0;
+      dailyTotals[date] = total;
+    }
+    for (const date of weekdayDates) {
+      weekTotal += dailyTotals[date] ?? 0;
+    }
+
+    return {
+      userId: u.id,
+      nom: u.nom ?? '',
+      prenom: u.prenom ?? '',
+      dailyTotals,
+      weekTotal,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // getUserProjets — projects the user is assigned to (non-absence, active)
 // ---------------------------------------------------------------------------
 

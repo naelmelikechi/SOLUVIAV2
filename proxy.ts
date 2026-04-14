@@ -4,36 +4,38 @@ import { updateSession } from '@/lib/supabase/middleware';
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip static assets entirely — never redirect CSS/JS/images
+  // Skip static assets and API routes — saves function invocations
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname.startsWith('/logo') ||
+    pathname.startsWith('/api/') ||
     pathname.includes('.')
   ) {
     return NextResponse.next();
   }
 
-  // 1. Refresh the Supabase session (important for Server Components)
-  const response = await updateSession(request);
-
-  // 2. Check if user has a session by looking at cookies
+  // Check session from cookies (fast, no Supabase call)
   const hasSession = request.cookies
     .getAll()
     .some((c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
 
-  // 3. Auth routes: redirect to /projets if already logged in
+  // Auth routes: redirect if already logged in (no session refresh needed)
   const isAuthRoute = pathname === '/login' || pathname === '/forgot-password';
   if (isAuthRoute && hasSession) {
     return NextResponse.redirect(new URL('/projets', request.url));
   }
+  if (isAuthRoute) {
+    return NextResponse.next();
+  }
 
-  // 4. Protected routes: redirect to /login if not logged in
-  const isPublicRoute =
-    isAuthRoute || pathname === '/' || pathname.startsWith('/api/');
-  if (!isPublicRoute && !hasSession) {
+  // Not logged in → redirect to login (no session refresh needed)
+  if (!hasSession) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
+
+  // Only refresh session for authenticated dashboard pages (the expensive call)
+  const response = await updateSession(request);
 
   return response;
 }

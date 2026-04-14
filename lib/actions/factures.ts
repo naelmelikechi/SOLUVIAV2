@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { sendEmailForFacture } from '@/lib/email/client';
 
 export async function createFactures(
   echeanceIds: string[],
@@ -160,6 +161,11 @@ export async function createFactures(
       .in('id', group.echeanceIds);
 
     createdRefs.push(facture.ref ?? '');
+
+    // Send email (fire-and-forget, don't block facture creation)
+    sendEmailForFacture(facture.id, supabase).catch(() => {
+      // Email failure doesn't block facture creation
+    });
   }
 
   revalidatePath('/facturation');

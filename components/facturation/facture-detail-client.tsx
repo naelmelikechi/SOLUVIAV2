@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Download, Mail, FileWarning } from 'lucide-react';
+import { Download, Mail, FileWarning, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { AvoirDialog } from '@/components/facturation/avoir-dialog';
+import { sendFactureEmailAction } from '@/lib/actions/email';
 import type { FactureDetail } from '@/lib/queries/factures';
 
 interface FactureDetailActionsProps {
@@ -18,6 +19,7 @@ export function FactureDetailActions({
   avoirSurCetteFacture,
 }: FactureDetailActionsProps) {
   const [avoirOpen, setAvoirOpen] = useState(false);
+  const [emailPending, startEmailTransition] = useTransition();
 
   const handleDownloadPdf = async () => {
     try {
@@ -36,7 +38,14 @@ export function FactureDetailActions({
   };
 
   const handleResendEmail = () => {
-    toast.success('Email renvoyé avec succès');
+    startEmailTransition(async () => {
+      const result = await sendFactureEmailAction(facture.id);
+      if (result.success) {
+        toast.success('Email envoye avec succes');
+      } else {
+        toast.error(result.error ?? "Erreur lors de l'envoi");
+      }
+    });
   };
 
   return (
@@ -48,9 +57,18 @@ export function FactureDetailActions({
           Télécharger PDF
         </Button>
         {!facture.est_avoir && (
-          <Button variant="outline" size="sm" onClick={handleResendEmail}>
-            <Mail className="mr-1.5 h-4 w-4" />
-            Renvoyer par email
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResendEmail}
+            disabled={emailPending}
+          >
+            {emailPending ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Mail className="mr-1.5 h-4 w-4" />
+            )}
+            {emailPending ? 'Envoi en cours...' : 'Renvoyer par email'}
           </Button>
         )}
         {!facture.est_avoir && facture.statut !== 'a_emettre' && (

@@ -36,6 +36,15 @@ const serverSchema = z.object({
     .min(16, 'CRON_SECRET must be at least 16 chars')
     .optional(),
 
+  // Encryption — required for API key encryption/decryption
+  ENCRYPTION_KEY: z
+    .string()
+    .min(32, 'ENCRYPTION_KEY must be at least 32 chars')
+    .optional(),
+
+  // Resend — email sending, optional (emails skipped if missing)
+  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required').optional(),
+
   // Runtime
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -61,6 +70,8 @@ function parseEnv(): Env {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
     NODE_ENV: process.env.NODE_ENV,
   };
 

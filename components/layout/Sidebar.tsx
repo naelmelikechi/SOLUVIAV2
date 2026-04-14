@@ -60,7 +60,7 @@ const adminNavItems = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  user?: { nom: string; prenom: string; role: string } | null;
+  user?: { nom: string; prenom: string; role: string; email: string } | null;
   /** Mobile overlay mode */
   mobile?: boolean;
   /** Close the mobile sidebar */
@@ -267,9 +267,19 @@ export function Sidebar({
             <Link
               href="/parametres-compte"
               title="Mon compte"
-              className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold transition-opacity hover:opacity-80"
+              className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80"
             >
-              {user ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}` : '?'}
+              {user ? (
+                <img
+                  src={`https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(user.email)}&radius=50`}
+                  alt={`${user.prenom} ${user.nom}`}
+                  className="h-full w-full"
+                />
+              ) : (
+                <span className="text-primary flex h-full w-full items-center justify-center bg-[var(--primary-bg-strong)] text-[13px] font-bold">
+                  ?
+                </span>
+              )}
             </Link>
             <ThemeToggle />
             <button
@@ -287,9 +297,19 @@ export function Sidebar({
               <Link
                 href="/parametres-compte"
                 onClick={mobile ? onClose : undefined}
-                className="text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-[13px] font-bold transition-opacity hover:opacity-80"
+                className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80"
               >
-                {user ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}` : '?'}
+                {user ? (
+                  <img
+                    src={`https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(user.email)}&radius=50`}
+                    alt={`${user.prenom} ${user.nom}`}
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <span className="text-primary flex h-full w-full items-center justify-center bg-[var(--primary-bg-strong)] text-[13px] font-bold">
+                    ?
+                  </span>
+                )}
               </Link>
               <div className="min-w-0 flex-1">
                 <Link

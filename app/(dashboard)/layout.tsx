@@ -17,6 +17,7 @@ export default function DashboardLayout({
     nom: string;
     prenom: string;
     role: string;
+    email: string;
   } | null>(null);
 
   useEffect(() => {
@@ -25,7 +26,7 @@ export default function DashboardLayout({
       if (authUser) {
         supabase
           .from('users')
-          .select('nom, prenom, role')
+          .select('nom, prenom, role, email')
           .eq('id', authUser.id)
           .single()
           .then(({ data }) => setUser(data));

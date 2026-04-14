@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Download,
   ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProductionRow } from '@/lib/queries/dashboard';
@@ -31,6 +32,14 @@ import {
   TableRow,
   TableCell,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils/formatters';
 import {
@@ -132,7 +141,7 @@ function buildDisplayData(
 // ---------------------------------------------------------------------------
 
 export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
-  const [perspective, setPerspective] = useState<'opco' | 'soluvia'>('opco');
+  const [perspective, setPerspective] = useState<'opco' | 'soluvia'>('soluvia');
   const [isPending, startTransition] = useTransition();
 
   // Drill-down state
@@ -151,6 +160,13 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
   const [projetData, setProjetData] = useState<ProductionByProjetRow[]>([]);
 
   const tableRef = useRef<HTMLDivElement>(null);
+
+  const [showGroups, setShowGroups] = useState({
+    mois: true,
+    soldes: true,
+    rolling12: false,
+    annee: false,
+  });
 
   const displayData = useMemo(
     () => buildDisplayData(data, perspective),
@@ -362,9 +378,55 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
         </div>
       )}
 
-      {/* Export button */}
+      {/* Export + Column toggle buttons */}
       {drillLevel === 'global' && (
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                'bg-background border-input hover:bg-accent hover:text-accent-foreground inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium whitespace-nowrap transition-colors',
+              )}
+            >
+              Colonnes
+              <ChevronDown className="h-3.5 w-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Groupes de colonnes</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={showGroups.mois}
+                onCheckedChange={(v) =>
+                  setShowGroups((s) => ({ ...s, mois: !!v }))
+                }
+              >
+                Mois
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={showGroups.soldes}
+                onCheckedChange={(v) =>
+                  setShowGroups((s) => ({ ...s, soldes: !!v }))
+                }
+              >
+                Soldes
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={showGroups.rolling12}
+                onCheckedChange={(v) =>
+                  setShowGroups((s) => ({ ...s, rolling12: !!v }))
+                }
+              >
+                12 Mois
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={showGroups.annee}
+                onCheckedChange={(v) =>
+                  setShowGroups((s) => ({ ...s, annee: !!v }))
+                }
+              >
+                Annee
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="mr-1.5 h-4 w-4" />
             Export Excel

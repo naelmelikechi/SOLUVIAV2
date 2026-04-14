@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Bell, ChevronRight, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBadgeCounts } from '@/hooks/use-badge-counts';
 
 const routeLabels: Record<string, string> = {
   projets: 'Projets',
@@ -24,6 +25,7 @@ export function Topbar({
   onHamburgerClick,
 }: { onHamburgerClick?: () => void } = {}) {
   const pathname = usePathname();
+  const badgeCounts = useBadgeCounts();
   const segments = pathname.split('/').filter(Boolean);
 
   const breadcrumbs = segments.map((segment, index) => {
@@ -92,14 +94,16 @@ export function Topbar({
             &#8984;K
           </kbd>
         </button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          aria-label="Notifications"
-        >
-          <Bell className="h-[18px] w-[18px]" />
-        </Button>
+        <Link href="/notifications" aria-label="Notifications">
+          <Button variant="ghost" size="icon" className="relative">
+            <Bell className="h-[18px] w-[18px]" />
+            {badgeCounts.notifications > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-bold text-white">
+                {badgeCounts.notifications}
+              </span>
+            )}
+          </Button>
+        </Link>
       </div>
     </header>
   );

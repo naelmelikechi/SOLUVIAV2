@@ -14,6 +14,7 @@ export interface ProductionByClientRow {
   facture: number;
   encaisse: number;
   enRetard: number;
+  nbProjets: number;
 }
 
 export interface ProductionByProjetRow {
@@ -23,6 +24,8 @@ export interface ProductionByProjetRow {
   facture: number;
   encaisse: number;
   enRetard: number;
+  commission: number;
+  nbContrats: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +108,7 @@ export async function fetchProductionByClient(
       duree_mois,
       montant_prise_en_charge,
       projet:projets!contrats_projet_id_fkey (
+        id,
         client_id,
         client:clients!projets_client_id_fkey (
           id,
@@ -132,6 +136,7 @@ export async function fetchProductionByClient(
       facture: number;
       encaisse: number;
       enRetard: number;
+      projetIds: Set<string>;
     }
   >();
 
@@ -141,6 +146,7 @@ export async function fetchProductionByClient(
     if (!c.montant_prise_en_charge || c.montant_prise_en_charge <= 0) continue;
 
     const projet = c.projet as {
+      id: string;
       client_id: string;
       client: { id: string; raison_sociale: string } | null;
     } | null;
@@ -163,8 +169,10 @@ export async function fetchProductionByClient(
         facture: 0,
         encaisse: 0,
         enRetard: 0,
+        projetIds: new Set<string>(),
       };
       entry.production += monthlyProduction;
+      entry.projetIds.add(projet.id);
       clientMap.set(projet.client.id, entry);
     }
   }
@@ -184,11 +192,13 @@ export async function fetchProductionByClient(
       facture: 0,
       encaisse: 0,
       enRetard: 0,
+      projetIds: new Set<string>(),
     };
     entry.facture += f.montant_ht;
     if (f.statut === 'en_retard') {
       entry.enRetard += f.montant_ht;
     }
+    entry.projetIds.add(projet.id);
     clientMap.set(projet.client.id, entry);
   }
 
@@ -214,6 +224,7 @@ export async function fetchProductionByClient(
     facture: Math.round(data.facture * 100) / 100,
     encaisse: Math.round(data.encaisse * 100) / 100,
     enRetard: Math.round(data.enRetard * 100) / 100,
+    nbProjets: data.projetIds.size,
   }));
 }
 
@@ -295,7 +306,8 @@ export async function fetchProductionByProjet(
       projet:projets!contrats_projet_id_fkey (
         id,
         ref,
-        client_id
+        client_id,
+        taux_commission
       )
     `,
     )
@@ -317,6 +329,8 @@ export async function fetchProductionByProjet(
       facture: number;
       encaisse: number;
       enRetard: number;
+      commissions: number[];
+      nbContrats: number;
     }
   >();
 
@@ -329,6 +343,7 @@ export async function fetchProductionByProjet(
       id: string;
       ref: string | null;
       client_id: string;
+      taux_commission: number;
     } | null;
     if (!projet || projet.client_id !== clientId) continue;
 
@@ -348,8 +363,14 @@ export async function fetchProductionByProjet(
         facture: 0,
         encaisse: 0,
         enRetard: 0,
+        commissions: [],
+        nbContrats: 0,
       };
       entry.production += monthlyProduction;
+      entry.nbContrats += 1;
+      if (projet.taux_commission != null) {
+        entry.commissions.push(projet.taux_commission);
+      }
       projetMap.set(projet.id, entry);
     }
   }
@@ -369,6 +390,8 @@ export async function fetchProductionByProjet(
       facture: 0,
       encaisse: 0,
       enRetard: 0,
+      commissions: [],
+      nbContrats: 0,
     };
     entry.facture += f.montant_ht;
     if (f.statut === 'en_retard') {
@@ -398,5 +421,14 @@ export async function fetchProductionByProjet(
     facture: Math.round(data.facture * 100) / 100,
     encaisse: Math.round(data.encaisse * 100) / 100,
     enRetard: Math.round(data.enRetard * 100) / 100,
+    commission:
+      data.commissions.length > 0
+        ? Math.round(
+            (data.commissions.reduce((a, b) => a + b, 0) /
+              data.commissions.length) *
+              100,
+          ) / 100
+        : 0,
+    nbContrats: data.nbContrats,
   }));
 }

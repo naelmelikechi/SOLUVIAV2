@@ -269,7 +269,7 @@ export async function syncAllEduviaClients(
   // Fetch all active API keys with their client info
   const { data: apiKeys, error: fetchError } = await supabase
     .from('client_api_keys')
-    .select('id, client_id, api_key_encrypted, label, is_active')
+    .select('id, client_id, api_key_encrypted, instance_url, label, is_active')
     .eq('is_active', true);
 
   if (fetchError) {
@@ -290,20 +290,20 @@ export async function syncAllEduviaClients(
   syncResult.totalClients = apiKeys.length;
 
   for (const apiKeyRow of apiKeys) {
-    const { client_id, api_key_encrypted, label } = apiKeyRow;
+    const { client_id, api_key_encrypted, instance_url } = apiKeyRow;
 
-    // The label field stores the Eduvia instance URL
-    const instanceUrl = label;
-    if (!instanceUrl) {
+    if (!instance_url) {
       syncResult.skippedClients++;
       syncResult.errors.push(
-        `Client ${client_id}: URL d'instance Eduvia manquante (champ label)`,
+        `Client ${client_id}: Clé API sans URL d'instance, ignorée`,
       );
-      logger.warn('eduvia_sync', 'Instance URL manquante', {
+      logger.warn('eduvia_sync', "Clé API sans URL d'instance, ignorée", {
         clientId: client_id,
       });
       continue;
     }
+
+    const instanceUrl = instance_url;
 
     try {
       // Decrypt the API key

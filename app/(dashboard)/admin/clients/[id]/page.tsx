@@ -5,6 +5,7 @@ import {
   getContactsByClientId,
   getNotesByClientId,
   getDocumentsByClientId,
+  getClientApiKeys,
 } from '@/lib/queries/clients';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -26,6 +27,7 @@ import { FileText, FolderOpen } from 'lucide-react';
 import { ClientDetailActions } from '@/components/admin/client-detail-actions';
 import { ClientContactsSection } from '@/components/admin/client-contacts-section';
 import { ClientNotesSection } from '@/components/admin/client-notes-section';
+import { ClientApiKeysSection } from '@/components/admin/client-api-keys-section';
 
 export default async function ClientDetailPage({
   params,
@@ -39,11 +41,12 @@ export default async function ClientDetailPage({
     notFound();
   }
 
-  const [projets, contacts, notes, documents] = await Promise.all([
+  const [projets, contacts, notes, documents, apiKeys] = await Promise.all([
     getProjetsByClientId(id),
     getContactsByClientId(id),
     getNotesByClientId(id),
     getDocumentsByClientId(id),
+    getClientApiKeys(id),
   ]);
 
   return (
@@ -117,6 +120,9 @@ export default async function ClientDetailPage({
 
       {/* Contacts */}
       <ClientContactsSection clientId={id} contacts={contacts} />
+
+      {/* Clés API Eduvia */}
+      <ClientApiKeysSection clientId={id} apiKeys={apiKeys} />
 
       {/* Projets associes */}
       <Card className="mb-6 p-6">

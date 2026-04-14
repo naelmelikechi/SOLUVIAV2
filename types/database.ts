@@ -85,6 +85,7 @@ export type Database = {
           client_id: string;
           created_at: string;
           id: string;
+          instance_url: string | null;
           is_active: boolean;
           label: string | null;
           last_sync_at: string | null;
@@ -94,6 +95,7 @@ export type Database = {
           client_id: string;
           created_at?: string;
           id?: string;
+          instance_url?: string | null;
           is_active?: boolean;
           label?: string | null;
           last_sync_at?: string | null;
@@ -103,6 +105,7 @@ export type Database = {
           client_id?: string;
           created_at?: string;
           id?: string;
+          instance_url?: string | null;
           is_active?: boolean;
           label?: string | null;
           last_sync_at?: string | null;

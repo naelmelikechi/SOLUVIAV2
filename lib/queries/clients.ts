@@ -158,3 +158,46 @@ export async function getProjetsByClientId(clientId: string) {
 export type ClientProjet = Awaited<
   ReturnType<typeof getProjetsByClientId>
 >[number];
+
+export async function getClientApiKeys(clientId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('client_api_keys')
+    .select(
+      'id, client_id, label, instance_url, is_active, last_sync_at, api_key_encrypted',
+    )
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error('queries.clients', 'getClientApiKeys failed', {
+      clientId,
+      error,
+    });
+    throw new AppError(
+      'CLIENTS_FETCH_FAILED',
+      'Impossible de charger les clés API',
+      { cause: error },
+    );
+  }
+
+  // Mask the encrypted key — never expose full value to UI
+  return data.map((key) => ({
+    id: key.id,
+    client_id: key.client_id,
+    label: key.label,
+    instance_url: key.instance_url,
+    is_active: key.is_active,
+    last_sync_at: key.last_sync_at,
+    api_key_masked: maskApiKey(key.api_key_encrypted),
+  }));
+}
+
+/** Show only the last 4 chars of the encrypted key, prefixed with "sk_...". */
+function maskApiKey(encrypted: string): string {
+  if (!encrypted || encrypted.length < 4) return '****';
+  return `sk_...${encrypted.slice(-4)}`;
+}
+
+export type ClientApiKey = Awaited<ReturnType<typeof getClientApiKeys>>[number];

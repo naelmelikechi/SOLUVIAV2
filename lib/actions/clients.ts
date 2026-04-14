@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { encryptApiKey, decryptApiKey } from '@/lib/utils/encryption';
+import { logger } from '@/lib/utils/logger';
 
 // ---------------------------------------------------------------------------
 // createClient — insert a new client
@@ -284,4 +286,245 @@ export async function addClientNote(
   revalidatePath(`/admin/clients/${clientId}`);
 
   return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// addClientApiKey — insert into client_api_keys with encrypted key
+// ---------------------------------------------------------------------------
+
+export async function addClientApiKey(
+  clientId: string,
+  data: {
+    instanceUrl: string;
+    apiKey: string;
+    label: string;
+  },
+): Promise<{ success: boolean; error?: string }> {
+  if (!data.instanceUrl?.trim()) {
+    return { success: false, error: "L'URL de l'instance est requise" };
+  }
+
+  if (!data.instanceUrl.includes('.eduvia.app')) {
+    return {
+      success: false,
+      error: "L'URL doit contenir .eduvia.app (ex: dupont.eduvia.app)",
+    };
+  }
+
+  if (!data.apiKey?.trim()) {
+    return { success: false, error: 'La clé API est requise' };
+  }
+
+  if (!data.label?.trim()) {
+    return { success: false, error: 'Le libellé est requis' };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (caller?.role !== 'admin') {
+    return { success: false, error: 'Accès réservé aux administrateurs' };
+  }
+
+  let apiKeyEncrypted: string;
+  try {
+    apiKeyEncrypted = encryptApiKey(data.apiKey.trim());
+  } catch (err) {
+    logger.warn(
+      'actions.clients',
+      'ENCRYPTION_KEY non disponible, stockage en clair',
+      { error: err instanceof Error ? err.message : String(err) },
+    );
+    // Fallback: store as-is when ENCRYPTION_KEY is not configured
+    apiKeyEncrypted = data.apiKey.trim();
+  }
+
+  const { error } = await supabase.from('client_api_keys').insert({
+    client_id: clientId,
+    instance_url: data.instanceUrl.trim(),
+    api_key_encrypted: apiKeyEncrypted,
+    label: data.label.trim(),
+    is_active: true,
+  });
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath(`/admin/clients/${clientId}`);
+
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// deleteClientApiKey — hard delete from client_api_keys
+// ---------------------------------------------------------------------------
+
+export async function deleteClientApiKey(
+  keyId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (caller?.role !== 'admin') {
+    return { success: false, error: 'Accès réservé aux administrateurs' };
+  }
+
+  // Get client_id before deleting for revalidation
+  const { data: keyRow } = await supabase
+    .from('client_api_keys')
+    .select('client_id')
+    .eq('id', keyId)
+    .single();
+
+  const { error } = await supabase
+    .from('client_api_keys')
+    .delete()
+    .eq('id', keyId);
+
+  if (error) return { success: false, error: error.message };
+
+  if (keyRow) {
+    revalidatePath(`/admin/clients/${keyRow.client_id}`);
+  }
+
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// toggleClientApiKeyActive — toggle is_active on client_api_keys
+// ---------------------------------------------------------------------------
+
+export async function toggleClientApiKeyActive(
+  keyId: string,
+  isActive: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (caller?.role !== 'admin') {
+    return { success: false, error: 'Accès réservé aux administrateurs' };
+  }
+
+  const { error } = await supabase
+    .from('client_api_keys')
+    .update({ is_active: isActive })
+    .eq('id', keyId);
+
+  if (error) return { success: false, error: error.message };
+
+  // Get client_id for revalidation
+  const { data: keyRow } = await supabase
+    .from('client_api_keys')
+    .select('client_id')
+    .eq('id', keyId)
+    .single();
+
+  if (keyRow) {
+    revalidatePath(`/admin/clients/${keyRow.client_id}`);
+  }
+
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// testApiKeyConnection — test connectivity to Eduvia instance
+// ---------------------------------------------------------------------------
+
+export async function testApiKeyConnection(
+  keyId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (caller?.role !== 'admin') {
+    return { success: false, error: 'Accès réservé aux administrateurs' };
+  }
+
+  const { data: keyRow, error: fetchError } = await supabase
+    .from('client_api_keys')
+    .select('api_key_encrypted, instance_url')
+    .eq('id', keyId)
+    .single();
+
+  if (fetchError || !keyRow) {
+    return { success: false, error: 'Clé API introuvable' };
+  }
+
+  if (!keyRow.instance_url) {
+    return { success: false, error: "URL d'instance manquante" };
+  }
+
+  let apiKey: string;
+  try {
+    apiKey = decryptApiKey(keyRow.api_key_encrypted);
+  } catch {
+    // If decryption fails, try using the raw value (unencrypted fallback)
+    apiKey = keyRow.api_key_encrypted;
+  }
+
+  const baseUrl = keyRow.instance_url.replace(/\/$/, '');
+  const url = baseUrl.startsWith('http')
+    ? `${baseUrl}/api/v1/status`
+    : `https://${baseUrl}/api/v1/status`;
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(5_000),
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `Erreur HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      error: `Connexion échouée: ${message}`,
+    };
+  }
 }

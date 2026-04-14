@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
-import { getProjetsList } from '@/lib/queries/projets';
+import { getProjetsListEnriched } from '@/lib/queries/projets';
 import { PageHeader } from '@/components/shared/page-header';
 import { ProjetsDataTable } from '@/components/projets/projets-data-table';
 
 export const metadata: Metadata = { title: 'Projets — SOLUVIA' };
 
 export default async function ProjetsPage() {
-  const projets = await getProjetsList();
+  const projets = await getProjetsListEnriched();
 
   // Sort: actif first, then en_pause, termine, archive
   const order: Record<string, number> = {

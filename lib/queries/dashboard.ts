@@ -13,26 +13,44 @@ import { fr } from 'date-fns/locale';
 export async function getDashboardData() {
   const supabase = await createClient();
 
-  const [projetsRes, facturesRes, tachesRes, echeancesRes, contratsRes] =
-    await Promise.all([
-      supabase
-        .from('projets')
-        .select('id')
-        .eq('statut', 'actif')
-        .eq('est_absence', false),
-      supabase.from('factures').select('id, statut'),
-      supabase.from('taches_qualite').select('id').eq('fait', false),
-      supabase
-        .from('echeances')
-        .select('id')
-        .is('facture_id', null)
-        .eq('validee', false),
-      supabase
-        .from('contrats')
-        .select('id')
-        .eq('contract_state', 'actif')
-        .eq('archive', false),
-    ]);
+  // 30 days ago for stale contrats detection
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
+
+  const [
+    projetsRes,
+    facturesRes,
+    tachesRes,
+    echeancesRes,
+    contratsRes,
+    staleContratsRes,
+  ] = await Promise.all([
+    supabase
+      .from('projets')
+      .select('id')
+      .eq('statut', 'actif')
+      .eq('est_absence', false),
+    supabase.from('factures').select('id, statut'),
+    supabase.from('taches_qualite').select('id').eq('fait', false),
+    supabase
+      .from('echeances')
+      .select('id')
+      .is('facture_id', null)
+      .eq('validee', false),
+    supabase
+      .from('contrats')
+      .select('id')
+      .eq('contract_state', 'actif')
+      .eq('archive', false),
+    // Contrats actifs started > 30 days ago — candidates for "sans progression"
+    supabase
+      .from('contrats')
+      .select('id, projet_id')
+      .eq('archive', false)
+      .in('contract_state', ['actif', 'en_cours', 'signe'])
+      .lt('date_debut', thirtyDaysAgoStr),
+  ]);
 
   // Log any individual query errors but don't throw — dashboard is best-effort
   if (projetsRes.error)
@@ -55,6 +73,33 @@ export async function getDashboardData() {
     logger.error('queries.dashboard', 'getDashboardData failed (contrats)', {
       error: contratsRes.error,
     });
+  if (staleContratsRes.error)
+    logger.error(
+      'queries.dashboard',
+      'getDashboardData failed (staleContrats)',
+      { error: staleContratsRes.error },
+    );
+
+  // Check which stale contrats have no time entries in the last 30 days
+  // saisies_temps tracks at projet level, so we check by projet_id
+  const staleContrats = staleContratsRes.data ?? [];
+  const staleProjetIds = [...new Set(staleContrats.map((c) => c.projet_id))];
+  let contratsSansProgression = 0;
+  if (staleProjetIds.length > 0) {
+    const { data: recentSaisies } = await supabase
+      .from('saisies_temps')
+      .select('projet_id')
+      .in('projet_id', staleProjetIds)
+      .gte('date', thirtyDaysAgoStr);
+
+    const projetsWithActivity = new Set(
+      (recentSaisies ?? []).map((s) => s.projet_id),
+    );
+    // Count contrats whose project has no recent activity
+    contratsSansProgression = staleContrats.filter(
+      (c) => !projetsWithActivity.has(c.projet_id),
+    ).length;
+  }
 
   return {
     projetsActifs: projetsRes.data?.length ?? 0,
@@ -65,6 +110,7 @@ export async function getDashboardData() {
     tachesEnAttente: tachesRes.data?.length ?? 0,
     echeancesAFacturer: echeancesRes.data?.length ?? 0,
     contratsActifs: contratsRes.data?.length ?? 0,
+    contratsSansProgression,
   };
 }
 

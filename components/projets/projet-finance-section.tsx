@@ -41,6 +41,9 @@ export function ProjetFinanceSection({
 
   const commSoluvia = finance.taux_commission / 100;
 
+  const raf_opco = finance.production_opco - finance.facture_opco;
+  const rae_opco = finance.facture_opco - finance.encaisse_opco;
+
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -75,7 +78,7 @@ export function ProjetFinanceSection({
       </div>
 
       {/* SOLUVIA Side */}
-      <div>
+      <div className="mb-4">
         <div className="text-muted-foreground mb-2 text-xs font-medium tracking-wider uppercase">
           Cote SOLUVIA ({finance.taux_commission}%)
         </div>
@@ -94,6 +97,35 @@ export function ProjetFinanceSection({
             label="Encaisse"
             value={finance.encaisse_opco * commSoluvia}
             color="text-primary"
+          />
+        </div>
+      </div>
+
+      {/* RAF / RAE / En retard */}
+      <div className="border-border border-t pt-4">
+        <div className="grid grid-cols-3 gap-4">
+          <FinanceStatCard
+            label="RAF (Reste a facturer)"
+            value={raf_opco}
+            color={
+              raf_opco > 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'
+            }
+          />
+          <FinanceStatCard
+            label="RAE (Reste a encaisser)"
+            value={rae_opco}
+            color={
+              rae_opco > 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'
+            }
+          />
+          <FinanceStatCard
+            label="En retard"
+            value={finance.en_retard}
+            color={
+              finance.en_retard > 0
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-muted-foreground'
+            }
           />
         </div>
       </div>

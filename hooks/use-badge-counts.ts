@@ -7,12 +7,14 @@ interface BadgeCounts {
   facturesEnRetard: number;
   tempsNonSaisi: number;
   notifications: number;
+  tachesEnAttente: number;
 }
 
 const INITIAL_COUNTS: BadgeCounts = {
   facturesEnRetard: 0,
   tempsNonSaisi: 0,
   notifications: 0,
+  tachesEnAttente: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -57,7 +59,7 @@ function getBusinessDaysElapsed(): number {
 async function fetchBadgeCounts(): Promise<BadgeCounts> {
   const supabase = createClient();
 
-  const [facturesRes, tempsRes, notifRes] = await Promise.all([
+  const [facturesRes, tempsRes, notifRes, tachesRes] = await Promise.all([
     supabase
       .from('factures')
       .select('id', { count: 'exact', head: true })
@@ -76,6 +78,12 @@ async function fetchBadgeCounts(): Promise<BadgeCounts> {
       .from('notifications')
       .select('id', { count: 'exact', head: true })
       .is('read_at', null),
+
+    // Quality tasks not yet completed.
+    supabase
+      .from('taches_qualite')
+      .select('id', { count: 'exact', head: true })
+      .eq('fait', false),
   ]);
 
   const uniqueDays = new Set((tempsRes.data ?? []).map((s) => s.date));
@@ -85,6 +93,7 @@ async function fetchBadgeCounts(): Promise<BadgeCounts> {
     facturesEnRetard: facturesRes.count ?? 0,
     tempsNonSaisi: Math.max(0, businessDaysElapsed - uniqueDays.size),
     notifications: notifRes.count ?? 0,
+    tachesEnAttente: tachesRes.count ?? 0,
   };
 }
 
@@ -126,6 +135,11 @@ export function useBadgeCounts(): BadgeCounts {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'saisies_temps' },
+        () => refresh(),
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'taches_qualite' },
         () => refresh(),
       )
       .subscribe();

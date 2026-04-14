@@ -3,6 +3,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import type { QualiteSummary } from '@/lib/queries/qualite';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
 
 export const qualiteListColumns: ColumnDef<QualiteSummary>[] = [
@@ -90,5 +91,32 @@ export const qualiteListColumns: ColumnDef<QualiteSummary>[] = [
         </span>
       );
     },
+  },
+  {
+    accessorKey: 'famillesConformes',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Familles" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm tabular-nums">
+        {row.original.famillesConformes}/{row.original.totalFamilles}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'statutGlobal',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Statut" />
+    ),
+    cell: ({ row }) => {
+      const isConforme = row.original.statutGlobal === 'conforme';
+      return (
+        <StatusBadge
+          label={isConforme ? 'Conforme' : 'Non conforme'}
+          color={isConforme ? 'green' : 'red'}
+        />
+      );
+    },
+    filterFn: (row, id, value) => value.includes(row.getValue(id)),
   },
 ];

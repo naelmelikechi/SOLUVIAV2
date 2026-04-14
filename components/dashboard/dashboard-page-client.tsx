@@ -48,6 +48,7 @@ export interface DashboardData {
   tachesEnAttente: number;
   echeancesAFacturer: number;
   contratsActifs: number;
+  contratsSansProgression: number;
 }
 
 type Alert = {
@@ -265,6 +266,15 @@ export function DashboardPageClient({
           title: 'Temps non saisi',
           description: `${tempsNonSaisi} jour(s) sans saisie cette semaine`,
           href: '/temps',
+          color: 'orange' as const,
+        }
+      : null,
+    data.contratsSansProgression > 0
+      ? {
+          count: data.contratsSansProgression,
+          title: 'Contrats sans progression',
+          description: 'Aucune saisie de temps depuis 30 jours',
+          href: '/projets',
           color: 'orange' as const,
         }
       : null,

@@ -55,6 +55,135 @@ export async function getProjetsList() {
 
 export type ProjetListItem = Awaited<ReturnType<typeof getProjetsList>>[number];
 
+export interface ProjetListEnriched extends ProjetListItem {
+  apprentisActifs: number;
+  tachesARealiser: number;
+  facturesEnRetard: number;
+  encaissementsEnRetard: number;
+  tempsMois: number;
+}
+
+export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
+  const supabase = await createClient();
+  const projets = await getProjetsList();
+
+  if (projets.length === 0) return [];
+
+  const projetIds = projets.map((p) => p.id);
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .split('T')[0];
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    .toISOString()
+    .split('T')[0];
+
+  // Run all aggregate queries in parallel
+  const [contratsRes, tachesRes, facturesRes, tempsRes] = await Promise.all([
+    // 1. Contrats actifs par projet
+    supabase
+      .from('contrats')
+      .select('projet_id')
+      .in('projet_id', projetIds)
+      .eq('archive', false),
+
+    // 2. Tâches qualité non faites par projet
+    supabase
+      .from('taches_qualite')
+      .select('projet_id')
+      .in('projet_id', projetIds)
+      .eq('fait', false),
+
+    // 3. Factures en retard par projet (with montant_ttc for encaissements)
+    supabase
+      .from('factures')
+      .select('id, projet_id, montant_ttc')
+      .in('projet_id', projetIds)
+      .eq('statut', 'en_retard'),
+
+    // 4. Temps du mois courant par projet
+    supabase
+      .from('saisies_temps')
+      .select('projet_id, heures')
+      .in('projet_id', projetIds)
+      .gte('date', startOfMonth!)
+      .lte('date', endOfMonth!),
+  ]);
+
+  // Build lookup maps
+  const apprentisMap = new Map<string, number>();
+  for (const c of contratsRes.data ?? []) {
+    apprentisMap.set(c.projet_id, (apprentisMap.get(c.projet_id) ?? 0) + 1);
+  }
+
+  const tachesMap = new Map<string, number>();
+  for (const t of tachesRes.data ?? []) {
+    tachesMap.set(t.projet_id, (tachesMap.get(t.projet_id) ?? 0) + 1);
+  }
+
+  const facturesRetardMap = new Map<string, number>();
+  const facturesRetardMontantMap = new Map<string, number>();
+  const overdueFactureIds: string[] = [];
+  for (const f of facturesRes.data ?? []) {
+    facturesRetardMap.set(
+      f.projet_id,
+      (facturesRetardMap.get(f.projet_id) ?? 0) + 1,
+    );
+    facturesRetardMontantMap.set(
+      f.projet_id,
+      (facturesRetardMontantMap.get(f.projet_id) ?? 0) + (f.montant_ttc ?? 0),
+    );
+    overdueFactureIds.push(f.id);
+  }
+
+  // 5. Fetch paiements for overdue factures to compute remaining encaissement
+  const paiementsMap = new Map<string, number>();
+  if (overdueFactureIds.length > 0) {
+    const { data: paiements } = await supabase
+      .from('paiements')
+      .select('facture_id, montant')
+      .in('facture_id', overdueFactureIds);
+
+    // Map facture_id -> projet_id for lookup
+    const factureToProjet = new Map<string, string>();
+    for (const f of facturesRes.data ?? []) {
+      factureToProjet.set(f.id, f.projet_id);
+    }
+
+    for (const p of paiements ?? []) {
+      const projetId = factureToProjet.get(p.facture_id);
+      if (projetId) {
+        paiementsMap.set(
+          projetId,
+          (paiementsMap.get(projetId) ?? 0) + (p.montant ?? 0),
+        );
+      }
+    }
+  }
+
+  const tempsMap = new Map<string, number>();
+  for (const s of tempsRes.data ?? []) {
+    tempsMap.set(
+      s.projet_id,
+      (tempsMap.get(s.projet_id) ?? 0) + (s.heures ?? 0),
+    );
+  }
+
+  // Merge into enriched array
+  return projets.map((p) => ({
+    ...p,
+    apprentisActifs: apprentisMap.get(p.id) ?? 0,
+    tachesARealiser: tachesMap.get(p.id) ?? 0,
+    facturesEnRetard: facturesRetardMap.get(p.id) ?? 0,
+    encaissementsEnRetard: Math.max(
+      0,
+      (facturesRetardMontantMap.get(p.id) ?? 0) - (paiementsMap.get(p.id) ?? 0),
+    ),
+    tempsMois: tempsMap.get(p.id) ?? 0,
+  }));
+}
+
 export async function getProjetByRef(ref: string) {
   const supabase = await createClient();
 
@@ -180,10 +309,15 @@ export async function getProjetFinance(projetId: string) {
     .eq('id', projetId)
     .single();
 
+  const en_retard = (factures ?? [])
+    .filter((f) => f.statut === 'en_retard')
+    .reduce((sum, f) => sum + (f.montant_ht ?? 0), 0);
+
   return {
     production_opco,
     facture_opco,
     encaisse_opco,
+    en_retard,
     taux_commission: projet?.taux_commission ?? 0,
   };
 }

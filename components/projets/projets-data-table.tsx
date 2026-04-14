@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Download, ClipboardList } from 'lucide-react';
-import type { ProjetListItem } from '@/lib/queries/projets';
+import type { ProjetListEnriched } from '@/lib/queries/projets';
 import { DataTable } from '@/components/shared/data-table';
 import { projetListColumns } from '@/components/projets/projet-list-columns';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,10 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_PROJET_LABELS } from '@/lib/utils/constants';
 
-export function ProjetsDataTable({ data }: { data: ProjetListItem[] }) {
+export function ProjetsDataTable({ data }: { data: ProjetListEnriched[] }) {
   const router = useRouter();
 
-  const handleRowClick = (row: ProjetListItem) => {
+  const handleRowClick = (row: ProjetListEnriched) => {
     router.push(`/projets/${row.ref}`);
   };
 

@@ -22,6 +22,7 @@ import { ProjetQualiteSection } from '@/components/projets/projet-qualite-sectio
 import { ProjetContratsTable } from '@/components/projets/projet-contrats-table';
 import { ProjetStatCards } from '@/components/projets/projet-stat-cards';
 import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
+import { ProjetPerformancePlaceholders } from '@/components/projets/projet-performance-placeholders';
 
 export default async function ProjetDetailPage({
   params,
@@ -61,6 +62,13 @@ export default async function ProjetDetailPage({
       </div>
 
       <ProjetContratsTable contrats={contrats} />
+
+      <div className="mt-6">
+        <h3 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
+          Volets de performance
+        </h3>
+        <ProjetPerformancePlaceholders />
+      </div>
     </div>
   );
 }

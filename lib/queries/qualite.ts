@@ -25,10 +25,10 @@ export async function getQualiteSummaries() {
     );
   }
 
-  // Get all quality tasks
+  // Get all quality tasks (with famille_code for conformity grouping)
   const { data: taches, error: tError } = await supabase
     .from('taches_qualite')
-    .select('projet_id, fait');
+    .select('projet_id, fait, famille_code');
   if (tError) {
     logger.error('queries.qualite', 'getQualiteSummaries failed (taches)', {
       error: tError,
@@ -45,12 +45,35 @@ export async function getQualiteSummaries() {
     const projectTaches = taches.filter((t) => t.projet_id === p.id);
     const terminees = projectTaches.filter((t) => t.fait).length;
     const total = projectTaches.length;
+
+    // Group by famille_code to compute conformity
+    const familleMap = new Map<string, boolean>();
+    for (const t of projectTaches) {
+      const current = familleMap.get(t.famille_code);
+      // A famille is conforme only if ALL its taches are fait=true
+      if (current === undefined) {
+        familleMap.set(t.famille_code, t.fait);
+      } else if (!t.fait) {
+        familleMap.set(t.famille_code, false);
+      }
+    }
+    const totalFamilles = familleMap.size;
+    const famillesConformes = Array.from(familleMap.values()).filter(
+      Boolean,
+    ).length;
+
     return {
       projet: p,
       total,
       terminees,
       a_realiser: total - terminees,
       pct: total > 0 ? Math.round((terminees / total) * 100) : 0,
+      famillesConformes,
+      totalFamilles,
+      statutGlobal:
+        totalFamilles > 0 && famillesConformes === totalFamilles
+          ? ('conforme' as const)
+          : ('non_conforme' as const),
     };
   });
 }

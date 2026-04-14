@@ -69,9 +69,17 @@ interface SidebarProps {
 // Map nav hrefs → badge keys + colours
 const badgeConfig: Record<
   string,
-  { key: 'facturesEnRetard' | 'tempsNonSaisi' | 'notifications'; color: string }
+  {
+    key:
+      | 'facturesEnRetard'
+      | 'tempsNonSaisi'
+      | 'notifications'
+      | 'tachesEnAttente';
+    color: string;
+  }
 > = {
   '/facturation': { key: 'facturesEnRetard', color: 'bg-red-500' },
+  '/qualite': { key: 'tachesEnAttente', color: 'bg-orange-500' },
   '/temps': { key: 'tempsNonSaisi', color: 'bg-orange-500' },
   '/notifications': { key: 'notifications', color: 'bg-blue-500' },
 };

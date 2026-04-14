@@ -72,6 +72,16 @@ function ProgressBar({
 export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
   const actifs = contrats.filter((c) => c.contract_state === 'actif').length;
 
+  const progressions = contrats.map((c) =>
+    computeProgressionTheorique(c.date_debut, c.date_fin),
+  );
+  const moyenneProgression =
+    progressions.length > 0
+      ? Math.round(
+          progressions.reduce((sum, p) => sum + p, 0) / progressions.length,
+        )
+      : 0;
+
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -79,9 +89,21 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
           <h3 className="text-sm font-semibold">Contrats</h3>
           <StatusBadge label="Eduvia" color="orange" />
         </div>
-        <span className="text-muted-foreground text-sm">
-          {actifs} contrat{actifs > 1 ? 's' : ''} actif{actifs > 1 ? 's' : ''}
-        </span>
+        <div className="flex items-center gap-4">
+          {contrats.length > 0 && (
+            <span className="text-muted-foreground text-sm">
+              Progression moyenne :{' '}
+              <span className="font-semibold tabular-nums">
+                {moyenneProgression}%
+              </span>{' '}
+              theorique
+            </span>
+          )}
+          <span className="text-muted-foreground text-sm">
+            {actifs} contrat{actifs > 1 ? 's' : ''} actif
+            {actifs > 1 ? 's' : ''}
+          </span>
+        </div>
       </div>
 
       {contrats.length === 0 ? (

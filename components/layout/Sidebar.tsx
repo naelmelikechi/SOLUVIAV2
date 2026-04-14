@@ -40,13 +40,13 @@ const adminNavItems = [
     href: '/admin/clients',
     label: 'Clients',
     icon: Building2,
-    adminOnly: false,
+    adminOnly: true,
   },
   {
     href: '/admin/utilisateurs',
     label: 'Utilisateurs',
     icon: Users,
-    adminOnly: false,
+    adminOnly: true,
   },
   {
     href: '/admin/parametres',
@@ -220,12 +220,16 @@ export function Sidebar({
           );
         })}
 
-        <Separator className="my-2" />
+        {user?.role === 'admin' && (
+          <>
+            <Separator className="my-2" />
 
-        {!collapsed && (
-          <div className="text-muted-foreground px-3 py-1 text-[10px] font-semibold tracking-wider uppercase">
-            Administration
-          </div>
+            {!collapsed && (
+              <div className="text-muted-foreground px-3 py-1 text-[10px] font-semibold tracking-wider uppercase">
+                Administration
+              </div>
+            )}
+          </>
         )}
 
         {adminNavItems

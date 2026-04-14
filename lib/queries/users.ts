@@ -5,20 +5,51 @@ import { logger } from '@/lib/utils/logger';
 export async function getUsersList() {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, email, nom, prenom, role, actif, derniere_connexion')
-    .order('nom');
+  const [usersResult, projetsResult] = await Promise.all([
+    supabase
+      .from('users')
+      .select('id, email, nom, prenom, role, actif, derniere_connexion')
+      .order('nom'),
+    supabase
+      .from('projets')
+      .select('cdp_id, backup_cdp_id')
+      .eq('archive', false),
+  ]);
 
-  if (error) {
-    logger.error('queries.users', 'getUsersList failed', { error });
+  if (usersResult.error) {
+    logger.error('queries.users', 'getUsersList failed', {
+      error: usersResult.error,
+    });
     throw new AppError(
       'USERS_FETCH_FAILED',
       'Impossible de charger les utilisateurs',
-      { cause: error },
+      { cause: usersResult.error },
     );
   }
-  return data;
+
+  // Count projets assigned per user (as cdp or backup_cdp)
+  const projetCountMap = new Map<string, number>();
+  if (projetsResult.data) {
+    for (const projet of projetsResult.data) {
+      if (projet.cdp_id) {
+        projetCountMap.set(
+          projet.cdp_id,
+          (projetCountMap.get(projet.cdp_id) ?? 0) + 1,
+        );
+      }
+      if (projet.backup_cdp_id) {
+        projetCountMap.set(
+          projet.backup_cdp_id,
+          (projetCountMap.get(projet.backup_cdp_id) ?? 0) + 1,
+        );
+      }
+    }
+  }
+
+  return usersResult.data.map((user) => ({
+    ...user,
+    projets_count: projetCountMap.get(user.id) ?? 0,
+  }));
 }
 
 export type UserListItem = Awaited<ReturnType<typeof getUsersList>>[number];

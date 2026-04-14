@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { getClientsList } from '@/lib/queries/clients';
+import { getCurrentUser } from '@/lib/queries/users';
 import { PageHeader } from '@/components/shared/page-header';
 import { ClientsDataTable } from '@/components/admin/clients-data-table';
 import { ClientCreateButton } from '@/components/admin/client-create-button';
@@ -7,6 +9,11 @@ import { ClientCreateButton } from '@/components/admin/client-create-button';
 export const metadata: Metadata = { title: 'Clients — SOLUVIA' };
 
 export default async function ClientsPage() {
+  const user = await getCurrentUser();
+  if (user?.role !== 'admin') {
+    redirect('/projets');
+  }
+
   const clients = await getClientsList();
 
   return (

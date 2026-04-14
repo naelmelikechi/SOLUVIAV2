@@ -68,6 +68,17 @@ export function getUserListColumns(
       },
     },
     {
+      accessorKey: 'projets_count',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Projets assignés" />
+      ),
+      cell: ({ row }) => (
+        <div className="text-center text-sm font-medium">
+          {row.original.projets_count}
+        </div>
+      ),
+    },
+    {
       accessorKey: 'actif',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Statut" />

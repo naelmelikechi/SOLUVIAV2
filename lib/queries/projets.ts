@@ -95,10 +95,10 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
       .in('projet_id', projetIds)
       .eq('fait', false),
 
-    // 3. Factures en retard par projet (with montant_ttc for encaissements)
+    // 3. Factures en retard par projet (with paiements for net calculation)
     supabase
       .from('factures')
-      .select('id, projet_id, montant_ttc')
+      .select('id, projet_id, montant_ttc, paiements(montant)')
       .in('projet_id', projetIds)
       .eq('statut', 'en_retard'),
 
@@ -123,42 +123,23 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
   }
 
   const facturesRetardMap = new Map<string, number>();
-  const facturesRetardMontantMap = new Map<string, number>();
-  const overdueFactureIds: string[] = [];
+  const encaissementsRetardMap = new Map<string, number>();
   for (const f of facturesRes.data ?? []) {
     facturesRetardMap.set(
       f.projet_id,
       (facturesRetardMap.get(f.projet_id) ?? 0) + 1,
     );
-    facturesRetardMontantMap.set(
-      f.projet_id,
-      (facturesRetardMontantMap.get(f.projet_id) ?? 0) + (f.montant_ttc ?? 0),
-    );
-    overdueFactureIds.push(f.id);
-  }
-
-  // 5. Fetch paiements for overdue factures to compute remaining encaissement
-  const paiementsMap = new Map<string, number>();
-  if (overdueFactureIds.length > 0) {
-    const { data: paiements } = await supabase
-      .from('paiements')
-      .select('facture_id, montant')
-      .in('facture_id', overdueFactureIds);
-
-    // Map facture_id -> projet_id for lookup
-    const factureToProjet = new Map<string, string>();
-    for (const f of facturesRes.data ?? []) {
-      factureToProjet.set(f.id, f.projet_id);
-    }
-
-    for (const p of paiements ?? []) {
-      const projetId = factureToProjet.get(p.facture_id);
-      if (projetId) {
-        paiementsMap.set(
-          projetId,
-          (paiementsMap.get(projetId) ?? 0) + (p.montant ?? 0),
-        );
-      }
+    // Net overdue = montant_ttc - sum of paiements (joined in query)
+    const paiementsSum = (
+      (f as unknown as { paiements: Array<{ montant: number }> }).paiements ??
+      []
+    ).reduce((s: number, p: { montant: number }) => s + (p.montant ?? 0), 0);
+    const net = (f.montant_ttc ?? 0) - paiementsSum;
+    if (net > 0) {
+      encaissementsRetardMap.set(
+        f.projet_id,
+        (encaissementsRetardMap.get(f.projet_id) ?? 0) + net,
+      );
     }
   }
 
@@ -176,10 +157,7 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
     apprentisActifs: apprentisMap.get(p.id) ?? 0,
     tachesARealiser: tachesMap.get(p.id) ?? 0,
     facturesEnRetard: facturesRetardMap.get(p.id) ?? 0,
-    encaissementsEnRetard: Math.max(
-      0,
-      (facturesRetardMontantMap.get(p.id) ?? 0) - (paiementsMap.get(p.id) ?? 0),
-    ),
+    encaissementsEnRetard: encaissementsRetardMap.get(p.id) ?? 0,
     tempsMois: tempsMap.get(p.id) ?? 0,
   }));
 }

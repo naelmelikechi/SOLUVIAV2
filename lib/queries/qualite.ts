@@ -25,10 +25,12 @@ export async function getQualiteSummaries() {
     );
   }
 
-  // Get all quality tasks (with famille_code for conformity grouping)
+  // Get quality tasks only for active projects (not ALL tasks in DB)
+  const projetIds = projets.map((p) => p.id);
   const { data: taches, error: tError } = await supabase
     .from('taches_qualite')
-    .select('projet_id, fait, famille_code');
+    .select('projet_id, fait, famille_code')
+    .in('projet_id', projetIds);
   if (tError) {
     logger.error('queries.qualite', 'getQualiteSummaries failed (taches)', {
       error: tError,

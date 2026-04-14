@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef, useTransition } from 'react';
+import { useState, useMemo, useRef, useTransition } from 'react';
 import { format } from 'date-fns';
 import {
   TrendingUp,
@@ -159,17 +159,8 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
 
   const currentMonth = displayData.find((m) => m.isCurrent);
 
-  // Auto-scroll to current month row
-  useEffect(() => {
-    if (drillLevel !== 'global') return;
-    const timer = setTimeout(() => {
-      const currentRow = tableRef.current?.querySelector(
-        '[data-current-month="true"]',
-      );
-      currentRow?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [displayData, drillLevel]);
+  // Highlight current month row without scrolling the page
+  // (scrollIntoView was scrolling the whole page down)
 
   // Drill-down handlers
   const handleMonthClick = (mois: string, label: string) => {

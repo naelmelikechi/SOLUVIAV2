@@ -5,6 +5,7 @@ import {
   getTypologies,
   getAxesTemps,
   getJoursFeries,
+  getLastEduviaSyncDate,
 } from '@/lib/queries/parametres';
 import { getCurrentUser } from '@/lib/queries/users';
 import { PageHeader } from '@/components/shared/page-header';
@@ -18,14 +19,21 @@ export default async function ParametresPage() {
     redirect('/projets');
   }
 
-  const [entrepriseParams, facturationParams, typologies, axes, joursFeries] =
-    await Promise.all([
-      getParametresByCategorie('entreprise'),
-      getParametresByCategorie('facturation'),
-      getTypologies(),
-      getAxesTemps(),
-      getJoursFeries(2026),
-    ]);
+  const [
+    entrepriseParams,
+    facturationParams,
+    typologies,
+    axes,
+    joursFeries,
+    lastEduviaSyncDate,
+  ] = await Promise.all([
+    getParametresByCategorie('entreprise'),
+    getParametresByCategorie('facturation'),
+    getTypologies(),
+    getAxesTemps(),
+    getJoursFeries(2026),
+    getLastEduviaSyncDate(),
+  ]);
 
   // Convert params arrays to key-value maps
   const entreprise = Object.fromEntries(
@@ -47,6 +55,7 @@ export default async function ParametresPage() {
         typologies={typologies}
         axes={axes}
         joursFeries={joursFeries}
+        lastEduviaSyncDate={lastEduviaSyncDate}
       />
     </div>
   );

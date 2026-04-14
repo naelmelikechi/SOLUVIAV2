@@ -49,7 +49,9 @@ export type AppErrorCode =
   // Dashboard
   | 'DASHBOARD_FETCH_FAILED'
   // Notifications
-  | 'NOTIFICATIONS_FETCH_FAILED';
+  | 'NOTIFICATIONS_FETCH_FAILED'
+  // Eduvia Sync
+  | 'EDUVIA_SYNC_FAILED';
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

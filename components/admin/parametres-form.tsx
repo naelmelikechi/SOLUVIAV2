@@ -9,6 +9,7 @@ import {
   Clock,
   Calendar,
   Link,
+  RefreshCw,
   ChevronDown,
   ChevronRight,
   Loader2,
@@ -31,7 +32,7 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge';
 import { createClient } from '@/lib/supabase/client';
 import { formatDate } from '@/lib/utils/formatters';
-import { triggerOdooSync } from '@/lib/actions/sync';
+import { triggerOdooSync, triggerEduviaSync } from '@/lib/actions/sync';
 
 interface ParametresFormProps {
   entreprise: Record<string, string>;
@@ -45,6 +46,7 @@ interface ParametresFormProps {
     ordre: number;
   }[];
   joursFeries: { id: string; date: string; libelle: string }[];
+  lastEduviaSyncDate: string | null;
 }
 
 function SectionCard({
@@ -89,6 +91,7 @@ export function ParametresForm({
   typologies,
   axes,
   joursFeries,
+  lastEduviaSyncDate,
 }: ParametresFormProps) {
   const [entreprise, setEntreprise] = useState(initialEntreprise);
   const [facturation, setFacturation] = useState(initialFacturation);
@@ -97,6 +100,14 @@ export function ParametresForm({
   const [syncResult, setSyncResult] = useState<{
     pushed: number;
     pulled: number;
+    errors: string[];
+  } | null>(null);
+  const [eduviaSyncPending, startEduviaSyncTransition] = useTransition();
+  const [eduviaSyncResult, setEduviaSyncResult] = useState<{
+    syncedClients: number;
+    skippedClients: number;
+    totalContrats: number;
+    totalApprenants: number;
     errors: string[];
   } | null>(null);
 
@@ -374,7 +385,101 @@ export function ParametresForm({
         </div>
       </SectionCard>
 
-      {/* Section 6: Intégration Odoo */}
+      {/* Section 6: Intégration Eduvia */}
+      <SectionCard icon={RefreshCw} title="Eduvia">
+        <div className="space-y-3">
+          <p className="text-muted-foreground text-sm">
+            Synchronisation Eduvia : importe les contrats, apprenants,
+            formations et entreprises depuis l&apos;API Eduvia pour chaque
+            client configuré.
+          </p>
+          <p className="text-muted-foreground text-sm">
+            Dernière synchronisation :{' '}
+            <span className="text-foreground font-medium">
+              {lastEduviaSyncDate ? formatDate(lastEduviaSyncDate) : 'Jamais'}
+            </span>
+          </p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              disabled={eduviaSyncPending}
+              onClick={() => {
+                startEduviaSyncTransition(async () => {
+                  setEduviaSyncResult(null);
+                  const res = await triggerEduviaSync();
+                  if (res.success && res.results) {
+                    const totalContrats = res.results.results.reduce(
+                      (sum, r) => sum + r.contrats,
+                      0,
+                    );
+                    const totalApprenants = res.results.results.reduce(
+                      (sum, r) => sum + r.apprenants,
+                      0,
+                    );
+                    const allErrors = [
+                      ...res.results.errors,
+                      ...res.results.results.flatMap((r) => r.errors),
+                    ];
+                    setEduviaSyncResult({
+                      syncedClients: res.results.syncedClients,
+                      skippedClients: res.results.skippedClients,
+                      totalContrats,
+                      totalApprenants,
+                      errors: allErrors,
+                    });
+                    toast.success(
+                      `Sync Eduvia : ${totalContrats} contrat(s), ${totalApprenants} apprenant(s)`,
+                    );
+                  } else {
+                    toast.error(res.error ?? 'Echec de la synchronisation');
+                  }
+                });
+              }}
+            >
+              {eduviaSyncPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Synchronisation...
+                </>
+              ) : (
+                'Synchroniser maintenant'
+              )}
+            </Button>
+          </div>
+          {eduviaSyncResult && (
+            <div className="bg-muted rounded-md px-3 py-2 text-sm">
+              <div className="flex items-center gap-2">
+                {eduviaSyncResult.errors.length === 0 ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                )}
+                <span className="font-medium">
+                  {eduviaSyncResult.syncedClients} client(s) synchronise(s)
+                  {eduviaSyncResult.skippedClients > 0 &&
+                    ` · ${eduviaSyncResult.skippedClients} ignore(s)`}{' '}
+                  · {eduviaSyncResult.totalContrats} contrat(s) ·{' '}
+                  {eduviaSyncResult.totalApprenants} apprenant(s)
+                </span>
+              </div>
+              {eduviaSyncResult.errors.length > 0 && (
+                <ul className="text-destructive mt-1 list-inside list-disc text-xs">
+                  {eduviaSyncResult.errors.slice(0, 10).map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                  {eduviaSyncResult.errors.length > 10 && (
+                    <li>
+                      ... et {eduviaSyncResult.errors.length - 10} autre(s)
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </SectionCard>
+
+      {/* Section 7: Intégration Odoo */}
       <SectionCard icon={Link} title="Odoo">
         <div className="space-y-3">
           <p className="text-muted-foreground text-sm">

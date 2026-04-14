@@ -57,6 +57,24 @@ export async function getAxesTemps() {
   return data;
 }
 
+export async function getLastEduviaSyncDate(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('client_api_keys')
+    .select('last_sync_at')
+    .eq('is_active', true)
+    .order('last_sync_at', { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    logger.error('queries.parametres', 'getLastEduviaSyncDate failed', {
+      error,
+    });
+    return null;
+  }
+  return data?.last_sync_at ?? null;
+}
+
 export async function getJoursFeries(annee: number) {
   const supabase = await createClient();
   const { data, error } = await supabase

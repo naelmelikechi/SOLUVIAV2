@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { sendEmailForFacture } from '@/lib/email/client';
+import { logger } from '@/lib/utils/logger';
 
 export async function createFactures(
   echeanceIds: string[],
@@ -163,8 +164,12 @@ export async function createFactures(
     createdRefs.push(facture.ref ?? '');
 
     // Send email (fire-and-forget, don't block facture creation)
-    sendEmailForFacture(facture.id, supabase).catch(() => {
-      // Email failure doesn't block facture creation
+    sendEmailForFacture(facture.id, supabase).catch((err) => {
+      logger.error('actions.factures', 'Email fire-and-forget failed', {
+        factureId: facture.id,
+        factureRef: facture.ref,
+        error: err instanceof Error ? err.message : String(err),
+      });
     });
   }
 

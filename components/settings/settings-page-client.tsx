@@ -42,6 +42,7 @@ interface SettingsPageClientProps {
     prenom: string;
     role: string;
     avatar_seed: string | null;
+    avatar_regen_date: string | null;
   };
 }
 
@@ -60,6 +61,9 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
 
   // Avatar state
   const [avatarSeed, setAvatarSeed] = useState<string | null>(user.avatar_seed);
+  const [regenUsed, setRegenUsed] = useState(
+    user.avatar_regen_date === new Date().toISOString().slice(0, 10),
+  );
   const [avatarPending, startAvatarTransition] = useTransition();
   const isLocked = avatarSeed !== null;
 
@@ -144,13 +148,21 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={avatarPending}
+                disabled={avatarPending || regenUsed}
+                title={
+                  regenUsed
+                    ? 'Revenez demain pour un nouveau robot !'
+                    : undefined
+                }
                 onClick={() =>
                   startAvatarTransition(async () => {
                     const result = await regenerateAvatar();
                     if (result.success && result.seed) {
                       setAvatarSeed(result.seed);
-                      toast.success('Nouveau robot généré !');
+                      setRegenUsed(true);
+                      toast.success(
+                        'Nouveau robot généré ! Revenez demain pour retenter votre chance.',
+                      );
                     } else {
                       toast.error(result.error ?? 'Erreur');
                     }
@@ -158,7 +170,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
                 }
               >
                 <Dices className="mr-1.5 h-4 w-4" />
-                {avatarPending ? 'Génération...' : 'Nouveau robot'}
+                {regenUsed ? "Déjà tiré aujourd'hui" : 'Nouveau robot'}
               </Button>
 
               {!isLocked ? (

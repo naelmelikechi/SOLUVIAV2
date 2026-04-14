@@ -1133,6 +1133,7 @@ export type Database = {
         Row: {
           actif: boolean;
           avatar_seed: string | null;
+          avatar_regen_date: string | null;
           created_at: string;
           derniere_connexion: string | null;
           email: string;
@@ -1145,6 +1146,7 @@ export type Database = {
         Insert: {
           actif?: boolean;
           avatar_seed?: string | null;
+          avatar_regen_date?: string | null;
           created_at?: string;
           derniere_connexion?: string | null;
           email: string;
@@ -1157,6 +1159,7 @@ export type Database = {
         Update: {
           actif?: boolean;
           avatar_seed?: string | null;
+          avatar_regen_date?: string | null;
           created_at?: string;
           derniere_connexion?: string | null;
           email?: string;

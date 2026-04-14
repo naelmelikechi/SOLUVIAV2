@@ -61,7 +61,7 @@ export async function updatePassword(
 // Avatar actions
 // ---------------------------------------------------------------------------
 
-/** Generate a new random robot and lock it */
+/** Generate a new random robot — limited to 1x per day */
 export async function regenerateAvatar(): Promise<{
   success: boolean;
   seed?: string;
@@ -73,11 +73,27 @@ export async function regenerateAvatar(): Promise<{
   } = await supabase.auth.getUser();
   if (!authUser) return { success: false, error: 'Non authentifié' };
 
+  // Check last regen date
+  const { data: userData } = await supabase
+    .from('users')
+    .select('avatar_regen_date')
+    .eq('id', authUser.id)
+    .single();
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (userData?.avatar_regen_date === today) {
+    return {
+      success: false,
+      error:
+        "Vous avez déjà régénéré votre robot aujourd'hui. Revenez demain !",
+    };
+  }
+
   const seed = `${authUser.email}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   const { error } = await supabase
     .from('users')
-    .update({ avatar_seed: seed })
+    .update({ avatar_seed: seed, avatar_regen_date: today })
     .eq('id', authUser.id);
 
   if (error) return { success: false, error: error.message };

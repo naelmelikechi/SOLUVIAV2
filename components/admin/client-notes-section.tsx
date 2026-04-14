@@ -9,6 +9,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { formatDateLong } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
 import { addClientNote } from '@/lib/actions/clients';
+import { isAdmin, getRoleLabel } from '@/lib/utils/roles';
 import type { ClientNote } from '@/lib/queries/clients';
 
 interface ClientNotesSectionProps {
@@ -80,8 +81,8 @@ export function ClientNotesSection({
                 </span>
                 {note.user?.role && (
                   <StatusBadge
-                    label={note.user.role === 'admin' ? 'Admin' : 'CDP'}
-                    color={note.user.role === 'admin' ? 'purple' : 'blue'}
+                    label={getRoleLabel(note.user.role)}
+                    color={isAdmin(note.user.role) ? 'purple' : 'blue'}
                   />
                 )}
               </div>

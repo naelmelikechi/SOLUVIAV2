@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/queries/users';
+import { isAdmin } from '@/lib/utils/roles';
 import { getWeekDates, getTeamWeekSummary } from '@/lib/queries/temps';
 import { TeamRecapClient } from '@/components/temps/team-recap-client';
 
@@ -8,7 +9,7 @@ export const metadata: Metadata = { title: 'Temps Equipe — SOLUVIA' };
 
 export default async function TempsEquipePage() {
   const user = await getCurrentUser();
-  if (user?.role !== 'admin') {
+  if (!isAdmin(user?.role)) {
     redirect('/temps');
   }
 

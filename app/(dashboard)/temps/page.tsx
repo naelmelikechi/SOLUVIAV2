@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getWeekDates, getSaisiesForWeek } from '@/lib/queries/temps';
 import { getCurrentUser } from '@/lib/queries/users';
+import { isAdmin } from '@/lib/utils/roles';
 import { TempsPageClient } from '@/components/temps/temps-page-client';
 
 export const metadata: Metadata = { title: 'Temps — SOLUVIA' };
@@ -11,13 +12,13 @@ export default async function TempsPage() {
     getCurrentUser(),
   ]);
   const saisies = await getSaisiesForWeek(weekDates);
-  const isAdmin = user?.role === 'admin';
+  const adminUser = isAdmin(user?.role);
 
   return (
     <TempsPageClient
       weekDates={weekDates}
       initialSaisies={saisies}
-      isAdmin={isAdmin}
+      isAdmin={adminUser}
     />
   );
 }

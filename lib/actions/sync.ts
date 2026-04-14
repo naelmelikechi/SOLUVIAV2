@@ -6,6 +6,7 @@ import type { OdooSyncResult } from '@/lib/odoo/sync';
 import { syncAllEduviaClients } from '@/lib/eduvia/sync';
 import type { SyncResult } from '@/lib/eduvia/sync';
 import { getCurrentUser } from '@/lib/queries/users';
+import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 
 export async function triggerOdooSync(): Promise<{
@@ -16,7 +17,7 @@ export async function triggerOdooSync(): Promise<{
   try {
     // Only admins can trigger manual sync
     const user = await getCurrentUser();
-    if (!user || user.role !== 'admin') {
+    if (!user || !isAdmin(user.role)) {
       return { success: false, error: 'Non autorise' };
     }
 
@@ -42,7 +43,7 @@ export async function triggerEduviaSync(): Promise<{
 }> {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== 'admin') {
+    if (!user || !isAdmin(user.role)) {
       return { success: false, error: 'Non autorisé' };
     }
 

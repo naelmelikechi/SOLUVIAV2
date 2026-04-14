@@ -17,6 +17,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { updateProfile, updatePassword } from '@/lib/actions/settings';
+import { isAdmin as checkIsAdmin } from '@/lib/utils/roles';
 
 interface SettingsPageClientProps {
   user: {
@@ -136,7 +137,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
               <Label>Role</Label>
               <Input
                 value={
-                  user.role === 'admin' ? 'Administrateur' : 'Chef de projet'
+                  checkIsAdmin(user.role) ? 'Administrateur' : 'Chef de projet'
                 }
                 disabled
                 className="bg-muted"

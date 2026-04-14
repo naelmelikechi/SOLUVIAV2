@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
+import { isAdmin, getRoleLabel } from '@/lib/utils/roles';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { useBadgeCounts } from '@/hooks/use-badge-counts';
@@ -220,7 +221,7 @@ export function Sidebar({
           );
         })}
 
-        {user?.role === 'admin' && (
+        {isAdmin(user?.role) && (
           <>
             <Separator className="my-2" />
 
@@ -233,7 +234,7 @@ export function Sidebar({
         )}
 
         {adminNavItems
-          .filter((item) => !item.adminOnly || user?.role === 'admin')
+          .filter((item) => !item.adminOnly || isAdmin(user?.role))
           .map((item) => {
             const isActive = pathname.startsWith(item.href);
             const Icon = item.icon;
@@ -299,7 +300,7 @@ export function Sidebar({
                   {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
                 </Link>
                 <div className="text-muted-foreground text-[11px]">
-                  {user ? (user.role === 'admin' ? 'Admin' : 'CDP') : '—'}
+                  {user ? getRoleLabel(user.role) : '—'}
                 </div>
               </div>
               <ThemeToggle />

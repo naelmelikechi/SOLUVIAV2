@@ -1176,7 +1176,7 @@ export type Database = {
       show_trgm: { Args: { '': string }; Returns: string[] };
     };
     Enums: {
-      role_utilisateur: 'admin' | 'cdp';
+      role_utilisateur: 'admin' | 'cdp' | 'superadmin';
       scope_kpi: 'global' | 'projet' | 'cdp';
       statut_facture: 'a_emettre' | 'emise' | 'payee' | 'en_retard' | 'avoir';
       statut_projet: 'actif' | 'en_pause' | 'termine' | 'archive';

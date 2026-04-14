@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 
 export async function createProjet(data: {
@@ -36,7 +37,7 @@ export async function createProjet(data: {
     .select('role')
     .eq('id', user.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Acces reserve aux administrateurs' };
   }
 

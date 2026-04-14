@@ -3,6 +3,7 @@ import { getProjetsListEnriched } from '@/lib/queries/projets';
 import { getClientsList } from '@/lib/queries/clients';
 import { getTypologies } from '@/lib/queries/parametres';
 import { getUsersList, getCurrentUser } from '@/lib/queries/users';
+import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { ProjetsDataTable } from '@/components/projets/projets-data-table';
 import { ProjetCreateButton } from '@/components/projets/projet-create-button';
@@ -18,7 +19,7 @@ export default async function ProjetsPage() {
     getCurrentUser(),
   ]);
 
-  const isAdmin = currentUser?.role === 'admin';
+  const adminUser = isAdmin(currentUser?.role);
 
   // Sort: actif first, then en_pause, termine, archive
   const order: Record<string, number> = {
@@ -37,7 +38,7 @@ export default async function ProjetsPage() {
         title="Projets"
         description="Liste des projets actifs et archives"
       >
-        {isAdmin && (
+        {adminUser && (
           <ProjetCreateButton
             clients={clients.map((c) => ({
               id: c.id,

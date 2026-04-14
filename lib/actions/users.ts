@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isAdmin } from '@/lib/utils/roles';
 
 // ---------------------------------------------------------------------------
 // updateUserRole — admin-only: change a user's role
@@ -25,7 +26,7 @@ export async function updateUserRole(
     .select('role')
     .eq('id', authUser.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Accès refusé — réservé aux admins' };
   }
 
@@ -61,7 +62,7 @@ export async function toggleUserActive(
     .select('role')
     .eq('id', authUser.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Accès refusé — réservé aux admins' };
   }
 
@@ -101,7 +102,7 @@ export async function inviteUser(
     .select('role')
     .eq('id', authUser.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Acces refuse — reserve aux admins' };
   }
 

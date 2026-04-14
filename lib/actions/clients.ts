@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { encryptApiKey, decryptApiKey } from '@/lib/utils/encryption';
+import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 
 // ---------------------------------------------------------------------------
@@ -39,7 +40,7 @@ export async function createClientAction(
     .select('role')
     .eq('id', user.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Acces reserve aux administrateurs' };
   }
 
@@ -91,7 +92,7 @@ export async function updateClientAction(
     .select('role')
     .eq('id', user.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Acces reserve aux administrateurs' };
   }
 
@@ -136,7 +137,7 @@ export async function archiveClient(
     .select('role')
     .eq('id', user.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Acces reserve aux administrateurs' };
   }
 
@@ -171,7 +172,7 @@ export async function unarchiveClient(
     .select('role')
     .eq('id', user.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Accès réservé aux administrateurs' };
   }
 
@@ -331,7 +332,7 @@ export async function addClientApiKey(
     .select('role')
     .eq('id', user.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Accès réservé aux administrateurs' };
   }
 
@@ -382,7 +383,7 @@ export async function deleteClientApiKey(
     .select('role')
     .eq('id', user.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Accès réservé aux administrateurs' };
   }
 
@@ -427,7 +428,7 @@ export async function toggleClientApiKeyActive(
     .select('role')
     .eq('id', user.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Accès réservé aux administrateurs' };
   }
 
@@ -471,7 +472,7 @@ export async function testApiKeyConnection(
     .select('role')
     .eq('id', user.id)
     .single();
-  if (caller?.role !== 'admin') {
+  if (!isAdmin(caller?.role)) {
     return { success: false, error: 'Accès réservé aux administrateurs' };
   }
 

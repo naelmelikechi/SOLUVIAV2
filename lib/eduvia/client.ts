@@ -55,6 +55,14 @@ export interface EduviaCompany {
 const REQUEST_TIMEOUT = 3_000; // 3 seconds
 const PER_PAGE = 100;
 
+/** Thrown when an Eduvia API endpoint returns 404 — means the endpoint isn't available yet */
+export class EndpointNotAvailableError extends Error {
+  constructor(public resource: string) {
+    super(`Endpoint /api/v1/${resource} pas encore disponible`);
+    this.name = 'EndpointNotAvailableError';
+  }
+}
+
 /**
  * Fetches all pages of a given Eduvia API resource.
  *
@@ -117,6 +125,9 @@ async function fetchPage<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new EndpointNotAvailableError(resource);
+    }
     const text = await response
       .text()
       .catch(() => '(impossible de lire la réponse)');

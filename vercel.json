@@ -11,6 +11,14 @@
     {
       "path": "/api/cron/factures-retard",
       "schedule": "0 9 * * 1-5"
+    },
+    {
+      "path": "/api/sync/eduvia",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/sync/odoo",
+      "schedule": "0 * * * *"
     }
   ]
 }

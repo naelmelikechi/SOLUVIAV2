@@ -1,15 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { differenceInMonths } from 'date-fns';
-import { fetchAllPages } from '@/lib/eduvia/client';
+import { fetchAllPages, EndpointNotAvailableError } from '@/lib/eduvia/client';
 import type {
   EduviaContract,
   EduviaLearner,
   EduviaFormation,
   EduviaCompany,
 } from '@/lib/eduvia/client';
-import { decryptApiKey } from '@/lib/utils/encryption';
 import { logger } from '@/lib/utils/logger';
+import { decryptApiKey } from '@/lib/utils/encryption';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -123,9 +123,16 @@ export async function syncEduviaForClient(
       }
     }
   } catch (err) {
-    result.errors.push(
-      `Erreur fetch contracts: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    if (err instanceof EndpointNotAvailableError) {
+      logger.info(
+        'eduvia_sync',
+        `Endpoint contracts pas encore disponible — ignoré`,
+      );
+    } else {
+      result.errors.push(
+        `Erreur fetch contracts: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   // ── Sync learners ──────────────────────────────────────────────────
@@ -163,9 +170,16 @@ export async function syncEduviaForClient(
       }
     }
   } catch (err) {
-    result.errors.push(
-      `Erreur fetch learners: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    if (err instanceof EndpointNotAvailableError) {
+      logger.info(
+        'eduvia_sync',
+        `Endpoint employee_learners pas encore disponible — ignoré`,
+      );
+    } else {
+      result.errors.push(
+        `Erreur fetch learners: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   // ── Sync formations ────────────────────────────────────────────────
@@ -202,9 +216,16 @@ export async function syncEduviaForClient(
       }
     }
   } catch (err) {
-    result.errors.push(
-      `Erreur fetch formations: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    if (err instanceof EndpointNotAvailableError) {
+      logger.info(
+        'eduvia_sync',
+        `Endpoint formations pas encore disponible — ignoré`,
+      );
+    } else {
+      result.errors.push(
+        `Erreur fetch formations: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   // ── Sync companies ─────────────────────────────────────────────────
@@ -243,9 +264,16 @@ export async function syncEduviaForClient(
       }
     }
   } catch (err) {
-    result.errors.push(
-      `Erreur fetch companies: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    if (err instanceof EndpointNotAvailableError) {
+      logger.info(
+        'eduvia_sync',
+        `Endpoint companies pas encore disponible — ignoré`,
+      );
+    } else {
+      result.errors.push(
+        `Erreur fetch companies: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   return result;

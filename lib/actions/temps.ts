@@ -113,3 +113,81 @@ export async function fetchWeekData(weekOffset: number) {
 
   return { weekDates, saisies };
 }
+
+// ---------------------------------------------------------------------------
+// copyPreviousWeek — copy time entries from the previous week to the current week
+// ---------------------------------------------------------------------------
+
+export async function copyPreviousWeek(
+  currentWeekDates: string[],
+): Promise<{ success: boolean; copied: number; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, copied: 0, error: 'Non authentifié' };
+
+  // Calculate previous week dates (subtract 7 days from each current date)
+  const previousWeekDates = currentWeekDates.map((dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0]!;
+  });
+
+  // Fetch saisies for previous week
+  const { data: prevSaisies, error: fetchError } = await supabase
+    .from('saisies_temps')
+    .select('projet_id, date, heures')
+    .eq('user_id', user.id)
+    .in('date', previousWeekDates);
+
+  if (fetchError)
+    return { success: false, copied: 0, error: fetchError.message };
+  if (!prevSaisies || prevSaisies.length === 0)
+    return { success: true, copied: 0 };
+
+  // Fetch existing saisies for current week to avoid overwriting
+  const { data: existingSaisies, error: existingError } = await supabase
+    .from('saisies_temps')
+    .select('projet_id, date')
+    .eq('user_id', user.id)
+    .in('date', currentWeekDates);
+
+  if (existingError)
+    return { success: false, copied: 0, error: existingError.message };
+
+  const existingKeys = new Set(
+    (existingSaisies ?? []).map((s) => `${s.projet_id}|${s.date}`),
+  );
+
+  // Map previous week dates to current week dates
+  const dateMapping: Record<string, string> = {};
+  for (let i = 0; i < previousWeekDates.length; i++) {
+    dateMapping[previousWeekDates[i]!] = currentWeekDates[i]!;
+  }
+
+  // Build rows to insert (skip entries that already exist)
+  const rowsToInsert = prevSaisies
+    .filter((s) => {
+      const targetDate = dateMapping[s.date]!;
+      return !existingKeys.has(`${s.projet_id}|${targetDate}`);
+    })
+    .map((s) => ({
+      user_id: user.id,
+      projet_id: s.projet_id,
+      date: dateMapping[s.date]!,
+      heures: s.heures,
+    }));
+
+  if (rowsToInsert.length === 0) return { success: true, copied: 0 };
+
+  const { error: insertError } = await supabase
+    .from('saisies_temps')
+    .insert(rowsToInsert);
+
+  if (insertError)
+    return { success: false, copied: 0, error: insertError.message };
+
+  return { success: true, copied: rowsToInsert.length };
+}

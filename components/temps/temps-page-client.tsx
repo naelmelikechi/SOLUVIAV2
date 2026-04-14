@@ -1,9 +1,14 @@
 'use client';
 
 import { useState, useCallback, useTransition } from 'react';
-import { Download } from 'lucide-react';
+import { Copy, Download } from 'lucide-react';
+import { toast } from 'sonner';
 import type { SaisieTemps } from '@/lib/queries/temps';
-import { fetchWeekData, saveSaisieTempsAxes } from '@/lib/actions/temps';
+import {
+  fetchWeekData,
+  saveSaisieTempsAxes,
+  copyPreviousWeek,
+} from '@/lib/actions/temps';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { TimeWeekNavigator } from '@/components/temps/time-week-navigator';
@@ -90,6 +95,25 @@ export function TempsPageClient({
     [selectedCell],
   );
 
+  const handleCopyPreviousWeek = useCallback(() => {
+    startTransition(async () => {
+      const result = await copyPreviousWeek(weekDates);
+      if (!result.success) {
+        toast.error(result.error ?? 'Erreur lors de la copie');
+        return;
+      }
+      if (result.copied === 0) {
+        toast.info('Aucune saisie à copier depuis la semaine précédente');
+        return;
+      }
+      toast.success(`${result.copied} saisie(s) copiée(s) depuis S-1`);
+      // Refresh week data
+      const refreshed = await fetchWeekData(weekOffset);
+      setWeekDates(refreshed.weekDates);
+      setSaisies(refreshed.saisies);
+    });
+  }, [weekDates, weekOffset]);
+
   const handleExport = async () => {
     const XLSX = await import('xlsx');
     const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -118,6 +142,15 @@ export function TempsPageClient({
   return (
     <div>
       <PageHeader title="Suivi de temps" description="Ma semaine">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCopyPreviousWeek}
+          disabled={isPending}
+        >
+          <Copy className="mr-1.5 h-4 w-4" />
+          Recopier S-1
+        </Button>
         <Button variant="outline" size="sm" onClick={handleExport}>
           <Download className="mr-1.5 h-4 w-4" />
           Export Excel

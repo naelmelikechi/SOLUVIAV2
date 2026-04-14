@@ -78,6 +78,7 @@ export default async function QualiteDetailPage({
                 id: t.id,
                 label: t.livrable ?? '',
                 fait: t.fait,
+                eduvia_url: t.eduvia_url,
               }))}
             />
           );

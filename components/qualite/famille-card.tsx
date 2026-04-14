@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { CheckCircle, Circle, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  CheckCircle,
+  Circle,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+} from 'lucide-react';
 
 interface FamilleCardProps {
   code: string;
@@ -10,7 +16,12 @@ interface FamilleCardProps {
   done: number;
   total: number;
   pct: number;
-  livrables: { id: string; label: string; fait: boolean }[];
+  livrables: {
+    id: string;
+    label: string;
+    fait: boolean;
+    eduvia_url?: string | null;
+  }[];
 }
 
 export function FamilleCard({
@@ -76,6 +87,17 @@ export function FamilleCard({
                 <span className={l.fait ? '' : 'text-muted-foreground'}>
                   {l.label}
                 </span>
+                {l.eduvia_url && (
+                  <a
+                    href={l.eduvia_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-primary ml-2 inline-flex items-center"
+                    title="Ouvrir dans Eduvia"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
               </div>
             ))}
           </div>

@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { getAvatarUrl } from '@/components/shared/user-avatar';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   ClipboardList,
@@ -60,7 +61,13 @@ const adminNavItems = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  user?: { nom: string; prenom: string; role: string; email: string } | null;
+  user?: {
+    nom: string;
+    prenom: string;
+    role: string;
+    email: string;
+    avatar_seed: string | null;
+  } | null;
   /** Mobile overlay mode */
   mobile?: boolean;
   /** Close the mobile sidebar */
@@ -273,7 +280,7 @@ export function Sidebar({
             >
               {user ? (
                 <img
-                  src={`https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(user.email + new Date().toISOString().slice(0, 10))}&radius=50`}
+                  src={getAvatarUrl(user.email, user.avatar_seed)}
                   alt={`${user.prenom} ${user.nom}`}
                   className="h-full w-full"
                 />
@@ -303,7 +310,7 @@ export function Sidebar({
               >
                 {user ? (
                   <img
-                    src={`https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(user.email + new Date().toISOString().slice(0, 10))}&radius=50`}
+                    src={getAvatarUrl(user.email, user.avatar_seed)}
                     alt={`${user.prenom} ${user.nom}`}
                     className="h-full w-full"
                   />

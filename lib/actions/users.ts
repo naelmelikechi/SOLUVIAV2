@@ -78,6 +78,44 @@ export async function updateUserRole(
 }
 
 // ---------------------------------------------------------------------------
+// updateUserProfile - admin-only: change a user's prenom/nom
+// ---------------------------------------------------------------------------
+
+export async function updateUserProfile(
+  userId: string,
+  prenom: string,
+  nom: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', authUser.id)
+    .single();
+  if (!isAdmin(caller?.role)) {
+    return { success: false, error: 'Accès refusé - réservé aux admins' };
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update({ prenom, nom })
+    .eq('id', userId);
+
+  if (error) return { success: false, error: error.message };
+
+  logAudit('user_profile_updated', 'user', userId, { prenom, nom });
+
+  revalidatePath('/admin/utilisateurs');
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
 // toggleUserActive - admin-only: enable / disable a user
 // ---------------------------------------------------------------------------
 

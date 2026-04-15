@@ -56,6 +56,8 @@ function describeAction(
       return "a modifié le statut d'un utilisateur";
     case 'user_deleted':
       return 'a supprimé un utilisateur';
+    case 'user_profile_updated':
+      return "a modifié le profil d'un utilisateur";
     case 'profile_updated':
       return 'a modifié son profil';
     case 'password_changed':

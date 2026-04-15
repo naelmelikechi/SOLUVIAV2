@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,6 +24,7 @@ import {
   updateUserRole,
   toggleUserActive,
   deleteUser,
+  updateUserProfile,
 } from '@/lib/actions/users';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import type { UserListItem } from '@/lib/queries/users';
@@ -40,6 +42,8 @@ export function UserEditDialog({
   open,
   onOpenChange,
 }: UserEditDialogProps) {
+  const [prenom, setPrenom] = useState(user?.prenom ?? '');
+  const [nom, setNom] = useState(user?.nom ?? '');
   const [role, setRole] = useState<string>(user?.role ?? 'cdp');
   const [actif, setActif] = useState<string>(user?.actif ? 'true' : 'false');
   const [isPending, startTransition] = useTransition();
@@ -50,6 +54,8 @@ export function UserEditDialog({
   const [prevUserId, setPrevUserId] = useState<string | null>(null);
   if (user && user.id !== prevUserId) {
     setPrevUserId(user.id);
+    setPrenom(user.prenom);
+    setNom(user.nom);
     setRole(user.role);
     setActif(user.actif ? 'true' : 'false');
   }
@@ -62,12 +68,26 @@ export function UserEditDialog({
       const newRole = role as 'admin' | 'cdp';
       const newActif = actif === 'true';
 
+      const nameChanged =
+        prenom.trim() !== user.prenom || nom.trim() !== user.nom;
       const roleChanged = newRole !== user.role;
       const actifChanged = newActif !== user.actif;
 
-      if (!roleChanged && !actifChanged) {
+      if (!nameChanged && !roleChanged && !actifChanged) {
         onOpenChange(false);
         return;
+      }
+
+      if (nameChanged) {
+        const result = await updateUserProfile(
+          user.id,
+          prenom.trim(),
+          nom.trim(),
+        );
+        if (!result.success) {
+          toast.error(result.error ?? 'Erreur lors de la mise à jour du nom');
+          return;
+        }
       }
 
       if (roleChanged) {
@@ -103,6 +123,25 @@ export function UserEditDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="edit-prenom">Prénom</Label>
+              <Input
+                id="edit-prenom"
+                value={prenom}
+                onChange={(e) => setPrenom(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-nom">Nom</Label>
+              <Input
+                id="edit-nom"
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-role">Rôle</Label>
             <Select value={role} onValueChange={(v) => setRole(v ?? 'cdp')}>

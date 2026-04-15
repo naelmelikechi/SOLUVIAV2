@@ -16,7 +16,7 @@ export default async function ParametresComptePage() {
     <div>
       <PageHeader
         title="Mon compte"
-        description="Gerez votre profil, mot de passe et preferences"
+        description="Gérez votre profil, mot de passe et préférences"
       />
       <SettingsPageClient user={user} />
     </div>

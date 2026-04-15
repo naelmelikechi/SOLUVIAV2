@@ -431,7 +431,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                   setShowGroups((s) => ({ ...s, annee: !!v }))
                 }
               >
-                Annee
+                Année
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -487,7 +487,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                     colSpan={1}
                     className="border-l-2 border-l-purple-500 text-center text-xs font-semibold tracking-wider uppercase"
                   >
-                    Annee
+                    Année
                   </TableHead>
                 )}
               </TableRow>
@@ -518,7 +518,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                 )}
                 {showGroups.annee && (
                   <TableHead className="border-l-2 border-l-purple-500 text-right">
-                    Annee
+                    Année
                   </TableHead>
                 )}
               </TableRow>

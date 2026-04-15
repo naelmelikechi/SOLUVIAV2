@@ -2,11 +2,11 @@ import { GraduationCap, Trophy, Wallet, UserX, TrendingUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 const placeholders = [
-  { title: 'Pedagogie', icon: GraduationCap },
-  { title: 'Reussite', icon: Trophy },
+  { title: 'Pédagogie', icon: GraduationCap },
+  { title: 'Réussite', icon: Trophy },
   { title: 'Financement', icon: Wallet },
   { title: 'Abandons', icon: UserX },
-  { title: 'Rentabilite', icon: TrendingUp },
+  { title: 'Rentabilité', icon: TrendingUp },
 ] as const;
 
 export function ProjetPerformancePlaceholders() {
@@ -25,7 +25,7 @@ export function ProjetPerformancePlaceholders() {
               {title}
             </h4>
             <p className="text-muted-foreground/70 mt-1 text-xs">
-              Donnees disponibles apres synchronisation Eduvia
+              Données disponibles après synchronisation Eduvia
             </p>
           </div>
         </Card>

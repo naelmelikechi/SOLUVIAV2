@@ -88,7 +88,7 @@ const items: CommandPaletteItem[] = [
     icon: Users,
   },
   {
-    label: 'Parametres',
+    label: 'Paramètres',
     href: '/admin/parametres',
     section: 'Pages',
     icon: Settings,

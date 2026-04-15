@@ -13,7 +13,7 @@ import {
 const themeOrder = ['system', 'light', 'dark'] as const;
 
 const themeLabels: Record<string, string> = {
-  system: 'Systeme',
+  system: 'Système',
   light: 'Clair',
   dark: 'Sombre',
 };
@@ -40,7 +40,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon-sm" aria-label="Changer le theme">
+      <Button variant="ghost" size="icon-sm" aria-label="Changer le thème">
         <Monitor className="h-4 w-4" />
       </Button>
     );
@@ -62,7 +62,7 @@ export function ThemeToggle() {
             variant="ghost"
             size="icon-sm"
             onClick={() => setTheme(nextTheme)}
-            aria-label={`Theme : ${themeLabels[currentTheme]}. Cliquer pour passer en ${themeLabels[nextTheme]}`}
+            aria-label={`Thème : ${themeLabels[currentTheme]}. Cliquer pour passer en ${themeLabels[nextTheme]}`}
           />
         }
       >

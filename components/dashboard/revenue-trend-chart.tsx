@@ -37,7 +37,7 @@ export function RevenueTrendChart({ data }: { data: MonthlyTrendRow[] }) {
         <CardContent>
           <div className="flex h-[280px] items-center justify-center">
             <p className="text-muted-foreground text-sm">
-              Aucune donnee sur les 6 derniers mois
+              Aucune donnée sur les 6 derniers mois
             </p>
           </div>
         </CardContent>

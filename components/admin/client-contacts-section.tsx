@@ -187,7 +187,7 @@ export function ClientContactsSection({
           if (!open) setDeleteTarget(null);
         }}
         title="Supprimer le contact"
-        description={`Voulez-vous vraiment supprimer le contact "${deleteTarget?.nom}" ? Cette action est irreversible.`}
+        description={`Voulez-vous vraiment supprimer le contact "${deleteTarget?.nom}" ? Cette action est irréversible.`}
         confirmText="Supprimer"
         variant="destructive"
         onConfirm={handleDeleteConfirm}

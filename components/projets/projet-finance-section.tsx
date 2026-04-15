@@ -33,7 +33,7 @@ export function ProjetFinanceSection({
       <Card className="p-6">
         <h3 className="mb-2 text-sm font-semibold">Finance</h3>
         <p className="text-muted-foreground text-sm">
-          Aucune donnee financiere
+          Aucune donnée financière
         </p>
       </Card>
     );
@@ -56,7 +56,7 @@ export function ProjetFinanceSection({
       {/* OPCO Side */}
       <div className="mb-4">
         <div className="text-muted-foreground mb-2 text-xs font-medium tracking-wider uppercase">
-          Cote OPCO (Client)
+          Côté OPCO (Client)
         </div>
         <div className="grid grid-cols-3 gap-4">
           <FinanceStatCard
@@ -65,12 +65,12 @@ export function ProjetFinanceSection({
             color="text-[var(--warning)]"
           />
           <FinanceStatCard
-            label="Facture"
+            label="Facturé"
             value={finance.facture_opco}
             color="text-[var(--warning)]"
           />
           <FinanceStatCard
-            label="Encaisse"
+            label="Encaissé"
             value={finance.encaisse_opco}
             color="text-primary"
           />
@@ -80,7 +80,7 @@ export function ProjetFinanceSection({
       {/* SOLUVIA Side */}
       <div className="mb-4">
         <div className="text-muted-foreground mb-2 text-xs font-medium tracking-wider uppercase">
-          Cote SOLUVIA ({finance.taux_commission}%)
+          Côté SOLUVIA ({finance.taux_commission}%)
         </div>
         <div className="grid grid-cols-3 gap-4">
           <FinanceStatCard
@@ -89,12 +89,12 @@ export function ProjetFinanceSection({
             color="text-[var(--warning)]"
           />
           <FinanceStatCard
-            label="Facture"
+            label="Facturé"
             value={finance.facture_opco * commSoluvia}
             color="text-[var(--warning)]"
           />
           <FinanceStatCard
-            label="Encaisse"
+            label="Encaissé"
             value={finance.encaisse_opco * commSoluvia}
             color="text-primary"
           />

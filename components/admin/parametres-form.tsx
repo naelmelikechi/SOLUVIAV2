@@ -431,7 +431,7 @@ export function ParametresForm({
                       `Sync Eduvia : ${totalContrats} contrat(s), ${totalApprenants} apprenant(s)`,
                     );
                   } else {
-                    toast.error(res.error ?? 'Echec de la synchronisation');
+                    toast.error(res.error ?? 'Échec de la synchronisation');
                   }
                 });
               }}
@@ -455,9 +455,9 @@ export function ParametresForm({
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                 )}
                 <span className="font-medium">
-                  {eduviaSyncResult.syncedClients} client(s) synchronise(s)
+                  {eduviaSyncResult.syncedClients} client(s) synchronisé(s)
                   {eduviaSyncResult.skippedClients > 0 &&
-                    ` · ${eduviaSyncResult.skippedClients} ignore(s)`}{' '}
+                    ` · ${eduviaSyncResult.skippedClients} ignoré(s)`}{' '}
                   · {eduviaSyncResult.totalContrats} contrat(s) ·{' '}
                   {eduviaSyncResult.totalApprenants} apprenant(s)
                 </span>
@@ -498,10 +498,10 @@ export function ParametresForm({
                   if (res.success && res.results) {
                     setSyncResult(res.results);
                     toast.success(
-                      `Sync Odoo : ${res.results.pushed} poussee(s), ${res.results.pulled} tiree(s)`,
+                      `Sync Odoo : ${res.results.pushed} poussée(s), ${res.results.pulled} tirée(s)`,
                     );
                   } else {
-                    toast.error(res.error ?? 'Echec de la synchronisation');
+                    toast.error(res.error ?? 'Échec de la synchronisation');
                   }
                 });
               }}
@@ -525,8 +525,8 @@ export function ParametresForm({
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                 )}
                 <span className="font-medium">
-                  {syncResult.pushed} facture(s) poussee(s) &middot;{' '}
-                  {syncResult.pulled} paiement(s) tire(s)
+                  {syncResult.pushed} facture(s) poussée(s) &middot;{' '}
+                  {syncResult.pulled} paiement(s) tiré(s)
                 </span>
               </div>
               {syncResult.errors.length > 0 && (

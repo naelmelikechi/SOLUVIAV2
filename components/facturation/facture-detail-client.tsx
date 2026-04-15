@@ -41,7 +41,7 @@ export function FactureDetailActions({
     startEmailTransition(async () => {
       const result = await sendFactureEmailAction(facture.id);
       if (result.success) {
-        toast.success('Email envoye avec succes');
+        toast.success('Email envoyé avec succès');
       } else {
         toast.error(result.error ?? "Erreur lors de l'envoi");
       }

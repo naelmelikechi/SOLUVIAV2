@@ -51,8 +51,8 @@ function CustomTooltip({
 
 const LEGEND_LABELS: Record<string, string> = {
   production: 'Production',
-  facture: 'Facture',
-  encaisse: 'Encaisse',
+  facture: 'Facturé',
+  encaisse: 'Encaissé',
 };
 
 function renderLegendText(value: string) {

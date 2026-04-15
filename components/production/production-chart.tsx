@@ -37,13 +37,13 @@ export function ProductionChart({ data }: { data: ProductionChartRow[] }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">
-            Production vs Facture vs Encaisse
+            Production vs Facturé vs Encaissé
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex h-[320px] items-center justify-center">
             <p className="text-muted-foreground text-sm">
-              Aucune donnee a afficher
+              Aucune donnée à afficher
             </p>
           </div>
         </CardContent>
@@ -55,7 +55,7 @@ export function ProductionChart({ data }: { data: ProductionChartRow[] }) {
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="text-sm font-medium">
-          Production vs Facture vs Encaisse
+          Production vs Facturé vs Encaissé
         </CardTitle>
       </CardHeader>
       <CardContent>

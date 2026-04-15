@@ -37,7 +37,7 @@ export default async function ProjetsPage() {
     <div>
       <PageHeader
         title="Projets"
-        description="Liste des projets actifs et archives"
+        description="Liste des projets actifs et archivés"
       >
         {adminUser && (
           <ProjetCreateButton

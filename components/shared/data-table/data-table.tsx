@@ -111,7 +111,7 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="text-muted-foreground h-24 text-center"
                 >
-                  Aucun resultat.
+                  Aucun résultat.
                 </TableCell>
               </TableRow>
             )}

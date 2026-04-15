@@ -57,21 +57,21 @@ export function ProjetCreateDialog({
 
   function handleSubmit() {
     if (!clientId) {
-      toast.error('Veuillez selectionner un client');
+      toast.error('Veuillez sélectionner un client');
       return;
     }
     if (!typologieId) {
-      toast.error('Veuillez selectionner une typologie');
+      toast.error('Veuillez sélectionner une typologie');
       return;
     }
     if (!cdpId) {
-      toast.error('Veuillez selectionner un chef de projet');
+      toast.error('Veuillez sélectionner un chef de projet');
       return;
     }
 
     const taux = parseFloat(tauxCommission);
     if (isNaN(taux) || taux < 0 || taux > 100) {
-      toast.error('Le taux de commission doit etre entre 0 et 100');
+      toast.error('Le taux de commission doit être entre 0 et 100');
       return;
     }
 
@@ -86,14 +86,14 @@ export function ProjetCreateDialog({
       });
 
       if (result.success) {
-        toast.success(`Projet ${result.ref} cree avec succes`);
+        toast.success(`Projet ${result.ref} créé avec succès`);
         onOpenChange(false);
         resetForm();
         if (result.ref) {
           router.push(`/projets/${result.ref}`);
         }
       } else {
-        toast.error(result.error ?? 'Erreur lors de la creation');
+        toast.error(result.error ?? 'Erreur lors de la création');
       }
     });
   }
@@ -117,7 +117,7 @@ export function ProjetCreateDialog({
               onValueChange={(v) => setClientId(v ?? '')}
             >
               <SelectTrigger className="w-full" id="client">
-                <SelectValue placeholder="Selectionner un client" />
+                <SelectValue placeholder="Sélectionner un client" />
               </SelectTrigger>
               <SelectContent>
                 {clients.map((c) => (
@@ -137,7 +137,7 @@ export function ProjetCreateDialog({
               onValueChange={(v) => setTypologieId(v ?? '')}
             >
               <SelectTrigger className="w-full" id="typologie">
-                <SelectValue placeholder="Selectionner une typologie" />
+                <SelectValue placeholder="Sélectionner une typologie" />
               </SelectTrigger>
               <SelectContent>
                 {activeTypologies.map((t) => (
@@ -154,7 +154,7 @@ export function ProjetCreateDialog({
             <Label htmlFor="cdp">Chef de projet</Label>
             <Select value={cdpId} onValueChange={(v) => setCdpId(v ?? '')}>
               <SelectTrigger className="w-full" id="cdp">
-                <SelectValue placeholder="Selectionner un CDP" />
+                <SelectValue placeholder="Sélectionner un CDP" />
               </SelectTrigger>
               <SelectContent>
                 {users.map((u) => (
@@ -205,7 +205,7 @@ export function ProjetCreateDialog({
 
           {/* Date debut */}
           <div className="space-y-2">
-            <Label htmlFor="date_debut">Date de debut (optionnel)</Label>
+            <Label htmlFor="date_debut">Date de début (optionnel)</Label>
             <Input
               id="date_debut"
               type="date"
@@ -220,7 +220,7 @@ export function ProjetCreateDialog({
             Annuler
           </Button>
           <Button onClick={handleSubmit} disabled={isPending}>
-            {isPending ? 'Creation...' : 'Creer le projet'}
+            {isPending ? 'Création...' : 'Créer le projet'}
           </Button>
         </DialogFooter>
       </DialogContent>

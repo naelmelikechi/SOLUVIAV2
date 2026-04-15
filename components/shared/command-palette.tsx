@@ -57,7 +57,7 @@ const items: CommandPaletteItem[] = [
     icon: Receipt,
   },
   {
-    label: 'Qualite',
+    label: 'Qualité',
     href: '/qualite',
     section: 'Pages',
     icon: ClipboardCheck,
@@ -149,7 +149,7 @@ export function CommandPalette() {
       <Command>
         <CommandInput placeholder="Rechercher..." />
         <CommandList>
-          <CommandEmpty>Aucun resultat.</CommandEmpty>
+          <CommandEmpty>Aucun résultat.</CommandEmpty>
           <CommandGroup heading="Pages">
             {pages.map((item) => {
               const Icon = item.icon;

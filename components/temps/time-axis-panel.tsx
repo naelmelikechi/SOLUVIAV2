@@ -53,7 +53,7 @@ export function TimeAxisPanel({
       <div className="border-border flex items-center justify-between border-b bg-[var(--card-alt)] px-4 py-3">
         <div>
           <div className="text-sm font-semibold">
-            Detail — {format(parseISO(date), 'EEE d', { locale: fr })}
+            Détail — {format(parseISO(date), 'EEE d', { locale: fr })}
           </div>
           <div className="text-primary font-mono text-xs">
             {saisie.projet_ref}

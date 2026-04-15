@@ -56,7 +56,7 @@ export function TeamRecapClient({
   return (
     <div>
       <PageHeader
-        title="Suivi de temps — Equipe"
+        title="Suivi de temps — Équipe"
         description="Récapitulatif hebdomadaire de l'équipe"
       >
         <Link href="/temps">

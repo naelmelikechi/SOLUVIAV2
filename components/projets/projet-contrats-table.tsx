@@ -14,8 +14,8 @@ import {
 const CONTRACT_STATE_LABELS: Record<string, string> = {
   actif: 'Actif',
   suspendu: 'Suspendu',
-  resilie: 'Resilie',
-  termine: 'Termine',
+  resilie: 'Résilié',
+  termine: 'Terminé',
 };
 
 const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
@@ -96,7 +96,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
               <span className="font-semibold tabular-nums">
                 {moyenneProgression}%
               </span>{' '}
-              theorique
+              théorique
             </span>
           )}
           <span className="text-muted-foreground text-sm">
@@ -108,17 +108,17 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
 
       {contrats.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          Aucun contrat synchronise
+          Aucun contrat synchronisé
         </p>
       ) : (
         <div className="border-border overflow-x-auto rounded-lg border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Ref</TableHead>
+                <TableHead>Réf</TableHead>
                 <TableHead>Apprenant</TableHead>
                 <TableHead>Formation</TableHead>
-                <TableHead>Debut</TableHead>
+                <TableHead>Début</TableHead>
                 <TableHead>Fin</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Prise en charge</TableHead>

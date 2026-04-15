@@ -236,13 +236,13 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
       color: 'text-emerald-600',
     },
     {
-      label: 'Facture du mois',
+      label: 'Facturé du mois',
       value: currentMonth?.facture ?? 0,
       icon: FileText,
       color: 'text-blue-600',
     },
     {
-      label: 'Encaisse du mois',
+      label: 'Encaissé du mois',
       value: currentMonth?.encaisse ?? 0,
       icon: Check,
       color: 'text-muted-foreground',
@@ -498,8 +498,8 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                     <TableHead className="border-l-2 border-l-emerald-500 text-right">
                       Production
                     </TableHead>
-                    <TableHead className="text-right">Facture</TableHead>
-                    <TableHead className="text-right">Encaisse</TableHead>
+                    <TableHead className="text-right">Facturé</TableHead>
+                    <TableHead className="text-right">Encaissé</TableHead>
                   </>
                 )}
                 {showGroups.soldes && (
@@ -605,8 +605,8 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                 <TableHead>Client</TableHead>
                 <TableHead className="text-right">Projets</TableHead>
                 <TableHead className="text-right">Production</TableHead>
-                <TableHead className="text-right">Facture</TableHead>
-                <TableHead className="text-right">Encaisse</TableHead>
+                <TableHead className="text-right">Facturé</TableHead>
+                <TableHead className="text-right">Encaissé</TableHead>
                 <TableHead className="text-right">En retard</TableHead>
               </TableRow>
             </TableHeader>
@@ -617,7 +617,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                     colSpan={6}
                     className="text-muted-foreground py-8 text-center"
                   >
-                    Aucune donnee pour ce mois
+                    Aucune donnée pour ce mois
                   </TableCell>
                 </TableRow>
               ) : (
@@ -728,8 +728,8 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                 <TableHead className="text-right">Commission</TableHead>
                 <TableHead className="text-right">Contrats</TableHead>
                 <TableHead className="text-right">Production</TableHead>
-                <TableHead className="text-right">Facture</TableHead>
-                <TableHead className="text-right">Encaisse</TableHead>
+                <TableHead className="text-right">Facturé</TableHead>
+                <TableHead className="text-right">Encaissé</TableHead>
                 <TableHead className="text-right">En retard</TableHead>
               </TableRow>
             </TableHeader>
@@ -740,7 +740,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                     colSpan={7}
                     className="text-muted-foreground py-8 text-center"
                   >
-                    Aucune donnee pour ce client
+                    Aucune donnée pour ce client
                   </TableCell>
                 </TableRow>
               ) : (

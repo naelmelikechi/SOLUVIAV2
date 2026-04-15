@@ -276,7 +276,7 @@ export function TempsPageClient({
                     handleOpenAddDialog();
                   }
                 }}
-                className="flex items-center gap-2 rounded-[10px] border-2 border-dashed border-orange-200 px-4 py-3.5 text-sm text-orange-600 transition-colors hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-950/30"
+                className="flex items-center gap-2 rounded-[10px] border-2 border-dashed border-sky-200 px-4 py-3.5 text-sm text-sky-600 transition-colors hover:bg-sky-50 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/30"
               >
                 Congés
               </button>
@@ -293,7 +293,7 @@ export function TempsPageClient({
                     handleOpenAddDialog();
                   }
                 }}
-                className="flex items-center gap-2 rounded-[10px] border-2 border-dashed border-red-200 px-4 py-3.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                className="flex items-center gap-2 rounded-[10px] border-2 border-dashed border-violet-200 px-4 py-3.5 text-sm text-violet-600 transition-colors hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/30"
               >
                 Maladie
               </button>

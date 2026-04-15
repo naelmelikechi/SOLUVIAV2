@@ -21,8 +21,14 @@ interface TimeGridProps {
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 const ABSENCE_STYLES: Record<string, { bg: string; text: string }> = {
-  conges: { bg: 'bg-[var(--orange-bg)]', text: 'text-[var(--warning)]' },
-  maladie: { bg: 'bg-[var(--red-bg)]', text: 'text-[var(--destructive)]' },
+  conges: {
+    bg: 'bg-sky-50 dark:bg-sky-950/20',
+    text: 'text-sky-600 dark:text-sky-400',
+  },
+  maladie: {
+    bg: 'bg-violet-50 dark:bg-violet-950/20',
+    text: 'text-violet-600 dark:text-violet-400',
+  },
   ferie: { bg: 'bg-[var(--gray-bg)]', text: 'text-[var(--gray)]' },
 };
 
@@ -76,6 +82,32 @@ export function TimeGrid({
     (projetId: string, date: string, value: string) => {
       const parsed = parseTimeInput(value);
       if (parsed === null) return;
+
+      // Mutual exclusion: absence vs project on same day
+      const thisSaisie = saisies.find((s) => s.projet_id === projetId);
+      const isAbsence = thisSaisie?.est_absence;
+      if (parsed > 0) {
+        const hasAbsence = saisies.some(
+          (s) =>
+            s.est_absence &&
+            (s.heures[date] || 0) > 0 &&
+            s.projet_id !== projetId,
+        );
+        const hasProject = saisies.some(
+          (s) =>
+            !s.est_absence &&
+            (s.heures[date] || 0) > 0 &&
+            s.projet_id !== projetId,
+        );
+        if (isAbsence && hasProject) {
+          toast.error('Des heures projet sont déjà saisies sur ce jour');
+          return;
+        }
+        if (!isAbsence && hasAbsence) {
+          toast.error('Une absence est déjà déclarée sur ce jour');
+          return;
+        }
+      }
 
       // Check daily max
       const currentOther = saisies
@@ -234,7 +266,25 @@ export function TimeGrid({
                     );
                     const atMax = dayTotal >= MAX_HEURES_JOUR;
                     const cellValue = saisie.heures[date] || 0;
-                    const disabled = blocked || (atMax && cellValue === 0);
+
+                    // Mutual exclusion: absence vs project hours on same day
+                    const isAbsence = saisie.est_absence;
+                    const dayHasAbsence = saisies.some(
+                      (s) =>
+                        s.est_absence &&
+                        (s.heures[date] || 0) > 0 &&
+                        s.projet_id !== saisie.projet_id,
+                    );
+                    const dayHasProject = saisies.some(
+                      (s) => !s.est_absence && (s.heures[date] || 0) > 0,
+                    );
+                    // Block project input if absence logged, block absence if project logged
+                    const mutualBlock =
+                      (isAbsence && dayHasProject && cellValue === 0) ||
+                      (!isAbsence && dayHasAbsence && cellValue === 0);
+
+                    const disabled =
+                      blocked || (atMax && cellValue === 0) || mutualBlock;
 
                     return (
                       <td

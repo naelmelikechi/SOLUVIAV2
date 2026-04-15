@@ -129,12 +129,8 @@ export function TempsPageClient({
     async (axes: Record<string, number>, total: number) => {
       if (!selectedCell) return;
 
-      // Save axes
-      const result = await saveSaisieTempsAxes(
-        selectedCell.projetId,
-        selectedCell.date,
-        axes,
-      );
+      // Save axes (fire-and-forget, we update UI optimistically)
+      await saveSaisieTempsAxes(selectedCell.projetId, selectedCell.date, axes);
 
       // Also save the total hours (so the cell updates automatically)
       if (total > 0) {
@@ -142,19 +138,20 @@ export function TempsPageClient({
         await saveSaisieTemps(selectedCell.projetId, selectedCell.date, total);
       }
 
-      if (result.success) {
-        // Update local state: axes + heures
-        setSaisies((prev) =>
-          prev.map((s) => {
-            if (s.projet_id !== selectedCell.projetId) return s;
-            return {
-              ...s,
-              heures: { ...s.heures, [selectedCell.date]: total },
-              axes: { ...s.axes, [selectedCell.date]: axes },
-            };
-          }),
-        );
-      }
+      // Update parent state: axes + heures (regardless of axes save result)
+      const cellProjetId = selectedCell.projetId;
+      const cellDate = selectedCell.date;
+
+      setSaisies((prev) =>
+        prev.map((s) => {
+          if (s.projet_id !== cellProjetId) return s;
+          return {
+            ...s,
+            heures: { ...s.heures, [cellDate]: total },
+            axes: { ...s.axes, [cellDate]: axes },
+          };
+        }),
+      );
       setSelectedCell(null);
     },
     [selectedCell],

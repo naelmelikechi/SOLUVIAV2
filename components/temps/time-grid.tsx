@@ -31,7 +31,8 @@ export function TimeGrid({
   onCellClick,
   onSaveHours,
 }: TimeGridProps) {
-  const [saisies, setSaisies] = useState<SaisieTemps[]>(initialSaisies);
+  // Use parent saisies directly - no internal copy
+  const saisies = initialSaisies;
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
     'idle',
   );
@@ -39,11 +40,6 @@ export function TimeGrid({
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
     {},
   );
-
-  // Sync saisies when initialSaisies changes (week navigation)
-  useEffect(() => {
-    setSaisies(initialSaisies);
-  }, [initialSaisies]);
 
   // Cleanup debounce timers on unmount
   useEffect(() => {
@@ -67,29 +63,16 @@ export function TimeGrid({
       const parsed = parseTimeInput(value);
       if (parsed === null) return;
 
-      setSaisies((prev) => {
-        const updated = prev.map((s) => {
-          if (s.projet_id !== projetId) return s;
-          return {
-            ...s,
-            heures: { ...s.heures, [date]: parsed },
-          };
-        });
+      // Check daily max before updating
+      const currentOther = saisies
+        .filter((s) => s.projet_id !== projetId)
+        .reduce((sum, s) => sum + (s.heures[date] || 0), 0);
+      if (currentOther + parsed > MAX_HEURES_JOUR) {
+        toast.error(`Maximum ${MAX_HEURES_JOUR}h par jour dépassé`);
+        return;
+      }
 
-        // Check daily max
-        const dayTotal = updated.reduce(
-          (sum, s) => sum + (s.heures[date] || 0),
-          0,
-        );
-        if (dayTotal > MAX_HEURES_JOUR) {
-          toast.error(`Maximum ${MAX_HEURES_JOUR}h par jour dépassé`);
-          return prev;
-        }
-
-        return updated;
-      });
-
-      // Notify parent of optimistic update
+      // Notify parent of optimistic update (parent updates saisies state)
       onSaveHours?.(projetId, date, parsed);
 
       // Debounced server save
@@ -114,7 +97,7 @@ export function TimeGrid({
         }
       }, DEBOUNCE_MS);
     },
-    [onSaveHours],
+    [onSaveHours, saisies],
   );
 
   return (

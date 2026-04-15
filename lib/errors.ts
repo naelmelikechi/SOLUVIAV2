@@ -69,7 +69,7 @@ export class AppError extends Error {
   }
 
   /**
-   * Type guard — use in catch blocks when you need to branch on code.
+   * Type guard - use in catch blocks when you need to branch on code.
    */
   static is(err: unknown): err is AppError {
     return err instanceof AppError;

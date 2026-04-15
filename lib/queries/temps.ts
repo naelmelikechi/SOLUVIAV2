@@ -20,7 +20,7 @@ export interface SaisieTemps {
 }
 
 // ---------------------------------------------------------------------------
-// getWeekDates — pure utility, no DB
+// getWeekDates - pure utility, no DB
 // ---------------------------------------------------------------------------
 
 export function getWeekDates(weekOffset: number = 0): string[] {
@@ -133,7 +133,7 @@ export async function getSaisiesForWeek(
     if (!grouped[s.projet_id]) {
       const ref = projet.ref ?? '';
       const clientName = projet.client?.raison_sociale ?? '';
-      const label = projet.est_absence ? ref : `${ref} — ${clientName}`;
+      const label = projet.est_absence ? ref : `${ref} - ${clientName}`;
 
       grouped[s.projet_id] = {
         projet_id: s.projet_id,
@@ -154,7 +154,7 @@ export async function getSaisiesForWeek(
 }
 
 // ---------------------------------------------------------------------------
-// Team week summary (admin only — RLS ensures admin sees all)
+// Team week summary (admin only - RLS ensures admin sees all)
 // ---------------------------------------------------------------------------
 
 export interface TeamMemberSummary {
@@ -242,7 +242,7 @@ export async function getTeamWeekSummary(
 }
 
 // ---------------------------------------------------------------------------
-// getUserProjets — projects the user is assigned to (non-absence, active)
+// getUserProjets - projects the user is assigned to (non-absence, active)
 // ---------------------------------------------------------------------------
 
 export async function getUserProjets(): Promise<
@@ -287,13 +287,13 @@ export async function getUserProjets(): Promise<
     return {
       id: p.id,
       ref: p.ref ?? '',
-      label: `${p.ref ?? ''} — ${client?.raison_sociale ?? ''}`,
+      label: `${p.ref ?? ''} - ${client?.raison_sociale ?? ''}`,
     };
   });
 }
 
 // ---------------------------------------------------------------------------
-// getAbsenceProjets — absence projects (congés, maladie, fériés)
+// getAbsenceProjets - absence projects (congés, maladie, fériés)
 // ---------------------------------------------------------------------------
 
 export async function getAbsenceProjets(): Promise<

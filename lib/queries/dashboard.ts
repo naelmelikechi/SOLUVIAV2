@@ -43,7 +43,7 @@ export async function getDashboardData() {
       .select('id')
       .eq('contract_state', 'actif')
       .eq('archive', false),
-    // Contrats actifs started > 30 days ago — candidates for "sans progression"
+    // Contrats actifs started > 30 days ago - candidates for "sans progression"
     supabase
       .from('contrats')
       .select('id, projet_id')
@@ -52,7 +52,7 @@ export async function getDashboardData() {
       .lt('date_debut', thirtyDaysAgoStr),
   ]);
 
-  // Log any individual query errors but don't throw — dashboard is best-effort
+  // Log any individual query errors but don't throw - dashboard is best-effort
   if (projetsRes.error)
     logger.error('queries.dashboard', 'getDashboardData failed (projets)', {
       error: projetsRes.error,
@@ -181,7 +181,7 @@ export async function getProductionData(): Promise<ProductionRow[]> {
       .eq('archive', false),
   ]);
 
-  // Log any individual query errors but don't throw — production page is best-effort
+  // Log any individual query errors but don't throw - production page is best-effort
   if (facturesRes.error)
     logger.error('queries.dashboard', 'getProductionData failed (factures)', {
       error: facturesRes.error,
@@ -258,7 +258,7 @@ export async function getProductionData(): Promise<ProductionRow[]> {
 
   for (const p of paiements ?? []) {
     // When using a relation filter, Supabase returns null for the relation
-    // if the filter doesn't match — skip those
+    // if the filter doesn't match - skip those
     const facture = p.facture as { mois_concerne: string | null } | null;
     if (!facture?.mois_concerne) continue;
     const key = facture.mois_concerne.slice(0, 7);
@@ -369,7 +369,7 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
       .lte('date', monthEnd),
   ]);
 
-  // Log any individual query errors but don't throw — dashboard is best-effort
+  // Log any individual query errors but don't throw - dashboard is best-effort
   if (facturesRes.error)
     logger.error(
       'queries.dashboard',

@@ -21,7 +21,7 @@ export function ProjetTempsSection({
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Temps — {temps.mois_label}</h3>
+        <h3 className="text-sm font-semibold">Temps - {temps.mois_label}</h3>
         <span className="text-sm font-semibold">
           Total : {formatHeures(temps.total)}
         </span>

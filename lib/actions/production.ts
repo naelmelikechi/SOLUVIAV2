@@ -29,7 +29,7 @@ export interface ProductionByProjetRow {
 }
 
 // ---------------------------------------------------------------------------
-// fetchProductionByClient — breakdown of a month by client
+// fetchProductionByClient - breakdown of a month by client
 // ---------------------------------------------------------------------------
 
 export async function fetchProductionByClient(
@@ -229,7 +229,7 @@ export async function fetchProductionByClient(
 }
 
 // ---------------------------------------------------------------------------
-// fetchProductionByProjet — breakdown of a month+client by projet
+// fetchProductionByProjet - breakdown of a month+client by projet
 // ---------------------------------------------------------------------------
 
 export async function fetchProductionByProjet(

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Politique de confidentialité — SOLUVIA',
+  title: 'Politique de confidentialité - SOLUVIA',
 };
 
 export default function PolitiqueDeConfidentialitePage() {
@@ -30,7 +30,7 @@ export default function PolitiqueDeConfidentialitePage() {
             présente politique de confidentialité décrit les données
             personnelles collectées, les finalités de leur traitement, et les
             droits dont disposent les utilisateurs conformément au Règlement
-            Général sur la Protection des Données (RGPD — Règlement UE
+            Général sur la Protection des Données (RGPD - Règlement UE
             2016/679).
           </p>
         </section>

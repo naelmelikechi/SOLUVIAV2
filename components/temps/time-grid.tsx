@@ -219,7 +219,7 @@ export function TimeGrid({
                       >
                         {weekend ? (
                           <span className="text-muted-foreground text-xs">
-                            —
+                            -
                           </span>
                         ) : (
                           <input
@@ -258,7 +258,7 @@ export function TimeGrid({
 
                   {/* Row total */}
                   <td className="text-primary px-2 py-1.5 text-center font-mono text-[13px] font-bold">
-                    {rowTotal > 0 ? formatHeures(rowTotal) : '—'}
+                    {rowTotal > 0 ? formatHeures(rowTotal) : '-'}
                   </td>
                 </tr>
               );
@@ -281,7 +281,7 @@ export function TimeGrid({
                       !weekend && total > 0 && 'text-primary',
                     )}
                   >
-                    {weekend ? '—' : total > 0 ? formatHeures(total) : '0h'}
+                    {weekend ? '-' : total > 0 ? formatHeures(total) : '0h'}
                   </td>
                 );
               })}

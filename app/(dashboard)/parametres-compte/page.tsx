@@ -6,7 +6,7 @@ import { getCurrentUser } from '@/lib/queries/users';
 import { PageHeader } from '@/components/shared/page-header';
 import { SettingsPageClient } from '@/components/settings/settings-page-client';
 
-export const metadata: Metadata = { title: 'Mon compte — SOLUVIA' };
+export const metadata: Metadata = { title: 'Mon compte - SOLUVIA' };
 
 export default async function ParametresComptePage() {
   const user = await getCurrentUser();

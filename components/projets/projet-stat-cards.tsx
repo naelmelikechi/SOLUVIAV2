@@ -35,29 +35,29 @@ export function ProjetStatCards({
     <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
       <StatCard
         label="Typologie"
-        value={projet.typologie?.code ?? '—'}
+        value={projet.typologie?.code ?? '-'}
         sub={projet.typologie?.libelle ?? undefined}
       />
       <StatCard
         label="Client"
-        value={projet.client?.trigramme ?? '—'}
+        value={projet.client?.trigramme ?? '-'}
         sub={projet.client?.raison_sociale ?? undefined}
       />
       <StatCard
         label="CDP"
-        value={projet.cdp ? `${projet.cdp.prenom} ${projet.cdp.nom}` : '—'}
+        value={projet.cdp ? `${projet.cdp.prenom} ${projet.cdp.nom}` : '-'}
       />
       <StatCard
         label="Backup CDP"
         value={
           projet.backup_cdp
             ? `${projet.backup_cdp.prenom} ${projet.backup_cdp.nom}`
-            : '—'
+            : '-'
         }
       />
       <StatCard
         label="Date de debut"
-        value={projet.date_debut ? formatDate(projet.date_debut) : '—'}
+        value={projet.date_debut ? formatDate(projet.date_debut) : '-'}
       />
       <StatCard
         label="Apprentis actifs"

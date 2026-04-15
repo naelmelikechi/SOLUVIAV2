@@ -1,4 +1,4 @@
-// @ts-nocheck — scheduled for deletion in the mock→Supabase refactor.
+// @ts-nocheck - scheduled for deletion in the mock→Supabase refactor.
 // Exempt from noUncheckedIndexedAccess since this file is dead code walking.
 // Mock data for development -- will be replaced by Supabase queries
 
@@ -885,7 +885,7 @@ export function getMockSaisiesForWeek(weekDates: string[]): MockSaisieTemps[] {
     {
       projet_id: 'p1',
       projet_ref: '0042-DUP-APP',
-      projet_label: 'Dupont Formation — Apprentissage',
+      projet_label: 'Dupont Formation - Apprentissage',
       est_absence: false,
       heures: Object.fromEntries(
         weekdays.map((d, i) => [d, [3, 2.5, 3, 2, 2.5][i]]),
@@ -906,7 +906,7 @@ export function getMockSaisiesForWeek(weekDates: string[]): MockSaisieTemps[] {
     {
       projet_id: 'p3',
       projet_ref: '0044-FOR-APP',
-      projet_label: 'FormaPro — Apprentissage',
+      projet_label: 'FormaPro - Apprentissage',
       est_absence: false,
       heures: Object.fromEntries(
         weekdays.map((d, i) => [d, [2.5, 3, 2, 3.5, 2.5][i]]),
@@ -927,7 +927,7 @@ export function getMockSaisiesForWeek(weekDates: string[]): MockSaisieTemps[] {
     {
       projet_id: 'p5',
       projet_ref: '0046-EXC-APP',
-      projet_label: 'Excellence Formation — Apprentissage',
+      projet_label: 'Excellence Formation - Apprentissage',
       est_absence: false,
       heures: Object.fromEntries(
         weekdays.map((d, i) => [d, [1.5, 1.5, 2, 1.5, 1][i]]),
@@ -1004,7 +1004,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac1',
         contrat_ref: 'CTR-00187',
         apprenant_nom: 'Lefevre Antoine',
-        description: 'Commission Janvier 2026 — BTS Commerce International',
+        description: 'Commission Janvier 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
       {
@@ -1012,7 +1012,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac1',
         contrat_ref: 'CTR-00188',
         apprenant_nom: 'Moreau Julie',
-        description: 'Commission Janvier 2026 — BTS Commerce International',
+        description: 'Commission Janvier 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
       {
@@ -1020,7 +1020,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac1',
         contrat_ref: 'CTR-00189',
         apprenant_nom: 'Garcia Lucas',
-        description: 'Commission Janvier 2026 — BTS Gestion PME',
+        description: 'Commission Janvier 2026 - BTS Gestion PME',
         montant_ht: 65.0,
       },
       {
@@ -1028,7 +1028,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac1',
         contrat_ref: 'CTR-00190',
         apprenant_nom: 'Bernard Emma',
-        description: 'Commission Janvier 2026 — BTS Commerce International',
+        description: 'Commission Janvier 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
       {
@@ -1036,7 +1036,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac1',
         contrat_ref: 'CTR-00191',
         apprenant_nom: 'Petit Nathan',
-        description: 'Commission Janvier 2026 — BTS Gestion PME',
+        description: 'Commission Janvier 2026 - BTS Gestion PME',
         montant_ht: 65.0,
       },
       {
@@ -1044,7 +1044,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac1',
         contrat_ref: 'CTR-00192',
         apprenant_nom: 'Roux Clara',
-        description: 'Commission Janvier 2026 — BTS Commerce International',
+        description: 'Commission Janvier 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
     ],
@@ -1075,7 +1075,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac2',
         contrat_ref: 'CTR-00187',
         apprenant_nom: 'Lefevre Antoine',
-        description: 'Commission Février 2026 — BTS Commerce International',
+        description: 'Commission Février 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
       {
@@ -1083,7 +1083,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac2',
         contrat_ref: 'CTR-00188',
         apprenant_nom: 'Moreau Julie',
-        description: 'Commission Février 2026 — BTS Commerce International',
+        description: 'Commission Février 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
       {
@@ -1091,7 +1091,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac2',
         contrat_ref: 'CTR-00189',
         apprenant_nom: 'Garcia Lucas',
-        description: 'Commission Février 2026 — BTS Gestion PME',
+        description: 'Commission Février 2026 - BTS Gestion PME',
         montant_ht: 65.0,
       },
       {
@@ -1099,7 +1099,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac2',
         contrat_ref: 'CTR-00190',
         apprenant_nom: 'Bernard Emma',
-        description: 'Commission Février 2026 — BTS Commerce International',
+        description: 'Commission Février 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
       {
@@ -1107,7 +1107,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac2',
         contrat_ref: 'CTR-00191',
         apprenant_nom: 'Petit Nathan',
-        description: 'Commission Février 2026 — BTS Gestion PME',
+        description: 'Commission Février 2026 - BTS Gestion PME',
         montant_ht: 65.0,
       },
       {
@@ -1115,7 +1115,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac2',
         contrat_ref: 'CTR-00192',
         apprenant_nom: 'Roux Clara',
-        description: 'Commission Février 2026 — BTS Commerce International',
+        description: 'Commission Février 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
     ],
@@ -1146,7 +1146,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac3',
         contrat_ref: 'CTR-00187',
         apprenant_nom: 'Lefevre Antoine',
-        description: 'Commission Mars 2026 — BTS Commerce International',
+        description: 'Commission Mars 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
       {
@@ -1154,7 +1154,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac3',
         contrat_ref: 'CTR-00188',
         apprenant_nom: 'Moreau Julie',
-        description: 'Commission Mars 2026 — BTS Commerce International',
+        description: 'Commission Mars 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
       {
@@ -1162,7 +1162,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac3',
         contrat_ref: 'CTR-00189',
         apprenant_nom: 'Garcia Lucas',
-        description: 'Commission Mars 2026 — BTS Gestion PME',
+        description: 'Commission Mars 2026 - BTS Gestion PME',
         montant_ht: 65.0,
       },
       {
@@ -1170,7 +1170,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac3',
         contrat_ref: 'CTR-00190',
         apprenant_nom: 'Bernard Emma',
-        description: 'Commission Mars 2026 — BTS Commerce International',
+        description: 'Commission Mars 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
       {
@@ -1178,7 +1178,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac3',
         contrat_ref: 'CTR-00191',
         apprenant_nom: 'Petit Nathan',
-        description: 'Commission Mars 2026 — BTS Gestion PME',
+        description: 'Commission Mars 2026 - BTS Gestion PME',
         montant_ht: 65.0,
       },
       {
@@ -1186,7 +1186,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac3',
         contrat_ref: 'CTR-00192',
         apprenant_nom: 'Roux Clara',
-        description: 'Commission Mars 2026 — BTS Commerce International',
+        description: 'Commission Mars 2026 - BTS Commerce International',
         montant_ht: 70.83,
       },
     ],
@@ -1217,7 +1217,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac4',
         contrat_ref: 'CTR-00187',
         apprenant_nom: 'Lefevre Antoine',
-        description: 'Avoir sur FAC-DUP-0003 — BTS Commerce International',
+        description: 'Avoir sur FAC-DUP-0003 - BTS Commerce International',
         montant_ht: -70.83,
       },
       {
@@ -1225,7 +1225,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac4',
         contrat_ref: 'CTR-00188',
         apprenant_nom: 'Moreau Julie',
-        description: 'Avoir sur FAC-DUP-0003 — BTS Commerce International',
+        description: 'Avoir sur FAC-DUP-0003 - BTS Commerce International',
         montant_ht: -70.83,
       },
       {
@@ -1233,7 +1233,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac4',
         contrat_ref: 'CTR-00189',
         apprenant_nom: 'Garcia Lucas',
-        description: 'Avoir sur FAC-DUP-0003 — BTS Gestion PME',
+        description: 'Avoir sur FAC-DUP-0003 - BTS Gestion PME',
         montant_ht: -65.0,
       },
       {
@@ -1241,7 +1241,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac4',
         contrat_ref: 'CTR-00190',
         apprenant_nom: 'Bernard Emma',
-        description: 'Avoir sur FAC-DUP-0003 — BTS Commerce International',
+        description: 'Avoir sur FAC-DUP-0003 - BTS Commerce International',
         montant_ht: -70.83,
       },
       {
@@ -1249,7 +1249,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac4',
         contrat_ref: 'CTR-00191',
         apprenant_nom: 'Petit Nathan',
-        description: 'Avoir sur FAC-DUP-0003 — BTS Gestion PME',
+        description: 'Avoir sur FAC-DUP-0003 - BTS Gestion PME',
         montant_ht: -65.0,
       },
       {
@@ -1257,7 +1257,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac4',
         contrat_ref: 'CTR-00192',
         apprenant_nom: 'Roux Clara',
-        description: 'Avoir sur FAC-DUP-0003 — BTS Commerce International',
+        description: 'Avoir sur FAC-DUP-0003 - BTS Commerce International',
         montant_ht: -70.83,
       },
     ],
@@ -1288,7 +1288,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac5',
         contrat_ref: 'CTR-00210',
         apprenant_nom: 'Dubois Leo',
-        description: 'Commission Janvier 2026 — Developpeur Web Fullstack',
+        description: 'Commission Janvier 2026 - Developpeur Web Fullstack',
         montant_ht: 80.0,
       },
       {
@@ -1296,7 +1296,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac5',
         contrat_ref: 'CTR-00211',
         apprenant_nom: 'Laurent Lea',
-        description: 'Commission Janvier 2026 — Developpeur Web Fullstack',
+        description: 'Commission Janvier 2026 - Developpeur Web Fullstack',
         montant_ht: 80.0,
       },
     ],
@@ -1327,7 +1327,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac6',
         contrat_ref: 'CTR-00210',
         apprenant_nom: 'Dubois Leo',
-        description: 'Commission Février 2026 — Developpeur Web Fullstack',
+        description: 'Commission Février 2026 - Developpeur Web Fullstack',
         montant_ht: 80.0,
       },
       {
@@ -1335,7 +1335,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac6',
         contrat_ref: 'CTR-00211',
         apprenant_nom: 'Laurent Lea',
-        description: 'Commission Février 2026 — Developpeur Web Fullstack',
+        description: 'Commission Février 2026 - Developpeur Web Fullstack',
         montant_ht: 80.0,
       },
     ],
@@ -1366,7 +1366,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac7',
         contrat_ref: 'CTR-00230',
         apprenant_nom: 'Simon Camille',
-        description: 'Commission Mars 2026 — CAP Cuisine',
+        description: 'Commission Mars 2026 - CAP Cuisine',
         montant_ht: 51.67,
       },
       {
@@ -1374,7 +1374,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac7',
         contrat_ref: 'CTR-00231',
         apprenant_nom: 'Michel Hugo',
-        description: 'Commission Mars 2026 — CAP Cuisine',
+        description: 'Commission Mars 2026 - CAP Cuisine',
         montant_ht: 51.67,
       },
     ],
@@ -1405,7 +1405,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac8',
         contrat_ref: 'CTR-00230',
         apprenant_nom: 'Simon Camille',
-        description: 'Commission Février 2026 — CAP Cuisine',
+        description: 'Commission Février 2026 - CAP Cuisine',
         montant_ht: 51.67,
       },
       {
@@ -1413,7 +1413,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac8',
         contrat_ref: 'CTR-00231',
         apprenant_nom: 'Michel Hugo',
-        description: 'Commission Février 2026 — CAP Cuisine',
+        description: 'Commission Février 2026 - CAP Cuisine',
         montant_ht: 51.67,
       },
     ],
@@ -1444,7 +1444,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac9',
         contrat_ref: 'CTR-00250',
         apprenant_nom: 'Dupuis Manon',
-        description: 'Commission Mars 2026 — BTS Management Commercial',
+        description: 'Commission Mars 2026 - BTS Management Commercial',
         montant_ht: 83.33,
       },
       {
@@ -1452,7 +1452,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac9',
         contrat_ref: 'CTR-00251',
         apprenant_nom: 'Renard Paul',
-        description: 'Commission Mars 2026 — BTS Management Commercial',
+        description: 'Commission Mars 2026 - BTS Management Commercial',
         montant_ht: 83.33,
       },
       {
@@ -1460,7 +1460,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac9',
         contrat_ref: 'CTR-00252',
         apprenant_nom: 'Blanchard Ines',
-        description: 'Commission Mars 2026 — BTS Comptabilite Gestion',
+        description: 'Commission Mars 2026 - BTS Comptabilite Gestion',
         montant_ht: 83.33,
       },
     ],
@@ -1491,7 +1491,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac10',
         contrat_ref: 'CTR-00250',
         apprenant_nom: 'Dupuis Manon',
-        description: 'Commission Février 2026 — BTS Management Commercial',
+        description: 'Commission Février 2026 - BTS Management Commercial',
         montant_ht: 83.33,
       },
       {
@@ -1499,7 +1499,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac10',
         contrat_ref: 'CTR-00251',
         apprenant_nom: 'Renard Paul',
-        description: 'Commission Février 2026 — BTS Management Commercial',
+        description: 'Commission Février 2026 - BTS Management Commercial',
         montant_ht: 83.33,
       },
       {
@@ -1507,7 +1507,7 @@ export const MOCK_FACTURES: MockFacture[] = [
         facture_id: 'fac10',
         contrat_ref: 'CTR-00252',
         apprenant_nom: 'Blanchard Ines',
-        description: 'Commission Février 2026 — BTS Comptabilite Gestion',
+        description: 'Commission Février 2026 - BTS Comptabilite Gestion',
         montant_ht: 83.33,
       },
     ],
@@ -1645,7 +1645,7 @@ export function getEcheancesPending(): MockEcheance[] {
 }
 
 // ============================================================
-// USERS — list view
+// USERS - list view
 // ============================================================
 export interface UserListRow {
   id: string;

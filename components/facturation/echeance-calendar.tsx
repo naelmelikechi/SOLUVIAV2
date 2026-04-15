@@ -162,11 +162,11 @@ export function EcheanceCalendar({ echeances }: EcheanceCalendarProps) {
                   >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium">
-                        {e.projet?.ref ?? '—'}
+                        {e.projet?.ref ?? '-'}
                       </div>
                       <div className="text-muted-foreground text-xs">
-                        {e.projet?.client?.raison_sociale ?? '—'}
-                        {e.mois_concerne && ` — ${e.mois_concerne}`}
+                        {e.projet?.client?.raison_sociale ?? '-'}
+                        {e.mois_concerne && ` - ${e.mois_concerne}`}
                       </div>
                     </div>
                     <div className="pl-3 text-sm font-semibold whitespace-nowrap">

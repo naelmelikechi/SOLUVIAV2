@@ -4,7 +4,7 @@ import { getUsersList, getCurrentUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { UsersDataTable } from '@/components/admin/users-data-table';
 
-export const metadata: Metadata = { title: 'Utilisateurs — SOLUVIA' };
+export const metadata: Metadata = { title: 'Utilisateurs - SOLUVIA' };
 
 export default async function UtilisateursPage() {
   const user = await getCurrentUser();

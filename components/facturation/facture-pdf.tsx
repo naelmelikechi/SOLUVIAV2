@@ -176,13 +176,13 @@ export function FacturePdf({ facture, origineRef, emetteur }: FacturePdfProps) {
               Date :{' '}
               {facture.date_emission
                 ? new Date(facture.date_emission).toLocaleDateString('fr-FR')
-                : '—'}
+                : '-'}
             </Text>
             <Text>
               Échéance :{' '}
               {facture.date_echeance
                 ? new Date(facture.date_echeance).toLocaleDateString('fr-FR')
-                : '—'}
+                : '-'}
             </Text>
           </View>
         </View>
@@ -217,7 +217,7 @@ export function FacturePdf({ facture, origineRef, emetteur }: FacturePdfProps) {
         <View style={{ marginBottom: 16 }}>
           <Text style={styles.label}>Objet</Text>
           <Text>
-            Commission de gestion — Projet {facture.projet?.ref ?? ''} —{' '}
+            Commission de gestion - Projet {facture.projet?.ref ?? ''} -{' '}
             {facture.mois_concerne}
           </Text>
         </View>
@@ -283,7 +283,7 @@ export function FacturePdf({ facture, origineRef, emetteur }: FacturePdfProps) {
             frais de recouvrement. Pas d&apos;escompte pour paiement anticipé.
           </Text>
           <Text style={{ marginTop: 4 }}>
-            {EMETTEUR.raison_sociale} — SIRET {EMETTEUR.siret} — TVA{' '}
+            {EMETTEUR.raison_sociale} - SIRET {EMETTEUR.siret} - TVA{' '}
             {EMETTEUR.tva}
           </Text>
         </View>

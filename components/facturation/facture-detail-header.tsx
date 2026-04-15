@@ -49,7 +49,7 @@ export function FactureDetailHeader({
 
   return (
     <div className="mb-6 space-y-2">
-      {/* Avoir banner — this facture IS an avoir referencing another */}
+      {/* Avoir banner - this facture IS an avoir referencing another */}
       {facture.est_avoir && facture.facture_origine_id && avoirRef && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
           Avoir sur la facture{' '}
@@ -117,9 +117,9 @@ export function FactureDetailHeader({
       {/* Dates */}
       <p className="text-muted-foreground text-xs">
         Émise le{' '}
-        {facture.date_emission ? formatDate(facture.date_emission) : '—'} ·
+        {facture.date_emission ? formatDate(facture.date_emission) : '-'} ·
         Échéance{' '}
-        {facture.date_echeance ? formatDate(facture.date_echeance) : '—'}
+        {facture.date_echeance ? formatDate(facture.date_echeance) : '-'}
       </p>
     </div>
   );

@@ -33,7 +33,7 @@ export interface SyncResult {
 }
 
 // ---------------------------------------------------------------------------
-// syncEduviaForClient — sync all data for a single client
+// syncEduviaForClient - sync all data for a single client
 // ---------------------------------------------------------------------------
 
 export async function syncEduviaForClient(
@@ -126,7 +126,7 @@ export async function syncEduviaForClient(
     if (err instanceof EndpointNotAvailableError) {
       logger.info(
         'eduvia_sync',
-        `Endpoint contracts pas encore disponible — ignoré`,
+        `Endpoint contracts pas encore disponible - ignoré`,
       );
     } else {
       result.errors.push(
@@ -173,7 +173,7 @@ export async function syncEduviaForClient(
     if (err instanceof EndpointNotAvailableError) {
       logger.info(
         'eduvia_sync',
-        `Endpoint employee_learners pas encore disponible — ignoré`,
+        `Endpoint employee_learners pas encore disponible - ignoré`,
       );
     } else {
       result.errors.push(
@@ -219,7 +219,7 @@ export async function syncEduviaForClient(
     if (err instanceof EndpointNotAvailableError) {
       logger.info(
         'eduvia_sync',
-        `Endpoint formations pas encore disponible — ignoré`,
+        `Endpoint formations pas encore disponible - ignoré`,
       );
     } else {
       result.errors.push(
@@ -267,7 +267,7 @@ export async function syncEduviaForClient(
     if (err instanceof EndpointNotAvailableError) {
       logger.info(
         'eduvia_sync',
-        `Endpoint companies pas encore disponible — ignoré`,
+        `Endpoint companies pas encore disponible - ignoré`,
       );
     } else {
       result.errors.push(
@@ -280,7 +280,7 @@ export async function syncEduviaForClient(
 }
 
 // ---------------------------------------------------------------------------
-// syncAllEduviaClients — top-level orchestrator
+// syncAllEduviaClients - top-level orchestrator
 // ---------------------------------------------------------------------------
 
 export async function syncAllEduviaClients(

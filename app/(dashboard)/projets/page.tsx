@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { ProjetsDataTable } from '@/components/projets/projets-data-table';
 import { ProjetCreateButton } from '@/components/projets/projet-create-button';
 
-export const metadata: Metadata = { title: 'Projets — SOLUVIA' };
+export const metadata: Metadata = { title: 'Projets - SOLUVIA' };
 export const revalidate = 60;
 
 export default async function ProjetsPage() {

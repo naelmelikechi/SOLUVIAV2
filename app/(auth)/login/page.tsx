@@ -98,7 +98,7 @@ export default function LoginPage() {
           href="/forgot-password"
           className="text-muted-foreground hover:text-primary text-sm underline-offset-4 hover:underline"
         >
-          Mot de passe oublie ?
+          Mot de passe oublié ?
         </Link>
       </div>
 
@@ -107,14 +107,14 @@ export default function LoginPage() {
           href="/mentions-legales"
           className="hover:text-foreground underline-offset-2 hover:underline"
         >
-          Mentions legales
+          Mentions légales
         </Link>
         <span className="mx-2">&middot;</span>
         <Link
           href="/politique-de-confidentialite"
           className="hover:text-foreground underline-offset-2 hover:underline"
         >
-          Politique de confidentialite
+          Politique de confidentialité
         </Link>
       </div>
     </div>

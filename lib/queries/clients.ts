@@ -184,7 +184,7 @@ export async function getClientApiKeys(clientId: string) {
     );
   }
 
-  // Mask the encrypted key — never expose full value to UI
+  // Mask the encrypted key - never expose full value to UI
   return data.map((key) => ({
     id: key.id,
     client_id: key.client_id,

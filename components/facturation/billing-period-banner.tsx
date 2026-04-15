@@ -47,7 +47,7 @@ export function BillingPeriodBanner() {
     return (
       <div className="rounded-lg border border-[var(--primary)]/20 bg-[var(--primary-bg)] px-4 py-3">
         <p className="text-primary text-sm font-medium">
-          Période de facturation en cours ({startLabel} — {endLabel})
+          Période de facturation en cours ({startLabel} - {endLabel})
         </p>
       </div>
     );

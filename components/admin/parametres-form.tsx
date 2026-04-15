@@ -378,7 +378,7 @@ export function ParametresForm({
               <span className="w-20 shrink-0 font-mono text-sm font-medium">
                 {formatDate(jour.date)}
               </span>
-              <span className="text-muted-foreground text-sm">—</span>
+              <span className="text-muted-foreground text-sm">-</span>
               <span className="text-sm">{jour.libelle}</span>
             </div>
           ))}

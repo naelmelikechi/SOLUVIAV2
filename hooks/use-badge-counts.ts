@@ -53,7 +53,7 @@ function getBusinessDaysElapsed(): number {
 }
 
 // ---------------------------------------------------------------------------
-// Targeted fetch functions — one per badge type
+// Targeted fetch functions - one per badge type
 // ---------------------------------------------------------------------------
 
 const supabaseClient = () => createClient();
@@ -116,7 +116,7 @@ export function useBadgeCounts(): BadgeCounts {
   const mountedRef = useRef(true);
   const channelIdRef = useRef(`sidebar-badges-${++channelCounter}`);
 
-  // Targeted updaters — only re-fetch the count that changed
+  // Targeted updaters - only re-fetch the count that changed
   const refreshAll = useCallback(() => {
     fetchAllBadgeCounts().then((next) => {
       if (mountedRef.current) setCounts(next);
@@ -154,10 +154,10 @@ export function useBadgeCounts(): BadgeCounts {
   useEffect(() => {
     mountedRef.current = true;
 
-    // Initial fetch — all counts at once.
+    // Initial fetch - all counts at once.
     refreshAll();
 
-    // Subscribe to Realtime changes — only refresh the relevant badge.
+    // Subscribe to Realtime changes - only refresh the relevant badge.
     // Wrapped in try/catch so a broken WebSocket doesn't crash the app.
     let channel: ReturnType<ReturnType<typeof createClient>['channel']> | null =
       null;
@@ -189,7 +189,7 @@ export function useBadgeCounts(): BadgeCounts {
         )
         .subscribe();
     } catch {
-      // Realtime unavailable (e.g. bad API key) — badges still work via initial fetch
+      // Realtime unavailable (e.g. bad API key) - badges still work via initial fetch
     }
 
     return () => {

@@ -52,7 +52,7 @@ export const factureListColumns: ColumnDef<FactureListItem>[] = [
       <span className="text-sm">
         {row.original.date_emission
           ? formatDate(row.original.date_emission)
-          : '—'}
+          : '-'}
       </span>
     ),
   },
@@ -90,7 +90,7 @@ export const factureListColumns: ColumnDef<FactureListItem>[] = [
       <span className="text-sm">
         {row.original.date_echeance
           ? formatDate(row.original.date_echeance)
-          : '—'}
+          : '-'}
       </span>
     ),
   },

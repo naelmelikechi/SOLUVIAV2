@@ -40,7 +40,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
-      {/* Desktop sidebar — hidden on mobile */}
+      {/* Desktop sidebar - hidden on mobile */}
       <div className="hidden md:block">
         <Sidebar
           collapsed={sidebarCollapsed}

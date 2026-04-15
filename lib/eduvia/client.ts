@@ -49,13 +49,13 @@ export interface EduviaCompany {
 }
 
 // ---------------------------------------------------------------------------
-// fetchAllPages — paginated Eduvia API fetcher
+// fetchAllPages - paginated Eduvia API fetcher
 // ---------------------------------------------------------------------------
 
 const REQUEST_TIMEOUT = 3_000; // 3 seconds
 const PER_PAGE = 100;
 
-/** Thrown when an Eduvia API endpoint returns 404 — means the endpoint isn't available yet */
+/** Thrown when an Eduvia API endpoint returns 404 - means the endpoint isn't available yet */
 export class EndpointNotAvailableError extends Error {
   constructor(public resource: string) {
     super(`Endpoint /api/v1/${resource} pas encore disponible`);
@@ -77,7 +77,7 @@ export async function fetchAllPages<T>(
   apiKey: string,
   resource: string,
 ): Promise<T[]> {
-  // instance_url is stored as "slug.eduvia.app" — API lives at "api.slug.eduvia.app"
+  // instance_url is stored as "slug.eduvia.app" - API lives at "api.slug.eduvia.app"
   const cleanUrl = instanceUrl.replace(/\/$/, '').replace(/^https?:\/\//, '');
   const baseUrl = `https://api.${cleanUrl}`;
   const allItems: T[] = [];

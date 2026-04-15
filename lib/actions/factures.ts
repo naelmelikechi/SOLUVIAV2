@@ -108,7 +108,7 @@ export async function createFactures(
         ) / 100;
       return {
         contrat_id: c.id,
-        description: `Commission ${group.tauxCommission}% — ${c.formation_titre ?? ''} — ${c.apprenant_prenom ?? ''} ${c.apprenant_nom ?? ''} — ${moisLabel}`,
+        description: `Commission ${group.tauxCommission}% - ${c.formation_titre ?? ''} - ${c.apprenant_prenom ?? ''} ${c.apprenant_nom ?? ''} - ${moisLabel}`,
         montant_ht: montantHt,
       };
     });
@@ -183,7 +183,7 @@ export async function createFactures(
     return {
       success: false,
       refs: [],
-      error: 'Aucune facture créée — vérifiez les contrats actifs',
+      error: 'Aucune facture créée - vérifiez les contrats actifs',
     };
   }
 
@@ -271,7 +271,7 @@ export async function createAvoir(params: {
       montant_ttc: montantTtc,
       statut: 'avoir',
       est_avoir: true,
-      avoir_motif: note ? `${motif} — ${note}` : motif,
+      avoir_motif: note ? `${motif} - ${note}` : motif,
       facture_origine_id: factureOrigineId,
       created_by: user.id,
     })
@@ -297,7 +297,7 @@ export async function createAvoir(params: {
     await supabase.from('facture_lignes').insert({
       facture_id: avoir.id,
       contrat_id: origineLignes.contrat_id,
-      description: `Avoir sur ${origine.ref} — ${motif}`,
+      description: `Avoir sur ${origine.ref} - ${motif}`,
       montant_ht: montantHt,
     });
   }

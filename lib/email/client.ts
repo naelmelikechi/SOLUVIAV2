@@ -19,13 +19,13 @@ export async function sendFactureEmail(params: {
   pdfBuffer: Buffer;
 }): Promise<{ success: boolean; error?: string }> {
   if (!resend) {
-    logger.warn('email', 'RESEND_API_KEY non configure — email non envoye');
+    logger.warn('email', 'RESEND_API_KEY non configure - email non envoye');
     return { success: false, error: 'Service email non configure' };
   }
 
   const subject = params.isAvoir
-    ? `Avoir ${params.factureRef} — SOLUVIA`
-    : `Facture ${params.factureRef} — SOLUVIA`;
+    ? `Avoir ${params.factureRef} - SOLUVIA`
+    : `Facture ${params.factureRef} - SOLUVIA`;
 
   try {
     await resend.emails.send({
@@ -144,7 +144,7 @@ export async function sendEmailForFacture(
 }
 
 // ---------------------------------------------------------------------------
-// Relance email — reminder for overdue invoices
+// Relance email - reminder for overdue invoices
 // ---------------------------------------------------------------------------
 
 export async function sendRelanceEmail(
@@ -189,7 +189,7 @@ export async function sendRelanceEmail(
 
   const dateEcheance = facture.date_echeance
     ? new Date(facture.date_echeance).toLocaleDateString('fr-FR')
-    : '—';
+    : '-';
 
   const html = `
 <!DOCTYPE html>
@@ -233,7 +233,7 @@ export async function sendRelanceEmail(
     await resend.emails.send({
       from: 'SOLUVIA Facturation <contact@mysoluvia.com>',
       to: contactEmail,
-      subject: `Rappel — Facture ${facture.ref} en attente de paiement`,
+      subject: `Rappel - Facture ${facture.ref} en attente de paiement`,
       html,
     });
     return { success: true };
@@ -251,7 +251,7 @@ export async function sendRelanceEmail(
 }
 
 // ---------------------------------------------------------------------------
-// Invitation email — sent via Resend with custom design
+// Invitation email - sent via Resend with custom design
 // ---------------------------------------------------------------------------
 
 export async function sendInvitationEmail(params: {
@@ -263,7 +263,7 @@ export async function sendInvitationEmail(params: {
   if (!resend) {
     logger.warn(
       'email',
-      'RESEND_API_KEY non configuré — invitation email non envoyé',
+      'RESEND_API_KEY non configuré - invitation email non envoyé',
     );
     return { success: false, error: 'Service email non configuré' };
   }

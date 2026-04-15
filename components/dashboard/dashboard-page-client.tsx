@@ -194,7 +194,7 @@ function handleExportExcel(evolutionData: EvolutionRow[]) {
     row.current,
     row.previous,
     row.change === 0
-      ? '—'
+      ? '-'
       : `${row.change > 0 ? '+' : ''}${row.change}${row.unit}`,
   ]);
 
@@ -332,7 +332,7 @@ export function DashboardPageClient({
       previous:
         hasPrevious && prevProduction !== undefined
           ? formatCurrency(prevProduction)
-          : '—',
+          : '-',
       change: computeEvolution(totalProduction, prevProduction),
       unit: '%',
       positiveIsGood: true,
@@ -343,7 +343,7 @@ export function DashboardPageClient({
       previous:
         hasPrevious && prevTotalFacture !== undefined
           ? formatCurrency(prevTotalFacture)
-          : '—',
+          : '-',
       change: computeEvolution(totalFacture, prevTotalFacture),
       unit: '%',
       positiveIsGood: true,
@@ -354,7 +354,7 @@ export function DashboardPageClient({
       previous:
         hasPrevious && prevTotalEncaisse !== undefined
           ? formatCurrency(prevTotalEncaisse)
-          : '—',
+          : '-',
       change: computeEvolution(totalEncaisse, prevTotalEncaisse),
       unit: '%',
       positiveIsGood: true,
@@ -365,7 +365,7 @@ export function DashboardPageClient({
       previous:
         hasPrevious && prevEnRetardAmount !== undefined
           ? formatCurrency(prevEnRetardAmount)
-          : '—',
+          : '-',
       change: computeEvolution(totalEnRetard, prevEnRetardAmount),
       unit: '%',
       positiveIsGood: false,
@@ -376,7 +376,7 @@ export function DashboardPageClient({
       previous:
         hasPrevious && prevProjetsActifs !== undefined
           ? String(prevProjetsActifs)
-          : '—',
+          : '-',
       change: computeEvolution(data.projetsActifs, prevProjetsActifs),
       unit: '%',
       positiveIsGood: true,
@@ -387,7 +387,7 @@ export function DashboardPageClient({
       previous:
         hasPrevious && prevContratsActifs !== undefined
           ? String(prevContratsActifs)
-          : '—',
+          : '-',
       change: computeEvolution(data.contratsActifs, prevContratsActifs),
       unit: '%',
       positiveIsGood: true,
@@ -622,7 +622,7 @@ export function DashboardPageClient({
                     </TableCell>
                     <TableCell className="pr-4 text-right">
                       {row.change === 0 ? (
-                        <span className="text-muted-foreground text-xs">—</span>
+                        <span className="text-muted-foreground text-xs">-</span>
                       ) : (
                         <span
                           className={cn(

@@ -11,7 +11,7 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { Json } from '@/types/database';
 
-export const metadata: Metadata = { title: 'Historique — SOLUVIA' };
+export const metadata: Metadata = { title: 'Historique - SOLUVIA' };
 
 /** Map audit action codes to French descriptions */
 function describeAction(

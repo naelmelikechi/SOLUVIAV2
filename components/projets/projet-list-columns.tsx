@@ -39,7 +39,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
       <span className="text-sm">
         {row.original.cdp
           ? `${row.original.cdp.prenom} ${row.original.cdp.nom}`
-          : '—'}
+          : '-'}
       </span>
     ),
   },

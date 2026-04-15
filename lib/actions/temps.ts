@@ -9,7 +9,7 @@ import {
 } from '@/lib/queries/temps';
 
 // ---------------------------------------------------------------------------
-// saveSaisieTemps — upsert a single time entry
+// saveSaisieTemps - upsert a single time entry
 // ---------------------------------------------------------------------------
 
 export async function saveSaisieTemps(
@@ -53,7 +53,7 @@ export async function saveSaisieTemps(
 }
 
 // ---------------------------------------------------------------------------
-// saveSaisieTempsAxes — replace axes breakdown for a saisie
+// saveSaisieTempsAxes - replace axes breakdown for a saisie
 // ---------------------------------------------------------------------------
 
 export async function saveSaisieTempsAxes(
@@ -109,7 +109,7 @@ export async function saveSaisieTempsAxes(
 }
 
 // ---------------------------------------------------------------------------
-// fetchWeekData — server action to get data for a different week (called from client)
+// fetchWeekData - server action to get data for a different week (called from client)
 // ---------------------------------------------------------------------------
 
 export async function fetchWeekData(weekOffset: number) {
@@ -120,7 +120,7 @@ export async function fetchWeekData(weekOffset: number) {
 }
 
 // ---------------------------------------------------------------------------
-// fetchTeamWeekData — server action to get team recap for a different week
+// fetchTeamWeekData - server action to get team recap for a different week
 // ---------------------------------------------------------------------------
 
 export async function fetchTeamWeekData(weekOffset: number) {
@@ -131,7 +131,7 @@ export async function fetchTeamWeekData(weekOffset: number) {
 }
 
 // ---------------------------------------------------------------------------
-// copyPreviousWeek — copy time entries from the previous week to the current week
+// copyPreviousWeek - copy time entries from the previous week to the current week
 // ---------------------------------------------------------------------------
 
 export async function copyPreviousWeek(
@@ -209,7 +209,7 @@ export async function copyPreviousWeek(
 }
 
 // ---------------------------------------------------------------------------
-// fetchAvailableProjets — get projects user can add to their week
+// fetchAvailableProjets - get projects user can add to their week
 // ---------------------------------------------------------------------------
 
 export async function fetchAvailableProjets(): Promise<
@@ -219,7 +219,7 @@ export async function fetchAvailableProjets(): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// addProjetToWeek — create an empty saisie for a project on Monday
+// addProjetToWeek - create an empty saisie for a project on Monday
 // ---------------------------------------------------------------------------
 
 export async function addProjetToWeek(

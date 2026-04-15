@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       },
     ];
 
-    // Upsert — ignoreDuplicates makes it idempotent (safe to run multiple times)
+    // Upsert - ignoreDuplicates makes it idempotent (safe to run multiple times)
     const { error } = await supabase.from('kpi_snapshots').upsert(snapshots, {
       onConflict: 'mois,type_kpi,scope,scope_id',
       ignoreDuplicates: true,

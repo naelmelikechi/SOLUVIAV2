@@ -334,7 +334,7 @@ export function Sidebar({
                   {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
                 </Link>
                 <div className="text-muted-foreground text-[11px]">
-                  {user ? getRoleLabel(user.role) : '—'}
+                  {user ? getRoleLabel(user.role) : '-'}
                 </div>
               </div>
               <ThemeToggle />

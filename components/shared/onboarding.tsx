@@ -63,26 +63,26 @@ export function OnboardingDialog() {
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0">📊</span>
             <span>
-              <strong>Tableau de bord</strong> — Vue d&apos;ensemble de vos KPIs
+              <strong>Tableau de bord</strong> - Vue d&apos;ensemble de vos KPIs
             </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0">📝</span>
             <span>
-              <strong>Projets</strong> — Suivi de vos projets de formation
+              <strong>Projets</strong> - Suivi de vos projets de formation
             </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0">⏱</span>
             <span>
-              <strong>Temps</strong> — Saisie hebdomadaire avec ventilation par
+              <strong>Temps</strong> - Saisie hebdomadaire avec ventilation par
               axe
             </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0">💰</span>
             <span>
-              <strong>Facturation</strong> — &Eacute;mission et suivi des
+              <strong>Facturation</strong> - &Eacute;mission et suivi des
               factures
             </span>
           </li>

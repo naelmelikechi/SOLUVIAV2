@@ -8,7 +8,7 @@ import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 
 // ---------------------------------------------------------------------------
-// createClient — insert a new client
+// createClient - insert a new client
 // ---------------------------------------------------------------------------
 
 interface ClientData {
@@ -72,7 +72,7 @@ export async function createClientAction(
 }
 
 // ---------------------------------------------------------------------------
-// updateClient — update an existing client
+// updateClient - update an existing client
 // ---------------------------------------------------------------------------
 
 export async function updateClientAction(
@@ -124,7 +124,7 @@ export async function updateClientAction(
 }
 
 // ---------------------------------------------------------------------------
-// archiveClient — soft delete (archive = true)
+// archiveClient - soft delete (archive = true)
 // ---------------------------------------------------------------------------
 
 export async function archiveClient(
@@ -161,7 +161,7 @@ export async function archiveClient(
 }
 
 // ---------------------------------------------------------------------------
-// unarchiveClient — restore (archive = false)
+// unarchiveClient - restore (archive = false)
 // ---------------------------------------------------------------------------
 
 export async function unarchiveClient(
@@ -199,7 +199,7 @@ export async function unarchiveClient(
 }
 
 // ---------------------------------------------------------------------------
-// addClientContact — insert into client_contacts
+// addClientContact - insert into client_contacts
 // ---------------------------------------------------------------------------
 
 interface ContactData {
@@ -242,7 +242,7 @@ export async function addClientContact(
 }
 
 // ---------------------------------------------------------------------------
-// deleteClientContact — hard delete from client_contacts
+// deleteClientContact - hard delete from client_contacts
 // ---------------------------------------------------------------------------
 
 export async function deleteClientContact(
@@ -271,7 +271,7 @@ export async function deleteClientContact(
 }
 
 // ---------------------------------------------------------------------------
-// addClientNote — insert into client_notes
+// addClientNote - insert into client_notes
 // ---------------------------------------------------------------------------
 
 export async function addClientNote(
@@ -305,7 +305,7 @@ export async function addClientNote(
 }
 
 // ---------------------------------------------------------------------------
-// addClientApiKey — insert into client_api_keys with encrypted key
+// addClientApiKey - insert into client_api_keys with encrypted key
 // ---------------------------------------------------------------------------
 
 export async function addClientApiKey(
@@ -382,7 +382,7 @@ export async function addClientApiKey(
 }
 
 // ---------------------------------------------------------------------------
-// deleteClientApiKey — hard delete from client_api_keys
+// deleteClientApiKey - hard delete from client_api_keys
 // ---------------------------------------------------------------------------
 
 export async function deleteClientApiKey(
@@ -428,7 +428,7 @@ export async function deleteClientApiKey(
 }
 
 // ---------------------------------------------------------------------------
-// toggleClientApiKeyActive — toggle is_active on client_api_keys
+// toggleClientApiKeyActive - toggle is_active on client_api_keys
 // ---------------------------------------------------------------------------
 
 export async function toggleClientApiKeyActive(
@@ -475,7 +475,7 @@ export async function toggleClientApiKeyActive(
 }
 
 // ---------------------------------------------------------------------------
-// testApiKeyConnection — test connectivity to Eduvia instance
+// testApiKeyConnection - test connectivity to Eduvia instance
 // ---------------------------------------------------------------------------
 
 export async function testApiKeyConnection(

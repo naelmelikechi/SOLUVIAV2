@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { ClientsDataTable } from '@/components/admin/clients-data-table';
 import { ClientCreateButton } from '@/components/admin/client-create-button';
 
-export const metadata: Metadata = { title: 'Clients — SOLUVIA' };
+export const metadata: Metadata = { title: 'Clients - SOLUVIA' };
 export const revalidate = 120;
 
 export default async function ClientsPage() {

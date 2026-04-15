@@ -56,7 +56,7 @@ export function TeamRecapClient({
   return (
     <div>
       <PageHeader
-        title="Suivi de temps — Équipe"
+        title="Suivi de temps - Équipe"
         description="Récapitulatif hebdomadaire de l'équipe"
       >
         <Link href="/temps">
@@ -156,7 +156,7 @@ export function TeamRecapClient({
                           getDayCellColor(heures),
                         )}
                       >
-                        {heures > 0 ? formatHeures(heures) : '—'}
+                        {heures > 0 ? formatHeures(heures) : '-'}
                       </span>
                     </td>
                   );

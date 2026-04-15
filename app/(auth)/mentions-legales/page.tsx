@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Mentions légales — SOLUVIA',
+  title: 'Mentions légales - SOLUVIA',
 };
 
 export default function MentionsLegalesPage() {

@@ -11,11 +11,11 @@ import { z } from 'zod';
  *   import { env } from '@/lib/env';
  *   const url = env.NEXT_PUBLIC_SUPABASE_URL;
  *
- * Never use `process.env.X!` directly — always go through this module.
+ * Never use `process.env.X!` directly - always go through this module.
  */
 
 const serverSchema = z.object({
-  // Supabase — required everywhere
+  // Supabase - required everywhere
   NEXT_PUBLIC_SUPABASE_URL: z.string().url({
     message: 'NEXT_PUBLIC_SUPABASE_URL must be a valid URL',
   }),
@@ -23,26 +23,26 @@ const serverSchema = z.object({
     .string()
     .min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required'),
 
-  // Service role — server-only, required at runtime for CRON + admin ops
+  // Service role - server-only, required at runtime for CRON + admin ops
   // Optional here so builds don't fail; validated at point of use in admin.ts
   SUPABASE_SERVICE_ROLE_KEY: z
     .string()
     .min(1, 'SUPABASE_SERVICE_ROLE_KEY is required for admin operations')
     .optional(),
 
-  // CRON auth — required in prod, optional locally
+  // CRON auth - required in prod, optional locally
   CRON_SECRET: z
     .string()
     .min(16, 'CRON_SECRET must be at least 16 chars')
     .optional(),
 
-  // Encryption — required for API key encryption/decryption
+  // Encryption - required for API key encryption/decryption
   ENCRYPTION_KEY: z
     .string()
     .min(32, 'ENCRYPTION_KEY must be at least 32 chars')
     .optional(),
 
-  // Resend — email sending, optional (emails skipped if missing)
+  // Resend - email sending, optional (emails skipped if missing)
   RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required').optional(),
 
   // Runtime

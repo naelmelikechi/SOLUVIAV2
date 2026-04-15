@@ -62,7 +62,7 @@ export function getUserListColumns(
         const date = row.original.derniere_connexion;
         return (
           <span className="text-muted-foreground text-sm">
-            {date ? formatDateLong(date) : '—'}
+            {date ? formatDateLong(date) : '-'}
           </span>
         );
       },

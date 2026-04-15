@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/utils/audit';
 
 // ---------------------------------------------------------------------------
-// updateProfile — update current user's prenom and nom
+// updateProfile - update current user's prenom and nom
 // ---------------------------------------------------------------------------
 
 export async function updateProfile(
@@ -33,7 +33,7 @@ export async function updateProfile(
 }
 
 // ---------------------------------------------------------------------------
-// updatePassword — change current user's password via Supabase Auth
+// updatePassword - change current user's password via Supabase Auth
 // ---------------------------------------------------------------------------
 
 export async function updatePassword(
@@ -66,7 +66,7 @@ export async function updatePassword(
 // Avatar actions
 // ---------------------------------------------------------------------------
 
-/** Generate a new random robot — limited to 1x per day */
+/** Generate a new random robot - limited to 1x per day */
 export async function regenerateAvatar(): Promise<{
   success: boolean;
   seed?: string;
@@ -136,7 +136,7 @@ export async function lockAvatar(): Promise<{
   return { success: true };
 }
 
-/** Unlock avatar — go back to daily rotation */
+/** Unlock avatar - go back to daily rotation */
 export async function unlockAvatar(): Promise<{
   success: boolean;
   error?: string;

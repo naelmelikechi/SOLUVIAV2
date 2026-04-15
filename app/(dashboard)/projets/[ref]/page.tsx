@@ -14,7 +14,7 @@ export async function generateMetadata({
   params: Promise<{ ref: string }>;
 }): Promise<Metadata> {
   const { ref } = await params;
-  return { title: `${ref} — Projets — SOLUVIA` };
+  return { title: `${ref} - Projets - SOLUVIA` };
 }
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';

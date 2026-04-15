@@ -14,7 +14,7 @@ export async function generateMetadata({
   params: Promise<{ ref: string }>;
 }): Promise<Metadata> {
   const { ref } = await params;
-  return { title: `${ref} — Facturation — SOLUVIA` };
+  return { title: `${ref} - Facturation - SOLUVIA` };
 }
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -95,10 +95,10 @@ export default async function FactureDetailPage({
             {facture.client?.raison_sociale ?? ''}
           </div>
           <div className="text-muted-foreground text-sm">
-            {facture.client?.adresse ?? '—'}
+            {facture.client?.adresse ?? '-'}
           </div>
           <div className="text-muted-foreground mt-1 font-mono text-xs">
-            SIRET {facture.client?.siret ?? '—'}
+            SIRET {facture.client?.siret ?? '-'}
           </div>
         </Card>
       </div>

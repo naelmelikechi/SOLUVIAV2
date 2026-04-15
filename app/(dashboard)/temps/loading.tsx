@@ -14,7 +14,7 @@ export default function TempsLoading() {
         <Skeleton className="h-6 w-48" />
         <Skeleton className="h-9 w-9" />
       </div>
-      {/* Time grid skeleton — 7 columns */}
+      {/* Time grid skeleton - 7 columns */}
       <div className="rounded-lg border">
         <div className="space-y-3 p-4">
           {/* Day headers */}

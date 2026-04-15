@@ -24,7 +24,7 @@ export function TimeWeekNavigator({
   const monday = parseISO(weekDates[0]!);
   const sunday = parseISO(weekDates[6]!);
 
-  const rangeLabel = `${format(monday, 'd', { locale: fr })} — ${format(sunday, 'd MMMM yyyy', { locale: fr })}`;
+  const rangeLabel = `${format(monday, 'd', { locale: fr })} - ${format(sunday, 'd MMMM yyyy', { locale: fr })}`;
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2 md:gap-3">

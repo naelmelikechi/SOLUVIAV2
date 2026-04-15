@@ -3,7 +3,7 @@ import { getQualiteSummaries } from '@/lib/queries/qualite';
 import { PageHeader } from '@/components/shared/page-header';
 import { QualiteDataTable } from '@/components/qualite/qualite-data-table';
 
-export const metadata: Metadata = { title: 'Qualité — SOLUVIA' };
+export const metadata: Metadata = { title: 'Qualité - SOLUVIA' };
 export const revalidate = 60;
 
 export default async function QualitePage() {
@@ -13,7 +13,7 @@ export default async function QualitePage() {
     <div>
       <PageHeader
         title="Qualité"
-        description="Suivi Qualiopi par projet — 10 familles, 109 livrables"
+        description="Suivi Qualiopi par projet - 10 familles, 109 livrables"
       />
       <QualiteDataTable data={data} />
     </div>

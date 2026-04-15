@@ -11,7 +11,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { DashboardPageClient } from '@/components/dashboard/dashboard-page-client';
 import { format, startOfMonth, addMonths } from 'date-fns';
 
-export const metadata: Metadata = { title: 'Tableau de bord — SOLUVIA' };
+export const metadata: Metadata = { title: 'Tableau de bord - SOLUVIA' };
 export const revalidate = 30;
 
 export default async function DashboardPage() {

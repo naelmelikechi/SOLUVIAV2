@@ -90,40 +90,40 @@ export default async function ClientDetailPage({
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               Adresse
             </div>
-            <div className="mt-1">{client.adresse || '—'}</div>
+            <div className="mt-1">{client.adresse || '-'}</div>
           </div>
           <div>
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               Localisation
             </div>
-            <div className="mt-1">{client.localisation || '—'}</div>
+            <div className="mt-1">{client.localisation || '-'}</div>
           </div>
           <div>
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               N° Qualiopi
             </div>
             <div className="mt-1 font-mono">
-              {client.numero_qualiopi || '—'}
+              {client.numero_qualiopi || '-'}
             </div>
           </div>
           <div>
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               N° NDA
             </div>
-            <div className="mt-1 font-mono">{client.numero_nda || '—'}</div>
+            <div className="mt-1 font-mono">{client.numero_nda || '-'}</div>
           </div>
           <div>
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               N° UAI
             </div>
-            <div className="mt-1 font-mono">{client.numero_uai || '—'}</div>
+            <div className="mt-1 font-mono">{client.numero_uai || '-'}</div>
           </div>
           <div>
             <div className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
               Date d&apos;entr&eacute;e
             </div>
             <div className="mt-1">
-              {client.date_entree ? formatDate(client.date_entree) : '—'}
+              {client.date_entree ? formatDate(client.date_entree) : '-'}
             </div>
           </div>
         </div>
@@ -164,10 +164,10 @@ export default async function ClientDetailPage({
                       <ProjectRef ref_={p.ref ?? ''} />
                     </TableCell>
                     <TableCell className="text-sm">
-                      {p.typologie?.libelle ?? '—'}
+                      {p.typologie?.libelle ?? '-'}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {p.cdp ? `${p.cdp.prenom} ${p.cdp.nom}` : '—'}
+                      {p.cdp ? `${p.cdp.prenom} ${p.cdp.nom}` : '-'}
                     </TableCell>
                     <TableCell className="text-sm tabular-nums">
                       {p.taux_commission}%
@@ -219,7 +219,7 @@ export default async function ClientDetailPage({
                     </TableCell>
                     <TableCell>
                       <StatusBadge
-                        label={doc.type_document ?? '—'}
+                        label={doc.type_document ?? '-'}
                         color="gray"
                       />
                     </TableCell>
@@ -227,7 +227,7 @@ export default async function ClientDetailPage({
                       {formatDate(doc.created_at)}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {doc.user ? `${doc.user.prenom} ${doc.user.nom}` : '—'}
+                      {doc.user ? `${doc.user.prenom} ${doc.user.nom}` : '-'}
                     </TableCell>
                     <TableCell>
                       <ClientDocumentActions

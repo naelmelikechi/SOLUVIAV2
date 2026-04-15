@@ -125,10 +125,10 @@ export function buildFactureEmailHtml(params: {
           <tr>
             <td style="background-color:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;line-height:1.5;">
-                ${emetteur.raison_sociale} — ${emetteur.adresse}
+                ${emetteur.raison_sociale} - ${emetteur.adresse}
               </p>
               <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;line-height:1.5;">
-                SIRET ${emetteur.siret} — TVA ${emetteur.tva}
+                SIRET ${emetteur.siret} - TVA ${emetteur.tva}
               </p>
               <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5;">
                 Cet email a ete envoye automatiquement. Merci de ne pas y repondre directement.

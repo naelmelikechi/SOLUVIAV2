@@ -76,7 +76,7 @@ export async function getLastEduviaSyncDate(): Promise<string | null> {
 }
 
 // ---------------------------------------------------------------------------
-// getEmetteurInfo — company info for invoices (from parametres table)
+// getEmetteurInfo - company info for invoices (from parametres table)
 // ---------------------------------------------------------------------------
 
 export interface EmetteurInfo {

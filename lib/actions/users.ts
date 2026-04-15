@@ -7,7 +7,7 @@ import { isAdmin, isSuperAdmin } from '@/lib/utils/roles';
 import { logAudit } from '@/lib/utils/audit';
 
 // ---------------------------------------------------------------------------
-// updateUserRole — change a user's role (with hierarchy guards)
+// updateUserRole - change a user's role (with hierarchy guards)
 // ---------------------------------------------------------------------------
 
 export async function updateUserRole(
@@ -35,7 +35,7 @@ export async function updateUserRole(
     .eq('id', authUser.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé — réservé aux admins' };
+    return { success: false, error: 'Accès refusé - réservé aux admins' };
   }
 
   // Fetch target user's current role
@@ -78,7 +78,7 @@ export async function updateUserRole(
 }
 
 // ---------------------------------------------------------------------------
-// toggleUserActive — admin-only: enable / disable a user
+// toggleUserActive - admin-only: enable / disable a user
 // ---------------------------------------------------------------------------
 
 export async function toggleUserActive(
@@ -105,7 +105,7 @@ export async function toggleUserActive(
     .eq('id', authUser.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé — réservé aux admins' };
+    return { success: false, error: 'Accès refusé - réservé aux admins' };
   }
 
   // Admin cannot deactivate another admin or superadmin
@@ -138,7 +138,7 @@ export async function toggleUserActive(
 }
 
 // ---------------------------------------------------------------------------
-// inviteUser — admin-only: invite a new user by email
+// inviteUser - admin-only: invite a new user by email
 // ---------------------------------------------------------------------------
 
 export async function inviteUser(
@@ -162,7 +162,7 @@ export async function inviteUser(
     .eq('id', authUser.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé — réservé aux admins' };
+    return { success: false, error: 'Accès refusé - réservé aux admins' };
   }
 
   // Only superadmin can invite admins
@@ -229,11 +229,11 @@ export async function inviteUser(
         link: inviteLink,
       });
     } catch {
-      // Email failed but user was created — they can use "forgot password" to set up
+      // Email failed but user was created - they can use "forgot password" to set up
     }
   }
   if (linkError) {
-    // Non-blocking — user exists, can use forgot password
+    // Non-blocking - user exists, can use forgot password
   }
 
   // Insert the user row so they appear in the users table immediately

@@ -101,6 +101,7 @@ export function FacturationPageClient({
             searchKey="ref"
             searchPlaceholder="Rechercher une facture..."
             onRowClick={handleRowClick}
+            defaultSort={{ id: 'ref', desc: true }}
           />
         </div>
       </TabsContent>

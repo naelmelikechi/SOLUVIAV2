@@ -71,6 +71,7 @@ export function ProjetsDataTable({
         searchKey="ref"
         searchPlaceholder="Rechercher un projet..."
         onRowClick={handleRowClick}
+        defaultSort={{ id: 'ref', desc: true }}
       />
     </div>
   );

@@ -49,7 +49,7 @@ export default function DashboardLayout({
       {/* Right column: topbar + main */}
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onHamburgerClick={() => setMobileOpen(true)} />
-        <main className="bg-background flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="bg-background animate-in fade-in flex-1 overflow-y-auto p-4 duration-200 md:p-6">
           {children}
         </main>
       </div>

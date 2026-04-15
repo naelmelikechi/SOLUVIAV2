@@ -31,6 +31,7 @@ interface DataTableProps<TData, TValue> {
   searchKey?: string;
   searchPlaceholder?: string;
   onRowClick?: (row: TData) => void;
+  defaultSort?: { id: string; desc: boolean };
 }
 
 export function DataTable<TData, TValue>({
@@ -39,8 +40,11 @@ export function DataTable<TData, TValue>({
   searchKey,
   searchPlaceholder = 'Rechercher...',
   onRowClick,
+  defaultSort,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>(
+    defaultSort ? [defaultSort] : [],
+  );
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 

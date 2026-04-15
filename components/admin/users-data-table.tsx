@@ -33,6 +33,7 @@ export function UsersDataTable({ data }: { data: UserListItem[] }) {
         data={data}
         searchKey="email"
         searchPlaceholder="Rechercher par email..."
+        defaultSort={{ id: 'nom', desc: false }}
       />
 
       <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} />

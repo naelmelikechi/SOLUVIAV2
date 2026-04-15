@@ -47,6 +47,7 @@ export function ClientsDataTable({ data }: { data: ClientListItem[] }) {
         searchKey="raison_sociale"
         searchPlaceholder="Rechercher un client..."
         onRowClick={handleRowClick}
+        defaultSort={{ id: 'raison_sociale', desc: false }}
       />
     </div>
   );

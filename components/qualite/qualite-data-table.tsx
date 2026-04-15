@@ -59,6 +59,7 @@ export function QualiteDataTable({ data }: { data: QualiteSummary[] }) {
         searchKey="ref"
         searchPlaceholder="Rechercher un projet..."
         onRowClick={handleRowClick}
+        defaultSort={{ id: 'pct', desc: false }}
       />
     </div>
   );

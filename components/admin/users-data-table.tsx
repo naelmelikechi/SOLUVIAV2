@@ -10,7 +10,13 @@ import { UserEditDialog } from '@/components/admin/user-edit-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 
-export function UsersDataTable({ data }: { data: UserListItem[] }) {
+export function UsersDataTable({
+  data,
+  callerRole,
+}: {
+  data: UserListItem[];
+  callerRole?: string;
+}) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserListItem | null>(null);
 
@@ -39,6 +45,7 @@ export function UsersDataTable({ data }: { data: UserListItem[] }) {
       <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} />
       <UserEditDialog
         user={editUser}
+        callerRole={callerRole}
         open={!!editUser}
         onOpenChange={(open) => {
           if (!open) setEditUser(null);

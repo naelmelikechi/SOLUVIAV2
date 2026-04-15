@@ -14,5 +14,5 @@ export default async function UtilisateursPage() {
 
   const users = await getUsersList();
 
-  return <UsersDataTable data={users} />;
+  return <UsersDataTable data={users} callerRole={user?.role} />;
 }

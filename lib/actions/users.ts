@@ -138,6 +138,87 @@ export async function toggleUserActive(
 }
 
 // ---------------------------------------------------------------------------
+// deleteUser - superadmin-only: permanently delete a user
+// ---------------------------------------------------------------------------
+
+export async function deleteUser(
+  userId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) return { success: false, error: 'Non authentifié' };
+
+  if (authUser.id === userId) {
+    return {
+      success: false,
+      error: 'Vous ne pouvez pas supprimer votre propre compte',
+    };
+  }
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', authUser.id)
+    .single();
+  if (!isSuperAdmin(caller?.role)) {
+    return {
+      success: false,
+      error: 'Seul un superadmin peut supprimer un utilisateur',
+    };
+  }
+
+  // Get target info for audit
+  const { data: target } = await supabase
+    .from('users')
+    .select('email, nom, prenom, role')
+    .eq('id', userId)
+    .single();
+
+  // Nullify foreign keys referencing this user
+  const adminClient = createAdminClient();
+  await supabase.from('notifications').delete().eq('user_id', userId);
+  await supabase.from('saisies_temps').delete().eq('user_id', userId);
+  await supabase.from('client_notes').delete().eq('user_id', userId);
+  await supabase.from('projets').update({ cdp_id: null }).eq('cdp_id', userId);
+  await supabase
+    .from('projets')
+    .update({ backup_cdp_id: null })
+    .eq('backup_cdp_id', userId);
+  await supabase
+    .from('factures')
+    .update({ created_by: null })
+    .eq('created_by', userId);
+  await supabase
+    .from('parametres')
+    .update({ updated_by: null })
+    .eq('updated_by', userId);
+
+  // Delete from public.users
+  const { error: deleteError } = await supabase
+    .from('users')
+    .delete()
+    .eq('id', userId);
+  if (deleteError) {
+    return { success: false, error: deleteError.message };
+  }
+
+  // Delete from auth.users
+  await adminClient.auth.admin.deleteUser(userId);
+
+  logAudit('user_deleted', 'user', userId, {
+    email: target?.email ?? '',
+    nom: target?.nom ?? '',
+    prenom: target?.prenom ?? '',
+  });
+
+  revalidatePath('/admin/utilisateurs');
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
 // inviteUser - admin-only: invite a new user by email
 // ---------------------------------------------------------------------------
 

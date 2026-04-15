@@ -17,24 +17,34 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { updateUserRole, toggleUserActive } from '@/lib/actions/users';
+import {
+  updateUserRole,
+  toggleUserActive,
+  deleteUser,
+} from '@/lib/actions/users';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import type { UserListItem } from '@/lib/queries/users';
 
 interface UserEditDialogProps {
   user: UserListItem | null;
+  callerRole?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function UserEditDialog({
   user,
+  callerRole,
   open,
   onOpenChange,
 }: UserEditDialogProps) {
   const [role, setRole] = useState<string>(user?.role ?? 'cdp');
   const [actif, setActif] = useState<string>(user?.actif ? 'true' : 'false');
   const [isPending, startTransition] = useTransition();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
 
   // Sync local state when a different user is opened
   const [prevUserId, setPrevUserId] = useState<string | null>(null);
@@ -120,19 +130,55 @@ export function UserEditDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
-            Annuler
-          </Button>
-          <Button onClick={handleSave} disabled={isPending}>
-            {isPending ? 'Enregistrement...' : 'Enregistrer'}
-          </Button>
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+          {callerRole === 'superadmin' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400"
+              onClick={() => setDeleteOpen(true)}
+              disabled={isPending || deletePending}
+            >
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Supprimer
+            </Button>
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+            >
+              Annuler
+            </Button>
+            <Button onClick={handleSave} disabled={isPending}>
+              {isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Supprimer l'utilisateur"
+        description={`Êtes-vous sûr de vouloir supprimer ${user.prenom} ${user.nom} ? Cette action est irréversible. Ses saisies de temps, notes et notifications seront supprimées.`}
+        confirmText="Supprimer définitivement"
+        variant="destructive"
+        isPending={deletePending}
+        onConfirm={async () => {
+          setDeletePending(true);
+          const result = await deleteUser(user.id);
+          setDeletePending(false);
+          if (result.success) {
+            toast.success('Utilisateur supprimé');
+            setDeleteOpen(false);
+            onOpenChange(false);
+          } else {
+            toast.error(result.error ?? 'Erreur lors de la suppression');
+          }
+        }}
+      />
     </Dialog>
   );
 }

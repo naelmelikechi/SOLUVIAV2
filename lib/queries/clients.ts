@@ -11,6 +11,7 @@ export async function getClientsList() {
       'id, trigramme, raison_sociale, siret, adresse, localisation, date_entree',
     )
     .eq('archive', false)
+    .not('raison_sociale', 'ilike', '%(systeme)%')
     .order('raison_sociale');
 
   if (error) {

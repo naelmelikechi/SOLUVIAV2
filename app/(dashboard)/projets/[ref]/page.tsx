@@ -16,6 +16,8 @@ export async function generateMetadata({
   const { ref } = await params;
   return { title: `${ref} — Projets — SOLUVIA` };
 }
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { ProjetFinanceSection } from '@/components/projets/projet-finance-section';
 import { ProjetTempsSection } from '@/components/projets/projet-temps-section';
 import { ProjetQualiteSection } from '@/components/projets/projet-qualite-section';
@@ -49,6 +51,13 @@ export default async function ProjetDetailPage({
 
   return (
     <div>
+      <Link
+        href="/projets"
+        className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Retour aux projets
+      </Link>
       <ProjetDetailHeader projet={projet} />
 
       <ProjetStatCards projet={projet} apprentisActifs={apprentisActifs} />

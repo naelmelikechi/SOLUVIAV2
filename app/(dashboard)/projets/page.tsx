@@ -54,7 +54,7 @@ export default async function ProjetsPage() {
           />
         )}
       </PageHeader>
-      <ProjetsDataTable data={sorted} />
+      <ProjetsDataTable data={sorted} userRole={currentUser?.role} />
     </div>
   );
 }

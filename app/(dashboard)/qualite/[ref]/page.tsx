@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTachesByProjetRef } from '@/lib/queries/qualite';
 import { PageHeader } from '@/components/shared/page-header';
@@ -49,6 +51,13 @@ export default async function QualiteDetailPage({
 
   return (
     <div>
+      <Link
+        href="/qualite"
+        className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Retour à la qualité
+      </Link>
       <PageHeader title="Qualité">
         <ProjectRef ref_={projet.ref ?? ''} />
       </PageHeader>

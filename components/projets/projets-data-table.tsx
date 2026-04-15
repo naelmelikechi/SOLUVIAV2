@@ -10,7 +10,13 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_PROJET_LABELS } from '@/lib/utils/constants';
 
-export function ProjetsDataTable({ data }: { data: ProjetListEnriched[] }) {
+export function ProjetsDataTable({
+  data,
+  userRole,
+}: {
+  data: ProjetListEnriched[];
+  userRole?: string;
+}) {
   const router = useRouter();
 
   const handleRowClick = (row: ProjetListEnriched) => {
@@ -37,11 +43,16 @@ export function ProjetsDataTable({ data }: { data: ProjetListEnriched[] }) {
   };
 
   if (data.length === 0) {
+    const isCdp = userRole === 'cdp';
     return (
       <EmptyState
         icon={ClipboardList}
-        title="Aucun projet"
-        description="Il n'y a pas encore de projet enregistré. Les projets apparaîtront ici une fois synchronisés depuis Eduvia."
+        title={isCdp ? 'Aucun projet assigné' : 'Aucun projet'}
+        description={
+          isCdp
+            ? "Aucun projet ne vous est assigné pour le moment. Contactez un administrateur si vous pensez qu'il s'agit d'une erreur."
+            : "Il n'y a pas encore de projet enregistré. Les projets apparaîtront ici une fois synchronisés depuis Eduvia."
+        }
       />
     );
   }

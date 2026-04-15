@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getAvatarUrl } from '@/components/shared/user-avatar';
@@ -25,6 +26,7 @@ import { isAdmin, getRoleLabel } from '@/lib/utils/roles';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { useBadgeCounts } from '@/hooks/use-badge-counts';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 
 const mainNavItems = [
   { href: '/projets', label: 'Projets', icon: ClipboardList },
@@ -95,6 +97,7 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const badgeCounts = useBadgeCounts();
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -285,7 +288,7 @@ export function Sidebar({
             </Link>
             <ThemeToggle />
             <button
-              onClick={handleLogout}
+              onClick={() => setLogoutOpen(true)}
               aria-label="Se déconnecter"
               title="Déconnexion"
               className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors"
@@ -338,7 +341,7 @@ export function Sidebar({
               </Link>
               <span className="text-border">|</span>
               <button
-                onClick={handleLogout}
+                onClick={() => setLogoutOpen(true)}
                 aria-label="Se déconnecter"
                 className="text-muted-foreground hover:text-foreground text-[11px] transition-colors"
               >
@@ -348,6 +351,14 @@ export function Sidebar({
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        title="Déconnexion"
+        description="Êtes-vous sûr de vouloir vous déconnecter ?"
+        confirmText="Se déconnecter"
+        onConfirm={handleLogout}
+      />
     </aside>
   );
 }

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   getClientById,
@@ -23,11 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { FileText, FolderOpen } from 'lucide-react';
+import { ArrowLeft, FileText, FolderOpen } from 'lucide-react';
 import { ClientDetailActions } from '@/components/admin/client-detail-actions';
 import { ClientContactsSection } from '@/components/admin/client-contacts-section';
 import { ClientNotesSection } from '@/components/admin/client-notes-section';
 import { ClientApiKeysSection } from '@/components/admin/client-api-keys-section';
+import { ClientUploadButton } from '@/components/admin/client-upload-button';
 
 export default async function ClientDetailPage({
   params,
@@ -51,6 +53,14 @@ export default async function ClientDetailPage({
 
   return (
     <div>
+      <Link
+        href="/admin/clients"
+        className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Retour aux clients
+      </Link>
+
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -180,9 +190,12 @@ export default async function ClientDetailPage({
 
       {/* Documents */}
       <Card className="p-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-          <FileText className="h-4 w-4" /> Documents
-        </h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <FileText className="h-4 w-4" /> Documents
+          </h3>
+          <ClientUploadButton clientId={id} />
+        </div>
         {documents.length === 0 ? (
           <p className="text-muted-foreground text-sm">Aucun document</p>
         ) : (

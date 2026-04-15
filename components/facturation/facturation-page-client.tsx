@@ -56,7 +56,7 @@ export function FacturationPageClient({
       <EmptyState
         icon={FileText}
         title="Aucune facture"
-        description="Aucune facture n'a encore été émise. Les factures apparaîtront ici une fois générées depuis les échéances."
+        description="Les échéances sont générées automatiquement depuis les contrats actifs. Les factures apparaîtront ici une fois émises depuis ces échéances."
       />
     );
   }

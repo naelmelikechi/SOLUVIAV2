@@ -16,6 +16,8 @@ export async function generateMetadata({
   const { ref } = await params;
   return { title: `${ref} — Facturation — SOLUVIA` };
 }
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { FactureDetailHeader } from '@/components/facturation/facture-detail-header';
@@ -51,6 +53,14 @@ export default async function FactureDetailPage({
 
   return (
     <div>
+      <Link
+        href="/facturation"
+        className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Retour à la facturation
+      </Link>
+
       {/* Header */}
       <FactureDetailHeader facture={facture} avoirRef={origineRef} />
 

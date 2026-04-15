@@ -146,7 +146,12 @@ export function CommandPalette() {
       description="Rechercher une page ou une action"
       className="sm:max-w-lg"
     >
-      <Command>
+      <Command
+        filter={(value, search) => {
+          if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+          return 0;
+        }}
+      >
         <CommandInput placeholder="Rechercher..." />
         <CommandList>
           <CommandEmpty>Aucun résultat.</CommandEmpty>

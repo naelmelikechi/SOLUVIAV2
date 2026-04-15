@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  Lock,
 } from 'lucide-react';
 
 interface FamilleCardProps {
@@ -85,13 +86,20 @@ export function FamilleCard({
 
       {expanded && (
         <div className="border-border border-t px-4 py-3">
+          <p className="text-muted-foreground mb-2 flex items-center gap-1 text-xs">
+            <Lock className="h-3 w-3" />
+            Données synchronisées depuis Eduvia
+          </p>
           <div className="space-y-1.5">
             {livrables.map((l) => (
-              <div key={l.id} className="flex items-center gap-2 text-sm">
+              <div
+                key={l.id}
+                className="flex cursor-default items-center gap-2 text-sm"
+              >
                 {l.fait ? (
-                  <CheckCircle className="text-primary h-4 w-4" />
+                  <CheckCircle className="text-primary h-4 w-4 shrink-0" />
                 ) : (
-                  <Circle className="text-muted-foreground h-4 w-4" />
+                  <Circle className="text-muted-foreground h-4 w-4 shrink-0" />
                 )}
                 <span className={l.fait ? '' : 'text-muted-foreground'}>
                   {l.label}

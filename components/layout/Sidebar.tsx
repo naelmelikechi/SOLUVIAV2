@@ -354,7 +354,7 @@ export function Sidebar({
                 target="_blank"
                 className="hover:text-foreground transition-colors"
               >
-                Mentions legales
+                Mentions légales
               </Link>
               <span className="text-border">|</span>
               <Link
@@ -362,7 +362,7 @@ export function Sidebar({
                 target="_blank"
                 className="hover:text-foreground transition-colors"
               >
-                Confidentialite
+                Confidentialité
               </Link>
             </div>
           </div>

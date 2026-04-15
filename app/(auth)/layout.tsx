@@ -5,7 +5,7 @@ export default function AuthLayout({
 }) {
   return (
     <div
-      className="auth-light-force flex min-h-screen items-center justify-center"
+      className="auth-light-force flex min-h-screen items-center justify-center p-4"
       style={
         {
           '--background': '#f5f7f5',
@@ -26,7 +26,7 @@ export default function AuthLayout({
         } as React.CSSProperties
       }
     >
-      <div className="w-full max-w-md">{children}</div>
+      <div className="w-full max-w-2xl">{children}</div>
     </div>
   );
 }

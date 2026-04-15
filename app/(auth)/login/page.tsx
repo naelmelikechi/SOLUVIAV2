@@ -38,7 +38,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="border-border bg-card rounded-lg border p-8">
+    <div className="border-border bg-card mx-auto max-w-md rounded-lg border p-8">
       <div className="mb-6 flex flex-col items-center text-center">
         <Image
           src="/logo.svg"
@@ -98,7 +98,23 @@ export default function LoginPage() {
           href="/forgot-password"
           className="text-muted-foreground hover:text-primary text-sm underline-offset-4 hover:underline"
         >
-          Mot de passe oublié ?
+          Mot de passe oublie ?
+        </Link>
+      </div>
+
+      <div className="text-muted-foreground mt-6 text-center text-xs">
+        <Link
+          href="/mentions-legales"
+          className="hover:text-foreground underline-offset-2 hover:underline"
+        >
+          Mentions legales
+        </Link>
+        <span className="mx-2">&middot;</span>
+        <Link
+          href="/politique-de-confidentialite"
+          className="hover:text-foreground underline-offset-2 hover:underline"
+        >
+          Politique de confidentialite
         </Link>
       </div>
     </div>

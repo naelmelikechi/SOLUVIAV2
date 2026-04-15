@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="border-border bg-card rounded-lg border p-8">
+    <div className="border-border bg-card mx-auto max-w-md rounded-lg border p-8">
       <div className="mb-6 flex flex-col items-center text-center">
         <Image
           src="/logo.svg"

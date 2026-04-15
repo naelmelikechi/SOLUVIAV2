@@ -44,6 +44,8 @@ export function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
+  const [columnSizing, setColumnSizing] = useState({});
+
   const table = useReactTable({
     data,
     columns,
@@ -54,10 +56,14 @@ export function DataTable<TData, TValue>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
+    enableColumnResizing: true,
+    columnResizeMode: 'onChange',
+    onColumnSizingChange: setColumnSizing,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
+      columnSizing,
     },
   });
 
@@ -69,18 +75,33 @@ export function DataTable<TData, TValue>({
         searchPlaceholder={searchPlaceholder}
       />
       <div className="border-border overflow-x-auto rounded-lg border">
-        <Table>
+        <Table style={{ width: table.getCenterTotalSize() }}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className="relative select-none"
+                    style={{ width: header.getSize() }}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
                           header.getContext(),
                         )}
+                    {header.column.getCanResize() && (
+                      <div
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        className={`hover:bg-primary absolute top-0 right-0 h-full w-1 cursor-col-resize touch-none transition-colors select-none ${
+                          header.column.getIsResizing()
+                            ? 'bg-primary'
+                            : 'bg-transparent'
+                        }`}
+                      />
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -96,7 +117,10 @@ export function DataTable<TData, TValue>({
                   onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      style={{ width: cell.column.getSize() }}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),

@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import { isAdmin, getRoleLabel } from '@/lib/utils/roles';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
-import { useBadgeCounts } from '@/hooks/use-badge-counts';
+import type { BadgeCounts } from '@/hooks/use-badge-counts';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 
 const mainNavItems = [
@@ -72,6 +72,8 @@ interface SidebarProps {
   mobile?: boolean;
   /** Close the mobile sidebar */
   onClose?: () => void;
+  /** Badge counts passed from layout (single Realtime connection) */
+  badgeCounts?: BadgeCounts;
 }
 
 // Map nav hrefs → badge keys + colours
@@ -87,16 +89,23 @@ const badgeConfig: Record<
   '/temps': { key: 'tempsNonSaisi', color: 'bg-orange-500' },
 };
 
+const INITIAL_BADGE_COUNTS: BadgeCounts = {
+  facturesEnRetard: 0,
+  tempsNonSaisi: 0,
+  notifications: 0,
+  tachesEnAttente: 0,
+};
+
 export function Sidebar({
   collapsed,
   onToggle,
   user,
   mobile,
   onClose,
+  badgeCounts = INITIAL_BADGE_COUNTS,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const badgeCounts = useBadgeCounts();
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -190,7 +199,7 @@ export function Sidebar({
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
                 collapsed && 'justify-center',
                 isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                  ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
               )}
             >
@@ -254,7 +263,7 @@ export function Sidebar({
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
                   collapsed ? 'justify-center' : 'pl-11',
                   isActive
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                    ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
                     : 'text-muted-foreground hover:text-sidebar-foreground',
                 )}
               >

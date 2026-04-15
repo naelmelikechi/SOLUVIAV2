@@ -51,7 +51,7 @@ export function TempsPageClient({
   // Add project dialog
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [availableProjets, setAvailableProjets] = useState<
-    { id: string; ref: string; label: string }[]
+    { id: string; ref: string; label: string; isAbsence?: boolean }[]
   >([]);
   const [addingProjet, setAddingProjet] = useState(false);
 
@@ -265,25 +265,61 @@ export function TempsPageClient({
               <DialogHeader>
                 <DialogTitle>Ajouter un projet</DialogTitle>
               </DialogHeader>
-              <div className="max-h-64 space-y-1 overflow-y-auto">
+              <div className="max-h-72 space-y-1 overflow-y-auto">
                 {availableProjets.length === 0 ? (
                   <p className="text-muted-foreground py-6 text-center text-sm">
                     Tous vos projets sont déjà dans la semaine
                   </p>
                 ) : (
-                  availableProjets.map((projet) => (
-                    <button
-                      key={projet.id}
-                      disabled={addingProjet}
-                      onClick={() => handleAddProjet(projet)}
-                      className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
-                    >
-                      <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
-                        {projet.ref}
-                      </span>
-                      <span className="text-sm">{projet.label}</span>
-                    </button>
-                  ))
+                  <>
+                    {/* Regular projects */}
+                    {availableProjets.filter((p) => !p.isAbsence).length >
+                      0 && (
+                      <>
+                        <p className="text-muted-foreground px-3 pt-1 text-[11px] font-semibold tracking-wider uppercase">
+                          Projets
+                        </p>
+                        {availableProjets
+                          .filter((p) => !p.isAbsence)
+                          .map((projet) => (
+                            <button
+                              key={projet.id}
+                              disabled={addingProjet}
+                              onClick={() => handleAddProjet(projet)}
+                              className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
+                            >
+                              <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
+                                {projet.ref}
+                              </span>
+                              <span className="text-sm">{projet.label}</span>
+                            </button>
+                          ))}
+                      </>
+                    )}
+                    {/* Absence projects */}
+                    {availableProjets.filter((p) => p.isAbsence).length > 0 && (
+                      <>
+                        <p className="text-muted-foreground mt-2 border-t px-3 pt-3 text-[11px] font-semibold tracking-wider uppercase">
+                          Absences
+                        </p>
+                        {availableProjets
+                          .filter((p) => p.isAbsence)
+                          .map((projet) => (
+                            <button
+                              key={projet.id}
+                              disabled={addingProjet}
+                              onClick={() => handleAddProjet(projet)}
+                              className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
+                            >
+                              <span className="inline-block rounded bg-orange-100 px-2 py-0.5 font-mono text-xs font-semibold text-orange-700 dark:bg-orange-950 dark:text-orange-400">
+                                {projet.ref}
+                              </span>
+                              <span className="text-sm">{projet.label}</span>
+                            </button>
+                          ))}
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             </DialogContent>

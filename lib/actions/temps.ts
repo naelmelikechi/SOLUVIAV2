@@ -6,6 +6,7 @@ import {
   getSaisiesForWeek,
   getTeamWeekSummary,
   getUserProjets,
+  getAbsenceProjets,
 } from '@/lib/queries/temps';
 
 // ---------------------------------------------------------------------------
@@ -213,9 +214,21 @@ export async function copyPreviousWeek(
 // ---------------------------------------------------------------------------
 
 export async function fetchAvailableProjets(): Promise<
-  { id: string; ref: string; label: string }[]
+  { id: string; ref: string; label: string; isAbsence?: boolean }[]
 > {
-  return getUserProjets();
+  const [projets, absences] = await Promise.all([
+    getUserProjets(),
+    getAbsenceProjets(),
+  ]);
+  return [
+    ...projets,
+    ...absences.map((a) => ({
+      id: a.id,
+      ref: a.ref,
+      label: a.label,
+      isAbsence: true,
+    })),
+  ];
 }
 
 // ---------------------------------------------------------------------------

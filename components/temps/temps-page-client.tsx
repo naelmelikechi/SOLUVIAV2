@@ -296,6 +296,40 @@ export function TempsPageClient({
             saisie={selectedSaisie}
             date={selectedCell.date}
             cellTotal={selectedSaisie.heures[selectedCell.date] || 0}
+            dailyMax={(() => {
+              const MAX_H = 7;
+              const otherOnDay = saisies
+                .filter((s) => s.projet_id !== selectedCell.projetId)
+                .reduce(
+                  (sum, s) => sum + (s.heures[selectedCell.date] || 0),
+                  0,
+                );
+              return MAX_H - otherOnDay;
+            })()}
+            weeklyRemaining={(() => {
+              const workDays = weekDates
+                .slice(0, 5)
+                .filter((d) => !joursFeries[d]).length;
+              const maxWeek = workDays * 7;
+              const currentWeek = weekDates
+                .slice(0, 5)
+                .filter((d) => !joursFeries[d])
+                .reduce(
+                  (sum, d) =>
+                    sum +
+                    saisies.reduce(
+                      (s, saisie) =>
+                        s +
+                        (d === selectedCell.date &&
+                        saisie.projet_id === selectedCell.projetId
+                          ? 0
+                          : saisie.heures[d] || 0),
+                      0,
+                    ),
+                  0,
+                );
+              return maxWeek - currentWeek;
+            })()}
             onClose={handleClosePanel}
             onSave={handleSaveAxes}
           />

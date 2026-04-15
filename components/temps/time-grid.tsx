@@ -77,12 +77,34 @@ export function TimeGrid({
       const parsed = parseTimeInput(value);
       if (parsed === null) return;
 
-      // Check daily max before updating
+      // Check daily max
       const currentOther = saisies
         .filter((s) => s.projet_id !== projetId)
         .reduce((sum, s) => sum + (s.heures[date] || 0), 0);
       if (currentOther + parsed > MAX_HEURES_JOUR) {
-        toast.error(`Maximum ${MAX_HEURES_JOUR}h par jour dépassé`);
+        toast.error(`Maximum ${MAX_HEURES_JOUR}h par jour`);
+        return;
+      }
+
+      // Check weekly max
+      const currentWeekOther = weekDates
+        .slice(0, 5)
+        .filter((d) => !joursFeries[d])
+        .reduce(
+          (sum, d) =>
+            sum +
+            saisies.reduce(
+              (s, saisie) =>
+                s +
+                (d === date && saisie.projet_id === projetId
+                  ? 0
+                  : saisie.heures[d] || 0),
+              0,
+            ),
+          0,
+        );
+      if (currentWeekOther + parsed > weeklyMax) {
+        toast.error(`Maximum ${formatHeures(weeklyMax)} par semaine`);
         return;
       }
 
@@ -111,7 +133,7 @@ export function TimeGrid({
         }
       }, DEBOUNCE_MS);
     },
-    [onSaveHours, saisies],
+    [onSaveHours, saisies, weekDates, joursFeries, weeklyMax],
   );
 
   return (

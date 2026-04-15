@@ -12,6 +12,8 @@ interface TimeAxisPanelProps {
   saisie: SaisieTemps;
   date: string;
   cellTotal: number;
+  dailyMax: number;
+  weeklyRemaining: number;
   onClose: () => void;
   onSave: (axes: Record<string, number>, total: number) => void;
 }
@@ -20,6 +22,8 @@ export function TimeAxisPanel({
   saisie,
   date,
   cellTotal: _cellTotal,
+  dailyMax,
+  weeklyRemaining,
   onClose,
   onSave,
 }: TimeAxisPanelProps) {
@@ -31,6 +35,8 @@ export function TimeAxisPanel({
   );
 
   const axisTotal = Object.values(values).reduce((a, b) => a + b, 0);
+  const maxAllowed = Math.min(dailyMax, weeklyRemaining);
+  const overLimit = axisTotal > maxAllowed;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -99,14 +105,28 @@ export function TimeAxisPanel({
         {/* Total */}
         <div className="border-border mt-3 flex items-center justify-between border-t pt-3">
           <span className="text-sm font-semibold">Total</span>
-          <span className="text-primary font-mono text-sm font-bold">
-            {axisTotal > 0 ? `${axisTotal}h` : '-'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className={`font-mono text-sm font-bold ${overLimit ? 'text-red-600' : 'text-primary'}`}
+            >
+              {axisTotal > 0 ? `${axisTotal}h` : '-'}
+            </span>
+            <span className="text-muted-foreground text-xs">
+              / {maxAllowed}h max
+            </span>
+          </div>
         </div>
+
+        {overLimit && (
+          <p className="mt-1 text-xs text-red-600">
+            Dépasse le quota ({maxAllowed}h max)
+          </p>
+        )}
 
         <Button
           className="mt-3 w-full"
           size="sm"
+          disabled={overLimit}
           onClick={() => {
             onSave(values, axisTotal);
             onClose();

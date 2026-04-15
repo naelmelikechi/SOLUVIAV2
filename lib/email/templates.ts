@@ -6,10 +6,10 @@
 import type { EmetteurInfo } from '@/lib/queries/parametres';
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
-  raison_sociale: 'SOLUVIA SAS',
-  adresse: '15 Rue de la Formation, 75008 Paris',
-  siret: '891 234 567 00015',
-  tva: 'FR89 891 234 567',
+  raison_sociale: 'SOLUVIA',
+  adresse: '27 Rue Jacqueline Cochran, 79000 Niort',
+  siret: '994 241 537 00012',
+  tva: 'FR37994241537',
 };
 
 function formatEur(n: number): string {

@@ -222,7 +222,7 @@ export async function sendRelanceEmail(
     </div>
     <div style="background:#fef3c7;padding:16px 32px;border-top:1px solid #fde68a;">
       <p style="margin:0;color:#92400e;font-size:11px;text-align:center;">
-        SOLUVIA SAS · Ce message est un rappel automatique · En cas de question, contactez-nous à contact@mysoluvia.com
+        SOLUVIA · Ce message est un rappel automatique · En cas de question, contactez-nous à contact@mysoluvia.com
       </p>
     </div>
   </div>
@@ -335,7 +335,7 @@ function buildInvitationEmailHtml(params: {
     <!-- Footer -->
     <div style="background:#f0f5f0;padding:16px 32px;border-top:1px solid #d4e4d4;">
       <p style="margin:0;color:#6b8a6b;font-size:11px;text-align:center;">
-        SOLUVIA SAS · Plateforme de pilotage pour organismes de formation
+        SOLUVIA · Plateforme de pilotage pour organismes de formation
       </p>
     </div>
   </div>

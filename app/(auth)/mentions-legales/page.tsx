@@ -23,17 +23,23 @@ export default function MentionsLegalesPage() {
         <section>
           <h2 className="mb-2 text-base font-semibold">Éditeur du site</h2>
           <p>
-            SOLUVIA SAS
+            SOLUVIA
             <br />
-            Société par actions simplifiée au capital de 10 000 euros
+            Société par actions simplifiée au capital de 1 000,00 euros
             <br />
-            Siège social : 15 rue de la Formation, 75008 Paris, France
+            Siège social : 27 Rue Jacqueline Cochran, 79000 Niort, France
             <br />
-            RCS Paris 901 234 567
+            SIREN : 994 241 537
             <br />
-            N° TVA intracommunautaire : FR 12 901234567
+            SIRET : 994 241 537 00012
             <br />
-            Directeur de la publication : Le Président de SOLUVIA SAS
+            RCS Niort 994 241 537
+            <br />
+            Code NAF : 85.59A — Formation continue d&apos;adultes
+            <br />
+            N° TVA intracommunautaire : FR37994241537
+            <br />
+            Directeur de la publication : Le Président de SOLUVIA
           </p>
         </section>
 
@@ -89,14 +95,13 @@ export default function MentionsLegalesPage() {
           <p>
             L&apos;ensemble du contenu de cette plateforme (textes, graphismes,
             logos, icônes, images, logiciels) est la propriété exclusive de
-            SOLUVIA SAS ou de ses partenaires et est protégé par les lois
-            françaises et internationales relatives à la propriété
-            intellectuelle.
+            SOLUVIA ou de ses partenaires et est protégé par les lois françaises
+            et internationales relatives à la propriété intellectuelle.
           </p>
           <p className="mt-2">
             Toute reproduction, représentation, modification, publication ou
             adaptation de tout ou partie de ces éléments est interdite sans
-            l&apos;autorisation écrite préalable de SOLUVIA SAS.
+            l&apos;autorisation écrite préalable de SOLUVIA.
           </p>
         </section>
 
@@ -105,8 +110,8 @@ export default function MentionsLegalesPage() {
             Limitation de responsabilité
           </h2>
           <p>
-            SOLUVIA SAS s&apos;efforce de fournir des informations exactes et
-            mises à jour. Cependant, elle ne saurait être tenue responsable des
+            SOLUVIA s&apos;efforce de fournir des informations exactes et mises
+            à jour. Cependant, elle ne saurait être tenue responsable des
             erreurs, omissions ou résultats obtenus par l&apos;utilisation de
             ces informations.
           </p>
@@ -116,7 +121,7 @@ export default function MentionsLegalesPage() {
           <h2 className="mb-2 text-base font-semibold">Droit applicable</h2>
           <p>
             Les présentes mentions légales sont soumises au droit français. En
-            cas de litige, les tribunaux de Paris seront compétents.
+            cas de litige, les tribunaux de Niort seront compétents.
           </p>
         </section>
 
@@ -126,10 +131,10 @@ export default function MentionsLegalesPage() {
             Pour toute question relative aux mentions légales, vous pouvez nous
             contacter à l&apos;adresse :{' '}
             <a
-              href="mailto:contact@soluvia.fr"
+              href="mailto:contact@mysoluvia.com"
               className="text-primary underline-offset-2 hover:underline"
             >
-              contact@soluvia.fr
+              contact@mysoluvia.com
             </a>
           </p>
         </section>

@@ -48,11 +48,11 @@ INSERT INTO jours_feries (date, libelle, annee) VALUES
 
 -- Default system parameters
 INSERT INTO parametres (cle, valeur, categorie, description) VALUES
-  ('entreprise.raison_sociale', 'SOLUVIA SAS', 'entreprise', 'Raison sociale'),
-  ('entreprise.adresse', '123 Rue de la Formation, 75001 Paris', 'entreprise', 'Adresse'),
-  ('entreprise.siret', '123 456 789 00012', 'entreprise', 'SIRET'),
-  ('entreprise.tva_intracommunautaire', 'FR12 123456789', 'entreprise', 'TVA intra'),
-  ('entreprise.email', 'contact@soluvia.fr', 'entreprise', 'Email de contact'),
+  ('entreprise.raison_sociale', 'SOLUVIA', 'entreprise', 'Raison sociale'),
+  ('entreprise.adresse', '27 Rue Jacqueline Cochran, 79000 Niort', 'entreprise', 'Adresse'),
+  ('entreprise.siret', '994 241 537 00012', 'entreprise', 'SIRET'),
+  ('entreprise.tva_intracommunautaire', 'FR37994241537', 'entreprise', 'TVA intra'),
+  ('entreprise.email', 'contact@mysoluvia.com', 'entreprise', 'Email de contact'),
   ('facturation.taux_tva', '20', 'facturation', 'Taux TVA par defaut (%)'),
   ('facturation.fenetre_debut', '25', 'facturation', 'Jour debut fenetre facturation'),
   ('facturation.fenetre_fin', '3', 'facturation', 'Jour fin fenetre facturation'),

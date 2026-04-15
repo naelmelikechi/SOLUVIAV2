@@ -25,13 +25,12 @@ export default function PolitiqueDeConfidentialitePage() {
         <section>
           <h2 className="mb-2 text-base font-semibold">Introduction</h2>
           <p>
-            SOLUVIA SAS (ci-après &laquo; SOLUVIA &raquo;) s&apos;engage à
-            protéger la vie privée des utilisateurs de sa plateforme. La
-            présente politique de confidentialité décrit les données
-            personnelles collectées, les finalités de leur traitement, et les
-            droits dont disposent les utilisateurs conformément au Règlement
-            Général sur la Protection des Données (RGPD - Règlement UE
-            2016/679).
+            SOLUVIA (ci-après &laquo; SOLUVIA &raquo;) s&apos;engage à protéger
+            la vie privée des utilisateurs de sa plateforme. La présente
+            politique de confidentialité décrit les données personnelles
+            collectées, les finalités de leur traitement, et les droits dont
+            disposent les utilisateurs conformément au Règlement Général sur la
+            Protection des Données (RGPD - Règlement UE 2016/679).
           </p>
         </section>
 
@@ -40,16 +39,16 @@ export default function PolitiqueDeConfidentialitePage() {
             Responsable du traitement
           </h2>
           <p>
-            SOLUVIA SAS
+            SOLUVIA
             <br />
-            15 rue de la Formation, 75008 Paris, France
+            27 Rue Jacqueline Cochran, 79000 Niort, France
             <br />
             Email :{' '}
             <a
-              href="mailto:dpo@soluvia.fr"
+              href="mailto:contact@mysoluvia.com"
               className="text-primary underline-offset-2 hover:underline"
             >
-              dpo@soluvia.fr
+              contact@mysoluvia.com
             </a>
           </p>
         </section>
@@ -209,10 +208,10 @@ export default function PolitiqueDeConfidentialitePage() {
           <p className="mt-2">
             Pour exercer ces droits, contactez-nous à :{' '}
             <a
-              href="mailto:dpo@soluvia.fr"
+              href="mailto:contact@mysoluvia.com"
               className="text-primary underline-offset-2 hover:underline"
             >
-              dpo@soluvia.fr
+              contact@mysoluvia.com
             </a>
           </p>
           <p className="mt-2">

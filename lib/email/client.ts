@@ -29,7 +29,7 @@ export async function sendFactureEmail(params: {
 
   try {
     await resend.emails.send({
-      from: 'SOLUVIA Facturation <facturation@soluvia.fr>',
+      from: 'SOLUVIA Facturation <contact@mysoluvia.com>',
       to: params.to,
       subject,
       html: buildFactureEmailHtml(params),
@@ -165,7 +165,7 @@ export async function sendInvitationEmail(params: {
 
   try {
     await resend.emails.send({
-      from: `${params.inviterName} via SOLUVIA <facturation@soluvia.fr>`,
+      from: `${params.inviterName} via SOLUVIA <contact@mysoluvia.com>`,
       to: params.to,
       subject: `${params.inviterName} vous invite sur SOLUVIA`,
       html,

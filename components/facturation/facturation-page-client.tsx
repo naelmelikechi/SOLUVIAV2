@@ -6,6 +6,7 @@ import { Download, FileText } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/shared/data-table';
+import type { FilterOption } from '@/components/shared/data-table';
 import { BillingPeriodBanner } from '@/components/facturation/billing-period-banner';
 import { EcheanceTable } from '@/components/facturation/echeance-table';
 import { factureListColumns } from '@/components/facturation/facture-list-columns';
@@ -13,6 +14,19 @@ import { EmptyState } from '@/components/shared/empty-state';
 import type { FactureListItem, EcheancePending } from '@/lib/queries/factures';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_FACTURE_LABELS } from '@/lib/utils/constants';
+
+const FACTURE_FILTERS: FilterOption[] = [
+  {
+    column: 'statut',
+    label: 'Statut',
+    options: [
+      { label: 'Emise', value: 'emise' },
+      { label: 'Payee', value: 'payee' },
+      { label: 'En retard', value: 'en_retard' },
+      { label: 'Avoir', value: 'avoir' },
+    ],
+  },
+];
 
 interface FacturationPageClientProps {
   factures: FactureListItem[];
@@ -102,6 +116,7 @@ export function FacturationPageClient({
             searchPlaceholder="Rechercher une facture..."
             onRowClick={handleRowClick}
             defaultSort={{ id: 'ref', desc: true }}
+            filters={FACTURE_FILTERS}
           />
         </div>
       </TabsContent>

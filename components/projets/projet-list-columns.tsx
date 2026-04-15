@@ -61,13 +61,14 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     id: 'typologie',
-    accessorFn: (row) => row.typologie?.libelle,
+    accessorFn: (row) => row.typologie?.code,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Typologie" />
     ),
     cell: ({ row }) => (
       <span className="text-sm">{row.original.typologie?.libelle}</span>
     ),
+    filterFn: (row, id, value) => value.includes(row.getValue(id)),
   },
   {
     accessorKey: 'taux_commission',

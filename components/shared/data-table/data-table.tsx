@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DataTableToolbar } from './data-table-toolbar';
+import { DataTableToolbar, type FilterOption } from './data-table-toolbar';
 import { DataTablePagination } from './data-table-pagination';
 
 interface DataTableProps<TData, TValue> {
@@ -32,6 +32,7 @@ interface DataTableProps<TData, TValue> {
   searchPlaceholder?: string;
   onRowClick?: (row: TData) => void;
   defaultSort?: { id: string; desc: boolean };
+  filters?: FilterOption[];
 }
 
 export function DataTable<TData, TValue>({
@@ -41,6 +42,7 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = 'Rechercher...',
   onRowClick,
   defaultSort,
+  filters,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(
     defaultSort ? [defaultSort] : [],
@@ -77,6 +79,7 @@ export function DataTable<TData, TValue>({
         table={table}
         searchKey={searchKey}
         searchPlaceholder={searchPlaceholder}
+        filters={filters}
       />
       <div className="border-border overflow-x-auto rounded-lg border">
         <Table style={{ width: table.getCenterTotalSize() }}>

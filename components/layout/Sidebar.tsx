@@ -357,23 +357,6 @@ export function Sidebar({
                 Déconnexion
               </button>
             </div>
-            <div className="text-muted-foreground flex items-center gap-2 text-[10px]">
-              <Link
-                href="/mentions-legales"
-                target="_blank"
-                className="hover:text-foreground transition-colors"
-              >
-                Mentions légales
-              </Link>
-              <span className="text-border">|</span>
-              <Link
-                href="/politique-de-confidentialite"
-                target="_blank"
-                className="hover:text-foreground transition-colors"
-              >
-                Confidentialité
-              </Link>
-            </div>
           </div>
         )}
       </div>

@@ -52,10 +52,11 @@ export function OnboardingDialog() {
     >
       <DialogContent showCloseButton={false} className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg">Bienvenue sur SOLUVIA</DialogTitle>
+          <DialogTitle className="text-lg">
+            Bienvenue dans l&apos;équipe !
+          </DialogTitle>
           <DialogDescription>
-            Votre plateforme de pilotage pour organismes de formation est
-            pr&ecirc;te.
+            Voici ton espace de travail SOLUVIA. Tout est prêt pour toi.
           </DialogDescription>
         </DialogHeader>
 
@@ -63,37 +64,38 @@ export function OnboardingDialog() {
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0">📊</span>
             <span>
-              <strong>Tableau de bord</strong> - Vue d&apos;ensemble de vos KPIs
+              <strong>Tableau de bord</strong> - Tes KPIs et alertes en un coup
+              d&apos;œil
             </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0">📝</span>
             <span>
-              <strong>Projets</strong> - Suivi de vos projets de formation
+              <strong>Projets</strong> - Tes projets de formation et leur
+              avancement
             </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0">⏱</span>
             <span>
-              <strong>Temps</strong> - Saisie hebdomadaire avec ventilation par
-              axe
+              <strong>Temps</strong> - Ta feuille de temps hebdomadaire
             </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0">💰</span>
             <span>
-              <strong>Facturation</strong> - &Eacute;mission et suivi des
-              factures
+              <strong>Facturation</strong> - Émission et suivi des factures
             </span>
           </li>
         </ul>
 
         <p className="text-muted-foreground text-xs">
-          Raccourci&nbsp;:{' '}
+          Astuce : tape{' '}
           <kbd className="bg-muted rounded px-1.5 py-0.5 font-mono text-[11px]">
             ⌘K
           </kbd>{' '}
-          pour naviguer rapidement
+          pour naviguer rapidement. Pense à compléter ton profil dans Mon
+          compte.
         </p>
 
         <DialogFooter>

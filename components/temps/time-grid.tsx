@@ -15,6 +15,7 @@ interface TimeGridProps {
   initialSaisies: SaisieTemps[];
   onCellClick?: (projetId: string, date: string) => void;
   onSaveHours?: (projetId: string, date: string, heures: number) => void;
+  joursFeries?: Record<string, string>;
 }
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -30,6 +31,7 @@ export function TimeGrid({
   initialSaisies,
   onCellClick,
   onSaveHours,
+  joursFeries = {},
 }: TimeGridProps) {
   // Use parent saisies directly - no internal copy
   const saisies = initialSaisies;
@@ -125,17 +127,24 @@ export function TimeGrid({
               {weekDates.map((date, i) => {
                 const d = parseISO(date);
                 const weekend = isWeekend(d);
+                const ferie = joursFeries[date];
                 const today = isToday(d);
                 return (
                   <th
                     key={date}
                     className={cn(
                       'text-muted-foreground w-[68px] px-1 py-2.5 text-center text-xs font-semibold tracking-wider uppercase',
-                      weekend && 'bg-[var(--card-alt)]',
-                      today && 'bg-[var(--primary-bg)]',
+                      (weekend || ferie) && 'bg-[var(--card-alt)]',
+                      today && !ferie && 'bg-[var(--primary-bg)]',
                     )}
+                    title={ferie ?? undefined}
                   >
                     {DAY_LABELS[i]} {!weekend && format(d, 'd', { locale: fr })}
+                    {ferie && (
+                      <div className="text-[9px] font-normal tracking-normal text-orange-500 normal-case">
+                        {ferie}
+                      </div>
+                    )}
                   </th>
                 );
               })}
@@ -182,6 +191,8 @@ export function TimeGrid({
                   {weekDates.map((date) => {
                     const d = parseISO(date);
                     const weekend = isWeekend(d);
+                    const ferie = joursFeries[date];
+                    const blocked = weekend || !!ferie;
                     const today = isToday(d);
                     const dayTotal = saisies.reduce(
                       (sum, s) => sum + (s.heures[date] || 0),
@@ -189,18 +200,18 @@ export function TimeGrid({
                     );
                     const atMax = dayTotal >= MAX_HEURES_JOUR;
                     const cellValue = saisie.heures[date] || 0;
-                    const disabled = weekend || (atMax && cellValue === 0);
+                    const disabled = blocked || (atMax && cellValue === 0);
 
                     return (
                       <td
                         key={date}
                         className={cn(
                           'px-1 py-1.5 text-center',
-                          weekend && 'bg-[var(--card-alt)]',
-                          today && 'bg-[var(--primary-bg)]',
+                          blocked && 'bg-[var(--card-alt)]',
+                          today && !blocked && 'bg-[var(--primary-bg)]',
                         )}
                       >
-                        {weekend ? (
+                        {blocked ? (
                           <span className="text-muted-foreground text-xs">
                             -
                           </span>
@@ -252,6 +263,8 @@ export function TimeGrid({
               <td className="px-3 py-2.5 text-sm">Total journalier</td>
               {weekDates.map((date, i) => {
                 const weekend = i >= 5;
+                const ferie = joursFeries[date];
+                const blocked = weekend || !!ferie;
                 const today = isToday(parseISO(date));
                 const total = dailyTotals[i] ?? 0;
                 return (
@@ -259,12 +272,12 @@ export function TimeGrid({
                     key={date}
                     className={cn(
                       'px-1 py-2.5 text-center font-mono text-[13px]',
-                      weekend && 'bg-[var(--card-alt)]',
-                      today && 'bg-[var(--primary-bg)]',
-                      !weekend && total > 0 && 'text-primary',
+                      blocked && 'bg-[var(--card-alt)]',
+                      today && !blocked && 'bg-[var(--primary-bg)]',
+                      !blocked && total > 0 && 'text-primary',
                     )}
                   >
-                    {weekend ? '-' : total > 0 ? formatHeures(total) : '0h'}
+                    {blocked ? '-' : total > 0 ? formatHeures(total) : '0h'}
                   </td>
                 );
               })}

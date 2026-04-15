@@ -29,12 +29,14 @@ interface TempsPageClientProps {
   weekDates: string[];
   initialSaisies: SaisieTemps[];
   isAdmin?: boolean;
+  joursFeries?: Record<string, string>;
 }
 
 export function TempsPageClient({
   weekDates: initialWeekDates,
   initialSaisies,
   isAdmin,
+  joursFeries = {},
 }: TempsPageClientProps) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekDates, setWeekDates] = useState(initialWeekDates);
@@ -243,6 +245,7 @@ export function TempsPageClient({
             initialSaisies={saisies}
             onCellClick={handleCellClick}
             onSaveHours={handleSaveHours}
+            joursFeries={joursFeries}
           />
 
           {/* Add project */}

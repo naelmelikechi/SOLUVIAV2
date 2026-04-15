@@ -66,6 +66,8 @@ function describeAction(
       return 'a déverrouillé son avatar';
     case 'email_sent':
       return 'a envoyé un email';
+    case 'relance_sent':
+      return 'a envoyé une relance de paiement';
     case 'sync_eduvia':
       return 'a lancé la synchronisation Eduvia';
     case 'sync_odoo':

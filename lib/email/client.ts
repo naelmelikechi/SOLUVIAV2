@@ -144,6 +144,113 @@ export async function sendEmailForFacture(
 }
 
 // ---------------------------------------------------------------------------
+// Relance email — reminder for overdue invoices
+// ---------------------------------------------------------------------------
+
+export async function sendRelanceEmail(
+  factureId: string,
+  supabase: SupabaseClient<Database>,
+): Promise<{ success: boolean; error?: string }> {
+  if (!resend) {
+    return { success: false, error: 'Service email non configuré' };
+  }
+
+  // Fetch facture
+  const { data: facture } = await supabase
+    .from('factures')
+    .select(
+      'id, ref, date_emission, date_echeance, montant_ttc, client:clients!factures_client_id_fkey(id, raison_sociale)',
+    )
+    .eq('id', factureId)
+    .single();
+
+  if (!facture) return { success: false, error: 'Facture introuvable' };
+
+  // Find contact email
+  const clientId = (facture.client as unknown as { id: string })?.id;
+  if (!clientId) return { success: false, error: 'Client introuvable' };
+
+  const { data: contacts } = await supabase
+    .from('client_contacts')
+    .select('email')
+    .eq('client_id', clientId)
+    .not('email', 'is', null)
+    .limit(1);
+
+  const contactEmail = contacts?.[0]?.email;
+  if (!contactEmail) {
+    return { success: false, error: 'Aucun contact avec email pour ce client' };
+  }
+
+  const montant = new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(facture.montant_ttc);
+
+  const dateEcheance = facture.date_echeance
+    ? new Date(facture.date_echeance).toLocaleDateString('fr-FR')
+    : '—';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background-color:#f5f7f5;">
+  <div style="max-width:520px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #d4e4d4;">
+    <div style="background:#d97706;padding:28px 32px;text-align:center;">
+      <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:1px;">SOLUVIA</h1>
+      <p style="margin:8px 0 0;color:#fef3c7;font-size:13px;">Rappel de paiement</p>
+    </div>
+    <div style="padding:32px;">
+      <h2 style="margin:0 0 16px;font-size:18px;color:#1a2e1a;">Facture ${facture.ref} en attente de paiement</h2>
+      <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">
+        Madame, Monsieur,
+      </p>
+      <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">
+        Sauf erreur de notre part, nous n'avons pas encore reçu le règlement de la facture
+        <strong>${facture.ref}</strong> d'un montant de <strong>${montant}</strong>,
+        dont l'échéance était fixée au <strong>${dateEcheance}</strong>.
+      </p>
+      <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">
+        Nous vous serions reconnaissants de bien vouloir procéder au règlement dans les meilleurs délais.
+        Si le paiement a déjà été effectué, nous vous prions de ne pas tenir compte de ce rappel.
+      </p>
+      <p style="margin:24px 0 0;color:#2d4a2d;font-size:14px;line-height:1.6;">
+        Cordialement,<br>
+        <strong>L'équipe SOLUVIA</strong>
+      </p>
+    </div>
+    <div style="background:#fef3c7;padding:16px 32px;border-top:1px solid #fde68a;">
+      <p style="margin:0;color:#92400e;font-size:11px;text-align:center;">
+        SOLUVIA SAS · Ce message est un rappel automatique · En cas de question, contactez-nous à contact@mysoluvia.com
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    await resend.emails.send({
+      from: 'SOLUVIA Facturation <contact@mysoluvia.com>',
+      to: contactEmail,
+      subject: `Rappel — Facture ${facture.ref} en attente de paiement`,
+      html,
+    });
+    return { success: true };
+  } catch (error) {
+    logger.error('email', 'Échec envoi relance', {
+      error,
+      to: contactEmail,
+      ref: facture.ref,
+    });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Invitation email — sent via Resend with custom design
 // ---------------------------------------------------------------------------
 

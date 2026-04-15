@@ -2,11 +2,20 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Download, Mail, FileWarning, Loader2 } from 'lucide-react';
+import {
+  Download,
+  Mail,
+  FileWarning,
+  Loader2,
+  AlertTriangle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { AvoirDialog } from '@/components/facturation/avoir-dialog';
-import { sendFactureEmailAction } from '@/lib/actions/email';
+import {
+  sendFactureEmailAction,
+  sendRelanceEmailAction,
+} from '@/lib/actions/email';
 import type { FactureDetail } from '@/lib/queries/factures';
 
 interface FactureDetailActionsProps {
@@ -20,6 +29,7 @@ export function FactureDetailActions({
 }: FactureDetailActionsProps) {
   const [avoirOpen, setAvoirOpen] = useState(false);
   const [emailPending, startEmailTransition] = useTransition();
+  const [relancePending, startRelanceTransition] = useTransition();
 
   const handleDownloadPdf = async () => {
     try {
@@ -69,6 +79,31 @@ export function FactureDetailActions({
               <Mail className="mr-1.5 h-4 w-4" />
             )}
             {emailPending ? 'Envoi en cours...' : 'Renvoyer par email'}
+          </Button>
+        )}
+        {facture.statut === 'en_retard' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-orange-200 text-orange-600 hover:bg-orange-50 dark:border-orange-900 dark:text-orange-400 dark:hover:bg-orange-950/30"
+            disabled={relancePending}
+            onClick={() =>
+              startRelanceTransition(async () => {
+                const result = await sendRelanceEmailAction(facture.id);
+                if (result.success) {
+                  toast.success('Relance envoyée avec succès');
+                } else {
+                  toast.error(result.error ?? "Erreur lors de l'envoi");
+                }
+              })
+            }
+          >
+            {relancePending ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <AlertTriangle className="mr-1.5 h-4 w-4" />
+            )}
+            {relancePending ? 'Envoi...' : 'Envoyer une relance'}
           </Button>
         )}
         {!facture.est_avoir && facture.statut !== 'a_emettre' && (

@@ -30,6 +30,7 @@ import { ClientContactsSection } from '@/components/admin/client-contacts-sectio
 import { ClientNotesSection } from '@/components/admin/client-notes-section';
 import { ClientApiKeysSection } from '@/components/admin/client-api-keys-section';
 import { ClientUploadButton } from '@/components/admin/client-upload-button';
+import { ClientDocumentActions } from '@/components/admin/client-document-actions';
 
 export default async function ClientDetailPage({
   params,
@@ -207,6 +208,7 @@ export default async function ClientDetailPage({
                   <TableHead>Type</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Par</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -226,6 +228,14 @@ export default async function ClientDetailPage({
                     </TableCell>
                     <TableCell className="text-sm">
                       {doc.user ? `${doc.user.prenom} ${doc.user.nom}` : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <ClientDocumentActions
+                        documentId={doc.id}
+                        clientId={id}
+                        storagePath={doc.storage_path}
+                        fileName={doc.nom_fichier}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

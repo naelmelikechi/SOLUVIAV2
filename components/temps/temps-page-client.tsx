@@ -1,12 +1,19 @@
 'use client';
 
-import { useState, useCallback, useTransition, useEffect } from 'react';
+import {
+  useState,
+  useCallback,
+  useTransition,
+  useMemo,
+  useEffect,
+} from 'react';
 import Link from 'next/link';
 import { Copy, Download, Users, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import {
   fetchWeekData,
+  saveSaisieTemps,
   saveSaisieTempsAxes,
   copyPreviousWeek,
   fetchAvailableProjets,
@@ -23,7 +30,12 @@ import { Button } from '@/components/ui/button';
 import { TimeWeekNavigator } from '@/components/temps/time-week-navigator';
 import { TimeGrid } from '@/components/temps/time-grid';
 import { TimeAxisPanel } from '@/components/temps/time-axis-panel';
+import {
+  AbsenceBanner,
+  type AbsenceInfo,
+} from '@/components/temps/absence-banner';
 import { formatHeures } from '@/lib/utils/formatters';
+import { ABSENCE_PROJECTS } from '@/lib/utils/constants';
 
 interface TempsPageClientProps {
   weekDates: string[];
@@ -58,6 +70,148 @@ export function TempsPageClient({
   const selectedSaisie = selectedCell
     ? saisies.find((s) => s.projet_id === selectedCell.projetId)
     : null;
+
+  // ---------------------------------------------------------------------------
+  // Split saisies into project rows vs absence data for the banner
+  // ---------------------------------------------------------------------------
+
+  const absenceMap = useMemo<Record<string, AbsenceInfo>>(() => {
+    const map: Record<string, AbsenceInfo> = {};
+    for (const s of saisies) {
+      if (!s.est_absence || !s.absence_type) continue;
+      if (s.absence_type === 'ferie') continue; // holidays handled separately
+      for (const [date, hours] of Object.entries(s.heures)) {
+        if (hours > 0) {
+          map[date] = {
+            type: s.absence_type as 'conges' | 'maladie',
+            hours,
+          };
+        }
+      }
+    }
+    return map;
+  }, [saisies]);
+
+  /** date -> hours consumed by absences (for the grid) */
+  const absenceHoursMap = useMemo<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    for (const [date, info] of Object.entries(absenceMap)) {
+      map[date] = info.hours;
+    }
+    return map;
+  }, [absenceMap]);
+
+  // ---------------------------------------------------------------------------
+  // Absence banner handlers
+  // ---------------------------------------------------------------------------
+
+  const absenceProjetId = useCallback(
+    (type: 'conges' | 'maladie'): string | null => {
+      const ref =
+        type === 'conges' ? ABSENCE_PROJECTS.CONGES : ABSENCE_PROJECTS.MALADIE;
+      // Check existing saisies first
+      const existing = saisies.find((s) => s.projet_ref === ref);
+      if (existing) return existing.projet_id;
+      // Check available projets
+      const available = availableProjets.find((p) => p.ref === ref);
+      return available?.id ?? null;
+    },
+    [saisies, availableProjets],
+  );
+
+  const handleSetAbsence = useCallback(
+    async (date: string, type: 'conges' | 'maladie', hours: number) => {
+      const projetId = absenceProjetId(type);
+      if (!projetId) {
+        toast.error('Projet absence introuvable');
+        return;
+      }
+
+      // If switching type, remove the other type first
+      const existing = absenceMap[date];
+      if (existing && existing.type !== type) {
+        const oldId = absenceProjetId(existing.type);
+        if (oldId) {
+          // Optimistic remove
+          setSaisies((prev) =>
+            prev.map((s) => {
+              if (s.projet_id !== oldId) return s;
+              const newH = { ...s.heures };
+              delete newH[date];
+              return { ...s, heures: newH };
+            }),
+          );
+          await saveSaisieTemps(oldId, date, 0);
+        }
+      }
+
+      // Optimistic update
+      setSaisies((prev) => {
+        const hasSaisie = prev.some((s) => s.projet_id === projetId);
+        if (hasSaisie) {
+          return prev.map((s) => {
+            if (s.projet_id !== projetId) return s;
+            return { ...s, heures: { ...s.heures, [date]: hours } };
+          });
+        }
+        // Need to add the absence project row
+        const ref =
+          type === 'conges'
+            ? ABSENCE_PROJECTS.CONGES
+            : ABSENCE_PROJECTS.MALADIE;
+        return [
+          ...prev,
+          {
+            projet_id: projetId,
+            projet_ref: ref,
+            projet_label: ref,
+            est_absence: true,
+            absence_type: type,
+            heures: { [date]: hours },
+            axes: {},
+          },
+        ];
+      });
+
+      // Server save
+      const result = await saveSaisieTemps(projetId, date, hours);
+      if (!result.success) {
+        toast.error(result.error ?? 'Erreur lors de la sauvegarde');
+        // Rollback by refreshing
+        const refreshed = await fetchWeekData(weekOffset);
+        setSaisies(refreshed.saisies);
+      }
+    },
+    [absenceProjetId, absenceMap, weekOffset],
+  );
+
+  const handleRemoveAbsence = useCallback(
+    async (date: string) => {
+      const existing = absenceMap[date];
+      if (!existing) return;
+
+      const projetId = absenceProjetId(existing.type);
+      if (!projetId) return;
+
+      // Optimistic remove
+      setSaisies((prev) =>
+        prev.map((s) => {
+          if (s.projet_id !== projetId) return s;
+          const newH = { ...s.heures };
+          delete newH[date];
+          return { ...s, heures: newH };
+        }),
+      );
+
+      const result = await saveSaisieTemps(projetId, date, 0);
+      if (!result.success) {
+        toast.error(result.error ?? 'Erreur lors de la suppression');
+        const refreshed = await fetchWeekData(weekOffset);
+        setSaisies(refreshed.saisies);
+      }
+    },
+    [absenceMap, absenceProjetId, weekOffset],
+  );
 
   const changeWeek = useCallback((newOffset: number) => {
     setWeekOffset(newOffset);
@@ -140,7 +294,6 @@ export function TempsPageClient({
 
       // Also save the total hours (so the cell updates automatically)
       if (total > 0) {
-        const { saveSaisieTemps } = await import('@/lib/actions/temps');
         await saveSaisieTemps(selectedCell.projetId, selectedCell.date, total);
       }
 
@@ -241,6 +394,15 @@ export function TempsPageClient({
         loading={isPending}
       />
 
+      {/* Absence banner */}
+      <AbsenceBanner
+        weekDates={weekDates}
+        absences={absenceMap}
+        joursFeries={joursFeries}
+        onSetAbsence={handleSetAbsence}
+        onRemoveAbsence={handleRemoveAbsence}
+      />
+
       <div className="flex gap-4">
         {/* Main grid */}
         <div className="min-w-0 flex-1">
@@ -250,117 +412,49 @@ export function TempsPageClient({
             onCellClick={handleCellClick}
             onSaveHours={handleSaveHours}
             joursFeries={joursFeries}
+            absences={absenceHoursMap}
           />
 
-          {/* Add project + quick absence buttons */}
-          <div className="mt-4 flex flex-wrap gap-2">
+          {/* Add project button */}
+          <div className="mt-4">
             <button
               onClick={handleOpenAddDialog}
-              className="border-border text-muted-foreground hover:border-primary/30 hover:text-foreground flex flex-1 items-center gap-3 rounded-[10px] border-2 border-dashed px-5 py-3.5 text-sm transition-colors"
+              className="border-border text-muted-foreground hover:border-primary/30 hover:text-foreground flex w-full items-center gap-3 rounded-[10px] border-2 border-dashed px-5 py-3.5 text-sm transition-colors"
             >
               <span className="text-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-sm font-bold">
                 <Plus className="h-4 w-4" />
               </span>
               Ajouter un projet...
             </button>
-            {/* Quick absence buttons — only show if not already in the grid */}
-            {!saisies.some((s) => s.projet_ref?.includes('CON-ABS')) && (
-              <button
-                onClick={() => {
-                  const conges = availableProjets.find((p) =>
-                    p.ref?.includes('CON-ABS'),
-                  );
-                  if (conges) {
-                    handleAddProjet(conges);
-                  } else {
-                    handleOpenAddDialog();
-                  }
-                }}
-                className="flex items-center gap-2 rounded-[10px] border-2 border-dashed border-sky-200 px-4 py-3.5 text-sm text-sky-600 transition-colors hover:bg-sky-50 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/30"
-              >
-                Congés
-              </button>
-            )}
-            {!saisies.some((s) => s.projet_ref?.includes('MAL-ABS')) && (
-              <button
-                onClick={() => {
-                  const maladie = availableProjets.find((p) =>
-                    p.ref?.includes('MAL-ABS'),
-                  );
-                  if (maladie) {
-                    handleAddProjet(maladie);
-                  } else {
-                    handleOpenAddDialog();
-                  }
-                }}
-                className="flex items-center gap-2 rounded-[10px] border-2 border-dashed border-violet-200 px-4 py-3.5 text-sm text-violet-600 transition-colors hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-950/30"
-              >
-                Maladie
-              </button>
-            )}
           </div>
 
-          {/* Add project dialog */}
+          {/* Add project dialog — absence projects excluded (managed by banner) */}
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Ajouter un projet</DialogTitle>
               </DialogHeader>
               <div className="max-h-72 space-y-1 overflow-y-auto">
-                {availableProjets.length === 0 ? (
+                {availableProjets.filter((p) => !p.isAbsence).length === 0 ? (
                   <p className="text-muted-foreground py-6 text-center text-sm">
                     Tous vos projets sont déjà dans la semaine
                   </p>
                 ) : (
-                  <>
-                    {/* Regular projects */}
-                    {availableProjets.filter((p) => !p.isAbsence).length >
-                      0 && (
-                      <>
-                        <p className="text-muted-foreground px-3 pt-1 text-[11px] font-semibold tracking-wider uppercase">
-                          Projets
-                        </p>
-                        {availableProjets
-                          .filter((p) => !p.isAbsence)
-                          .map((projet) => (
-                            <button
-                              key={projet.id}
-                              disabled={addingProjet}
-                              onClick={() => handleAddProjet(projet)}
-                              className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
-                            >
-                              <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
-                                {projet.ref}
-                              </span>
-                              <span className="text-sm">{projet.label}</span>
-                            </button>
-                          ))}
-                      </>
-                    )}
-                    {/* Absence projects */}
-                    {availableProjets.filter((p) => p.isAbsence).length > 0 && (
-                      <>
-                        <p className="text-muted-foreground mt-2 border-t px-3 pt-3 text-[11px] font-semibold tracking-wider uppercase">
-                          Absences
-                        </p>
-                        {availableProjets
-                          .filter((p) => p.isAbsence)
-                          .map((projet) => (
-                            <button
-                              key={projet.id}
-                              disabled={addingProjet}
-                              onClick={() => handleAddProjet(projet)}
-                              className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
-                            >
-                              <span className="inline-block rounded bg-orange-100 px-2 py-0.5 font-mono text-xs font-semibold text-orange-700 dark:bg-orange-950 dark:text-orange-400">
-                                {projet.ref}
-                              </span>
-                              <span className="text-sm">{projet.label}</span>
-                            </button>
-                          ))}
-                      </>
-                    )}
-                  </>
+                  availableProjets
+                    .filter((p) => !p.isAbsence)
+                    .map((projet) => (
+                      <button
+                        key={projet.id}
+                        disabled={addingProjet}
+                        onClick={() => handleAddProjet(projet)}
+                        className="hover:bg-muted flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
+                      >
+                        <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
+                          {projet.ref}
+                        </span>
+                        <span className="text-sm">{projet.label}</span>
+                      </button>
+                    ))
                 )}
               </div>
             </DialogContent>
@@ -375,37 +469,46 @@ export function TempsPageClient({
             cellTotal={selectedSaisie.heures[selectedCell.date] || 0}
             dailyMax={(() => {
               const MAX_H = 7;
+              const absOnDay = absenceHoursMap[selectedCell.date] || 0;
               const otherOnDay = saisies
-                .filter((s) => s.projet_id !== selectedCell.projetId)
+                .filter(
+                  (s) =>
+                    s.projet_id !== selectedCell.projetId && !s.est_absence,
+                )
                 .reduce(
                   (sum, s) => sum + (s.heures[selectedCell.date] || 0),
                   0,
                 );
-              return MAX_H - otherOnDay;
+              return MAX_H - absOnDay - otherOnDay;
             })()}
             weeklyRemaining={(() => {
               const workDays = weekDates
                 .slice(0, 5)
                 .filter((d) => !joursFeries[d]).length;
               const maxWeek = workDays * 7;
+              const absTotal = weekDates
+                .slice(0, 5)
+                .reduce((sum, d) => sum + (absenceHoursMap[d] || 0), 0);
               const currentWeek = weekDates
                 .slice(0, 5)
                 .filter((d) => !joursFeries[d])
                 .reduce(
                   (sum, d) =>
                     sum +
-                    saisies.reduce(
-                      (s, saisie) =>
-                        s +
-                        (d === selectedCell.date &&
-                        saisie.projet_id === selectedCell.projetId
-                          ? 0
-                          : saisie.heures[d] || 0),
-                      0,
-                    ),
+                    saisies
+                      .filter((s) => !s.est_absence)
+                      .reduce(
+                        (s, saisie) =>
+                          s +
+                          (d === selectedCell.date &&
+                          saisie.projet_id === selectedCell.projetId
+                            ? 0
+                            : saisie.heures[d] || 0),
+                        0,
+                      ),
                   0,
                 );
-              return maxWeek - currentWeek;
+              return maxWeek - absTotal - currentWeek;
             })()}
             onClose={handleClosePanel}
             onSave={handleSaveAxes}

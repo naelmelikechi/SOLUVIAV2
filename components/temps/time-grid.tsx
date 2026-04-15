@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { format, parseISO, isToday, isWeekend } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -16,21 +16,11 @@ interface TimeGridProps {
   onCellClick?: (projetId: string, date: string) => void;
   onSaveHours?: (projetId: string, date: string, heures: number) => void;
   joursFeries?: Record<string, string>;
+  /** date -> absence hours (from the absence banner). Full day = 7, half = 3.5 */
+  absences?: Record<string, number>;
 }
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-const ABSENCE_STYLES: Record<string, { bg: string; text: string }> = {
-  conges: {
-    bg: 'bg-sky-50 dark:bg-sky-950/20',
-    text: 'text-sky-600 dark:text-sky-400',
-  },
-  maladie: {
-    bg: 'bg-violet-50 dark:bg-violet-950/20',
-    text: 'text-violet-600 dark:text-violet-400',
-  },
-  ferie: { bg: 'bg-[var(--gray-bg)]', text: 'text-[var(--gray)]' },
-};
 
 export function TimeGrid({
   weekDates,
@@ -38,9 +28,10 @@ export function TimeGrid({
   onCellClick,
   onSaveHours,
   joursFeries = {},
+  absences = {},
 }: TimeGridProps) {
-  // Use parent saisies directly - no internal copy
-  const saisies = initialSaisies;
+  // Filter out absence rows — they are now managed by the AbsenceBanner
+  const saisies = initialSaisies.filter((s) => !s.est_absence);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
     'idle',
   );
@@ -59,7 +50,7 @@ export function TimeGrid({
     };
   }, []);
 
-  // Calculate daily totals
+  // Calculate daily totals (project hours only — absences tracked separately)
   const dailyTotals = weekDates.map((date) =>
     saisies.reduce((sum, s) => sum + (s.heures[date] || 0), 0),
   );
@@ -69,57 +60,44 @@ export function TimeGrid({
     .slice(0, 5)
     .filter((d) => !joursFeries[d]).length;
   const weeklyMax = workingDays * MAX_HEURES_JOUR;
-  const weeklyTotal = weekDates
+  // Weekly total includes both project hours and absence hours
+  const absenceTotal = weekDates
     .slice(0, 5)
-    .filter((d) => !joursFeries[d])
-    .reduce(
-      (sum, d) =>
-        sum + saisies.reduce((s, saisie) => s + (saisie.heures[d] || 0), 0),
-      0,
-    );
+    .reduce((sum, d) => sum + (absences[d] || 0), 0);
+  const weeklyTotal =
+    weekDates
+      .slice(0, 5)
+      .filter((d) => !joursFeries[d])
+      .reduce(
+        (sum, d) =>
+          sum + saisies.reduce((s, saisie) => s + (saisie.heures[d] || 0), 0),
+        0,
+      ) + absenceTotal;
 
-  const handleCellChange = useCallback(
-    (projetId: string, date: string, value: string) => {
-      const parsed = parseTimeInput(value);
-      if (parsed === null) return;
+  const handleCellChange = (projetId: string, date: string, value: string) => {
+    const parsed = parseTimeInput(value);
+    if (parsed === null) return;
 
-      // Mutual exclusion: absence vs project on same day
-      const thisSaisie = saisies.find((s) => s.projet_id === projetId);
-      const isAbsence = thisSaisie?.est_absence;
-      if (parsed > 0) {
-        const hasAbsence = saisies.some(
-          (s) =>
-            s.est_absence &&
-            (s.heures[date] || 0) > 0 &&
-            s.projet_id !== projetId,
-        );
-        const hasProject = saisies.some(
-          (s) =>
-            !s.est_absence &&
-            (s.heures[date] || 0) > 0 &&
-            s.projet_id !== projetId,
-        );
-        if (isAbsence && hasProject) {
-          toast.error('Des heures projet sont déjà saisies sur ce jour');
-          return;
-        }
-        if (!isAbsence && hasAbsence) {
-          toast.error('Une absence est déjà déclarée sur ce jour');
-          return;
-        }
-      }
+    // Daily max adjusted for absence hours on this day
+    const absenceOnDay = absences[date] || 0;
+    const dayMax = MAX_HEURES_JOUR - absenceOnDay;
 
-      // Check daily max
-      const currentOther = saisies
-        .filter((s) => s.projet_id !== projetId)
-        .reduce((sum, s) => sum + (s.heures[date] || 0), 0);
-      if (currentOther + parsed > MAX_HEURES_JOUR) {
-        toast.error(`Maximum ${MAX_HEURES_JOUR}h par jour`);
-        return;
-      }
+    // Check daily max (project hours only, since absences are separate)
+    const currentOther = saisies
+      .filter((s) => s.projet_id !== projetId)
+      .reduce((sum, s) => sum + (s.heures[date] || 0), 0);
+    if (currentOther + parsed > dayMax) {
+      toast.error(
+        absenceOnDay > 0
+          ? `Maximum ${dayMax}h de projet (absence de ${absenceOnDay}h)`
+          : `Maximum ${MAX_HEURES_JOUR}h par jour`,
+      );
+      return;
+    }
 
-      // Check weekly max
-      const currentWeekOther = weekDates
+    // Check weekly max
+    const currentWeekOther =
+      weekDates
         .slice(0, 5)
         .filter((d) => !joursFeries[d])
         .reduce(
@@ -134,39 +112,34 @@ export function TimeGrid({
               0,
             ),
           0,
-        );
-      if (currentWeekOther + parsed > weeklyMax) {
-        toast.error(`Maximum ${formatHeures(weeklyMax)} par semaine`);
-        return;
-      }
+        ) + absenceTotal;
+    if (currentWeekOther + parsed > weeklyMax) {
+      toast.error(`Maximum ${formatHeures(weeklyMax)} par semaine`);
+      return;
+    }
 
-      // Notify parent of optimistic update (parent updates saisies state)
-      onSaveHours?.(projetId, date, parsed);
+    // Notify parent of optimistic update (parent updates saisies state)
+    onSaveHours?.(projetId, date, parsed);
 
-      // Debounced server save
-      const key = `${projetId}:${date}`;
-      if (debounceTimers.current[key]) {
-        clearTimeout(debounceTimers.current[key]);
+    // Debounced server save
+    const key = `${projetId}:${date}`;
+    if (debounceTimers.current[key]) {
+      clearTimeout(debounceTimers.current[key]);
+    }
+    debounceTimers.current[key] = setTimeout(async () => {
+      delete debounceTimers.current[key];
+      setSaveStatus('saving');
+      const result = await saveSaisieTemps(projetId, date, parsed);
+      if (result.success) {
+        setSaveStatus('saved');
+        if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
+        saveStatusTimer.current = setTimeout(() => setSaveStatus('idle'), 2000);
+      } else {
+        setSaveStatus('idle');
+        toast.error(result.error ?? 'Erreur lors de la sauvegarde');
       }
-      debounceTimers.current[key] = setTimeout(async () => {
-        delete debounceTimers.current[key];
-        setSaveStatus('saving');
-        const result = await saveSaisieTemps(projetId, date, parsed);
-        if (result.success) {
-          setSaveStatus('saved');
-          if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
-          saveStatusTimer.current = setTimeout(
-            () => setSaveStatus('idle'),
-            2000,
-          );
-        } else {
-          setSaveStatus('idle');
-          toast.error(result.error ?? 'Erreur lors de la sauvegarde');
-        }
-      }, DEBOUNCE_MS);
-    },
-    [onSaveHours, saisies, weekDates, joursFeries, weeklyMax],
-  );
+    }, DEBOUNCE_MS);
+  };
 
   return (
     <div className="relative">
@@ -221,9 +194,6 @@ export function TimeGrid({
           </thead>
           <tbody>
             {saisies.map((saisie) => {
-              const absStyle = saisie.absence_type
-                ? ABSENCE_STYLES[saisie.absence_type]
-                : null;
               const rowTotal = weekDates
                 .slice(0, 5)
                 .reduce((sum, d) => sum + (saisie.heures[d] || 0), 0);
@@ -231,20 +201,12 @@ export function TimeGrid({
               return (
                 <tr
                   key={saisie.projet_id}
-                  className={cn(
-                    'border-b border-[var(--border-light)]',
-                    absStyle?.bg,
-                  )}
+                  className="border-b border-[var(--border-light)]"
                 >
                   {/* Project label */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          'font-mono text-xs font-bold',
-                          absStyle?.text || 'text-primary',
-                        )}
-                      >
+                      <span className="text-primary font-mono text-xs font-bold">
                         {saisie.projet_ref}
                       </span>
                       <span className="text-muted-foreground truncate text-xs">
@@ -258,33 +220,19 @@ export function TimeGrid({
                     const d = parseISO(date);
                     const weekend = isWeekend(d);
                     const ferie = joursFeries[date];
-                    const blocked = weekend || !!ferie;
+                    const absenceOnDay = absences[date] || 0;
+                    const fullDayAbsence = absenceOnDay >= 7;
+                    const blocked = weekend || !!ferie || fullDayAbsence;
                     const today = isToday(d);
+                    const dayMax = MAX_HEURES_JOUR - absenceOnDay;
                     const dayTotal = saisies.reduce(
                       (sum, s) => sum + (s.heures[date] || 0),
                       0,
                     );
-                    const atMax = dayTotal >= MAX_HEURES_JOUR;
+                    const atMax = dayTotal >= dayMax;
                     const cellValue = saisie.heures[date] || 0;
 
-                    // Mutual exclusion: absence vs project hours on same day
-                    const isAbsence = saisie.est_absence;
-                    const dayHasAbsence = saisies.some(
-                      (s) =>
-                        s.est_absence &&
-                        (s.heures[date] || 0) > 0 &&
-                        s.projet_id !== saisie.projet_id,
-                    );
-                    const dayHasProject = saisies.some(
-                      (s) => !s.est_absence && (s.heures[date] || 0) > 0,
-                    );
-                    // Block project input if absence logged, block absence if project logged
-                    const mutualBlock =
-                      (isAbsence && dayHasProject && cellValue === 0) ||
-                      (!isAbsence && dayHasAbsence && cellValue === 0);
-
-                    const disabled =
-                      blocked || (atMax && cellValue === 0) || mutualBlock;
+                    const disabled = blocked || (atMax && cellValue === 0);
 
                     return (
                       <td
@@ -309,7 +257,6 @@ export function TimeGrid({
                               today &&
                                 'border-primary shadow-[0_0_0_2px_rgba(22,163,74,0.15)]',
                               disabled && 'opacity-30',
-                              absStyle && 'opacity-40',
                             )}
                             disabled={disabled}
                             defaultValue={
@@ -324,7 +271,7 @@ export function TimeGrid({
                               )
                             }
                             onClick={() => {
-                              if (!saisie.est_absence && onCellClick) {
+                              if (onCellClick) {
                                 onCellClick(saisie.projet_id, date);
                               }
                             }}
@@ -350,7 +297,8 @@ export function TimeGrid({
                 const ferie = joursFeries[date];
                 const blocked = weekend || !!ferie;
                 const today = isToday(parseISO(date));
-                const total = dailyTotals[i] ?? 0;
+                const absOnDay = absences[date] || 0;
+                const total = (dailyTotals[i] ?? 0) + absOnDay;
                 const pct = Math.min(100, (total / MAX_HEURES_JOUR) * 100);
                 const over = total > MAX_HEURES_JOUR;
                 return (

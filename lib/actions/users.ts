@@ -343,12 +343,28 @@ export async function inviteUser(
   const { data: linkData } = await adminClient.auth.admin.generateLink({
     type: 'recovery',
     email: email.trim(),
+    options: {
+      redirectTo: 'https://soluvia.vercel.app/set-password',
+    },
   });
 
-  const setupLink = linkData?.properties?.action_link?.replace(
-    'http://localhost:3000',
-    'https://soluvia.vercel.app',
-  );
+  // Fix the link if Supabase still uses localhost as base
+  let setupLink = linkData?.properties?.action_link ?? '';
+  if (setupLink.includes('localhost:3000')) {
+    setupLink = setupLink.replace(
+      'http://localhost:3000',
+      'https://soluvia.vercel.app',
+    );
+  }
+  // Ensure redirect_to points to set-password
+  if (setupLink && !setupLink.includes('set-password')) {
+    const url = new URL(setupLink);
+    url.searchParams.set(
+      'redirect_to',
+      'https://soluvia.vercel.app/set-password',
+    );
+    setupLink = url.toString();
+  }
 
   // Send invitation email via Resend
   try {

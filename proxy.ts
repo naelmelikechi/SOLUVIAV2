@@ -21,7 +21,18 @@ export async function proxy(request: NextRequest) {
     .some((c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
 
   // Auth routes: redirect if already logged in (no session refresh needed)
-  const isAuthRoute = pathname === '/login' || pathname === '/forgot-password';
+  const isAuthRoute =
+    pathname === '/login' ||
+    pathname === '/forgot-password' ||
+    pathname === '/set-password' ||
+    pathname === '/mentions-legales' ||
+    pathname === '/politique-de-confidentialite';
+
+  // set-password is special: user arrives with a recovery session, let them through
+  if (pathname === '/set-password') {
+    return NextResponse.next();
+  }
+
   if (isAuthRoute && hasSession) {
     return NextResponse.redirect(new URL('/projets', request.url));
   }

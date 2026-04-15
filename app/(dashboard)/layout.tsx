@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { CommandPalette } from '@/components/shared/command-palette';
+import { OnboardingDialog } from '@/components/shared/onboarding';
 
 export default function DashboardLayout({
   children,
@@ -78,6 +79,7 @@ export default function DashboardLayout({
       )}
 
       <CommandPalette />
+      <OnboardingDialog />
     </div>
   );
 }

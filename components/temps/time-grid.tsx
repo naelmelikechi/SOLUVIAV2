@@ -58,7 +58,19 @@ export function TimeGrid({
     saisies.reduce((sum, s) => sum + (s.heures[date] || 0), 0),
   );
 
-  const weeklyTotal = dailyTotals.slice(0, 5).reduce((a, b) => a + b, 0);
+  // Count working days (Mon-Fri minus holidays)
+  const workingDays = weekDates
+    .slice(0, 5)
+    .filter((d) => !joursFeries[d]).length;
+  const weeklyMax = workingDays * MAX_HEURES_JOUR;
+  const weeklyTotal = weekDates
+    .slice(0, 5)
+    .filter((d) => !joursFeries[d])
+    .reduce(
+      (sum, d) =>
+        sum + saisies.reduce((s, saisie) => s + (saisie.heures[d] || 0), 0),
+      0,
+    );
 
   const handleCellChange = useCallback(
     (projetId: string, date: string, value: string) => {
@@ -258,33 +270,96 @@ export function TimeGrid({
               );
             })}
 
-            {/* Daily totals row */}
+            {/* Daily totals row with gauges */}
             <tr className="bg-[var(--card-alt)] font-bold">
-              <td className="px-3 py-2.5 text-sm">Total journalier</td>
+              <td className="px-3 py-2 text-sm">Total journalier</td>
               {weekDates.map((date, i) => {
                 const weekend = i >= 5;
                 const ferie = joursFeries[date];
                 const blocked = weekend || !!ferie;
                 const today = isToday(parseISO(date));
                 const total = dailyTotals[i] ?? 0;
+                const pct = Math.min(100, (total / MAX_HEURES_JOUR) * 100);
+                const over = total > MAX_HEURES_JOUR;
                 return (
                   <td
                     key={date}
                     className={cn(
-                      'px-1 py-2.5 text-center font-mono text-[13px]',
+                      'px-1 py-2 text-center',
                       blocked && 'bg-[var(--card-alt)]',
                       today && !blocked && 'bg-[var(--primary-bg)]',
-                      !blocked && total > 0 && 'text-primary',
                     )}
                   >
-                    {blocked ? '-' : total > 0 ? formatHeures(total) : '0h'}
+                    {blocked ? (
+                      <span className="text-muted-foreground text-xs">-</span>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1">
+                        <span
+                          className={cn(
+                            'font-mono text-[13px] font-bold',
+                            over
+                              ? 'text-red-600'
+                              : total >= MAX_HEURES_JOUR
+                                ? 'text-primary'
+                                : total > 0
+                                  ? 'text-foreground'
+                                  : 'text-muted-foreground',
+                          )}
+                        >
+                          {total > 0 ? formatHeures(total) : '0h'}
+                        </span>
+                        <div className="bg-muted h-1 w-10 overflow-hidden rounded-full">
+                          <div
+                            className={cn(
+                              'h-full rounded-full transition-all',
+                              over
+                                ? 'bg-red-500'
+                                : total >= MAX_HEURES_JOUR
+                                  ? 'bg-primary'
+                                  : 'bg-orange-400',
+                            )}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </td>
                 );
               })}
-              <td className="px-2 py-2.5 text-center">
-                <span className="bg-primary inline-block rounded-full px-3.5 py-1 font-mono text-[13px] font-bold text-white">
-                  {formatHeures(weeklyTotal)}
-                </span>
+              {/* Weekly total with gauge */}
+              <td className="px-2 py-2 text-center">
+                <div className="flex flex-col items-center gap-1">
+                  <span
+                    className={cn(
+                      'inline-block rounded-full px-3 py-0.5 font-mono text-[13px] font-bold text-white',
+                      weeklyTotal > weeklyMax
+                        ? 'bg-red-500'
+                        : weeklyTotal >= weeklyMax
+                          ? 'bg-primary'
+                          : 'bg-orange-400',
+                    )}
+                  >
+                    {formatHeures(weeklyTotal)}
+                  </span>
+                  <div className="bg-muted h-1 w-12 overflow-hidden rounded-full">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-all',
+                        weeklyTotal > weeklyMax
+                          ? 'bg-red-500'
+                          : weeklyTotal >= weeklyMax
+                            ? 'bg-primary'
+                            : 'bg-orange-400',
+                      )}
+                      style={{
+                        width: `${Math.min(100, (weeklyTotal / weeklyMax) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-muted-foreground text-[10px] font-normal">
+                    / {formatHeures(weeklyMax)}
+                  </span>
+                </div>
               </td>
             </tr>
           </tbody>

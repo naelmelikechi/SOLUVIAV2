@@ -24,16 +24,52 @@ function describeAction(
       return `a créé la facture ${d.ref ?? ''}`;
     case 'avoir_created':
       return `a créé l'avoir ${d.ref ?? ''}`;
+    case 'paiement_created':
+      return 'a enregistré un paiement';
     case 'client_created':
       return 'a créé un client';
+    case 'client_updated':
+      return 'a modifié un client';
     case 'client_archived':
       return 'a archivé un client';
+    case 'client_unarchived':
+      return 'a restauré un client';
+    case 'contact_added':
+      return 'a ajouté un contact';
+    case 'contact_deleted':
+      return 'a supprimé un contact';
+    case 'note_added':
+      return 'a ajouté une note';
+    case 'apikey_added':
+      return 'a ajouté une clé API';
+    case 'apikey_deleted':
+      return 'a supprimé une clé API';
+    case 'apikey_toggled':
+      return 'a modifié une clé API';
     case 'projet_created':
       return 'a créé un projet';
     case 'user_invited':
       return `a invité ${d.email ?? ''}`;
-    case 'paiement_created':
-      return 'a enregistré un paiement';
+    case 'user_role_changed':
+      return 'a modifié le rôle';
+    case 'user_toggled':
+      return "a modifié le statut d'un utilisateur";
+    case 'profile_updated':
+      return 'a modifié son profil';
+    case 'password_changed':
+      return 'a changé son mot de passe';
+    case 'avatar_regenerated':
+      return 'a régénéré son avatar';
+    case 'avatar_locked':
+      return 'a figé son avatar';
+    case 'avatar_unlocked':
+      return 'a déverrouillé son avatar';
+    case 'email_sent':
+      return 'a envoyé un email';
+    case 'sync_eduvia':
+      return 'a lancé la synchronisation Eduvia';
+    case 'sync_odoo':
+      return 'a lancé la synchronisation Odoo';
     case 'parametres_updated':
       return 'a modifié les paramètres';
     case 'user_updated':

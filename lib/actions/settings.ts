@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/utils/audit';
 
 // ---------------------------------------------------------------------------
 // updateProfile — update current user's prenom and nom
@@ -24,6 +25,8 @@ export async function updateProfile(
     .eq('id', authUser.id);
 
   if (error) return { success: false, error: error.message };
+
+  logAudit('profile_updated', 'user', undefined, { prenom, nom });
 
   revalidatePath('/parametres-compte');
   return { success: true };
@@ -53,6 +56,8 @@ export async function updatePassword(
   const { error } = await supabase.auth.updateUser({ password: newPassword });
 
   if (error) return { success: false, error: error.message };
+
+  logAudit('password_changed', 'user');
 
   return { success: true };
 }
@@ -98,6 +103,8 @@ export async function regenerateAvatar(): Promise<{
 
   if (error) return { success: false, error: error.message };
 
+  logAudit('avatar_regenerated', 'user');
+
   revalidatePath('/parametres-compte');
   return { success: true, seed };
 }
@@ -123,6 +130,8 @@ export async function lockAvatar(): Promise<{
 
   if (error) return { success: false, error: error.message };
 
+  logAudit('avatar_locked', 'user');
+
   revalidatePath('/parametres-compte');
   return { success: true };
 }
@@ -144,6 +153,8 @@ export async function unlockAvatar(): Promise<{
     .eq('id', authUser.id);
 
   if (error) return { success: false, error: error.message };
+
+  logAudit('avatar_unlocked', 'user');
 
   revalidatePath('/parametres-compte');
   return { success: true };

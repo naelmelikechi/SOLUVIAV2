@@ -115,6 +115,8 @@ export async function updateClientAction(
 
   if (error) return { success: false, error: error.message };
 
+  logAudit('client_updated', 'client', id);
+
   revalidatePath('/admin/clients');
   revalidatePath(`/admin/clients/${id}`);
 
@@ -188,6 +190,8 @@ export async function unarchiveClient(
 
   if (error) return { success: false, error: error.message };
 
+  logAudit('client_unarchived', 'client', id);
+
   revalidatePath('/admin/clients');
   revalidatePath(`/admin/clients/${id}`);
 
@@ -230,6 +234,8 @@ export async function addClientContact(
 
   if (error) return { success: false, error: error.message };
 
+  logAudit('contact_added', 'client', clientId, { nom: data.nom });
+
   revalidatePath(`/admin/clients/${clientId}`);
 
   return { success: true };
@@ -256,6 +262,8 @@ export async function deleteClientContact(
     .eq('id', contactId);
 
   if (error) return { success: false, error: error.message };
+
+  logAudit('contact_deleted', 'client', contactId);
 
   revalidatePath(`/admin/clients/${clientId}`);
 
@@ -288,6 +296,8 @@ export async function addClientNote(
   });
 
   if (error) return { success: false, error: error.message };
+
+  logAudit('note_added', 'client', clientId);
 
   revalidatePath(`/admin/clients/${clientId}`);
 
@@ -364,6 +374,8 @@ export async function addClientApiKey(
 
   if (error) return { success: false, error: error.message };
 
+  logAudit('apikey_added', 'client', clientId, { label: data.label });
+
   revalidatePath(`/admin/clients/${clientId}`);
 
   return { success: true };
@@ -406,6 +418,8 @@ export async function deleteClientApiKey(
 
   if (error) return { success: false, error: error.message };
 
+  logAudit('apikey_deleted', 'client', keyId);
+
   if (keyRow) {
     revalidatePath(`/admin/clients/${keyRow.client_id}`);
   }
@@ -443,6 +457,8 @@ export async function toggleClientApiKeyActive(
     .eq('id', keyId);
 
   if (error) return { success: false, error: error.message };
+
+  logAudit('apikey_toggled', 'client', keyId, { isActive });
 
   // Get client_id for revalidation
   const { data: keyRow } = await supabase

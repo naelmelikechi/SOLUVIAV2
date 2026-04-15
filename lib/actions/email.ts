@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { sendEmailForFacture } from '@/lib/email/client';
+import { logAudit } from '@/lib/utils/audit';
 
 export async function sendFactureEmailAction(
   factureId: string,
@@ -18,6 +19,8 @@ export async function sendFactureEmailAction(
   const result = await sendEmailForFacture(factureId, supabase);
 
   if (result.success) {
+    logAudit('email_sent', 'facture', factureId);
+
     // Revalidate facture detail pages
     const { data: facture } = await supabase
       .from('factures')

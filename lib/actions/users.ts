@@ -71,6 +71,8 @@ export async function updateUserRole(
 
   if (error) return { success: false, error: error.message };
 
+  logAudit('user_role_changed', 'user', userId, { role });
+
   revalidatePath('/admin/utilisateurs');
   return { success: true };
 }
@@ -128,6 +130,8 @@ export async function toggleUserActive(
     .eq('id', userId);
 
   if (error) return { success: false, error: error.message };
+
+  logAudit('user_toggled', 'user', userId, { actif });
 
   revalidatePath('/admin/utilisateurs');
   return { success: true };

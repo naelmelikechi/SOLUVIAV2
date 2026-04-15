@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { CommandPalette } from '@/components/shared/command-palette';
 import { OnboardingDialog } from '@/components/shared/onboarding';
+import { useBadgeCounts } from '@/hooks/use-badge-counts';
 
 export default function DashboardLayout({
   children,
@@ -14,6 +15,7 @@ export default function DashboardLayout({
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const badgeCounts = useBadgeCounts();
   const [user, setUser] = useState<{
     nom: string;
     prenom: string;
@@ -44,12 +46,16 @@ export default function DashboardLayout({
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           user={user}
+          badgeCounts={badgeCounts}
         />
       </div>
 
       {/* Right column: topbar + main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onHamburgerClick={() => setMobileOpen(true)} />
+        <Topbar
+          onHamburgerClick={() => setMobileOpen(true)}
+          badgeCounts={badgeCounts}
+        />
         <main className="bg-background animate-in fade-in flex-1 overflow-y-auto p-4 duration-200 md:p-6">
           {children}
         </main>
@@ -73,6 +79,7 @@ export default function DashboardLayout({
               user={user}
               mobile
               onClose={() => setMobileOpen(false)}
+              badgeCounts={badgeCounts}
             />
           </div>
         </div>

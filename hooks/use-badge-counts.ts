@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
-interface BadgeCounts {
+export interface BadgeCounts {
   facturesEnRetard: number;
   tempsNonSaisi: number;
   notifications: number;

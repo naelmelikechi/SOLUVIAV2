@@ -126,20 +126,30 @@ export function TempsPageClient({
   );
 
   const handleSaveAxes = useCallback(
-    async (axes: Record<string, number>) => {
+    async (axes: Record<string, number>, total: number) => {
       if (!selectedCell) return;
+
+      // Save axes
       const result = await saveSaisieTempsAxes(
         selectedCell.projetId,
         selectedCell.date,
         axes,
       );
+
+      // Also save the total hours (so the cell updates automatically)
+      if (total > 0) {
+        const { saveSaisieTemps } = await import('@/lib/actions/temps');
+        await saveSaisieTemps(selectedCell.projetId, selectedCell.date, total);
+      }
+
       if (result.success) {
-        // Update local axes state
+        // Update local state: axes + heures
         setSaisies((prev) =>
           prev.map((s) => {
             if (s.projet_id !== selectedCell.projetId) return s;
             return {
               ...s,
+              heures: { ...s.heures, [selectedCell.date]: total },
               axes: { ...s.axes, [selectedCell.date]: axes },
             };
           }),

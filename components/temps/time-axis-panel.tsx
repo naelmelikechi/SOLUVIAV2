@@ -6,7 +6,6 @@ import { fr } from 'date-fns/locale';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AXES_TEMPS } from '@/lib/utils/constants';
-import { cn } from '@/lib/utils';
 import type { SaisieTemps } from '@/lib/queries/temps';
 
 interface TimeAxisPanelProps {
@@ -14,13 +13,13 @@ interface TimeAxisPanelProps {
   date: string;
   cellTotal: number;
   onClose: () => void;
-  onSave: (axes: Record<string, number>) => void;
+  onSave: (axes: Record<string, number>, total: number) => void;
 }
 
 export function TimeAxisPanel({
   saisie,
   date,
-  cellTotal,
+  cellTotal: _cellTotal,
   onClose,
   onSave,
 }: TimeAxisPanelProps) {
@@ -32,7 +31,6 @@ export function TimeAxisPanel({
   );
 
   const axisTotal = Object.values(values).reduce((a, b) => a + b, 0);
-  const isValid = Math.abs(axisTotal - cellTotal) < 0.01;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -101,33 +99,16 @@ export function TimeAxisPanel({
         {/* Total */}
         <div className="border-border mt-3 flex items-center justify-between border-t pt-3">
           <span className="text-sm font-semibold">Total</span>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                'font-mono text-sm font-bold',
-                isValid ? 'text-primary' : 'text-[var(--destructive)]',
-              )}
-            >
-              {axisTotal.toFixed(2)}h
-            </span>
-            <span className="text-muted-foreground text-xs">
-              / {cellTotal}h
-            </span>
-          </div>
+          <span className="text-primary font-mono text-sm font-bold">
+            {axisTotal > 0 ? `${axisTotal}h` : '—'}
+          </span>
         </div>
-
-        {!isValid && cellTotal > 0 && (
-          <p className="mt-2 text-xs text-[var(--destructive)]">
-            Le total des axes doit etre egal a {cellTotal}h
-          </p>
-        )}
 
         <Button
           className="mt-3 w-full"
           size="sm"
-          disabled={!isValid && cellTotal > 0}
           onClick={() => {
-            onSave(values);
+            onSave(values, axisTotal);
             onClose();
           }}
         >

@@ -2,18 +2,20 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download, FileText } from 'lucide-react';
+import { Calendar, Download, FileText, List } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/shared/data-table';
 import type { FilterOption } from '@/components/shared/data-table';
 import { BillingPeriodBanner } from '@/components/facturation/billing-period-banner';
 import { EcheanceTable } from '@/components/facturation/echeance-table';
+import { EcheanceCalendar } from '@/components/facturation/echeance-calendar';
 import { factureListColumns } from '@/components/facturation/facture-list-columns';
 import { EmptyState } from '@/components/shared/empty-state';
 import type { FactureListItem, EcheancePending } from '@/lib/queries/factures';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_FACTURE_LABELS } from '@/lib/utils/constants';
+import { cn } from '@/lib/utils';
 
 const FACTURE_FILTERS: FilterOption[] = [
   {
@@ -39,6 +41,7 @@ export function FacturationPageClient({
 }: FacturationPageClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
+  const [echeanceView, setEcheanceView] = useState<'list' | 'calendar'>('list');
 
   const handleRowClick = (row: FactureListItem) => {
     router.push(`/facturation/${row.ref}`);
@@ -96,8 +99,44 @@ export function FacturationPageClient({
 
       <TabsContent value={0}>
         <div className="mt-4 space-y-4">
-          <BillingPeriodBanner />
-          <EcheanceTable echeances={echeances} />
+          <div className="flex items-center justify-between">
+            <BillingPeriodBanner />
+            <div className="bg-muted inline-flex items-center rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setEcheanceView('list')}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  echeanceView === 'list'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+                aria-label="Vue liste"
+              >
+                <List className="h-3.5 w-3.5" />
+                Liste
+              </button>
+              <button
+                type="button"
+                onClick={() => setEcheanceView('calendar')}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  echeanceView === 'calendar'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+                aria-label="Vue calendrier"
+              >
+                <Calendar className="h-3.5 w-3.5" />
+                Calendrier
+              </button>
+            </div>
+          </div>
+          {echeanceView === 'list' ? (
+            <EcheanceTable echeances={echeances} />
+          ) : (
+            <EcheanceCalendar echeances={echeances} />
+          )}
         </div>
       </TabsContent>
 

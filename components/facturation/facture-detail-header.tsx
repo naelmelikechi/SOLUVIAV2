@@ -90,10 +90,27 @@ export function FactureDetailHeader({
 
       {/* Client + Projet + Mois */}
       <p className="text-muted-foreground text-sm">
-        {facture.client?.raison_sociale ?? ''} · Projet{' '}
-        <span className="font-mono text-orange-600 dark:text-orange-400">
-          {facture.projet?.ref ?? ''}
-        </span>{' '}
+        {facture.client?.id ? (
+          <Link
+            href={`/admin/clients/${facture.client.id}`}
+            className="hover:text-foreground underline underline-offset-2 transition-colors"
+          >
+            {facture.client.raison_sociale}
+          </Link>
+        ) : (
+          (facture.client?.raison_sociale ?? '')
+        )}{' '}
+        · Projet{' '}
+        {facture.projet?.ref ? (
+          <Link
+            href={`/projets/${facture.projet.ref}`}
+            className="font-mono text-orange-600 transition-colors hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300"
+          >
+            {facture.projet.ref}
+          </Link>
+        ) : (
+          ''
+        )}{' '}
         · {moisCapitalized}
       </p>
 

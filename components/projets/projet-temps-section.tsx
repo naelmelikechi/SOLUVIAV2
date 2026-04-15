@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import type { ProjetTempsStats } from '@/lib/queries/projets';
 import { formatHeures } from '@/lib/utils/formatters';
 import { Card } from '@/components/ui/card';
@@ -50,6 +52,14 @@ export function ProjetTempsSection({
           );
         })}
       </div>
+
+      <Link
+        href="/temps"
+        className="text-primary hover:text-primary/80 mt-3 inline-flex items-center gap-1 text-xs font-medium"
+      >
+        Voir le suivi de temps
+        <ArrowRight className="h-3 w-3" />
+      </Link>
     </Card>
   );
 }

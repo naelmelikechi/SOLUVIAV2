@@ -66,7 +66,7 @@ export default async function ProjetDetailPage({
         <ProjetFinanceSection finance={finance} />
         <div className="space-y-6">
           <ProjetTempsSection temps={temps} />
-          <ProjetQualiteSection qualite={qualite} />
+          <ProjetQualiteSection qualite={qualite} projetRef={ref} />
         </div>
       </div>
 

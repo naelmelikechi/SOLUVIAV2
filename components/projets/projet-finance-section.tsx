@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import type { ProjetFinance } from '@/lib/queries/projets';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { Card } from '@/components/ui/card';
@@ -129,6 +131,14 @@ export function ProjetFinanceSection({
           />
         </div>
       </div>
+
+      <Link
+        href="/facturation"
+        className="text-primary hover:text-primary/80 mt-3 inline-flex items-center gap-1 text-xs font-medium"
+      >
+        Voir les factures
+        <ArrowRight className="h-3 w-3" />
+      </Link>
     </Card>
   );
 }

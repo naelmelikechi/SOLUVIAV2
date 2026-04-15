@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProjectRef } from '@/components/shared/project-ref';
@@ -13,7 +14,7 @@ import {
 export function ProjetDetailHeader({ projet }: { projet: ProjetDetail }) {
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2 md:gap-4">
-      <ProjectRef ref_={projet.ref ?? ''} className="text-sm" />
+      <ProjectRef ref_={projet.ref ?? ''} className="text-sm" noLink />
       <button
         onClick={() => {
           navigator.clipboard.writeText(projet.ref ?? '');
@@ -24,9 +25,18 @@ export function ProjetDetailHeader({ projet }: { projet: ProjetDetail }) {
       >
         <Copy className="h-3.5 w-3.5" />
       </button>
-      <span className="text-lg font-semibold">
-        {projet.client?.raison_sociale}
-      </span>
+      {projet.client?.id ? (
+        <Link
+          href={`/admin/clients/${projet.client.id}`}
+          className="text-lg font-semibold underline-offset-2 hover:underline"
+        >
+          {projet.client.raison_sociale}
+        </Link>
+      ) : (
+        <span className="text-lg font-semibold">
+          {projet.client?.raison_sociale}
+        </span>
+      )}
       <span className="text-muted-foreground text-sm">
         {projet.typologie?.libelle}
       </span>

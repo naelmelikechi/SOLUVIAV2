@@ -1,11 +1,15 @@
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import type { ProjetQualiteStats } from '@/lib/queries/projets';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
 
 export function ProjetQualiteSection({
   qualite,
+  projetRef,
 }: {
   qualite: ProjetQualiteStats | null;
+  projetRef: string;
 }) {
   if (!qualite) {
     return (
@@ -39,6 +43,14 @@ export function ProjetQualiteSection({
           <div className="text-muted-foreground text-xs">À réaliser</div>
         </div>
       </div>
+
+      <Link
+        href={`/qualite/${projetRef}`}
+        className="text-primary hover:text-primary/80 mt-3 inline-flex items-center gap-1 text-xs font-medium"
+      >
+        Voir la qualité
+        <ArrowRight className="h-3 w-3" />
+      </Link>
     </Card>
   );
 }

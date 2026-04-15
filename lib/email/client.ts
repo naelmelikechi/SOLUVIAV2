@@ -259,8 +259,7 @@ export async function sendInvitationEmail(params: {
   inviterName: string;
   inviteePrenom?: string;
   role: string;
-  link: string;
-  password?: string;
+  tempPassword: string;
 }): Promise<{ success: boolean; error?: string }> {
   if (!resend) {
     logger.warn(
@@ -293,7 +292,7 @@ function buildInvitationEmailHtml(params: {
   inviterName: string;
   inviteePrenom?: string;
   role: string;
-  link: string;
+  tempPassword: string;
 }): string {
   const greeting = params.inviteePrenom
     ? `Bonjour ${params.inviteePrenom},`
@@ -304,38 +303,40 @@ function buildInvitationEmailHtml(params: {
 <head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background-color:#f5f7f5;">
   <div style="max-width:520px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #d4e4d4;">
-    <!-- Header -->
     <div style="background:#16a34a;padding:28px 32px;text-align:center;">
       <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:1px;">SOLUVIA</h1>
     </div>
 
-    <!-- Body -->
     <div style="padding:32px;">
       <h2 style="margin:0 0 16px;font-size:18px;color:#1a2e1a;">${greeting}</h2>
       <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">
         <strong>${params.inviterName}</strong> vous a invité(e) à rejoindre SOLUVIA en tant que <strong>${params.role}</strong>.
       </p>
-      <p style="margin:0 0 24px;color:#6b8a6b;font-size:14px;line-height:1.6;">
-        Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre compte.
+      <p style="margin:0 0 8px;color:#2d4a2d;font-size:14px;line-height:1.6;">
+        Voici vos identifiants de connexion :
       </p>
 
-      <!-- CTA -->
-      <div style="text-align:center;margin:24px 0;">
-        <a href="${params.link}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
-          Créer mon mot de passe
-        </a>
+      <div style="background:#f0f5f0;border:1px solid #d4e4d4;border-radius:8px;padding:16px 20px;margin:16px 0;">
+        <p style="margin:0 0 8px;font-size:13px;color:#6b8a6b;">Adresse de connexion</p>
+        <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#1a2e1a;">https://soluvia.vercel.app</p>
+        <p style="margin:0 0 8px;font-size:13px;color:#6b8a6b;">Mot de passe temporaire</p>
+        <p style="margin:0;font-size:16px;font-weight:700;font-family:monospace;color:#16a34a;letter-spacing:1px;">${params.tempPassword}</p>
       </div>
 
-      <p style="margin:24px 0 0;color:#6b8a6b;font-size:12px;line-height:1.5;">
-        Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>
-        <a href="${params.link}" style="color:#16a34a;word-break:break-all;">${params.link}</a>
+      <p style="margin:16px 0 0;color:#6b8a6b;font-size:13px;line-height:1.6;">
+        Connectez-vous avec votre email et ce mot de passe, puis rendez-vous dans <strong>Mon compte</strong> pour le modifier.
       </p>
+
+      <div style="text-align:center;margin:24px 0;">
+        <a href="https://soluvia.vercel.app/login" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
+          Se connecter
+        </a>
+      </div>
     </div>
 
-    <!-- Footer -->
     <div style="background:#f0f5f0;padding:16px 32px;border-top:1px solid #d4e4d4;">
       <p style="margin:0;color:#6b8a6b;font-size:11px;text-align:center;">
-        SOLUVIA · Plateforme de pilotage pour organismes de formation
+        SOLUVIA - Plateforme de pilotage pour organismes de formation
       </p>
     </div>
   </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useTransition } from 'react';
+import { useState, useCallback, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { Copy, Download, Users, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -73,10 +73,14 @@ export function TempsPageClient({
     setSelectedCell({ projetId, date });
   }, []);
 
+  // Load available projects on mount (for quick absence buttons)
+  useEffect(() => {
+    fetchAvailableProjets().then(setAvailableProjets);
+  }, []);
+
   const handleOpenAddDialog = useCallback(async () => {
     setAddDialogOpen(true);
     const projets = await fetchAvailableProjets();
-    // Filter out projects already in the grid
     const existingIds = new Set(saisies.map((s) => s.projet_id));
     setAvailableProjets(projets.filter((p) => !existingIds.has(p.id)));
   }, [saisies]);
@@ -248,16 +252,53 @@ export function TempsPageClient({
             joursFeries={joursFeries}
           />
 
-          {/* Add project */}
-          <button
-            onClick={handleOpenAddDialog}
-            className="border-border text-muted-foreground hover:border-primary/30 hover:text-foreground mt-4 flex w-full items-center gap-3 rounded-[10px] border-2 border-dashed px-5 py-3.5 text-sm transition-colors"
-          >
-            <span className="text-primary flex h-7 w-7 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-sm font-bold">
-              <Plus className="h-4 w-4" />
-            </span>
-            Ajouter un projet à ma semaine...
-          </button>
+          {/* Add project + quick absence buttons */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={handleOpenAddDialog}
+              className="border-border text-muted-foreground hover:border-primary/30 hover:text-foreground flex flex-1 items-center gap-3 rounded-[10px] border-2 border-dashed px-5 py-3.5 text-sm transition-colors"
+            >
+              <span className="text-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--primary-bg-strong)] text-sm font-bold">
+                <Plus className="h-4 w-4" />
+              </span>
+              Ajouter un projet...
+            </button>
+            {/* Quick absence buttons — only show if not already in the grid */}
+            {!saisies.some((s) => s.projet_ref?.includes('CON-ABS')) && (
+              <button
+                onClick={() => {
+                  const conges = availableProjets.find((p) =>
+                    p.ref?.includes('CON-ABS'),
+                  );
+                  if (conges) {
+                    handleAddProjet(conges);
+                  } else {
+                    handleOpenAddDialog();
+                  }
+                }}
+                className="flex items-center gap-2 rounded-[10px] border-2 border-dashed border-orange-200 px-4 py-3.5 text-sm text-orange-600 transition-colors hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-950/30"
+              >
+                Congés
+              </button>
+            )}
+            {!saisies.some((s) => s.projet_ref?.includes('MAL-ABS')) && (
+              <button
+                onClick={() => {
+                  const maladie = availableProjets.find((p) =>
+                    p.ref?.includes('MAL-ABS'),
+                  );
+                  if (maladie) {
+                    handleAddProjet(maladie);
+                  } else {
+                    handleOpenAddDialog();
+                  }
+                }}
+                className="flex items-center gap-2 rounded-[10px] border-2 border-dashed border-red-200 px-4 py-3.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+              >
+                Maladie
+              </button>
+            )}
+          </div>
 
           {/* Add project dialog */}
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>

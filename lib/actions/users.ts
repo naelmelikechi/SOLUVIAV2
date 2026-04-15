@@ -274,8 +274,8 @@ export async function inviteUser(
     return { success: false, error: 'Le prénom et le nom sont requis' };
   }
 
-  // Random temp password (user will set their own via the recovery link)
-  const password = `Tmp-${crypto.randomUUID()}`;
+  // Readable temp password - user will change it in Mon compte
+  const password = `Soluvia-${Math.random().toString(36).slice(2, 6)}${Math.floor(Math.random() * 9000 + 1000)}`;
 
   const supabase = await createClient();
 
@@ -339,34 +339,7 @@ export async function inviteUser(
     return { success: false, error: 'Erreur inattendue lors de la création' };
   }
 
-  // Generate a password reset link so the user can set their own password
-  const { data: linkData } = await adminClient.auth.admin.generateLink({
-    type: 'recovery',
-    email: email.trim(),
-    options: {
-      redirectTo: 'https://soluvia.vercel.app/set-password',
-    },
-  });
-
-  // Fix the link if Supabase still uses localhost as base
-  let setupLink = linkData?.properties?.action_link ?? '';
-  if (setupLink.includes('localhost:3000')) {
-    setupLink = setupLink.replace(
-      'http://localhost:3000',
-      'https://soluvia.vercel.app',
-    );
-  }
-  // Ensure redirect_to points to set-password
-  if (setupLink && !setupLink.includes('set-password')) {
-    const url = new URL(setupLink);
-    url.searchParams.set(
-      'redirect_to',
-      'https://soluvia.vercel.app/set-password',
-    );
-    setupLink = url.toString();
-  }
-
-  // Send invitation email via Resend
+  // Send invitation email with temporary password via Resend
   try {
     const { sendInvitationEmail } = await import('@/lib/email/client');
     await sendInvitationEmail({
@@ -374,10 +347,10 @@ export async function inviteUser(
       inviterName,
       inviteePrenom: prenom!.trim(),
       role: role === 'admin' ? 'Administrateur' : 'Chef de projet',
-      link: setupLink ?? 'https://soluvia.vercel.app/login',
+      tempPassword: password,
     });
   } catch {
-    // Email failed but user was created
+    // Email failed but user was created - admin can share credentials manually
   }
 
   // Insert the user row with prenom/nom

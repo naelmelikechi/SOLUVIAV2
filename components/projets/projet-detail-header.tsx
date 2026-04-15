@@ -13,7 +13,7 @@ import {
 
 export function ProjetDetailHeader({ projet }: { projet: ProjetDetail }) {
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-2 md:gap-4">
+    <div className="flex flex-wrap items-center gap-2 md:gap-4">
       <ProjectRef ref_={projet.ref ?? ''} className="text-sm" noLink />
       <button
         onClick={() => {

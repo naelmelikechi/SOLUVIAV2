@@ -25,6 +25,9 @@ import { ProjetContratsTable } from '@/components/projets/projet-contrats-table'
 import { ProjetStatCards } from '@/components/projets/projet-stat-cards';
 import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
 import { ProjetPerformancePlaceholders } from '@/components/projets/projet-performance-placeholders';
+import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
+import { createClient } from '@/lib/supabase/server';
+import { isAdmin } from '@/lib/utils/roles';
 
 export default async function ProjetDetailPage({
   params,
@@ -37,6 +40,15 @@ export default async function ProjetDetailPage({
   if (!projet) {
     notFound();
   }
+
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  const { data: currentUser } = authUser
+    ? await supabase.from('users').select('role').eq('id', authUser.id).single()
+    : { data: null };
+  const userIsAdmin = isAdmin(currentUser?.role);
 
   const [contrats, finance, temps, qualite] = await Promise.all([
     getContratsByProjetId(projet.id),
@@ -58,7 +70,15 @@ export default async function ProjetDetailPage({
         <ArrowLeft className="h-4 w-4" />
         Retour aux projets
       </Link>
-      <ProjetDetailHeader projet={projet} />
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <ProjetDetailHeader projet={projet} />
+        {userIsAdmin && (
+          <ProjetDuplicateButton
+            projetId={projet.id}
+            projetRef={projet.ref ?? ''}
+          />
+        )}
+      </div>
 
       <ProjetStatCards projet={projet} apprentisActifs={apprentisActifs} />
 

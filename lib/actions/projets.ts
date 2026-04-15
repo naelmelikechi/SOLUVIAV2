@@ -77,3 +77,73 @@ export async function createProjet(data: {
 
   return { success: true, ref: projet.ref ?? undefined };
 }
+
+export async function duplicateProjet(
+  projetId: string,
+): Promise<{ success: boolean; ref?: string; error?: string }> {
+  const supabase = await createClient();
+
+  // Auth check
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifie' };
+
+  // Admin check
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (!isAdmin(caller?.role)) {
+    return { success: false, error: 'Acces reserve aux administrateurs' };
+  }
+
+  // Fetch the original projet
+  const { data: original, error: fetchError } = await supabase
+    .from('projets')
+    .select(
+      'client_id, typologie_id, cdp_id, backup_cdp_id, taux_commission, ref',
+    )
+    .eq('id', projetId)
+    .single();
+
+  if (fetchError || !original) {
+    logger.error('actions.projets', 'duplicateProjet fetch failed', {
+      error: fetchError,
+      projetId,
+    });
+    return { success: false, error: 'Projet source introuvable' };
+  }
+
+  // Insert a new projet with the same fields (trigger generates new ref)
+  const { data: newProjet, error: insertError } = await supabase
+    .from('projets')
+    .insert({
+      client_id: original.client_id,
+      typologie_id: original.typologie_id,
+      cdp_id: original.cdp_id,
+      backup_cdp_id: original.backup_cdp_id,
+      taux_commission: original.taux_commission,
+    })
+    .select('id, ref')
+    .single();
+
+  if (insertError) {
+    logger.error('actions.projets', 'duplicateProjet insert failed', {
+      error: insertError,
+    });
+    return {
+      success: false,
+      error: insertError.message || 'Erreur lors de la duplication du projet',
+    };
+  }
+
+  logAudit('projet_duplicated', 'projet', newProjet.id, {
+    sourceRef: original.ref ?? '',
+  });
+
+  revalidatePath('/projets');
+
+  return { success: true, ref: newProjet.ref ?? undefined };
+}

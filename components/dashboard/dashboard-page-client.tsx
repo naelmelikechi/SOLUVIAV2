@@ -14,6 +14,7 @@ import {
   ArrowDownRight,
   Download,
   CheckCircle2,
+  Clock,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -222,12 +223,14 @@ export function DashboardPageClient({
   previousKpis,
   monthlyTrend,
   invoiceBreakdown,
+  weekHours,
 }: {
   data: DashboardData;
   financials: DashboardFinancials;
   previousKpis: KpiSnapshotMap;
   monthlyTrend: MonthlyTrendRow[];
   invoiceBreakdown: InvoiceStatusBreakdown;
+  weekHours: number;
 }) {
   // ---- Alerts from real data ----
   const tempsNonSaisi = financials.tempsNonSaisi;
@@ -451,6 +454,38 @@ export function DashboardPageClient({
           </div>
         </Card>
       )}
+
+      {/* ========== Personal Time Widget ========== */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-muted-foreground text-xs">Votre semaine</p>
+            <p className="text-lg font-bold">
+              {weekHours}h{' '}
+              <span className="text-muted-foreground text-sm font-normal">
+                / 35h
+              </span>
+            </p>
+          </div>
+          <Clock
+            className={cn(
+              'h-5 w-5',
+              weekHours >= 35 ? 'text-green-500' : 'text-orange-500',
+            )}
+          />
+        </div>
+        <div className="bg-muted mt-2 h-1.5 overflow-hidden rounded-full">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all',
+              weekHours >= 35 ? 'bg-green-500' : 'bg-orange-500',
+            )}
+            style={{
+              width: `${Math.min(100, (weekHours / 35) * 100)}%`,
+            }}
+          />
+        </div>
+      </Card>
 
       {/* ========== Financial KPIs ========== */}
       <section>

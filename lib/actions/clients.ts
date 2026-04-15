@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { encryptApiKey, decryptApiKey } from '@/lib/utils/encryption';
 import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
+import { logAudit } from '@/lib/utils/audit';
 
 // ---------------------------------------------------------------------------
 // createClient — insert a new client
@@ -62,6 +63,8 @@ export async function createClientAction(
     .single();
 
   if (error) return { success: false, error: error.message };
+
+  logAudit('client_created', 'client', client.id);
 
   revalidatePath('/admin/clients');
 
@@ -147,6 +150,8 @@ export async function archiveClient(
     .eq('id', id);
 
   if (error) return { success: false, error: error.message };
+
+  logAudit('client_archived', 'client', id);
 
   revalidatePath('/admin/clients');
 

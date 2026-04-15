@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdmin, isSuperAdmin } from '@/lib/utils/roles';
+import { logAudit } from '@/lib/utils/audit';
 
 // ---------------------------------------------------------------------------
 // updateUserRole — change a user's role (with hierarchy guards)
@@ -206,6 +207,8 @@ export async function inviteUser(
   if (insertError) {
     return { success: false, error: insertError.message };
   }
+
+  logAudit('user_invited', 'user', inviteData.user.id, { email, role });
 
   revalidatePath('/admin/utilisateurs');
   return { success: true };

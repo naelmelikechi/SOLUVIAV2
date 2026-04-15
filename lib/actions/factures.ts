@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { sendEmailForFacture } from '@/lib/email/client';
 import { logger } from '@/lib/utils/logger';
+import { logAudit } from '@/lib/utils/audit';
 
 export async function createFactures(
   echeanceIds: string[],
@@ -163,6 +164,9 @@ export async function createFactures(
 
     createdRefs.push(facture.ref ?? '');
 
+    // Audit log
+    logAudit('facture_created', 'facture', facture.id, { ref: facture.ref });
+
     // Send email (fire-and-forget, don't block facture creation)
     sendEmailForFacture(facture.id, supabase).catch((err) => {
       logger.error('actions.factures', 'Email fire-and-forget failed', {
@@ -297,6 +301,9 @@ export async function createAvoir(params: {
       montant_ht: montantHt,
     });
   }
+
+  // Audit log
+  logAudit('avoir_created', 'facture', avoir.id, { ref: avoir.ref });
 
   revalidatePath('/facturation');
   revalidatePath(`/facturation/${origine.ref}`);

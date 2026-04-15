@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
+import { logAudit } from '@/lib/utils/audit';
 
 export async function createProjet(data: {
   clientId: string;
@@ -69,6 +70,8 @@ export async function createProjet(data: {
       error: error.message || 'Erreur lors de la creation du projet',
     };
   }
+
+  logAudit('projet_created', 'projet', projet.id);
 
   revalidatePath('/projets');
 

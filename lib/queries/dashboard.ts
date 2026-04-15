@@ -643,3 +643,43 @@ export async function getInvoiceStatusBreakdown(): Promise<InvoiceStatusBreakdow
 export interface TauxSaisieTemps {
   taux: number; // percentage 0-100
 }
+
+// ---------------------------------------------------------------------------
+// Current user's week hours (for dashboard personal time widget)
+// ---------------------------------------------------------------------------
+
+export async function getUserWeekHours(): Promise<number> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  // Compute Monday of current week
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+  const mondayStr = format(monday, 'yyyy-MM-dd');
+
+  // Friday of current week
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  const fridayStr = format(friday, 'yyyy-MM-dd');
+
+  const { data, error } = await supabase
+    .from('saisies_temps')
+    .select('heures')
+    .eq('user_id', user.id)
+    .gte('date', mondayStr)
+    .lte('date', fridayStr);
+
+  if (error) {
+    logger.error('queries.dashboard', 'getUserWeekHours failed', { error });
+    return 0;
+  }
+
+  return (data ?? []).reduce((sum, row) => sum + (row.heures ?? 0), 0);
+}

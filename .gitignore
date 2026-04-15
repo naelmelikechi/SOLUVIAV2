@@ -16,6 +16,9 @@ build/
 # misc
 .DS_Store
 *.pem
+# macOS copy artifacts (e.g. "file 2.ts")
+*\ 2.*
+*\ 3.*
 
 # debug
 npm-debug.log*

@@ -184,23 +184,61 @@ export async function inviteUser(
     };
   }
 
-  const { data: inviteData, error: inviteError } =
-    await adminClient.auth.admin.inviteUserByEmail(email.trim(), {
-      data: { role },
+  // Get inviter's name for the email
+  const { data: inviter } = await supabase
+    .from('users')
+    .select('prenom, nom')
+    .eq('id', authUser.id)
+    .single();
+  const inviterName = inviter
+    ? `${inviter.prenom} ${inviter.nom}`.trim()
+    : 'Un administrateur';
+
+  // Create user + generate magic link (instead of Supabase's built-in invite email)
+  const { data: newUser, error: createError } =
+    await adminClient.auth.admin.createUser({
+      email: email.trim(),
+      email_confirm: true,
+      user_metadata: { role },
     });
 
-  if (inviteError) {
-    return { success: false, error: inviteError.message };
+  if (createError) {
+    return { success: false, error: createError.message };
   }
 
-  if (!inviteData.user) {
-    return { success: false, error: "Erreur inattendue lors de l'invitation" };
+  if (!newUser.user) {
+    return { success: false, error: 'Erreur inattendue lors de la création' };
+  }
+
+  // Generate a magic link for the new user to set their password
+  const { data: linkData, error: linkError } =
+    await adminClient.auth.admin.generateLink({
+      type: 'magiclink',
+      email: email.trim(),
+    });
+
+  // Send custom invitation email via Resend
+  const inviteLink = linkData?.properties?.action_link;
+  if (inviteLink) {
+    try {
+      const { sendInvitationEmail } = await import('@/lib/email/client');
+      await sendInvitationEmail({
+        to: email.trim(),
+        inviterName,
+        role: role === 'admin' ? 'Administrateur' : 'Chef de projet',
+        link: inviteLink,
+      });
+    } catch {
+      // Email failed but user was created — they can use "forgot password" to set up
+    }
+  }
+  if (linkError) {
+    // Non-blocking — user exists, can use forgot password
   }
 
   // Insert the user row so they appear in the users table immediately
-  // nom/prenom will be updated when the user accepts the invite and completes their profile
   const { error: insertError } = await adminClient.from('users').insert({
-    id: inviteData.user.id,
+    id: newUser.user.id,
     email: email.trim(),
     nom: '',
     prenom: '',
@@ -212,7 +250,7 @@ export async function inviteUser(
     return { success: false, error: insertError.message };
   }
 
-  logAudit('user_invited', 'user', inviteData.user.id, { email, role });
+  logAudit('user_invited', 'user', newUser.user.id, { email, role });
 
   revalidatePath('/admin/utilisateurs');
   return { success: true };

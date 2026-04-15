@@ -32,6 +32,10 @@ export function TimeGrid({
   onSaveHours,
 }: TimeGridProps) {
   const [saisies, setSaisies] = useState<SaisieTemps[]>(initialSaisies);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
+    'idle',
+  );
+  const saveStatusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
     {},
   );
@@ -44,8 +48,10 @@ export function TimeGrid({
   // Cleanup debounce timers on unmount
   useEffect(() => {
     const timers = debounceTimers.current;
+    const statusTimer = saveStatusTimer.current;
     return () => {
       Object.values(timers).forEach(clearTimeout);
+      if (statusTimer) clearTimeout(statusTimer);
     };
   }, []);
 
@@ -93,10 +99,17 @@ export function TimeGrid({
       }
       debounceTimers.current[key] = setTimeout(async () => {
         delete debounceTimers.current[key];
+        setSaveStatus('saving');
         const result = await saveSaisieTemps(projetId, date, parsed);
         if (result.success) {
-          toast.success('Sauvegardé', { duration: 1000 });
+          setSaveStatus('saved');
+          if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
+          saveStatusTimer.current = setTimeout(
+            () => setSaveStatus('idle'),
+            2000,
+          );
         } else {
+          setSaveStatus('idle');
           toast.error(result.error ?? 'Erreur lors de la sauvegarde');
         }
       }, DEBOUNCE_MS);
@@ -105,163 +118,182 @@ export function TimeGrid({
   );
 
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full min-w-[640px] border-collapse text-[13px]">
-        <thead>
-          <tr className="bg-[var(--card-alt)]">
-            <th className="text-muted-foreground min-w-[220px] px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase">
-              Projet
-            </th>
-            {weekDates.map((date, i) => {
-              const d = parseISO(date);
-              const weekend = isWeekend(d);
-              const today = isToday(d);
+    <div className="relative">
+      {/* Save status indicator */}
+      <div className="pointer-events-none absolute -top-7 right-0 h-6">
+        {saveStatus === 'saving' && (
+          <span className="text-muted-foreground animate-pulse text-xs">
+            Enregistrement...
+          </span>
+        )}
+        {saveStatus === 'saved' && (
+          <span className="text-primary animate-in fade-in text-xs duration-300">
+            {'✓ Sauvegardé'}
+          </span>
+        )}
+      </div>
+      <div className="border-border overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[640px] border-collapse text-[13px]">
+          <thead>
+            <tr className="bg-[var(--card-alt)]">
+              <th className="text-muted-foreground min-w-[220px] px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase">
+                Projet
+              </th>
+              {weekDates.map((date, i) => {
+                const d = parseISO(date);
+                const weekend = isWeekend(d);
+                const today = isToday(d);
+                return (
+                  <th
+                    key={date}
+                    className={cn(
+                      'text-muted-foreground w-[68px] px-1 py-2.5 text-center text-xs font-semibold tracking-wider uppercase',
+                      weekend && 'bg-[var(--card-alt)]',
+                      today && 'bg-[var(--primary-bg)]',
+                    )}
+                  >
+                    {DAY_LABELS[i]} {!weekend && format(d, 'd', { locale: fr })}
+                  </th>
+                );
+              })}
+              <th className="text-muted-foreground w-[72px] px-2 py-2.5 text-center text-xs font-semibold tracking-wider uppercase">
+                Total
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {saisies.map((saisie) => {
+              const absStyle = saisie.absence_type
+                ? ABSENCE_STYLES[saisie.absence_type]
+                : null;
+              const rowTotal = weekDates
+                .slice(0, 5)
+                .reduce((sum, d) => sum + (saisie.heures[d] || 0), 0);
+
               return (
-                <th
-                  key={date}
+                <tr
+                  key={saisie.projet_id}
                   className={cn(
-                    'text-muted-foreground w-[68px] px-1 py-2.5 text-center text-xs font-semibold tracking-wider uppercase',
-                    weekend && 'bg-[var(--card-alt)]',
-                    today && 'bg-[var(--primary-bg)]',
+                    'border-b border-[var(--border-light)]',
+                    absStyle?.bg,
                   )}
                 >
-                  {DAY_LABELS[i]} {!weekend && format(d, 'd', { locale: fr })}
-                </th>
-              );
-            })}
-            <th className="text-muted-foreground w-[72px] px-2 py-2.5 text-center text-xs font-semibold tracking-wider uppercase">
-              Total
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {saisies.map((saisie) => {
-            const absStyle = saisie.absence_type
-              ? ABSENCE_STYLES[saisie.absence_type]
-              : null;
-            const rowTotal = weekDates
-              .slice(0, 5)
-              .reduce((sum, d) => sum + (saisie.heures[d] || 0), 0);
+                  {/* Project label */}
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'font-mono text-xs font-bold',
+                          absStyle?.text || 'text-primary',
+                        )}
+                      >
+                        {saisie.projet_ref}
+                      </span>
+                      <span className="text-muted-foreground truncate text-xs">
+                        {saisie.projet_label}
+                      </span>
+                    </div>
+                  </td>
 
-            return (
-              <tr
-                key={saisie.projet_id}
-                className={cn(
-                  'border-b border-[var(--border-light)]',
-                  absStyle?.bg,
-                )}
-              >
-                {/* Project label */}
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'font-mono text-xs font-bold',
-                        absStyle?.text || 'text-primary',
-                      )}
-                    >
-                      {saisie.projet_ref}
-                    </span>
-                    <span className="text-muted-foreground truncate text-xs">
-                      {saisie.projet_label}
-                    </span>
-                  </div>
-                </td>
+                  {/* Day cells */}
+                  {weekDates.map((date) => {
+                    const d = parseISO(date);
+                    const weekend = isWeekend(d);
+                    const today = isToday(d);
+                    const dayTotal = saisies.reduce(
+                      (sum, s) => sum + (s.heures[date] || 0),
+                      0,
+                    );
+                    const atMax = dayTotal >= MAX_HEURES_JOUR;
+                    const cellValue = saisie.heures[date] || 0;
+                    const disabled = weekend || (atMax && cellValue === 0);
 
-                {/* Day cells */}
-                {weekDates.map((date) => {
-                  const d = parseISO(date);
-                  const weekend = isWeekend(d);
-                  const today = isToday(d);
-                  const dayTotal = saisies.reduce(
-                    (sum, s) => sum + (s.heures[date] || 0),
-                    0,
-                  );
-                  const atMax = dayTotal >= MAX_HEURES_JOUR;
-                  const cellValue = saisie.heures[date] || 0;
-                  const disabled = weekend || (atMax && cellValue === 0);
-
-                  return (
-                    <td
-                      key={date}
-                      className={cn(
-                        'px-1 py-1.5 text-center',
-                        weekend && 'bg-[var(--card-alt)]',
-                        today && 'bg-[var(--primary-bg)]',
-                      )}
-                    >
-                      {weekend ? (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      ) : (
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className={cn(
-                            'w-[52px] rounded-md border bg-white px-1 py-1.5 text-center font-mono text-[13px] transition-colors outline-none',
-                            'border-border focus:border-primary focus:ring-primary/15 focus:ring-2',
-                            today &&
-                              'border-primary shadow-[0_0_0_2px_rgba(22,163,74,0.15)]',
-                            disabled && 'opacity-30',
-                            absStyle && 'opacity-40',
-                          )}
-                          disabled={disabled}
-                          defaultValue={cellValue > 0 ? String(cellValue) : ''}
-                          placeholder="0"
-                          onBlur={(e) =>
-                            handleCellChange(
-                              saisie.projet_id,
-                              date,
-                              e.target.value,
-                            )
-                          }
-                          onClick={() => {
-                            if (!saisie.est_absence && onCellClick) {
-                              onCellClick(saisie.projet_id, date);
+                    return (
+                      <td
+                        key={date}
+                        className={cn(
+                          'px-1 py-1.5 text-center',
+                          weekend && 'bg-[var(--card-alt)]',
+                          today && 'bg-[var(--primary-bg)]',
+                        )}
+                      >
+                        {weekend ? (
+                          <span className="text-muted-foreground text-xs">
+                            —
+                          </span>
+                        ) : (
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className={cn(
+                              'w-[52px] rounded-md border bg-white px-1 py-1.5 text-center font-mono text-[13px] transition-colors outline-none',
+                              'border-border focus:border-primary focus:ring-primary/15 focus:ring-2',
+                              today &&
+                                'border-primary shadow-[0_0_0_2px_rgba(22,163,74,0.15)]',
+                              disabled && 'opacity-30',
+                              absStyle && 'opacity-40',
+                            )}
+                            disabled={disabled}
+                            defaultValue={
+                              cellValue > 0 ? String(cellValue) : ''
                             }
-                          }}
-                        />
-                      )}
-                    </td>
-                  );
-                })}
+                            placeholder="0"
+                            onBlur={(e) =>
+                              handleCellChange(
+                                saisie.projet_id,
+                                date,
+                                e.target.value,
+                              )
+                            }
+                            onClick={() => {
+                              if (!saisie.est_absence && onCellClick) {
+                                onCellClick(saisie.projet_id, date);
+                              }
+                            }}
+                          />
+                        )}
+                      </td>
+                    );
+                  })}
 
-                {/* Row total */}
-                <td className="text-primary px-2 py-1.5 text-center font-mono text-[13px] font-bold">
-                  {rowTotal > 0 ? formatHeures(rowTotal) : '—'}
-                </td>
-              </tr>
-            );
-          })}
-
-          {/* Daily totals row */}
-          <tr className="bg-[var(--card-alt)] font-bold">
-            <td className="px-3 py-2.5 text-sm">Total journalier</td>
-            {weekDates.map((date, i) => {
-              const weekend = i >= 5;
-              const today = isToday(parseISO(date));
-              const total = dailyTotals[i] ?? 0;
-              return (
-                <td
-                  key={date}
-                  className={cn(
-                    'px-1 py-2.5 text-center font-mono text-[13px]',
-                    weekend && 'bg-[var(--card-alt)]',
-                    today && 'bg-[var(--primary-bg)]',
-                    !weekend && total > 0 && 'text-primary',
-                  )}
-                >
-                  {weekend ? '—' : total > 0 ? formatHeures(total) : '0h'}
-                </td>
+                  {/* Row total */}
+                  <td className="text-primary px-2 py-1.5 text-center font-mono text-[13px] font-bold">
+                    {rowTotal > 0 ? formatHeures(rowTotal) : '—'}
+                  </td>
+                </tr>
               );
             })}
-            <td className="px-2 py-2.5 text-center">
-              <span className="bg-primary inline-block rounded-full px-3.5 py-1 font-mono text-[13px] font-bold text-white">
-                {formatHeures(weeklyTotal)}
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+
+            {/* Daily totals row */}
+            <tr className="bg-[var(--card-alt)] font-bold">
+              <td className="px-3 py-2.5 text-sm">Total journalier</td>
+              {weekDates.map((date, i) => {
+                const weekend = i >= 5;
+                const today = isToday(parseISO(date));
+                const total = dailyTotals[i] ?? 0;
+                return (
+                  <td
+                    key={date}
+                    className={cn(
+                      'px-1 py-2.5 text-center font-mono text-[13px]',
+                      weekend && 'bg-[var(--card-alt)]',
+                      today && 'bg-[var(--primary-bg)]',
+                      !weekend && total > 0 && 'text-primary',
+                    )}
+                  >
+                    {weekend ? '—' : total > 0 ? formatHeures(total) : '0h'}
+                  </td>
+                );
+              })}
+              <td className="px-2 py-2.5 text-center">
+                <span className="bg-primary inline-block rounded-full px-3.5 py-1 font-mono text-[13px] font-bold text-white">
+                  {formatHeures(weeklyTotal)}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { History } from 'lucide-react';
 import {
   getParametresByCategorie,
   getTypologies,
@@ -49,7 +51,15 @@ export default async function ParametresPage() {
       <PageHeader
         title="Paramètres"
         description="Configuration du système — Admin uniquement"
-      />
+      >
+        <Link
+          href="/admin/audit"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors"
+        >
+          <History className="h-3.5 w-3.5" />
+          Historique
+        </Link>
+      </PageHeader>
       <ParametresForm
         entreprise={entreprise}
         facturation={facturation}

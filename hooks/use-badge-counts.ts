@@ -109,9 +109,12 @@ async function fetchAllBadgeCounts(): Promise<BadgeCounts> {
 // Hook
 // ---------------------------------------------------------------------------
 
+let channelCounter = 0;
+
 export function useBadgeCounts(): BadgeCounts {
   const [counts, setCounts] = useState<BadgeCounts>(INITIAL_COUNTS);
   const mountedRef = useRef(true);
+  const channelIdRef = useRef(`sidebar-badges-${++channelCounter}`);
 
   // Targeted updaters — only re-fetch the count that changed
   const refreshAll = useCallback(() => {
@@ -155,35 +158,45 @@ export function useBadgeCounts(): BadgeCounts {
     refreshAll();
 
     // Subscribe to Realtime changes — only refresh the relevant badge.
-    const supabase = createClient();
+    // Wrapped in try/catch so a broken WebSocket doesn't crash the app.
+    let channel: ReturnType<ReturnType<typeof createClient>['channel']> | null =
+      null;
+    let supabase: ReturnType<typeof createClient> | null = null;
 
-    const channel = supabase
-      .channel('sidebar-badges')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'factures' },
-        () => refreshFactures(),
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications' },
-        () => refreshNotifications(),
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'saisies_temps' },
-        () => refreshTemps(),
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'taches_qualite' },
-        () => refreshQualite(),
-      )
-      .subscribe();
+    try {
+      supabase = createClient();
+      channel = supabase
+        .channel(channelIdRef.current)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'factures' },
+          () => refreshFactures(),
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'notifications' },
+          () => refreshNotifications(),
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'saisies_temps' },
+          () => refreshTemps(),
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'taches_qualite' },
+          () => refreshQualite(),
+        )
+        .subscribe();
+    } catch {
+      // Realtime unavailable (e.g. bad API key) — badges still work via initial fetch
+    }
 
     return () => {
       mountedRef.current = false;
-      supabase.removeChannel(channel);
+      if (supabase && channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [
     refreshAll,

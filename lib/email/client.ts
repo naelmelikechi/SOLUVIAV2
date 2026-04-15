@@ -257,8 +257,10 @@ export async function sendRelanceEmail(
 export async function sendInvitationEmail(params: {
   to: string;
   inviterName: string;
+  inviteePrenom?: string;
   role: string;
   link: string;
+  password?: string;
 }): Promise<{ success: boolean; error?: string }> {
   if (!resend) {
     logger.warn(
@@ -289,9 +291,13 @@ export async function sendInvitationEmail(params: {
 
 function buildInvitationEmailHtml(params: {
   inviterName: string;
+  inviteePrenom?: string;
   role: string;
   link: string;
 }): string {
+  const greeting = params.inviteePrenom
+    ? `Bonjour ${params.inviteePrenom},`
+    : 'Bonjour,';
   return `
 <!DOCTYPE html>
 <html>
@@ -305,18 +311,18 @@ function buildInvitationEmailHtml(params: {
 
     <!-- Body -->
     <div style="padding:32px;">
-      <h2 style="margin:0 0 16px;font-size:18px;color:#1a2e1a;">Vous êtes invité(e) !</h2>
+      <h2 style="margin:0 0 16px;font-size:18px;color:#1a2e1a;">${greeting}</h2>
       <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">
         <strong>${params.inviterName}</strong> vous a invité(e) à rejoindre SOLUVIA en tant que <strong>${params.role}</strong>.
       </p>
       <p style="margin:0 0 24px;color:#6b8a6b;font-size:14px;line-height:1.6;">
-        SOLUVIA est la plateforme de pilotage stratégique pour les organismes de formation. Cliquez sur le bouton ci-dessous pour accéder à votre compte.
+        Cliquez sur le bouton ci-dessous pour définir votre mot de passe et accéder à votre compte.
       </p>
 
       <!-- CTA -->
       <div style="text-align:center;margin:24px 0;">
         <a href="${params.link}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
-          Accéder à SOLUVIA
+          Créer mon mot de passe
         </a>
       </div>
 

@@ -144,10 +144,19 @@ export async function toggleUserActive(
 export async function inviteUser(
   email: string,
   role: 'admin' | 'cdp',
+  prenom?: string,
+  nom?: string,
 ): Promise<{ success: boolean; error?: string }> {
   if (!email?.trim()) {
     return { success: false, error: "L'adresse email est requise" };
   }
+
+  if (!prenom?.trim() || !nom?.trim()) {
+    return { success: false, error: 'Le prénom et le nom sont requis' };
+  }
+
+  // Random temp password (user will set their own via the recovery link)
+  const password = `Tmp-${crypto.randomUUID()}`;
 
   const supabase = await createClient();
 
@@ -194,10 +203,11 @@ export async function inviteUser(
     ? `${inviter.prenom} ${inviter.nom}`.trim()
     : 'Un administrateur';
 
-  // Create user + generate magic link (instead of Supabase's built-in invite email)
+  // Create user with password (no magic link needed)
   const { data: newUser, error: createError } =
     await adminClient.auth.admin.createUser({
       email: email.trim(),
+      password,
       email_confirm: true,
       user_metadata: { role },
     });
@@ -210,38 +220,37 @@ export async function inviteUser(
     return { success: false, error: 'Erreur inattendue lors de la création' };
   }
 
-  // Generate a magic link for the new user to set their password
-  const { data: linkData, error: linkError } =
-    await adminClient.auth.admin.generateLink({
-      type: 'magiclink',
-      email: email.trim(),
+  // Generate a password reset link so the user can set their own password
+  const { data: linkData } = await adminClient.auth.admin.generateLink({
+    type: 'recovery',
+    email: email.trim(),
+  });
+
+  const setupLink = linkData?.properties?.action_link?.replace(
+    'http://localhost:3000',
+    'https://soluvia.vercel.app',
+  );
+
+  // Send invitation email via Resend
+  try {
+    const { sendInvitationEmail } = await import('@/lib/email/client');
+    await sendInvitationEmail({
+      to: email.trim(),
+      inviterName,
+      inviteePrenom: prenom!.trim(),
+      role: role === 'admin' ? 'Administrateur' : 'Chef de projet',
+      link: setupLink ?? 'https://soluvia.vercel.app/login',
     });
-
-  // Send custom invitation email via Resend
-  const inviteLink = linkData?.properties?.action_link;
-  if (inviteLink) {
-    try {
-      const { sendInvitationEmail } = await import('@/lib/email/client');
-      await sendInvitationEmail({
-        to: email.trim(),
-        inviterName,
-        role: role === 'admin' ? 'Administrateur' : 'Chef de projet',
-        link: inviteLink,
-      });
-    } catch {
-      // Email failed but user was created - they can use "forgot password" to set up
-    }
-  }
-  if (linkError) {
-    // Non-blocking - user exists, can use forgot password
+  } catch {
+    // Email failed but user was created
   }
 
-  // Insert the user row so they appear in the users table immediately
+  // Insert the user row with prenom/nom
   const { error: insertError } = await adminClient.from('users').insert({
     id: newUser.user.id,
     email: email.trim(),
-    nom: '',
-    prenom: '',
+    nom: nom!.trim(),
+    prenom: prenom!.trim(),
     role,
     actif: true,
   });

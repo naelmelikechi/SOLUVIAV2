@@ -31,12 +31,14 @@ export function InviteUserDialog({
   onOpenChange,
 }: InviteUserDialogProps) {
   const [email, setEmail] = useState('');
+  const [prenom, setPrenom] = useState('');
+  const [nom, setNom] = useState('');
   const [role, setRole] = useState<string>('cdp');
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit() {
-    if (!email) {
-      toast.error('Veuillez saisir une adresse email');
+    if (!email || !prenom.trim() || !nom.trim()) {
+      toast.error('Veuillez remplir tous les champs');
       return;
     }
 
@@ -47,11 +49,18 @@ export function InviteUserDialog({
     }
 
     startTransition(async () => {
-      const result = await inviteUser(email, role as 'admin' | 'cdp');
+      const result = await inviteUser(
+        email,
+        role as 'admin' | 'cdp',
+        prenom.trim(),
+        nom.trim(),
+      );
       if (result.success) {
-        toast.success(`Invitation envoyée à ${email}`);
+        toast.success(`Invitation envoyée à ${prenom} ${nom}`);
         onOpenChange(false);
         setEmail('');
+        setPrenom('');
+        setNom('');
         setRole('cdp');
       } else {
         toast.error(result.error ?? "Erreur lors de l'invitation");
@@ -67,12 +76,35 @@ export function InviteUserDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="invite-prenom">Prénom</Label>
+              <Input
+                id="invite-prenom"
+                placeholder="Prénom"
+                required
+                value={prenom}
+                onChange={(e) => setPrenom(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-nom">Nom</Label>
+              <Input
+                id="invite-nom"
+                placeholder="Nom"
+                required
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="invite-email">Email</Label>
             <Input
               id="invite-email"
               type="email"
-              placeholder="prenom@soluvia.fr"
+              placeholder="prenom@mysoluvia.com"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}

@@ -70,13 +70,11 @@ interface MonthRow {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const DEFAULT_COMMISSION = 0.1;
-
 function buildDisplayData(
   data: ProductionRow[],
   perspective: 'opco' | 'soluvia',
 ): MonthRow[] {
-  const commission = perspective === 'soluvia' ? DEFAULT_COMMISSION : 1;
+  const isSoluvia = perspective === 'soluvia';
   const today = new Date();
   const currentKey = format(today, 'yyyy-MM');
 
@@ -87,11 +85,18 @@ function buildDisplayData(
       const isFuture = monthKey > currentKey;
       const isCurrent = monthKey === currentKey;
 
+      // Production uses real per-contrat commission; other amounts use same ratio
+      const ratio =
+        row.production > 0 ? row.productionSoluvia / row.production : 0;
+      const commission = isSoluvia ? ratio : 1;
+
       return {
         mois: row.mois,
         date: d,
         label: row.label,
-        production: Math.round(row.production * commission),
+        production: isSoluvia
+          ? Math.round(row.productionSoluvia)
+          : Math.round(row.production),
         facture: Math.round(row.facture * commission),
         encaisse: Math.round(row.encaisse * commission),
         en_retard: Math.round(row.en_retard * commission),
@@ -274,8 +279,11 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
     );
   };
 
-  // Apply commission to drill-down data
-  const commissionFactor = perspective === 'soluvia' ? DEFAULT_COMMISSION : 1;
+  // Compute average commission ratio from data for drill-down display
+  const totalProd = data.reduce((s, r) => s + r.production, 0);
+  const totalSoluvia = data.reduce((s, r) => s + r.productionSoluvia, 0);
+  const avgCommission = totalProd > 0 ? totalSoluvia / totalProd : 0.1;
+  const commissionFactor = perspective === 'soluvia' ? avgCommission : 1;
 
   return (
     <div>
@@ -301,7 +309,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
         </div>
         <span className="text-muted-foreground text-xs">
           {perspective === 'soluvia'
-            ? 'Commission 10 % sur la production'
+            ? 'Commission SOLUVIA sur la production'
             : 'Montants bruts OPCO'}
         </span>
       </div>

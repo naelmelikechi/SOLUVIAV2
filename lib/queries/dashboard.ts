@@ -121,7 +121,8 @@ export async function getDashboardData() {
 export interface ProductionRow {
   mois: string; // YYYY-MM-DD (first of month)
   label: string; // "Janvier 2026" etc.
-  production: number; // revenue earned (prorated from active contrats)
+  production: number; // revenue earned OPCO (prorated from active contrats)
+  productionSoluvia: number; // revenue SOLUVIA (production × taux_commission per contrat)
   facture: number; // invoiced amount
   encaisse: number; // collected amount
   en_retard: number; // overdue amount
@@ -202,20 +203,24 @@ export async function getProductionData(): Promise<ProductionRow[]> {
   // 1. Compute real production month-by-month from contrats
   // ---------------------------------------------------------------------------
   const productionByMonth = new Map<string, number>();
+  const productionSoluviaByMonth = new Map<string, number>();
 
   for (const c of contrats ?? []) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
     if (!c.montant_prise_en_charge || c.montant_prise_en_charge <= 0) continue;
 
-    // projet is returned as a single object (many-to-one relation)
     const projet = c.projet as { taux_commission: number } | null;
     if (!projet) continue;
+
+    const tauxCommission = (projet.taux_commission ?? 10) / 100;
 
     // Monthly production at OPCO level = full montant / duration
     const monthlyProduction =
       Math.round((c.montant_prise_en_charge / c.duree_mois) * 100) / 100;
+    // SOLUVIA = OPCO × taux_commission (per contrat, per projet)
+    const monthlySoluvia =
+      Math.round(monthlyProduction * tauxCommission * 100) / 100;
 
-    // Determine the months this contrat is active
     const start = startOfMonth(new Date(c.date_debut + 'T00:00:00'));
     for (let i = 0; i < c.duree_mois; i++) {
       const m = addMonths(start, i);
@@ -223,6 +228,10 @@ export async function getProductionData(): Promise<ProductionRow[]> {
       productionByMonth.set(
         key,
         (productionByMonth.get(key) ?? 0) + monthlyProduction,
+      );
+      productionSoluviaByMonth.set(
+        key,
+        (productionSoluviaByMonth.get(key) ?? 0) + monthlySoluvia,
       );
     }
   }
@@ -271,7 +280,18 @@ export async function getProductionData(): Promise<ProductionRow[]> {
     const d = new Date(mois + 'T00:00:00');
     const label = capitalize(format(d, 'MMM yyyy', { locale: fr }));
 
-    return { mois, label, production, facture, encaisse, en_retard };
+    const productionSoluvia =
+      Math.round((productionSoluviaByMonth.get(key) ?? 0) * 100) / 100;
+
+    return {
+      mois,
+      label,
+      production,
+      productionSoluvia,
+      facture,
+      encaisse,
+      en_retard,
+    };
   });
 }
 

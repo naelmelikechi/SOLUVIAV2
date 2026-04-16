@@ -1,7 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { timingSafeEqual } from 'crypto';
 import { createClient } from '@/lib/supabase/server';
+import { env } from '@/lib/env';
 import { logAudit } from '@/lib/utils/audit';
 import {
   dailySeed,
@@ -201,4 +203,59 @@ export async function freezeCurrentAvatar(): Promise<AvatarActionResult> {
 
   revalidatePath('/parametres-compte');
   return { success: true, mode: 'frozen', seed: seedToFreeze };
+}
+
+/**
+ * Easter-egg: try to unlock a frozen avatar by entering a secret string.
+ * The secret is stored in env.AVATAR_UNLOCK_SECRET and is never exposed to
+ * the client. Compared with a timing-safe equal so the check doesn't leak
+ * information through response time.
+ *
+ * There is no hint. There is no recovery. It is impossible to guess.
+ */
+export async function attemptUnlockFrozenAvatar(
+  attempt: string,
+): Promise<AvatarActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) return { success: false, error: 'Non authentifié' };
+
+  const expected = env.AVATAR_UNLOCK_SECRET;
+  if (!expected) {
+    // Intentionally vague — same message whether secret is misconfigured or wrong.
+    return {
+      success: false,
+      error: 'Ce n\u2019est pas ça. Continue à chercher.',
+    };
+  }
+
+  const a = Buffer.from(attempt);
+  const b = Buffer.from(expected);
+  const matches = a.length === b.length && timingSafeEqual(a, b);
+
+  logAudit('avatar_unlock_attempted', 'user', undefined, {
+    success: matches,
+    attempt_length: attempt.length,
+  });
+
+  if (!matches) {
+    return {
+      success: false,
+      error: 'Ce n\u2019est pas ça. Continue à chercher.',
+    };
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update({ avatar_mode: 'daily', avatar_seed: null })
+    .eq('id', authUser.id);
+
+  if (error) return { success: false, error: error.message };
+
+  logAudit('avatar_unlocked', 'user');
+
+  revalidatePath('/parametres-compte');
+  return { success: true, mode: 'daily', seed: null };
 }

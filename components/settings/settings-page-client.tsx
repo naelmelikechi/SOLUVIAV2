@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type TransitionStartFunction } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   User,
@@ -9,8 +9,8 @@ import {
   Bot,
   Dices,
   LockKeyhole,
-  RotateCcw,
   CalendarDays,
+  KeyRound,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ import {
   setAvatarDaily,
   rollRandomAvatar,
   freezeCurrentAvatar,
+  attemptUnlockFrozenAvatar,
 } from '@/lib/actions/settings';
 import { isAdmin as checkIsAdmin } from '@/lib/utils/roles';
 import {
@@ -181,37 +182,14 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
             </div>
 
             {effectiveMode === 'frozen' ? (
-              <>
-                <p className="text-center text-sm font-medium text-green-700 dark:text-green-400">
-                  🔒 Cet avatar est figé à vie.
-                </p>
-                <p className="text-muted-foreground max-w-sm text-center text-xs italic">
-                  Fidèle, dévoué, et légèrement métallique. Pour en changer, il
-                  faut d&apos;abord le déverrouiller.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={avatarPending}
-                  onClick={() =>
-                    startAvatarTransition(async () => {
-                      const result = await setAvatarDaily();
-                      if (result.success) {
-                        setAvatarMode('daily');
-                        setAvatarSeed(null);
-                        toast.success(
-                          'Avatar déverrouillé. Retour au mode quotidien.',
-                        );
-                      } else {
-                        toast.error(result.error ?? 'Erreur');
-                      }
-                    })
-                  }
-                >
-                  <RotateCcw className="mr-1.5 h-4 w-4" />
-                  Déverrouiller
-                </Button>
-              </>
+              <FrozenAvatarPanel
+                pending={avatarPending}
+                onUnlocked={() => {
+                  setAvatarMode('daily');
+                  setAvatarSeed(null);
+                }}
+                startTransition={startAvatarTransition}
+              />
             ) : (
               <>
                 <p className="text-muted-foreground text-center text-xs italic">
@@ -525,5 +503,98 @@ function AvatarModeRow({
         <span className="text-primary text-xs font-medium">{actionLabel}</span>
       )}
     </button>
+  );
+}
+
+// Random snarky messages shown on a failed unlock attempt. They rotate so
+// users don't just see the same sentence every time, which would make the
+// joke go stale very fast.
+const FAILED_UNLOCK_MESSAGES = [
+  "Ce n'est pas ça. L'indice est bien caché.",
+  'Non. Très loin, même.',
+  'Raté. Essaie encore, ou pas.',
+  'Presque. En fait non, pas du tout.',
+  'Tu chauffes. (Mensonge.)',
+  'Hmm. Ton robot te juge un peu, là.',
+  'Toujours pas. Un conseil : ne perds pas ta journée.',
+] as const;
+
+function FrozenAvatarPanel({
+  pending,
+  onUnlocked,
+  startTransition,
+}: {
+  pending: boolean;
+  onUnlocked: () => void;
+  startTransition: TransitionStartFunction;
+}) {
+  const [attempt, setAttempt] = useState('');
+  const [failCount, setFailCount] = useState(0);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!attempt.trim()) return;
+    startTransition(async () => {
+      const result = await attemptUnlockFrozenAvatar(attempt);
+      if (result.success) {
+        toast.success("Impossible. Et pourtant, vous l'avez trouvé.");
+        setAttempt('');
+        onUnlocked();
+      } else {
+        setFailCount((n) => n + 1);
+        setAttempt('');
+        const msg =
+          FAILED_UNLOCK_MESSAGES[
+            Math.floor(Math.random() * FAILED_UNLOCK_MESSAGES.length)
+          ] ?? FAILED_UNLOCK_MESSAGES[0];
+        toast.error(msg);
+      }
+    });
+  };
+
+  return (
+    <>
+      <p className="text-center text-sm font-medium text-green-700 dark:text-green-400">
+        🔒 Cet avatar est figé à vie.
+      </p>
+      <p className="text-muted-foreground max-w-sm text-center text-xs italic">
+        Fidèle, dévoué, et légèrement métallique. Pour en changer, il faut
+        saisir la clé secrète. Un indice est caché quelque part dans
+        l&apos;application.
+      </p>
+
+      <form
+        onSubmit={handleSubmit}
+        className="flex w-full max-w-sm flex-col gap-2"
+      >
+        <Label htmlFor="unlock-secret" className="sr-only">
+          Clé de déverrouillage
+        </Label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <KeyRound className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
+            <Input
+              id="unlock-secret"
+              value={attempt}
+              onChange={(e) => setAttempt(e.target.value)}
+              placeholder="Saisir la clé secrète"
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={40}
+              className="pl-8 font-mono tracking-wider"
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={pending || !attempt.trim()}>
+            Tenter
+          </Button>
+        </div>
+        {failCount > 0 && (
+          <p className="text-muted-foreground text-center text-[11px] italic">
+            {failCount} tentative{failCount > 1 ? 's' : ''} ratée
+            {failCount > 1 ? 's' : ''}. Le robot se marre doucement.
+          </p>
+        )}
+      </form>
+    </>
   );
 }

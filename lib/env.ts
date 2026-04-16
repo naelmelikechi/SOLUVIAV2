@@ -48,6 +48,11 @@ const serverSchema = z.object({
   // Giphy - team chat GIF search, optional (GIF search disabled if missing)
   GIPHY_API_KEY: z.string().min(1, 'GIPHY_API_KEY is required').optional(),
 
+  // Avatar freeze unlock secret - easter egg. When avatar is frozen, users
+  // must type this 20-char string to go back to daily/random mode. No hint
+  // exists; impossible to guess by design. If unset, frozen is truly permanent.
+  AVATAR_UNLOCK_SECRET: z.string().min(1).optional(),
+
   // Runtime
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -78,6 +83,7 @@ function parseEnv(): Env {
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY?.trim(),
     RESEND_API_KEY: process.env.RESEND_API_KEY?.trim(),
     GIPHY_API_KEY: process.env.GIPHY_API_KEY?.trim(),
+    AVATAR_UNLOCK_SECRET: process.env.AVATAR_UNLOCK_SECRET?.trim(),
     NODE_ENV: process.env.NODE_ENV?.trim(),
   };
 

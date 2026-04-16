@@ -35,7 +35,7 @@ export async function updateUserRole(
     .eq('id', authUser.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
+    return { success: false, error: 'Accès refusé — réservé aux admins' };
   }
 
   // Fetch target user's current role
@@ -99,7 +99,7 @@ export async function updateUserProfile(
     .eq('id', authUser.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
+    return { success: false, error: 'Accès refusé — réservé aux admins' };
   }
 
   const { error } = await supabase
@@ -143,7 +143,7 @@ export async function toggleUserActive(
     .eq('id', authUser.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
+    return { success: false, error: 'Accès refusé — réservé aux admins' };
   }
 
   // Admin cannot deactivate another admin or superadmin
@@ -290,7 +290,7 @@ export async function inviteUser(
     .eq('id', authUser.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
+    return { success: false, error: 'Accès refusé — réservé aux admins' };
   }
 
   // Only superadmin can invite admins

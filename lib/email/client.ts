@@ -20,13 +20,13 @@ export async function sendFactureEmail(params: {
   pdfBuffer: Buffer;
 }): Promise<{ success: boolean; error?: string }> {
   if (!resend) {
-    logger.warn('email', 'RESEND_API_KEY non configuré - email non envoyé');
+    logger.warn('email', 'RESEND_API_KEY non configuré — email non envoyé');
     return { success: false, error: 'Service email non configuré' };
   }
 
   const subject = params.isAvoir
-    ? `Avoir ${params.factureRef} - SOLUVIA`
-    : `Facture ${params.factureRef} - SOLUVIA`;
+    ? `Avoir ${params.factureRef} — SOLUVIA`
+    : `Facture ${params.factureRef} — SOLUVIA`;
 
   try {
     await resend.emails.send({
@@ -223,7 +223,7 @@ export async function sendRelanceEmail(
     </div>
     <div style="background:#fef3c7;padding:16px 32px;border-top:1px solid #fde68a;">
       <p style="margin:0;color:#92400e;font-size:11px;text-align:center;">
-        SOLUVIA · Ce message est un rappel automatique · En cas de question, contactez-nous à contact@mysoluvia.com
+        SOLUVIA · Ce message est un rappel automatique · En cas de question, contactez-nous à contact@mysoluvia.com.
       </p>
     </div>
   </div>
@@ -234,7 +234,7 @@ export async function sendRelanceEmail(
     await resend.emails.send({
       from: 'SOLUVIA Facturation <contact@mysoluvia.com>',
       to: contactEmail,
-      subject: `Rappel - Facture ${facture.ref} en attente de paiement`,
+      subject: `Rappel — Facture ${facture.ref} en attente de paiement`,
       html,
     });
     return { success: true };
@@ -265,7 +265,7 @@ export async function sendInvitationEmail(params: {
   if (!resend) {
     logger.warn(
       'email',
-      'RESEND_API_KEY non configuré - invitation email non envoyé',
+      'RESEND_API_KEY non configuré — invitation email non envoyée',
     );
     return { success: false, error: 'Service email non configuré' };
   }
@@ -337,7 +337,7 @@ function buildInvitationEmailHtml(params: {
 
     <div style="background:#f0f5f0;padding:16px 32px;border-top:1px solid #d4e4d4;">
       <p style="margin:0;color:#6b8a6b;font-size:11px;text-align:center;">
-        SOLUVIA - Plateforme de pilotage pour organismes de formation
+        SOLUVIA — Plateforme de pilotage pour organismes de formation
       </p>
     </div>
   </div>

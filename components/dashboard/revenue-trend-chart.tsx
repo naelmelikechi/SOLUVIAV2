@@ -31,7 +31,7 @@ export function RevenueTrendChart({ data }: { data: MonthlyTrendRow[] }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">
-            Tendance financiere
+            Tendance financière
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -49,7 +49,7 @@ export function RevenueTrendChart({ data }: { data: MonthlyTrendRow[] }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm font-medium">
-          Tendance financiere (6 mois)
+          Tendance financière (6 mois)
         </CardTitle>
       </CardHeader>
       <CardContent>

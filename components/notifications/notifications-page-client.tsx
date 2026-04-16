@@ -51,7 +51,7 @@ function timeAgo(dateStr: string): string {
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
 
-  if (diffMin < 1) return "A l'instant";
+  if (diffMin < 1) return "À l'instant";
   if (diffMin < 60) return `Il y a ${diffMin} min`;
 
   const diffH = Math.floor(diffMin / 60);
@@ -127,7 +127,7 @@ export function NotificationsPageClient({
           Aucune notification
         </p>
         <p className="text-muted-foreground mt-1 text-sm">
-          Vous serez notifie lorsque quelque chose requiert votre attention.
+          Vous serez notifié lorsque quelque chose requiert votre attention.
         </p>
       </div>
     );

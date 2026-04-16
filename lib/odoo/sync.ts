@@ -67,7 +67,7 @@ async function pushFactures(
     logger.error(SCOPE, 'Failed to fetch factures for push', {
       error: fetchErr,
     });
-    errors.push('Impossible de charger les factures a pousser');
+    errors.push('Impossible de charger les factures à pousser');
     return 0;
   }
 
@@ -174,7 +174,7 @@ async function pushAvoirs(
     logger.error(SCOPE, 'Failed to fetch avoirs for push', {
       error: fetchErr,
     });
-    errors.push('Impossible de charger les avoirs a pousser');
+    errors.push('Impossible de charger les avoirs à pousser');
     return 0;
   }
 

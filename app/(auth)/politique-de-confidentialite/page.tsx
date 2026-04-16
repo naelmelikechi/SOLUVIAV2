@@ -164,7 +164,7 @@ export default function PolitiqueDeConfidentialitePage() {
         <section>
           <h2 className="mb-2 text-base font-semibold">Sécurité des données</h2>
           <p>
-            SOLUVIA met en oeuvre des mesures techniques et organisationnelles
+            SOLUVIA met en œuvre des mesures techniques et organisationnelles
             appropriées pour protéger les données personnelles : chiffrement en
             transit (TLS) et au repos, contrôle d&apos;accès par rôles (RLS),
             authentification sécurisée, journalisation des accès.

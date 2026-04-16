@@ -46,7 +46,7 @@ export function InvoiceStatusChart({ data }: { data: InvoiceStatusBreakdown }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm font-medium">
-          Repartition factures
+          Répartition factures
         </CardTitle>
       </CardHeader>
       <CardContent>

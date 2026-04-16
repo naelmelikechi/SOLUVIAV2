@@ -20,7 +20,7 @@ export async function triggerOdooSync(): Promise<{
     // Only admins can trigger manual sync
     const user = await getCurrentUser();
     if (!user || !isAdmin(user.role)) {
-      return { success: false, error: 'Non autorise' };
+      return { success: false, error: 'Non autorisé' };
     }
 
     const supabase = createAdminClient();

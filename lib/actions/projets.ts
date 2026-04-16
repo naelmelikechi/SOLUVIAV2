@@ -39,14 +39,14 @@ export async function createProjet(data: {
     .eq('id', user.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Acces reserve aux administrateurs' };
+    return { success: false, error: 'Accès réservé aux administrateurs' };
   }
 
   // Validate CDP != backup CDP
   if (data.backupCdpId && data.backupCdpId === data.cdpId) {
     return {
       success: false,
-      error: 'Le CDP titulaire et le CDP backup doivent etre differents',
+      error: 'Le CDP titulaire et le CDP backup doivent être différents',
     };
   }
 
@@ -67,7 +67,7 @@ export async function createProjet(data: {
     logger.error('actions.projets', 'createProjet failed', { error });
     return {
       success: false,
-      error: error.message || 'Erreur lors de la creation du projet',
+      error: error.message || 'Erreur lors de la création du projet',
     };
   }
 
@@ -96,7 +96,7 @@ export async function duplicateProjet(
     .eq('id', user.id)
     .single();
   if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Acces reserve aux administrateurs' };
+    return { success: false, error: 'Accès réservé aux administrateurs' };
   }
 
   // Fetch the original projet

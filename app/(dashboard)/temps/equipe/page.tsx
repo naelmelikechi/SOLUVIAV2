@@ -7,7 +7,7 @@ import { isAdmin } from '@/lib/utils/roles';
 import { getWeekDates, getTeamWeekSummary } from '@/lib/queries/temps';
 import { TeamRecapClient } from '@/components/temps/team-recap-client';
 
-export const metadata: Metadata = { title: 'Temps Equipe - SOLUVIA' };
+export const metadata: Metadata = { title: 'Temps Équipe - SOLUVIA' };
 
 export default async function TempsEquipePage() {
   const user = await getCurrentUser();

@@ -7,7 +7,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'SOLUVIA',
   description:
-    'Plateforme de pilotage strategique pour organismes de formation',
+    'Plateforme de pilotage stratégique pour organismes de formation',
 };
 
 export default function RootLayout({

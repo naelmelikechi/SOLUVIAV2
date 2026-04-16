@@ -45,6 +45,9 @@ const serverSchema = z.object({
   // Resend - email sending, optional (emails skipped if missing)
   RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required').optional(),
 
+  // Giphy - team chat GIF search, optional (GIF search disabled if missing)
+  GIPHY_API_KEY: z.string().min(1, 'GIPHY_API_KEY is required').optional(),
+
   // Runtime
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -74,6 +77,7 @@ function parseEnv(): Env {
     CRON_SECRET: process.env.CRON_SECRET?.trim(),
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY?.trim(),
     RESEND_API_KEY: process.env.RESEND_API_KEY?.trim(),
+    GIPHY_API_KEY: process.env.GIPHY_API_KEY?.trim(),
     NODE_ENV: process.env.NODE_ENV?.trim(),
   };
 

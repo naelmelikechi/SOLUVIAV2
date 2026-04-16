@@ -17,6 +17,7 @@ import {
 export async function updateProfile(
   prenom: string,
   nom: string,
+  telephone: string | null,
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
 
@@ -25,16 +26,24 @@ export async function updateProfile(
   } = await supabase.auth.getUser();
   if (!authUser) return { success: false, error: 'Non authentifié' };
 
+  // Normalize: empty string → null (DB column is nullable).
+  const tel = telephone?.trim() ? telephone.trim() : null;
+
   const { error } = await supabase
     .from('users')
-    .update({ prenom, nom })
+    .update({ prenom, nom, telephone: tel })
     .eq('id', authUser.id);
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('profile_updated', 'user', undefined, { prenom, nom });
+  logAudit('profile_updated', 'user', undefined, {
+    prenom,
+    nom,
+    telephone: tel,
+  });
 
   revalidatePath('/parametres-compte');
+  revalidatePath('/equipe');
   return { success: true };
 }
 

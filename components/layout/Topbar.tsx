@@ -19,6 +19,7 @@ const routeLabels: Record<string, string> = {
   parametres: 'Paramètres',
   'parametres-compte': 'Mon compte',
   notifications: 'Notifications',
+  equipe: 'Équipe',
 };
 
 export function Topbar({

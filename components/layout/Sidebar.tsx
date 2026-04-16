@@ -13,6 +13,7 @@ import {
   FileText,
   BarChart3,
   Users,
+  UsersRound,
   Building2,
   Settings,
   ChevronLeft,
@@ -35,6 +36,7 @@ const mainNavItems = [
   { href: '/production', label: 'Production', icon: TrendingUp },
   { href: '/facturation', label: 'Facturation', icon: FileText },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+  { href: '/equipe', label: 'Équipe', icon: UsersRound },
 ];
 
 const adminNavItems = [

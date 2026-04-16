@@ -47,6 +47,7 @@ interface SettingsPageClientProps {
     nom: string;
     prenom: string;
     role: string;
+    telephone: string | null;
     avatar_mode: AvatarMode | null;
     avatar_seed: string | null;
     avatar_regen_date: string | null;
@@ -59,6 +60,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
   // Profile state
   const [prenom, setPrenom] = useState(user.prenom);
   const [nom, setNom] = useState(user.nom);
+  const [telephone, setTelephone] = useState(user.telephone ?? '');
   const [profileLoading, setProfileLoading] = useState(false);
 
   // Password state
@@ -93,7 +95,11 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
       return;
     }
     setProfileLoading(true);
-    const result = await updateProfile(prenom.trim(), nom.trim());
+    const result = await updateProfile(
+      prenom.trim(),
+      nom.trim(),
+      telephone.trim() || null,
+    );
     setProfileLoading(false);
     if (result.success) {
       toast.success('Profil mis à jour');
@@ -342,6 +348,21 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
                   required
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="telephone">Téléphone</Label>
+              <Input
+                id="telephone"
+                type="tel"
+                value={telephone}
+                onChange={(e) => setTelephone(e.target.value)}
+                placeholder="06 12 34 56 78"
+                autoComplete="tel"
+              />
+              <p className="text-muted-foreground text-xs">
+                Visible par vos collègues sur la page Équipe.
+              </p>
             </div>
 
             <div className="space-y-1.5">

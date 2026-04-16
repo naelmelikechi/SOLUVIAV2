@@ -1167,6 +1167,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      team_messages: {
+        Row: {
+          id: string;
+          user_id: string;
+          contenu: string | null;
+          gif_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          contenu?: string | null;
+          gif_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          contenu?: string | null;
+          gif_url?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'team_messages_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       users: {
         Row: {
           actif: boolean;
@@ -1180,6 +1212,7 @@ export type Database = {
           nom: string;
           prenom: string;
           role: Database['public']['Enums']['role_utilisateur'];
+          telephone: string | null;
           updated_at: string;
         };
         Insert: {
@@ -1194,6 +1227,7 @@ export type Database = {
           nom: string;
           prenom: string;
           role?: Database['public']['Enums']['role_utilisateur'];
+          telephone?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -1208,6 +1242,7 @@ export type Database = {
           nom?: string;
           prenom?: string;
           role?: Database['public']['Enums']['role_utilisateur'];
+          telephone?: string | null;
           updated_at?: string;
         };
         Relationships: [];

@@ -50,6 +50,12 @@ export type AppErrorCode =
   | 'DASHBOARD_FETCH_FAILED'
   // Notifications
   | 'NOTIFICATIONS_FETCH_FAILED'
+  // Équipe
+  | 'EQUIPE_FETCH_FAILED'
+  // Team chat
+  | 'TEAM_CHAT_FETCH_FAILED'
+  | 'TEAM_CHAT_SEND_FAILED'
+  | 'TEAM_CHAT_DELETE_FAILED'
   // Eduvia Sync
   | 'EDUVIA_SYNC_FAILED';
 

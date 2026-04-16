@@ -70,6 +70,12 @@ const items: CommandPaletteItem[] = [
   },
   { label: 'Temps', href: '/temps', section: 'Pages', icon: Clock },
   {
+    label: 'Équipe',
+    href: '/equipe',
+    section: 'Pages',
+    icon: Users,
+  },
+  {
     label: 'Notifications',
     href: '/notifications',
     section: 'Pages',

@@ -25,32 +25,54 @@ export interface EquipeMember {
 /**
  * List all active users with the active non-absence projets they are assigned
  * to (as principal CDP or backup CDP). Results are sorted by prenom nom.
- * No role info is exposed — this feed powers the flat Équipe page.
+ * No role info is exposed - this feed powers the flat Équipe page.
  */
 export async function getEquipeWithProjets(): Promise<EquipeMember[]> {
   const supabase = await createClient();
 
-  const [usersResult, projetsResult] = await Promise.all([
-    supabase
-      .from('users')
-      .select(
-        'id, email, nom, prenom, telephone, avatar_mode, avatar_seed, avatar_regen_date',
-      )
-      .eq('actif', true)
-      .order('prenom', { ascending: true })
-      .order('nom', { ascending: true }),
-    supabase
-      .from('projets')
-      .select(
-        `
+  // Full select - requires migrations 00041 (avatar_mode) + 00042 (telephone).
+  // Fall back to legacy schema if those columns are missing.
+  const fullUsers = await supabase
+    .from('users')
+    .select(
+      'id, email, nom, prenom, telephone, avatar_mode, avatar_seed, avatar_regen_date',
+    )
+    .eq('actif', true)
+    .order('prenom', { ascending: true })
+    .order('nom', { ascending: true });
+
+  const usersResult = fullUsers.error
+    ? await supabase
+        .from('users')
+        .select('id, email, nom, prenom, avatar_seed, avatar_regen_date')
+        .eq('actif', true)
+        .order('prenom', { ascending: true })
+        .order('nom', { ascending: true })
+        .then((res) =>
+          res.data
+            ? {
+                ...res,
+                data: res.data.map((u) => ({
+                  ...u,
+                  telephone: null as string | null,
+                  avatar_mode: null as string | null,
+                })),
+              }
+            : res,
+        )
+    : fullUsers;
+
+  const projetsResult = await supabase
+    .from('projets')
+    .select(
+      `
         id, ref, cdp_id, backup_cdp_id,
         client:clients!projets_client_id_fkey(raison_sociale)
       `,
-      )
-      .eq('archive', false)
-      .eq('est_absence', false)
-      .in('statut', ['actif', 'en_pause']),
-  ]);
+    )
+    .eq('archive', false)
+    .eq('est_absence', false)
+    .in('statut', ['actif', 'en_pause']);
 
   if (usersResult.error) {
     logger.error('queries.equipe', 'getEquipeWithProjets users failed', {

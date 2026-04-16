@@ -1,4 +1,4 @@
--- Chat d'équipe éphémère — messages auto-supprimés au bout de 48h.
+-- Chat d'équipe éphémère - messages auto-supprimés au bout de 48h.
 -- - TTL géré par un cron (voir app/api/cron/chat-cleanup)
 -- - Giphy URLs stockées telles quelles (gif_url). Pas d'upload, pas d'images/vidéos.
 -- - Chaque utilisateur peut supprimer ses propres messages (annulation d'envoi).

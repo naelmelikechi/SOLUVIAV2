@@ -119,7 +119,7 @@ export function GiphyPicker({ onPick }: GiphyPickerProps) {
           </div>
 
           <p className="text-muted-foreground mt-1 px-1 text-[10px]">
-            Powered by GIPHY — contenu filtré (rating G)
+            Powered by GIPHY - contenu filtré (rating G)
           </p>
         </div>
       )}

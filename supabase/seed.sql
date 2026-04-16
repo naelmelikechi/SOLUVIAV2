@@ -123,7 +123,7 @@ INSERT INTO projets (id, client_id, typologie_id, cdp_id, statut, date_debut, ta
    'en_pause', '2025-01-20', 9.00);
 
 -- ----------------------------------------------------------
--- Contrats (2-3 par projet, 15 total) — ref auto-generated
+-- Contrats (2-3 par projet, 15 total) - ref auto-generated
 -- ----------------------------------------------------------
 INSERT INTO contrats (id, eduvia_id, projet_id, apprenant_nom, apprenant_prenom, formation_titre, date_debut, date_fin, contract_state, montant_prise_en_charge, duree_mois) VALUES
   -- Projet 1 (Heol-APP): 3 contrats
@@ -196,7 +196,7 @@ INSERT INTO taches_qualite (id, projet_id, famille_code, famille_libelle, indica
   ('00100000-0000-0000-0000-000000000021', 'b1000000-0000-0000-0000-000000000006', 'HQ', 'Hors Qualiopi', 'Suivi entreprise', 'CR visite entreprise', false, '2025-04-30');
 
 -- ----------------------------------------------------------
--- Saisies temps (current month — avril 2026)
+-- Saisies temps (current month - avril 2026)
 -- ----------------------------------------------------------
 INSERT INTO saisies_temps (id, user_id, projet_id, date, heures) VALUES
   -- Semaine du 6 avril 2026
@@ -224,7 +224,7 @@ INSERT INTO echeances (id, projet_id, mois_concerne, date_emission_prevue, monta
   ('ec100000-0000-0000-0000-000000000006', 'b1000000-0000-0000-0000-000000000005', '2025-06-01', '2025-07-01', 308.33, false);
 
 -- ----------------------------------------------------------
--- Factures (2 factures: 1 emise, 1 payee) — ref auto-generated
+-- Factures (2 factures: 1 emise, 1 payee) - ref auto-generated
 -- ----------------------------------------------------------
 INSERT INTO factures (id, projet_id, client_id, date_emission, date_echeance, mois_concerne, montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir, created_by) VALUES
   -- Facture 1: Projet 1, janvier 2025 (payee)
@@ -263,28 +263,28 @@ UPDATE echeances SET facture_id = 'fa100000-0000-0000-0000-000000000003' WHERE i
 INSERT INTO facture_lignes (id, facture_id, contrat_id, description, montant_ht) VALUES
   -- Facture 1 lignes
   ('f1100000-0000-0000-0000-000000000001', 'fa100000-0000-0000-0000-000000000001', 'c0100000-0000-0000-0000-000000000001',
-   'Commission 10% — Developpeur Web Full Stack — Yann Kerlouegan — janvier 2025', 100.00),
+   'Commission 10% - Developpeur Web Full Stack - Yann Kerlouegan - janvier 2025', 100.00),
   ('f1100000-0000-0000-0000-000000000002', 'fa100000-0000-0000-0000-000000000001', 'c0100000-0000-0000-0000-000000000002',
-   'Commission 10% — Developpeur Web Full Stack — Anna Le Bihan — janvier 2025', 95.83),
+   'Commission 10% - Developpeur Web Full Stack - Anna Le Bihan - janvier 2025', 95.83),
   ('f1100000-0000-0000-0000-000000000003', 'fa100000-0000-0000-0000-000000000001', 'c0100000-0000-0000-0000-000000000003',
-   'Commission 10% — Admin Systemes et Reseaux — Elodie Morvan — janvier 2025', 125.00),
+   'Commission 10% - Admin Systemes et Reseaux - Elodie Morvan - janvier 2025', 125.00),
   -- Facture 2 lignes
   ('f1100000-0000-0000-0000-000000000004', 'fa100000-0000-0000-0000-000000000002', 'c0100000-0000-0000-0000-000000000001',
-   'Commission 10% — Developpeur Web Full Stack — Yann Kerlouegan — fevrier 2025', 100.00),
+   'Commission 10% - Developpeur Web Full Stack - Yann Kerlouegan - fevrier 2025', 100.00),
   ('f1100000-0000-0000-0000-000000000005', 'fa100000-0000-0000-0000-000000000002', 'c0100000-0000-0000-0000-000000000002',
-   'Commission 10% — Developpeur Web Full Stack — Anna Le Bihan — fevrier 2025', 95.83),
+   'Commission 10% - Developpeur Web Full Stack - Anna Le Bihan - fevrier 2025', 95.83),
   ('f1100000-0000-0000-0000-000000000006', 'fa100000-0000-0000-0000-000000000002', 'c0100000-0000-0000-0000-000000000003',
-   'Commission 10% — Admin Systemes et Reseaux — Elodie Morvan — fevrier 2025', 125.00),
+   'Commission 10% - Admin Systemes et Reseaux - Elodie Morvan - fevrier 2025', 125.00),
   -- Facture 3 lignes
   ('f1100000-0000-0000-0000-000000000007', 'fa100000-0000-0000-0000-000000000003', 'c0100000-0000-0000-0000-000000000006',
-   'Commission 10% — Comptabilite Gestion — Lucas Martin — fevrier 2025', 58.33),
+   'Commission 10% - Comptabilite Gestion - Lucas Martin - fevrier 2025', 58.33),
   ('f1100000-0000-0000-0000-000000000008', 'fa100000-0000-0000-0000-000000000003', 'c0100000-0000-0000-0000-000000000007',
-   'Commission 10% — Comptabilite Gestion — Emma Petit — fevrier 2025', 58.33),
+   'Commission 10% - Comptabilite Gestion - Emma Petit - fevrier 2025', 58.33),
   ('f1100000-0000-0000-0000-000000000009', 'fa100000-0000-0000-0000-000000000003', 'c0100000-0000-0000-0000-000000000008',
-   'Commission 10% — Ressources Humaines — Hugo Durand — fevrier 2025', 143.75);
+   'Commission 10% - Ressources Humaines - Hugo Durand - fevrier 2025', 143.75);
 
 -- ----------------------------------------------------------
--- Paiement (sur facture 1 — payee)
+-- Paiement (sur facture 1 - payee)
 -- ----------------------------------------------------------
 INSERT INTO paiements (id, facture_id, montant, date_reception, saisie_manuelle) VALUES
   ('0a100000-0000-0000-0000-000000000001', 'fa100000-0000-0000-0000-000000000001', 385.00, '2025-02-25', false);

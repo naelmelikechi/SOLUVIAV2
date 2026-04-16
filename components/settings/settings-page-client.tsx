@@ -68,7 +68,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
 
-  // Avatar state — miroir fidèle de la DB, mis à jour uniquement par les retours
+  // Avatar state - miroir fidèle de la DB, mis à jour uniquement par les retours
   // des server actions (fini les reconstructions de seed côté client).
   const [avatarMode, setAvatarMode] = useState<AvatarMode>(
     user.avatar_mode ?? (user.avatar_seed ? 'frozen' : 'daily'),
@@ -188,7 +188,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
                   : '🎰 Nouveau robot chaque matin. Comme une boîte de chocolats, mais crunchy.'}
             </p>
 
-            {/* Sélecteur de mode — radio-like, toujours visible */}
+            {/* Sélecteur de mode - radio-like, toujours visible */}
             <div
               role="radiogroup"
               aria-label="Mode d'avatar"
@@ -219,7 +219,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
                 sub={
                   canRoll
                     ? 'Tirez votre robot de la journée (1/jour)'
-                    : "Déjà tiré aujourd'hui — revenez demain"
+                    : "Déjà tiré aujourd'hui - revenez demain"
                 }
                 active={effectiveMode === 'random'}
                 disabled={avatarPending || !canRoll}
@@ -254,7 +254,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
                 label="Figer le robot actuel"
                 sub={
                   effectiveMode === 'frozen'
-                    ? 'Permanent — votre compagnon ne change plus'
+                    ? 'Permanent - votre compagnon ne change plus'
                     : 'Garder pour toujours celui affiché ci-dessus'
                 }
                 active={effectiveMode === 'frozen'}

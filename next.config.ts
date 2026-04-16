@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // Reduce function invocations — cache dynamic pages for 60s
+  // Reduce function invocations - cache dynamic pages for 60s
   experimental: {
     staleTimes: {
       dynamic: 60,

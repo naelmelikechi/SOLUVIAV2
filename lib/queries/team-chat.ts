@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server';
-import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import type { AvatarMode } from '@/lib/utils/avatar';
 
@@ -42,14 +41,16 @@ export async function getRecentTeamMessages(): Promise<TeamMessage[]> {
     .order('created_at', { ascending: true });
 
   if (error) {
-    logger.error('queries.team_chat', 'getRecentTeamMessages failed', {
-      error,
-    });
-    throw new AppError(
-      'TEAM_CHAT_FETCH_FAILED',
-      'Impossible de charger le chat',
-      { cause: error },
+    // Table team_messages likely missing (migration 00043 not applied yet) -
+    // fail soft so /equipe still renders with an empty chat panel.
+    logger.warn(
+      'queries.team_chat',
+      'getRecentTeamMessages failed, returning empty',
+      {
+        error,
+      },
     );
+    return [];
   }
 
   return (data ?? []).map((row) => {

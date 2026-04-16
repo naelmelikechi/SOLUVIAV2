@@ -142,7 +142,7 @@ export function TeamChat({ initialMessages, currentUserId }: TeamChatProps) {
       toast.error(res.error ?? 'Erreur de suppression');
       return;
     }
-    // Optimistic remove — realtime will confirm across other tabs.
+    // Optimistic remove - realtime will confirm across other tabs.
     setMessages((prev) => prev.filter((m) => m.id !== id));
   }, []);
 

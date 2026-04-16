@@ -30,7 +30,7 @@ export function TimeGrid({
   joursFeries = {},
   absences = {},
 }: TimeGridProps) {
-  // Filter out absence rows — they are now managed by the AbsenceBanner
+  // Filter out absence rows - they are now managed by the AbsenceBanner
   const saisies = initialSaisies.filter((s) => !s.est_absence);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
     'idle',
@@ -50,7 +50,7 @@ export function TimeGrid({
     };
   }, []);
 
-  // Calculate daily totals (project hours only — absences tracked separately)
+  // Calculate daily totals (project hours only - absences tracked separately)
   const dailyTotals = weekDates.map((date) =>
     saisies.reduce((sum, s) => sum + (s.heures[date] || 0), 0),
   );

@@ -24,7 +24,7 @@ export interface FilterOption {
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
   /**
-   * Legacy prop — kept only as a flag to show/hide the search input.
+   * Legacy prop - kept only as a flag to show/hide the search input.
    * The actual search is now global across all visible columns.
    */
   searchKey?: string;

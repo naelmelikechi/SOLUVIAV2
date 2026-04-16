@@ -78,7 +78,7 @@ export async function updatePassword(
 }
 
 // ---------------------------------------------------------------------------
-// Avatar actions — modèle à 3 états (daily / random / frozen)
+// Avatar actions - modèle à 3 états (daily / random / frozen)
 //
 // État DB            avatar_mode  avatar_seed        avatar_regen_date
 // ─────────────────  ───────────  ─────────────────  ─────────────────

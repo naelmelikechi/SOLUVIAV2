@@ -183,7 +183,7 @@ export async function createFactures(
     return {
       success: false,
       refs: [],
-      error: 'Aucune facture créée — vérifiez les contrats actifs',
+      error: 'Aucune facture créée - vérifiez les contrats actifs',
     };
   }
 

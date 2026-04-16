@@ -4,7 +4,7 @@ import { updateSession } from '@/lib/supabase/middleware';
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip static assets and API routes — saves function invocations
+  // Skip static assets and API routes - saves function invocations
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||

@@ -428,7 +428,7 @@ export function TempsPageClient({
             </button>
           </div>
 
-          {/* Add project dialog — absence projects excluded (managed by banner) */}
+          {/* Add project dialog - absence projects excluded (managed by banner) */}
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>

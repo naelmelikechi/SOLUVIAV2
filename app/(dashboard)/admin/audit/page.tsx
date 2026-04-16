@@ -93,7 +93,9 @@ export default async function AuditPage() {
 
   const supabase = await createClient();
 
-  const { data: logs } = await supabase
+  // Full select - requires migration 00041 (avatar_mode). Fall back to legacy
+  // schema without avatar_mode if the column doesn't exist yet on prod.
+  const full = await supabase
     .from('audit_logs')
     .select(
       `
@@ -103,6 +105,21 @@ export default async function AuditPage() {
     )
     .order('created_at', { ascending: false })
     .limit(100);
+
+  const logs = full.error
+    ? ((
+        await supabase
+          .from('audit_logs')
+          .select(
+            `
+      id, action, entity_type, entity_id, details, created_at,
+      user:users!audit_logs_user_id_fkey(id, nom, prenom, email, avatar_seed, avatar_regen_date)
+    `,
+          )
+          .order('created_at', { ascending: false })
+          .limit(100)
+      ).data ?? null)
+    : full.data;
 
   return (
     <div>
@@ -126,7 +143,14 @@ export default async function AuditPage() {
       ) : (
         <div className="space-y-0">
           {logs.map((log) => {
-            const u = log.user;
+            const u = log.user as {
+              prenom: string;
+              nom: string;
+              email: string;
+              avatar_seed: string | null;
+              avatar_regen_date: string | null;
+              avatar_mode?: 'daily' | 'random' | 'frozen' | null;
+            } | null;
             const name = u ? `${u.prenom} ${u.nom}` : 'Utilisateur inconnu';
             const email = u?.email ?? '';
             const avatarSeed = u?.avatar_seed ?? null;

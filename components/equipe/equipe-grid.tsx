@@ -8,7 +8,7 @@ interface EquipeGridProps {
 }
 
 /**
- * Flat team roster — no hierarchy, no role badges. Shows contact info
+ * Flat team roster - no hierarchy, no role badges. Shows contact info
  * (email, phone, avatar of the day) and the active projets the person is
  * currently assigned to (as principal CDP or backup CDP).
  */
@@ -90,7 +90,7 @@ function MemberCard({ member }: { member: EquipeMember }) {
                     />
                   ) : (
                     <span className="text-muted-foreground text-xs">
-                      {p.client ?? '—'}
+                      {p.client ?? '-'}
                     </span>
                   )}
                 </li>

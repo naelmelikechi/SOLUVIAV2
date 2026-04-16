@@ -35,7 +35,7 @@ export default function MentionsLegalesPage() {
             <br />
             RCS Niort 994 241 537
             <br />
-            Code NAF : 85.59A — Formation continue d&apos;adultes
+            Code NAF : 85.59A - Formation continue d&apos;adultes
             <br />
             N° TVA intracommunautaire : FR37994241537
             <br />

@@ -62,7 +62,8 @@ export async function getCurrentUser() {
 
   if (!authUser) return null;
 
-  const { data } = await supabase
+  // Full select - requires migrations 00041 (avatar_mode) + 00042 (telephone).
+  const full = await supabase
     .from('users')
     .select(
       'id, email, nom, prenom, role, telephone, avatar_mode, avatar_seed, avatar_regen_date',
@@ -70,7 +71,24 @@ export async function getCurrentUser() {
     .eq('id', authUser.id)
     .single();
 
-  return data;
+  if (full.data) return full.data;
+
+  // Fallback for prod DBs where migrations 00041/00042 haven't been applied yet.
+  // Select the columns guaranteed by migrations 00003 + 00038 and fill the
+  // missing fields with null so downstream code (which already handles nulls)
+  // keeps working.
+  const legacy = await supabase
+    .from('users')
+    .select('id, email, nom, prenom, role, avatar_seed, avatar_regen_date')
+    .eq('id', authUser.id)
+    .single();
+
+  if (!legacy.data) return null;
+  return {
+    ...legacy.data,
+    telephone: null as string | null,
+    avatar_mode: null as 'daily' | 'random' | 'frozen' | null,
+  };
 }
 
 export type CurrentUser = NonNullable<

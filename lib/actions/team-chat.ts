@@ -6,7 +6,7 @@ import { logger } from '@/lib/utils/logger';
 import { revalidatePath } from 'next/cache';
 
 // ---------------------------------------------------------------------------
-// Team chat — send + delete messages. RLS enforces ownership for delete.
+// Team chat - send + delete messages. RLS enforces ownership for delete.
 // Messages auto-expire at 48h via /api/cron/chat-cleanup.
 // ---------------------------------------------------------------------------
 
@@ -66,7 +66,7 @@ export async function deleteTeamMessage(
   } = await supabase.auth.getUser();
   if (!authUser) return { success: false, error: 'Non authentifié' };
 
-  // RLS policy team_messages_delete enforces ownership — this will silently
+  // RLS policy team_messages_delete enforces ownership - this will silently
   // delete nothing if the user isn't the author, which is the correct behaviour.
   const { error } = await supabase
     .from('team_messages')
@@ -83,7 +83,7 @@ export async function deleteTeamMessage(
 }
 
 // ---------------------------------------------------------------------------
-// Giphy search — server-side proxy so we never expose the API key client-side.
+// Giphy search - server-side proxy so we never expose the API key client-side.
 // Rating forced to "g" (General Audiences) for corp-safe GIFs.
 // ---------------------------------------------------------------------------
 

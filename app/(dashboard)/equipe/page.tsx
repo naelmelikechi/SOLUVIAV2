@@ -9,6 +9,13 @@ import { TeamChat } from '@/components/equipe/team-chat';
 
 export const metadata: Metadata = { title: 'Équipe - SOLUVIA' };
 
+// Bypass the 60s RSC staleTimes.dynamic cache set in next.config.ts: every
+// visit to /equipe must re-fetch the chat messages. Otherwise a user who
+// navigates away and back within 60s sees a stale snapshot that's missing
+// any messages received during the absence (the Realtime subscription is
+// unmounted during navigation and can't replay missed deltas).
+export const dynamic = 'force-dynamic';
+
 export default async function EquipePage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');

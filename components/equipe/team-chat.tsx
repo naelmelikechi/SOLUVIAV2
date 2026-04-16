@@ -23,7 +23,15 @@ import { fr } from 'date-fns/locale';
 
 interface TeamChatProps {
   initialMessages: TeamMessage[];
-  currentUserId: string;
+  currentUser: {
+    id: string;
+    prenom: string;
+    nom: string;
+    email: string;
+    avatar_mode: 'daily' | 'random' | 'frozen' | null;
+    avatar_seed: string | null;
+    avatar_regen_date: string | null;
+  };
 }
 
 /**
@@ -33,7 +41,8 @@ interface TeamChatProps {
  * - Authors can delete their own messages (RLS enforces this server-side)
  * - Giphy GIFs only (rating=g), no image/video uploads
  */
-export function TeamChat({ initialMessages, currentUserId }: TeamChatProps) {
+export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
+  const currentUserId = currentUser.id;
   const [messages, setMessages] = useState<TeamMessage[]>(initialMessages);
   const [contenu, setContenu] = useState('');
   const [pendingGif, setPendingGif] = useState<string | null>(null);
@@ -130,11 +139,39 @@ export function TeamChat({ initialMessages, currentUserId }: TeamChatProps) {
       if (res.success) {
         setContenu('');
         setPendingGif(null);
+        // Optimistic append — don't rely on Realtime to display our own message.
+        // If the Realtime INSERT event arrives later, the existing dedupe by id
+        // prevents a duplicate.
+        if (res.message) {
+          const own = res.message;
+          setMessages((prev) =>
+            prev.some((m) => m.id === own.id)
+              ? prev
+              : [
+                  ...prev,
+                  {
+                    id: own.id,
+                    user_id: own.user_id,
+                    contenu: own.contenu,
+                    gif_url: own.gif_url,
+                    created_at: own.created_at,
+                    author: {
+                      prenom: currentUser.prenom,
+                      nom: currentUser.nom,
+                      email: currentUser.email,
+                      avatar_mode: currentUser.avatar_mode,
+                      avatar_seed: currentUser.avatar_seed,
+                      avatar_regen_date: currentUser.avatar_regen_date,
+                    },
+                  },
+                ],
+          );
+        }
       } else {
         toast.error(res.error ?? "Impossible d'envoyer");
       }
     });
-  }, [contenu, pendingGif]);
+  }, [contenu, pendingGif, currentUser]);
 
   const handleDelete = useCallback(async (id: string) => {
     const res = await deleteTeamMessage(id);

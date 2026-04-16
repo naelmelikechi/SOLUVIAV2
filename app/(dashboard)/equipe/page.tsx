@@ -28,7 +28,18 @@ export default async function EquipePage() {
         <EquipeGrid members={members} />
       </div>
 
-      <TeamChat initialMessages={messages} currentUserId={user.id} />
+      <TeamChat
+        initialMessages={messages}
+        currentUser={{
+          id: user.id,
+          prenom: user.prenom,
+          nom: user.nom,
+          email: user.email,
+          avatar_mode: user.avatar_mode as 'daily' | 'random' | 'frozen' | null,
+          avatar_seed: user.avatar_seed,
+          avatar_regen_date: user.avatar_regen_date,
+        }}
+      />
     </div>
   );
 }

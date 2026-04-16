@@ -12,10 +12,18 @@ import { revalidatePath } from 'next/cache';
 
 const MAX_CONTENU = 2000;
 
+export interface SentTeamMessage {
+  id: string;
+  user_id: string;
+  contenu: string | null;
+  gif_url: string | null;
+  created_at: string;
+}
+
 export async function sendTeamMessage(
   contenu: string | null,
   gifUrl: string | null,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; message?: SentTeamMessage }> {
   const supabase = await createClient();
   const {
     data: { user: authUser },
@@ -45,18 +53,25 @@ export async function sendTeamMessage(
     return { success: false, error: 'URL GIF non autorisée.' };
   }
 
-  const { error } = await supabase.from('team_messages').insert({
-    user_id: authUser.id,
-    contenu: trimmed || null,
-    gif_url: gif || null,
-  });
+  // Insert and return the row so the client can render it optimistically
+  // without waiting for the Realtime INSERT event (which may be delayed
+  // or dropped if the channel isn't healthy).
+  const { data, error } = await supabase
+    .from('team_messages')
+    .insert({
+      user_id: authUser.id,
+      contenu: trimmed || null,
+      gif_url: gif || null,
+    })
+    .select('id, user_id, contenu, gif_url, created_at')
+    .single();
 
-  if (error) {
+  if (error || !data) {
     logger.error('team_chat', 'sendTeamMessage failed', { error });
     return { success: false, error: "Impossible d'envoyer le message." };
   }
 
-  return { success: true };
+  return { success: true, message: data };
 }
 
 export async function deleteTeamMessage(

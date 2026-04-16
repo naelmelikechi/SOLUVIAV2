@@ -38,8 +38,10 @@ export async function sendTeamMessage(
     };
   }
 
-  // Basic sanity check on the gif URL: must be a Giphy media URL we produced.
-  if (gif && !/^https:\/\/(media|i)\.giphy\.com\//.test(gif)) {
+  // Basic sanity check on the gif URL: must be a Giphy-hosted URL.
+  // Giphy shards images across media0-9.giphy.com; the legacy `media.giphy.com`
+  // and `i.giphy.com` are also valid hosts returned by their API.
+  if (gif && !/^https:\/\/(media[0-9]*|i)\.giphy\.com\//.test(gif)) {
     return { success: false, error: 'URL GIF non autorisée.' };
   }
 

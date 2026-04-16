@@ -10,6 +10,7 @@ import {
   Dices,
   LockKeyhole,
   RotateCcw,
+  CalendarDays,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -28,11 +29,16 @@ import { getAvatarUrl } from '@/components/shared/user-avatar';
 import {
   updateProfile,
   updatePassword,
-  regenerateAvatar,
-  lockAvatar,
-  unlockAvatar,
+  setAvatarDaily,
+  rollRandomAvatar,
+  freezeCurrentAvatar,
 } from '@/lib/actions/settings';
 import { isAdmin as checkIsAdmin } from '@/lib/utils/roles';
+import {
+  canRollRandomToday,
+  resolveAvatarSeed,
+  type AvatarMode,
+} from '@/lib/utils/avatar';
 
 interface SettingsPageClientProps {
   user: {
@@ -41,6 +47,7 @@ interface SettingsPageClientProps {
     nom: string;
     prenom: string;
     role: string;
+    avatar_mode: AvatarMode | null;
     avatar_seed: string | null;
     avatar_regen_date: string | null;
   };
@@ -59,13 +66,25 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
 
-  // Avatar state
+  // Avatar state — miroir fidèle de la DB, mis à jour uniquement par les retours
+  // des server actions (fini les reconstructions de seed côté client).
+  const [avatarMode, setAvatarMode] = useState<AvatarMode>(
+    user.avatar_mode ?? (user.avatar_seed ? 'frozen' : 'daily'),
+  );
   const [avatarSeed, setAvatarSeed] = useState<string | null>(user.avatar_seed);
-  const [regenUsed, setRegenUsed] = useState(
-    user.avatar_regen_date === new Date().toISOString().slice(0, 10),
+  const [regenDate, setRegenDate] = useState<string | null>(
+    user.avatar_regen_date,
   );
   const [avatarPending, startAvatarTransition] = useTransition();
-  const isLocked = avatarSeed !== null;
+
+  // Ce qui est *effectivement* affiché (gère l'expiry du random).
+  const { effectiveMode } = resolveAvatarSeed({
+    email: user.email,
+    mode: avatarMode,
+    seed: avatarSeed,
+    regenDate,
+  });
+  const canRoll = canRollRandomToday(regenDate);
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,112 +135,161 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
             Votre robot personnel
           </CardTitle>
           <CardDescription>
-            Chaque jour, un nouveau compagnon robotique vous est attribué. Si
-            vous tombez amoureux de votre robot du jour, figez-le pour
-            l&apos;éternité. Ou lancez les dés pour tenter votre chance.
+            Trois modes au choix : l&apos;avatar du jour qui change chaque
+            matin, un tirage aléatoire pour tenter votre chance (1/jour), ou
+            figer un robot pour qu&apos;il reste votre compagnon permanent.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
               <img
-                src={getAvatarUrl(user.email, avatarSeed, 128)}
+                src={getAvatarUrl(
+                  user.email,
+                  avatarSeed,
+                  128,
+                  avatarMode,
+                  regenDate,
+                )}
                 alt="Votre robot"
                 width={128}
                 height={128}
                 className="rounded-2xl border-2 border-dashed border-[var(--border)] p-2"
               />
-              {isLocked && (
-                <div className="absolute -top-2 -right-2 rounded-full bg-green-500 p-1 text-white shadow-md">
+              {effectiveMode === 'frozen' && (
+                <div
+                  className="absolute -top-2 -right-2 rounded-full bg-green-500 p-1 text-white shadow-md"
+                  title="Avatar figé"
+                >
                   <LockKeyhole className="h-3.5 w-3.5" />
+                </div>
+              )}
+              {effectiveMode === 'random' && (
+                <div
+                  className="absolute -top-2 -right-2 rounded-full bg-amber-500 p-1 text-white shadow-md"
+                  title="Tirage aléatoire du jour"
+                >
+                  <Dices className="h-3.5 w-3.5" />
                 </div>
               )}
             </div>
 
             <p className="text-muted-foreground text-center text-xs italic">
-              {isLocked
-                ? '🔒 Ce robot est votre compagnon permanent. Fidèle, dévoué, et légèrement métallique.'
-                : '🎰 Nouveau robot chaque matin ! Comme une boîte de chocolats, mais en plus crunchy.'}
+              {effectiveMode === 'frozen'
+                ? '🔒 Robot figé. Fidèle, dévoué, et légèrement métallique.'
+                : effectiveMode === 'random'
+                  ? '🎲 Tirage du jour. Il disparaîtra demain sauf si vous le figez.'
+                  : '🎰 Nouveau robot chaque matin. Comme une boîte de chocolats, mais crunchy.'}
             </p>
 
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={avatarPending || regenUsed}
-                title={
-                  regenUsed
-                    ? 'Revenez demain pour un nouveau robot !'
-                    : undefined
-                }
+            {/* Sélecteur de mode — radio-like, toujours visible */}
+            <div
+              role="radiogroup"
+              aria-label="Mode d'avatar"
+              className="flex w-full max-w-sm flex-col gap-1.5"
+            >
+              <AvatarModeRow
+                icon={<CalendarDays className="h-4 w-4" />}
+                label="Avatar du jour"
+                sub="Change chaque matin"
+                active={effectiveMode === 'daily'}
+                disabled={avatarPending}
                 onClick={() =>
                   startAvatarTransition(async () => {
-                    const result = await regenerateAvatar();
-                    if (result.success && result.seed) {
+                    const result = await setAvatarDaily();
+                    if (result.success) {
+                      setAvatarMode('daily');
+                      setAvatarSeed(null);
+                      toast.success('Mode quotidien activé.');
+                    } else {
+                      toast.error(result.error ?? 'Erreur');
+                    }
+                  })
+                }
+              />
+              <AvatarModeRow
+                icon={<Dices className="h-4 w-4" />}
+                label="Tirage aléatoire du jour"
+                sub={
+                  canRoll
+                    ? 'Tirez votre robot de la journée (1/jour)'
+                    : "Déjà tiré aujourd'hui — revenez demain"
+                }
+                active={effectiveMode === 'random'}
+                disabled={avatarPending || !canRoll}
+                onClick={() =>
+                  startAvatarTransition(async () => {
+                    const result = await rollRandomAvatar();
+                    if (
+                      result.success &&
+                      result.seed &&
+                      result.regenDate &&
+                      result.mode
+                    ) {
+                      setAvatarMode(result.mode);
                       setAvatarSeed(result.seed);
-                      setRegenUsed(true);
-                      toast.success(
-                        'Nouveau robot généré ! Revenez demain pour retenter votre chance.',
-                      );
+                      setRegenDate(result.regenDate);
+                      toast.success('Nouveau robot tiré au sort !');
+                    } else {
+                      toast.error(result.error ?? 'Erreur');
+                    }
+                  })
+                }
+                actionLabel={
+                  effectiveMode === 'random' && canRoll
+                    ? 'Re-tirer'
+                    : effectiveMode === 'random'
+                      ? undefined
+                      : 'Tirer'
+                }
+              />
+              <AvatarModeRow
+                icon={<LockKeyhole className="h-4 w-4" />}
+                label="Figer le robot actuel"
+                sub={
+                  effectiveMode === 'frozen'
+                    ? 'Permanent — votre compagnon ne change plus'
+                    : 'Garder pour toujours celui affiché ci-dessus'
+                }
+                active={effectiveMode === 'frozen'}
+                disabled={avatarPending || effectiveMode === 'frozen'}
+                onClick={() =>
+                  startAvatarTransition(async () => {
+                    const result = await freezeCurrentAvatar();
+                    if (result.success && result.seed && result.mode) {
+                      setAvatarMode(result.mode);
+                      setAvatarSeed(result.seed);
+                      toast.success('Robot figé ! Il ne changera plus.');
+                    } else {
+                      toast.error(result.error ?? 'Erreur');
+                    }
+                  })
+                }
+              />
+            </div>
+
+            {effectiveMode === 'frozen' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={avatarPending}
+                onClick={() =>
+                  startAvatarTransition(async () => {
+                    const result = await setAvatarDaily();
+                    if (result.success) {
+                      setAvatarMode('daily');
+                      setAvatarSeed(null);
+                      toast.success('Retour au mode quotidien.');
                     } else {
                       toast.error(result.error ?? 'Erreur');
                     }
                   })
                 }
               >
-                <Dices className="mr-1.5 h-4 w-4" />
-                {regenUsed ? "Déjà tiré aujourd'hui" : 'Nouveau robot'}
+                <RotateCcw className="mr-1.5 h-4 w-4" />
+                Déverrouiller
               </Button>
-
-              {!isLocked ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={avatarPending}
-                  onClick={() =>
-                    startAvatarTransition(async () => {
-                      const result = await lockAvatar();
-                      if (result.success) {
-                        setAvatarSeed(
-                          user.email +
-                            new Date()
-                              .toISOString()
-                              .slice(0, 10)
-                              .replace(/-0/g, '-')
-                              .replace(/-/g, '-'),
-                        );
-                        toast.success('Robot figé ! Il ne changera plus.');
-                      } else {
-                        toast.error(result.error ?? 'Erreur');
-                      }
-                    })
-                  }
-                >
-                  <LockKeyhole className="mr-1.5 h-4 w-4" />
-                  Garder celui-ci
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={avatarPending}
-                  onClick={() =>
-                    startAvatarTransition(async () => {
-                      const result = await unlockAvatar();
-                      if (result.success) {
-                        setAvatarSeed(null);
-                        toast.success('Mode quotidien réactivé !');
-                      } else {
-                        toast.error(result.error ?? 'Erreur');
-                      }
-                    })
-                  }
-                >
-                  <RotateCcw className="mr-1.5 h-4 w-4" />
-                  Mode quotidien
-                </Button>
-              )}
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -277,7 +345,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Role</Label>
+              <Label>Rôle</Label>
               <Input
                 value={
                   checkIsAdmin(user.role) ? 'Administrateur' : 'Chef de projet'
@@ -374,5 +442,58 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// Row used in the avatar mode selector. Active = filled accent, disabled =
+// faded. `actionLabel` lets the random row expose a distinct "Tirer" /
+// "Re-tirer" button without duplicating the outer click handler.
+function AvatarModeRow({
+  icon,
+  label,
+  sub,
+  active,
+  disabled,
+  onClick,
+  actionLabel,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  sub: string;
+  active: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  actionLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      disabled={disabled}
+      onClick={onClick}
+      className={`group flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+        active
+          ? 'border-primary bg-primary/5'
+          : 'border-border hover:bg-accent/40'
+      }`}
+    >
+      <span
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+          active
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-muted text-muted-foreground'
+        }`}
+      >
+        {icon}
+      </span>
+      <span className="flex flex-1 flex-col">
+        <span className="text-sm font-medium">{label}</span>
+        <span className="text-muted-foreground text-xs">{sub}</span>
+      </span>
+      {actionLabel && (
+        <span className="text-primary text-xs font-medium">{actionLabel}</span>
+      )}
+    </button>
   );
 }

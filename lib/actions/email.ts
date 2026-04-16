@@ -14,7 +14,7 @@ export async function sendFactureEmailAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   const result = await sendEmailForFacture(factureId, supabase);
 

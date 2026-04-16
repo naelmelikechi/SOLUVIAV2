@@ -3,6 +3,8 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type FilterFn,
+  type Row,
   type SortingState,
   type VisibilityState,
   flexRender,
@@ -22,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { matchesSearch } from '@/lib/utils/search';
 import { DataTableToolbar, type FilterOption } from './data-table-toolbar';
 import { DataTablePagination } from './data-table-pagination';
 
@@ -33,6 +36,35 @@ interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void;
   defaultSort?: { id: string; desc: boolean };
   filters?: FilterOption[];
+}
+
+/**
+ * Global filter function: searches across all visible leaf columns.
+ * Accent-insensitive, case-insensitive, multi-token (space = AND).
+ */
+function globalFilterFn<TData>(
+  row: Row<TData>,
+  _columnId: string,
+  filterValue: string,
+): boolean {
+  if (!filterValue) return true;
+  // Stringify every cell of every visible leaf column of this row.
+  const haystack = row
+    .getVisibleCells()
+    .map((cell) => {
+      const v = cell.getValue();
+      if (v == null) return '';
+      if (typeof v === 'object') {
+        try {
+          return JSON.stringify(v);
+        } catch {
+          return '';
+        }
+      }
+      return String(v);
+    })
+    .join(' ');
+  return matchesSearch(haystack, filterValue);
 }
 
 export function DataTable<TData, TValue>({
@@ -49,8 +81,8 @@ export function DataTable<TData, TValue>({
   );
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-
   const [columnSizing, setColumnSizing] = useState({});
+  const [globalFilter, setGlobalFilter] = useState('');
 
   const table = useReactTable({
     data,
@@ -65,11 +97,14 @@ export function DataTable<TData, TValue>({
     enableColumnResizing: true,
     columnResizeMode: 'onChange',
     onColumnSizingChange: setColumnSizing,
+    globalFilterFn: globalFilterFn as FilterFn<TData>,
+    onGlobalFilterChange: setGlobalFilter,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
       columnSizing,
+      globalFilter,
     },
   });
 

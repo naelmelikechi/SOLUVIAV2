@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { FactureDetail } from '@/lib/queries/factures';
 import type { EmetteurInfo } from '@/lib/queries/parametres';
+import { formatDate } from '@/lib/utils/formatters';
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA',
@@ -174,15 +175,11 @@ export function FacturePdf({ facture, origineRef, emetteur }: FacturePdfProps) {
             <Text style={styles.docRef}>{facture.ref}</Text>
             <Text>
               Date :{' '}
-              {facture.date_emission
-                ? new Date(facture.date_emission).toLocaleDateString('fr-FR')
-                : '-'}
+              {facture.date_emission ? formatDate(facture.date_emission) : '-'}
             </Text>
             <Text>
               Échéance :{' '}
-              {facture.date_echeance
-                ? new Date(facture.date_echeance).toLocaleDateString('fr-FR')
-                : '-'}
+              {facture.date_echeance ? formatDate(facture.date_echeance) : '-'}
             </Text>
           </View>
         </View>

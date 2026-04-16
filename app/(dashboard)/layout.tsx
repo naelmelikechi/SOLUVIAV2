@@ -21,7 +21,9 @@ export default function DashboardLayout({
     prenom: string;
     role: string;
     email: string;
+    avatar_mode: 'daily' | 'random' | 'frozen' | null;
     avatar_seed: string | null;
+    avatar_regen_date: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -30,7 +32,9 @@ export default function DashboardLayout({
       if (authUser) {
         supabase
           .from('users')
-          .select('nom, prenom, role, email, avatar_seed')
+          .select(
+            'nom, prenom, role, email, avatar_mode, avatar_seed, avatar_regen_date',
+          )
           .eq('id', authUser.id)
           .single()
           .then(({ data }) => setUser(data));

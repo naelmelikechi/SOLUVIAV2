@@ -26,7 +26,7 @@ export function ProjetDuplicateButton({
     try {
       const result = await duplicateProjet(projetId);
       if (result.success && result.ref) {
-        toast.success(`Projet duplique : ${result.ref}`);
+        toast.success(`Projet dupliqué : ${result.ref}`);
         router.push(`/projets/${result.ref}`);
       } else {
         toast.error(result.error || 'Erreur lors de la duplication');
@@ -59,7 +59,7 @@ export function ProjetDuplicateButton({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Dupliquer le projet"
-        description={`Dupliquer le projet ${projetRef} ? Un nouveau projet sera cree avec les memes parametres (client, typologie, CDP, commission).`}
+        description={`Dupliquer le projet ${projetRef} ? Un nouveau projet sera créé avec les mêmes paramètres (client, typologie, CDP, commission).`}
         confirmText="Dupliquer"
         onConfirm={handleDuplicate}
       />

@@ -1170,6 +1170,7 @@ export type Database = {
       users: {
         Row: {
           actif: boolean;
+          avatar_mode: 'daily' | 'random' | 'frozen';
           avatar_seed: string | null;
           avatar_regen_date: string | null;
           created_at: string;
@@ -1183,6 +1184,7 @@ export type Database = {
         };
         Insert: {
           actif?: boolean;
+          avatar_mode?: 'daily' | 'random' | 'frozen';
           avatar_seed?: string | null;
           avatar_regen_date?: string | null;
           created_at?: string;
@@ -1196,6 +1198,7 @@ export type Database = {
         };
         Update: {
           actif?: boolean;
+          avatar_mode?: 'daily' | 'random' | 'frozen';
           avatar_seed?: string | null;
           avatar_regen_date?: string | null;
           created_at?: string;

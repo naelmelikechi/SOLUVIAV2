@@ -66,7 +66,9 @@ interface SidebarProps {
     prenom: string;
     role: string;
     email: string;
+    avatar_mode?: 'daily' | 'random' | 'frozen' | null;
     avatar_seed: string | null;
+    avatar_regen_date?: string | null;
   } | null;
   /** Mobile overlay mode */
   mobile?: boolean;
@@ -285,7 +287,13 @@ export function Sidebar({
             >
               {user ? (
                 <img
-                  src={getAvatarUrl(user.email, user.avatar_seed)}
+                  src={getAvatarUrl(
+                    user.email,
+                    user.avatar_seed,
+                    undefined,
+                    user.avatar_mode,
+                    user.avatar_regen_date,
+                  )}
                   alt={`${user.prenom} ${user.nom}`}
                   className="h-full w-full"
                 />
@@ -315,7 +323,13 @@ export function Sidebar({
               >
                 {user ? (
                   <img
-                    src={getAvatarUrl(user.email, user.avatar_seed)}
+                    src={getAvatarUrl(
+                      user.email,
+                      user.avatar_seed,
+                      undefined,
+                      user.avatar_mode,
+                      user.avatar_regen_date,
+                    )}
                     alt={`${user.prenom} ${user.nom}`}
                     className="h-full w-full"
                   />

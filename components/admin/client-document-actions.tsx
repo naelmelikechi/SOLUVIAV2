@@ -34,10 +34,10 @@ export function ClientDocumentActions({
       if (result.url) {
         window.open(result.url, '_blank');
       } else {
-        toast.error(result.error || 'Impossible de telecharger le fichier');
+        toast.error(result.error || 'Impossible de télécharger le fichier');
       }
     } catch {
-      toast.error('Erreur lors du telechargement');
+      toast.error('Erreur lors du téléchargement');
     } finally {
       setDownloading(false);
     }
@@ -48,7 +48,7 @@ export function ClientDocumentActions({
     try {
       const result = await deleteClientDocument(documentId, clientId);
       if (result.success) {
-        toast.success('Document supprime');
+        toast.success('Document supprimé');
       } else {
         toast.error(result.error || 'Erreur lors de la suppression');
       }
@@ -67,7 +67,7 @@ export function ClientDocumentActions({
         size="sm"
         disabled={downloading}
         onClick={handleDownload}
-        title="Telecharger"
+        title="Télécharger"
         className="h-7 w-7 p-0"
       >
         {downloading ? (
@@ -94,7 +94,7 @@ export function ClientDocumentActions({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Supprimer le document"
-        description={`Voulez-vous supprimer "${fileName}" ? Cette action est irreversible.`}
+        description={`Voulez-vous supprimer "${fileName}" ? Cette action est irréversible.`}
         confirmText="Supprimer"
         onConfirm={handleDelete}
       />

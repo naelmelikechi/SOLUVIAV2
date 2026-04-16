@@ -21,8 +21,8 @@ const PROJET_FILTERS: FilterOption[] = [
     options: [
       { label: 'Actif', value: 'actif' },
       { label: 'En pause', value: 'en_pause' },
-      { label: 'Termine', value: 'termine' },
-      { label: 'Archive', value: 'archive' },
+      { label: 'Terminé', value: 'termine' },
+      { label: 'Archivé', value: 'archive' },
     ],
   },
   {

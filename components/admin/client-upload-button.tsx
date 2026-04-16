@@ -30,7 +30,7 @@ export function ClientUploadButton({ clientId }: ClientUploadButtonProps) {
       const result = await uploadClientDocument(clientId, formData);
 
       if (result.success) {
-        toast.success('Document uploade avec succes');
+        toast.success('Document uploadé avec succès');
       } else {
         toast.error(result.error || "Erreur lors de l'upload");
       }
@@ -53,7 +53,7 @@ export function ClientUploadButton({ clientId }: ClientUploadButtonProps) {
         accept={ACCEPT}
         onChange={handleFileChange}
         className="hidden"
-        aria-label="Selectionner un fichier"
+        aria-label="Sélectionner un fichier"
       />
       <Button
         variant="outline"

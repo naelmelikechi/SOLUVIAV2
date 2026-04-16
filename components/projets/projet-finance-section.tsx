@@ -107,14 +107,14 @@ export function ProjetFinanceSection({
       <div className="border-border border-t pt-4">
         <div className="grid grid-cols-3 gap-4">
           <FinanceStatCard
-            label="RAF (Reste a facturer)"
+            label="RAF (Reste à facturer)"
             value={raf_opco}
             color={
               raf_opco > 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'
             }
           />
           <FinanceStatCard
-            label="RAE (Reste a encaisser)"
+            label="RAE (Reste à encaisser)"
             value={rae_opco}
             color={
               rae_opco > 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'

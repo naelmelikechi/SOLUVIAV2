@@ -56,7 +56,7 @@ export function ProjetStatCards({
         }
       />
       <StatCard
-        label="Date de debut"
+        label="Date de début"
         value={projet.date_debut ? formatDate(projet.date_debut) : '-'}
       />
       <StatCard

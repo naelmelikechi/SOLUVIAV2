@@ -4,6 +4,7 @@
  */
 
 import type { EmetteurInfo } from '@/lib/queries/parametres';
+import { formatDate } from '@/lib/utils/formatters';
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA',
@@ -20,14 +21,6 @@ function formatEur(n: number): string {
   }).format(n);
 }
 
-function formatDateFr(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
 export function buildFactureEmailHtml(params: {
   factureRef: string;
   isAvoir: boolean;
@@ -42,7 +35,7 @@ export function buildFactureEmailHtml(params: {
 
   const docType = isAvoir ? "l'avoir" : 'la facture';
   const montantFormatted = formatEur(Math.abs(montantTtc));
-  const echeanceFormatted = formatDateFr(dateEcheance);
+  const echeanceFormatted = formatDate(dateEcheance);
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -99,7 +92,7 @@ export function buildFactureEmailHtml(params: {
                         !isAvoir
                           ? `<tr>
                         <td style="padding:4px 0;font-size:14px;color:#374151;">
-                          <strong>Date d'echeance :</strong>
+                          <strong>Date d'échéance :</strong>
                         </td>
                         <td align="right" style="padding:4px 0;font-size:14px;color:#1a1a1a;">
                           ${echeanceFormatted}
@@ -116,7 +109,7 @@ export function buildFactureEmailHtml(params: {
                 Cordialement,
               </p>
               <p style="margin:0;font-size:15px;color:#1a1a1a;line-height:1.6;font-weight:bold;">
-                L'equipe ${companyName}
+                L'équipe ${companyName}
               </p>
             </td>
           </tr>
@@ -131,7 +124,7 @@ export function buildFactureEmailHtml(params: {
                 SIRET ${emetteur.siret} - TVA ${emetteur.tva}
               </p>
               <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5;">
-                Cet email a ete envoye automatiquement. Merci de ne pas y repondre directement.
+                Cet email a été envoyé automatiquement. Merci de ne pas y répondre directement.
               </p>
             </td>
           </tr>

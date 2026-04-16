@@ -30,7 +30,7 @@ export async function createProjet(data: {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   // Admin check
   const { data: caller } = await supabase
@@ -87,7 +87,7 @@ export async function duplicateProjet(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   // Admin check
   const { data: caller } = await supabase

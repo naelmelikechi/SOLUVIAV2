@@ -38,11 +38,11 @@ export async function uploadClientDocument(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   const file = formData.get('file') as File | null;
   if (!file || file.size === 0) {
-    return { success: false, error: 'Aucun fichier selectionne' };
+    return { success: false, error: 'Aucun fichier sélectionné' };
   }
 
   // Validate file type
@@ -50,13 +50,13 @@ export async function uploadClientDocument(
     return {
       success: false,
       error:
-        'Type de fichier non supporte. Formats acceptes : PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, WEBP',
+        'Type de fichier non supporté. Formats acceptés : PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, WEBP',
     };
   }
 
   // Validate file size
   if (file.size > MAX_FILE_SIZE) {
-    return { success: false, error: 'Le fichier ne doit pas depasser 10 Mo' };
+    return { success: false, error: 'Le fichier ne doit pas dépasser 10 Mo' };
   }
 
   // Build storage path: {clientId}/{timestamp}-{filename}
@@ -107,7 +107,7 @@ export async function uploadClientDocument(
       success: false,
       error:
         insertError.message ||
-        "Erreur lors de l'enregistrement des metadonnees",
+        "Erreur lors de l'enregistrement des métadonnées",
     };
   }
 
@@ -130,7 +130,7 @@ export async function getDocumentDownloadUrl(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: 'Non authentifie' };
+  if (!user) return { error: 'Non authentifié' };
 
   const { data, error } = await supabase.storage
     .from('client-documents')
@@ -141,7 +141,7 @@ export async function getDocumentDownloadUrl(
       error,
       storagePath,
     });
-    return { error: 'Impossible de generer le lien de telechargement' };
+    return { error: 'Impossible de générer le lien de téléchargement' };
   }
 
   return { url: data.signedUrl };
@@ -157,7 +157,7 @@ export async function deleteClientDocument(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   // Get the document to find storage path
   const { data: doc, error: fetchError } = await supabase

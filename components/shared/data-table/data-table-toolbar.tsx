@@ -23,6 +23,10 @@ export interface FilterOption {
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
+  /**
+   * Legacy prop — kept only as a flag to show/hide the search input.
+   * The actual search is now global across all visible columns.
+   */
   searchKey?: string;
   searchPlaceholder?: string;
   filters?: FilterOption[];
@@ -35,33 +39,38 @@ export function DataTableToolbar<TData>({
   filters = [],
 }: DataTableToolbarProps<TData>) {
   const activeFilterCount = filters.reduce((count, filter) => {
-    const value = table.getColumn(filter.column)?.getFilterValue() as
-      | string[]
-      | undefined;
-    return count + (value?.length ?? 0);
+    const value = table.getColumn(filter.column)?.getFilterValue();
+    return count + (Array.isArray(value) ? value.length : 0);
   }, 0);
+
+  const showSearch = searchKey !== undefined;
+  const globalFilter =
+    (table.getState().globalFilter as string | undefined) ?? '';
 
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 flex-wrap items-center gap-2">
-        {searchKey && (
+        {showSearch && (
           <div className="relative max-w-sm">
             <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
             <Input
               placeholder={searchPlaceholder}
-              value={
-                (table.getColumn(searchKey)?.getFilterValue() as string) ?? ''
-              }
-              onChange={(event) =>
-                table.getColumn(searchKey)?.setFilterValue(event.target.value)
-              }
+              value={globalFilter}
+              onChange={(event) => table.setGlobalFilter(event.target.value)}
               className="pl-9"
             />
           </div>
         )}
         {filters.map((filter) => {
           const column = table.getColumn(filter.column);
-          const selectedValues = (column?.getFilterValue() as string[]) ?? [];
+          const rawValue = column?.getFilterValue();
+          const selectedValues: string[] = Array.isArray(rawValue)
+            ? (rawValue as string[])
+            : [];
+
+          const setValues = (next: string[]) => {
+            column?.setFilterValue(next.length > 0 ? next : undefined);
+          };
 
           return (
             <DropdownMenu key={filter.column}>
@@ -86,13 +95,14 @@ export function DataTableToolbar<TData>({
                     <DropdownMenuCheckboxItem
                       key={option.value}
                       checked={isChecked}
-                      onCheckedChange={() => {
-                        const next = isChecked
-                          ? selectedValues.filter((v) => v !== option.value)
-                          : [...selectedValues, option.value];
-                        column?.setFilterValue(
-                          next.length > 0 ? next : undefined,
-                        );
+                      onCheckedChange={(checked) => {
+                        const shouldBeIn = Boolean(checked);
+                        const next = shouldBeIn
+                          ? selectedValues.includes(option.value)
+                            ? selectedValues
+                            : [...selectedValues, option.value]
+                          : selectedValues.filter((v) => v !== option.value);
+                        setValues(next);
                       }}
                     >
                       {option.label}
@@ -100,15 +110,10 @@ export function DataTableToolbar<TData>({
                   );
                 })}
                 {selectedValues.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => column?.setFilterValue(undefined)}
-                    >
-                      <X className="mr-1.5 h-3.5 w-3.5" />
-                      Effacer
-                    </DropdownMenuItem>
-                  </>
+                  <DropdownMenuItem onClick={() => setValues([])}>
+                    <X className="mr-1.5 h-3.5 w-3.5" />
+                    Effacer
+                  </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>

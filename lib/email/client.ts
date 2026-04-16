@@ -3,6 +3,7 @@ import { createElement, type ReactElement } from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/utils/logger';
+import { formatDate } from '@/lib/utils/formatters';
 import { buildFactureEmailHtml } from '@/lib/email/templates';
 import { FacturePdf } from '@/components/facturation/facture-pdf';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -19,8 +20,8 @@ export async function sendFactureEmail(params: {
   pdfBuffer: Buffer;
 }): Promise<{ success: boolean; error?: string }> {
   if (!resend) {
-    logger.warn('email', 'RESEND_API_KEY non configure - email non envoye');
-    return { success: false, error: 'Service email non configure' };
+    logger.warn('email', 'RESEND_API_KEY non configuré - email non envoyé');
+    return { success: false, error: 'Service email non configuré' };
   }
 
   const subject = params.isAvoir
@@ -42,7 +43,7 @@ export async function sendFactureEmail(params: {
     });
     return { success: true };
   } catch (error) {
-    logger.error('email', 'Echec envoi email', {
+    logger.error('email', 'Échec envoi email', {
       error,
       to: params.to,
       ref: params.factureRef,
@@ -188,7 +189,7 @@ export async function sendRelanceEmail(
   }).format(facture.montant_ttc);
 
   const dateEcheance = facture.date_echeance
-    ? new Date(facture.date_echeance).toLocaleDateString('fr-FR')
+    ? formatDate(facture.date_echeance)
     : '-';
 
   const html = `

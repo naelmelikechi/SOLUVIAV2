@@ -22,8 +22,8 @@ const FACTURE_FILTERS: FilterOption[] = [
     column: 'statut',
     label: 'Statut',
     options: [
-      { label: 'Emise', value: 'emise' },
-      { label: 'Payee', value: 'payee' },
+      { label: 'Émise', value: 'emise' },
+      { label: 'Payée', value: 'payee' },
       { label: 'En retard', value: 'en_retard' },
       { label: 'Avoir', value: 'avoir' },
     ],

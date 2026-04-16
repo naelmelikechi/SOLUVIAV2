@@ -34,7 +34,7 @@ export async function createClientAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   const { data: caller } = await supabase
     .from('users')
@@ -88,7 +88,7 @@ export async function updateClientAction(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   const { data: caller } = await supabase
     .from('users')
@@ -135,7 +135,7 @@ export async function archiveClient(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   const { data: caller } = await supabase
     .from('users')
@@ -222,7 +222,7 @@ export async function addClientContact(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   const { error } = await supabase.from('client_contacts').insert({
     client_id: clientId,
@@ -254,7 +254,7 @@ export async function deleteClientContact(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   const { error } = await supabase
     .from('client_contacts')
@@ -287,7 +287,7 @@ export async function addClientNote(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  if (!user) return { success: false, error: 'Non authentifié' };
 
   const { error } = await supabase.from('client_notes').insert({
     client_id: clientId,

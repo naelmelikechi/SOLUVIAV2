@@ -98,7 +98,7 @@ export default async function AuditPage() {
     .select(
       `
       id, action, entity_type, entity_id, details, created_at,
-      user:users!audit_logs_user_id_fkey(id, nom, prenom, email, avatar_seed)
+      user:users!audit_logs_user_id_fkey(id, nom, prenom, email, avatar_mode, avatar_seed, avatar_regen_date)
     `,
     )
     .order('created_at', { ascending: false })
@@ -130,6 +130,12 @@ export default async function AuditPage() {
             const name = u ? `${u.prenom} ${u.nom}` : 'Utilisateur inconnu';
             const email = u?.email ?? '';
             const avatarSeed = u?.avatar_seed ?? null;
+            const avatarMode = (u?.avatar_mode ?? null) as
+              | 'daily'
+              | 'random'
+              | 'frozen'
+              | null;
+            const avatarRegenDate = u?.avatar_regen_date ?? null;
             const timeAgo = formatDistanceToNow(parseISO(log.created_at), {
               addSuffix: true,
               locale: fr,
@@ -148,6 +154,8 @@ export default async function AuditPage() {
                   <UserAvatar
                     email={email}
                     avatarSeed={avatarSeed}
+                    avatarMode={avatarMode}
+                    avatarRegenDate={avatarRegenDate}
                     name={name}
                     size={28}
                   />

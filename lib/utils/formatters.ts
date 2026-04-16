@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export function formatCurrency(amount: number): string {
@@ -11,12 +11,18 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date;
-  return format(d, 'dd/MM/yyyy', { locale: fr });
+  const d =
+    typeof date === 'string'
+      ? new Date(date + (date.length === 10 ? 'T00:00:00' : ''))
+      : date;
+  return format(d, 'd MMM yyyy', { locale: fr });
 }
 
 export function formatDateLong(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date;
+  const d =
+    typeof date === 'string'
+      ? new Date(date + (date.length === 10 ? 'T00:00:00' : ''))
+      : date;
   return format(d, 'd MMMM yyyy', { locale: fr });
 }
 

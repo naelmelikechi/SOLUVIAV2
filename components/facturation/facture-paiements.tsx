@@ -108,7 +108,7 @@ export function FacturePaiements({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date reception</TableHead>
+                <TableHead>Date réception</TableHead>
                 <TableHead>Montant</TableHead>
                 <TableHead>Source</TableHead>
               </TableRow>
@@ -129,7 +129,7 @@ export function FacturePaiements({
           </Table>
         </div>
       ) : (
-        <p className="text-muted-foreground text-sm">Aucun paiement recu</p>
+        <p className="text-muted-foreground text-sm">Aucun paiement reçu</p>
       )}
 
       {/* Manual payment form */}
@@ -169,7 +169,7 @@ export function FacturePaiements({
                 </div>
                 <div className="space-y-1">
                   <label className="text-muted-foreground text-xs font-medium">
-                    Date de reception
+                    Date de réception
                   </label>
                   <Input
                     type="date"

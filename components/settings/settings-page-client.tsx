@@ -180,121 +180,130 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
               )}
             </div>
 
-            <p className="text-muted-foreground text-center text-xs italic">
-              {effectiveMode === 'frozen'
-                ? '🔒 Robot figé. Fidèle, dévoué, et légèrement métallique.'
-                : effectiveMode === 'random'
-                  ? '🎲 Tirage du jour. Il disparaîtra demain sauf si vous le figez.'
-                  : '🎰 Nouveau robot chaque matin. Comme une boîte de chocolats, mais crunchy.'}
-            </p>
+            {effectiveMode === 'frozen' ? (
+              <>
+                <p className="text-center text-sm font-medium text-green-700 dark:text-green-400">
+                  🔒 Cet avatar est figé à vie.
+                </p>
+                <p className="text-muted-foreground max-w-sm text-center text-xs italic">
+                  Fidèle, dévoué, et légèrement métallique. Pour en changer, il
+                  faut d&apos;abord le déverrouiller.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={avatarPending}
+                  onClick={() =>
+                    startAvatarTransition(async () => {
+                      const result = await setAvatarDaily();
+                      if (result.success) {
+                        setAvatarMode('daily');
+                        setAvatarSeed(null);
+                        toast.success(
+                          'Avatar déverrouillé. Retour au mode quotidien.',
+                        );
+                      } else {
+                        toast.error(result.error ?? 'Erreur');
+                      }
+                    })
+                  }
+                >
+                  <RotateCcw className="mr-1.5 h-4 w-4" />
+                  Déverrouiller
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground text-center text-xs italic">
+                  {effectiveMode === 'random'
+                    ? '🎲 Tirage du jour. Il disparaîtra demain sauf si vous le figez.'
+                    : '🎰 Nouveau robot chaque matin. Comme une boîte de chocolats, mais crunchy.'}
+                </p>
 
-            {/* Sélecteur de mode - radio-like, toujours visible */}
-            <div
-              role="radiogroup"
-              aria-label="Mode d'avatar"
-              className="flex w-full max-w-sm flex-col gap-1.5"
-            >
-              <AvatarModeRow
-                icon={<CalendarDays className="h-4 w-4" />}
-                label="Avatar du jour"
-                sub="Change chaque matin"
-                active={effectiveMode === 'daily'}
-                disabled={avatarPending}
-                onClick={() =>
-                  startAvatarTransition(async () => {
-                    const result = await setAvatarDaily();
-                    if (result.success) {
-                      setAvatarMode('daily');
-                      setAvatarSeed(null);
-                      toast.success('Mode quotidien activé.');
-                    } else {
-                      toast.error(result.error ?? 'Erreur');
+                {/* Sélecteur de mode - radio-like, visible seulement hors "figé" */}
+                <div
+                  role="radiogroup"
+                  aria-label="Mode d'avatar"
+                  className="flex w-full max-w-sm flex-col gap-1.5"
+                >
+                  <AvatarModeRow
+                    icon={<CalendarDays className="h-4 w-4" />}
+                    label="Avatar du jour"
+                    sub="Change chaque matin"
+                    active={effectiveMode === 'daily'}
+                    disabled={avatarPending}
+                    onClick={() =>
+                      startAvatarTransition(async () => {
+                        const result = await setAvatarDaily();
+                        if (result.success) {
+                          setAvatarMode('daily');
+                          setAvatarSeed(null);
+                          toast.success('Mode quotidien activé.');
+                        } else {
+                          toast.error(result.error ?? 'Erreur');
+                        }
+                      })
                     }
-                  })
-                }
-              />
-              <AvatarModeRow
-                icon={<Dices className="h-4 w-4" />}
-                label="Tirage aléatoire du jour"
-                sub={
-                  canRoll
-                    ? 'Tirez votre robot de la journée (1/jour)'
-                    : "Déjà tiré aujourd'hui - revenez demain"
-                }
-                active={effectiveMode === 'random'}
-                disabled={avatarPending || !canRoll}
-                onClick={() =>
-                  startAvatarTransition(async () => {
-                    const result = await rollRandomAvatar();
-                    if (
-                      result.success &&
-                      result.seed &&
-                      result.regenDate &&
-                      result.mode
-                    ) {
-                      setAvatarMode(result.mode);
-                      setAvatarSeed(result.seed);
-                      setRegenDate(result.regenDate);
-                      toast.success('Nouveau robot tiré au sort !');
-                    } else {
-                      toast.error(result.error ?? 'Erreur');
+                  />
+                  <AvatarModeRow
+                    icon={<Dices className="h-4 w-4" />}
+                    label="Tirage aléatoire du jour"
+                    sub={
+                      canRoll
+                        ? 'Tirez votre robot de la journée (1/jour)'
+                        : "Déjà tiré aujourd'hui - revenez demain"
                     }
-                  })
-                }
-                actionLabel={
-                  effectiveMode === 'random' && canRoll
-                    ? 'Re-tirer'
-                    : effectiveMode === 'random'
-                      ? undefined
-                      : 'Tirer'
-                }
-              />
-              <AvatarModeRow
-                icon={<LockKeyhole className="h-4 w-4" />}
-                label="Figer le robot actuel"
-                sub={
-                  effectiveMode === 'frozen'
-                    ? 'Permanent - votre compagnon ne change plus'
-                    : 'Garder pour toujours celui affiché ci-dessus'
-                }
-                active={effectiveMode === 'frozen'}
-                disabled={avatarPending || effectiveMode === 'frozen'}
-                onClick={() =>
-                  startAvatarTransition(async () => {
-                    const result = await freezeCurrentAvatar();
-                    if (result.success && result.seed && result.mode) {
-                      setAvatarMode(result.mode);
-                      setAvatarSeed(result.seed);
-                      toast.success('Robot figé ! Il ne changera plus.');
-                    } else {
-                      toast.error(result.error ?? 'Erreur');
+                    active={effectiveMode === 'random'}
+                    disabled={avatarPending || !canRoll}
+                    onClick={() =>
+                      startAvatarTransition(async () => {
+                        const result = await rollRandomAvatar();
+                        if (
+                          result.success &&
+                          result.seed &&
+                          result.regenDate &&
+                          result.mode
+                        ) {
+                          setAvatarMode(result.mode);
+                          setAvatarSeed(result.seed);
+                          setRegenDate(result.regenDate);
+                          toast.success('Nouveau robot tiré au sort !');
+                        } else {
+                          toast.error(result.error ?? 'Erreur');
+                        }
+                      })
                     }
-                  })
-                }
-              />
-            </div>
-
-            {effectiveMode === 'frozen' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={avatarPending}
-                onClick={() =>
-                  startAvatarTransition(async () => {
-                    const result = await setAvatarDaily();
-                    if (result.success) {
-                      setAvatarMode('daily');
-                      setAvatarSeed(null);
-                      toast.success('Retour au mode quotidien.');
-                    } else {
-                      toast.error(result.error ?? 'Erreur');
+                    actionLabel={
+                      effectiveMode === 'random' && canRoll
+                        ? 'Re-tirer'
+                        : effectiveMode === 'random'
+                          ? undefined
+                          : 'Tirer'
                     }
-                  })
-                }
-              >
-                <RotateCcw className="mr-1.5 h-4 w-4" />
-                Déverrouiller
-              </Button>
+                  />
+                  <AvatarModeRow
+                    icon={<LockKeyhole className="h-4 w-4" />}
+                    label="Figer le robot actuel"
+                    sub="Garder pour toujours celui affiché ci-dessus"
+                    active={false}
+                    disabled={avatarPending}
+                    onClick={() =>
+                      startAvatarTransition(async () => {
+                        const result = await freezeCurrentAvatar();
+                        if (result.success && result.seed && result.mode) {
+                          setAvatarMode(result.mode);
+                          setAvatarSeed(result.seed);
+                          toast.success(
+                            'Robot figé à vie ! Il ne changera plus.',
+                          );
+                        } else {
+                          toast.error(result.error ?? 'Erreur');
+                        }
+                      })
+                    }
+                  />
+                </div>
+              </>
             )}
           </div>
         </CardContent>

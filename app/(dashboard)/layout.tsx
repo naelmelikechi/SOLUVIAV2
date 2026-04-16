@@ -28,16 +28,32 @@ export default function DashboardLayout({
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
-      if (authUser) {
-        supabase
-          .from('users')
-          .select(
-            'nom, prenom, role, email, avatar_mode, avatar_seed, avatar_regen_date',
-          )
-          .eq('id', authUser.id)
-          .single()
-          .then(({ data }) => setUser(data));
+    supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
+      if (!authUser) return;
+
+      // Full select - requires migration 00041 (avatar_mode). Fall back to the
+      // legacy schema so the sidebar still renders if the column is missing.
+      const full = await supabase
+        .from('users')
+        .select(
+          'nom, prenom, role, email, avatar_mode, avatar_seed, avatar_regen_date',
+        )
+        .eq('id', authUser.id)
+        .single();
+
+      if (full.data) {
+        setUser(full.data);
+        return;
+      }
+
+      const legacy = await supabase
+        .from('users')
+        .select('nom, prenom, role, email, avatar_seed, avatar_regen_date')
+        .eq('id', authUser.id)
+        .single();
+
+      if (legacy.data) {
+        setUser({ ...legacy.data, avatar_mode: null });
       }
     });
   }, []);

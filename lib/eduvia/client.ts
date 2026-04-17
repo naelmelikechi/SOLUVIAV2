@@ -150,6 +150,28 @@ export class EndpointNotAvailableError extends Error {
   }
 }
 
+/** Thrown when Eduvia returns 401/403 - we must fail fast, retrying would just stall. */
+export class AuthError extends Error {
+  constructor(
+    public status: number,
+    public url: string,
+  ) {
+    super(`Eduvia ${status} auth refusée pour ${url}`);
+    this.name = 'AuthError';
+  }
+}
+
+/** Thrown on non-404/401/403 4xx responses. Not retryable. */
+export class HttpClientError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'HttpClientError';
+  }
+}
+
 function baseUrlFrom(instanceUrl: string): string {
   // instance_url is stored as "slug.eduvia.app" - API lives at "api.slug.eduvia.app"
   const cleanUrl = instanceUrl.replace(/\/$/, '').replace(/^https?:\/\//, '');
@@ -181,7 +203,7 @@ async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
         throw new EndpointNotAvailableError(resource);
       }
       if (response.status === 401 || response.status === 403) {
-        throw new Error(`Eduvia ${response.status} auth refusée pour ${url}`);
+        throw new AuthError(response.status, url);
       }
       if (response.status >= 500 && attempt < MAX_RETRIES) {
         lastErr = new Error(`HTTP ${response.status} on ${url}`);
@@ -190,11 +212,21 @@ async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
       }
 
       const text = await response.text().catch(() => '(réponse illisible)');
-      throw new Error(
-        `Eduvia erreur ${response.status} pour ${url}: ${text.slice(0, 500)}`,
-      );
+      // 4xx (other than 404/401/403 handled above) are client errors - not retryable.
+      // We throw a specific error and re-throw it in the catch so backoff is skipped.
+      const message = `Eduvia erreur ${response.status} pour ${url}: ${text.slice(0, 500)}`;
+      if (response.status >= 400 && response.status < 500) {
+        throw new HttpClientError(response.status, message);
+      }
+      throw new Error(message);
     } catch (err) {
-      if (err instanceof EndpointNotAvailableError) throw err;
+      if (
+        err instanceof EndpointNotAvailableError ||
+        err instanceof AuthError ||
+        err instanceof HttpClientError
+      ) {
+        throw err;
+      }
       // Timeouts, DNS, TLS - retry
       if (attempt < MAX_RETRIES) {
         lastErr = err;

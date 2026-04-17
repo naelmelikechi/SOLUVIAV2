@@ -1,7 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { differenceInMonths } from 'date-fns';
-import { fetchAllPages, EndpointNotAvailableError } from '@/lib/eduvia/client';
+import {
+  fetchAllPages,
+  EndpointNotAvailableError,
+  AuthError,
+} from '@/lib/eduvia/client';
 import type {
   EduviaContract,
   EduviaLearner,
@@ -53,9 +57,9 @@ export async function syncEduviaForClient(
     errors: [],
   };
 
-  const now = new Date().toISOString();
-
   // ── Fetch projets for this client ──────────────────────────────────
+  // Note: DB lookups stay outside the try/catch - they're internal checks,
+  // not Eduvia fetch failures.
   const { data: projets, error: projetsError } = await supabase
     .from('projets')
     .select('id, client_id, archive')
@@ -77,178 +81,198 @@ export async function syncEduviaForClient(
   // contract. Documented in the plan's follow-ups section.
   const fallbackProjetId = projets[0]!.id;
 
-  // ── PASS 1 - reference tables ──────────────────────────────────────
-  const learners = await safeFetchList<EduviaLearner>(
-    () =>
-      fetchAllPages<EduviaLearner>(instanceUrl, apiKey, 'employee_learners'),
-    'employee_learners',
-    result,
-  );
-  const formations = await safeFetchList<EduviaFormation>(
-    () => fetchAllPages<EduviaFormation>(instanceUrl, apiKey, 'formations'),
-    'formations',
-    result,
-  );
-  const companies = await safeFetchList<EduviaCompany>(
-    () => fetchAllPages<EduviaCompany>(instanceUrl, apiKey, 'companies'),
-    'companies',
-    result,
-  );
+  try {
+    const now = new Date().toISOString();
 
-  for (const learner of learners) {
-    const { error: upsertError } = await supabase.from('apprenants').upsert(
-      {
-        eduvia_id: learner.id,
-        nom: learner.last_name,
-        prenom: learner.first_name,
-        gender: learner.gender,
-        phone_number: learner.phone_number,
-        eduvia_formation_id: learner.formation_id,
-        internal_number: learner.internal_number,
-        learning_start_date: learner.learning_start_date,
-        learning_end_date: learner.learning_end_date,
-        last_synced_at: now,
-      },
-      { onConflict: 'eduvia_id' },
+    // ── PASS 1 - reference tables ──────────────────────────────────────
+    const learners = await safeFetchList<EduviaLearner>(
+      () =>
+        fetchAllPages<EduviaLearner>(instanceUrl, apiKey, 'employee_learners'),
+      'employee_learners',
     );
-    if (upsertError) {
-      result.errors.push(
-        `Apprenant eduvia_id=${learner.id}: ${upsertError.message}`,
-      );
-    } else {
-      result.apprenants++;
-    }
-  }
-
-  for (const formation of formations) {
-    const { error: upsertError } = await supabase.from('formations').upsert(
-      {
-        eduvia_id: formation.id,
-        // Keep the legacy `titre` column populated for existing queries; the
-        // new `qualification_title` column mirrors the real API field name.
-        titre: formation.qualification_title,
-        qualification_title: formation.qualification_title,
-        duree: formation.duration?.toString() ?? null,
-        rncp: formation.rncp,
-        code_diploma: formation.code_diploma,
-        diploma_type: formation.diploma_type,
-        sequence_count: formation.sequence_count,
-        last_synced_at: now,
-      },
-      { onConflict: 'eduvia_id' },
+    const formations = await safeFetchList<EduviaFormation>(
+      () => fetchAllPages<EduviaFormation>(instanceUrl, apiKey, 'formations'),
+      'formations',
     );
-    if (upsertError) {
-      result.errors.push(
-        `Formation eduvia_id=${formation.id}: ${upsertError.message}`,
-      );
-    } else {
-      result.formations++;
-    }
-  }
+    const companies = await safeFetchList<EduviaCompany>(
+      () => fetchAllPages<EduviaCompany>(instanceUrl, apiKey, 'companies'),
+      'companies',
+    );
 
-  for (const company of companies) {
-    const { error: upsertError } = await supabase
-      .from('eduvia_companies')
-      .upsert(
+    for (const learner of learners) {
+      const { error: upsertError } = await supabase.from('apprenants').upsert(
         {
-          eduvia_id: company.id,
-          // Keep the legacy `name` column populated; `denomination` mirrors the real API.
-          name: company.denomination,
-          denomination: company.denomination,
-          siret: company.siret,
-          naf: company.naf,
-          address: company.address,
-          postcode: company.postcode,
-          city: company.city,
-          country: company.country,
-          employee_count: company.employee_count,
-          idcc_code: company.idcc_code,
-          employer_type: company.employer_type,
-          eduvia_campus_id: company.campus_id,
-          client_id: clientId,
+          eduvia_id: learner.id,
+          nom: learner.last_name,
+          prenom: learner.first_name,
+          gender: learner.gender,
+          phone_number: learner.phone_number,
+          eduvia_formation_id: learner.formation_id,
+          internal_number: learner.internal_number,
+          learning_start_date: learner.learning_start_date,
+          learning_end_date: learner.learning_end_date,
           last_synced_at: now,
         },
         { onConflict: 'eduvia_id' },
       );
-    if (upsertError) {
-      result.errors.push(
-        `Company eduvia_id=${company.id}: ${upsertError.message}`,
-      );
-    } else {
-      result.companies++;
-    }
-  }
-
-  // In-memory lookups for the denormalised contract columns.
-  const learnerById = new Map(learners.map((l) => [l.id, l]));
-  const formationById = new Map(formations.map((f) => [f.id, f]));
-
-  // ── PASS 2 - contracts ─────────────────────────────────────────────
-  const contracts = await safeFetchList<EduviaContract>(
-    () => fetchAllPages<EduviaContract>(instanceUrl, apiKey, 'contracts'),
-    'contracts',
-    result,
-  );
-
-  for (const contract of contracts) {
-    try {
-      const learner = learnerById.get(contract.employee_id);
-      const formation = formationById.get(contract.formation_id);
-      const duree_mois =
-        contract.contract_start_date && contract.contract_end_date
-          ? differenceInMonths(
-              new Date(contract.contract_end_date),
-              new Date(contract.contract_start_date),
-            )
-          : null;
-
-      const { error: upsertError } = await supabase.from('contrats').upsert(
-        {
-          eduvia_id: contract.id,
-          projet_id: fallbackProjetId,
-          eduvia_employee_id: contract.employee_id,
-          eduvia_formation_id: contract.formation_id,
-          eduvia_company_id: contract.company_id,
-          eduvia_teacher_id: contract.teacher_id,
-          eduvia_campus_id: contract.campus_id,
-          apprenant_nom: learner?.last_name ?? null,
-          apprenant_prenom: learner?.first_name ?? null,
-          formation_titre: formation?.qualification_title ?? null,
-          date_debut: contract.contract_start_date,
-          date_fin: contract.contract_end_date,
-          contract_state: contract.contract_state,
-          contract_number: contract.contract_number,
-          internal_number: contract.internal_number,
-          contract_type: contract.contract_type,
-          contract_mode: contract.contract_mode,
-          contract_conclusion_date: contract.contract_conclusion_date,
-          practical_training_start_date: contract.practical_training_start_date,
-          creation_mode: contract.creation_mode,
-          // Keep legacy column montant_prise_en_charge populated from npec_amount
-          // so downstream queries don't break.
-          montant_prise_en_charge: contract.npec_amount,
-          npec_amount: contract.npec_amount,
-          referrer_name: contract.referrer_name,
-          referrer_amount: contract.referrer_amount,
-          referrer_type: contract.referrer_type,
-          duree_mois,
-          last_synced_at: now,
-          archive: false,
-        },
-        { onConflict: 'eduvia_id' },
-      );
-
       if (upsertError) {
         result.errors.push(
-          `Contrat eduvia_id=${contract.id}: ${upsertError.message}`,
+          `Apprenant eduvia_id=${learner.id}: ${upsertError.message}`,
         );
       } else {
-        result.contrats++;
+        result.apprenants++;
       }
-    } catch (err) {
-      result.errors.push(
-        `Contrat eduvia_id=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+    }
+
+    for (const formation of formations) {
+      const { error: upsertError } = await supabase.from('formations').upsert(
+        {
+          eduvia_id: formation.id,
+          // Keep the legacy `titre` column populated for existing queries; the
+          // new `qualification_title` column mirrors the real API field name.
+          titre: formation.qualification_title,
+          qualification_title: formation.qualification_title,
+          duree: formation.duration?.toString() ?? null,
+          rncp: formation.rncp,
+          code_diploma: formation.code_diploma,
+          diploma_type: formation.diploma_type,
+          sequence_count: formation.sequence_count,
+          last_synced_at: now,
+        },
+        { onConflict: 'eduvia_id' },
       );
+      if (upsertError) {
+        result.errors.push(
+          `Formation eduvia_id=${formation.id}: ${upsertError.message}`,
+        );
+      } else {
+        result.formations++;
+      }
+    }
+
+    for (const company of companies) {
+      const { error: upsertError } = await supabase
+        .from('eduvia_companies')
+        .upsert(
+          {
+            eduvia_id: company.id,
+            // Keep the legacy `name` column populated; `denomination` mirrors the real API.
+            name: company.denomination,
+            denomination: company.denomination,
+            siret: company.siret,
+            naf: company.naf,
+            address: company.address,
+            postcode: company.postcode,
+            city: company.city,
+            country: company.country,
+            employee_count: company.employee_count,
+            idcc_code: company.idcc_code,
+            employer_type: company.employer_type,
+            eduvia_campus_id: company.campus_id,
+            client_id: clientId,
+            last_synced_at: now,
+          },
+          { onConflict: 'eduvia_id' },
+        );
+      if (upsertError) {
+        result.errors.push(
+          `Company eduvia_id=${company.id}: ${upsertError.message}`,
+        );
+      } else {
+        result.companies++;
+      }
+    }
+
+    // In-memory lookups for the denormalised contract columns. Built inside
+    // the try block so if any PASS 1 fetch threw above, PASS 2 is skipped
+    // entirely rather than running with partial/empty Maps.
+    const learnerById = new Map(learners.map((l) => [l.id, l]));
+    const formationById = new Map(formations.map((f) => [f.id, f]));
+
+    // ── PASS 2 - contracts ─────────────────────────────────────────────
+    const contracts = await safeFetchList<EduviaContract>(
+      () => fetchAllPages<EduviaContract>(instanceUrl, apiKey, 'contracts'),
+      'contracts',
+    );
+
+    for (const contract of contracts) {
+      try {
+        const learner = learnerById.get(contract.employee_id);
+        const formation = formationById.get(contract.formation_id);
+        const duree_mois =
+          contract.contract_start_date && contract.contract_end_date
+            ? differenceInMonths(
+                new Date(contract.contract_end_date),
+                new Date(contract.contract_start_date),
+              )
+            : null;
+
+        const { error: upsertError } = await supabase.from('contrats').upsert(
+          {
+            eduvia_id: contract.id,
+            projet_id: fallbackProjetId,
+            eduvia_employee_id: contract.employee_id,
+            eduvia_formation_id: contract.formation_id,
+            eduvia_company_id: contract.company_id,
+            eduvia_teacher_id: contract.teacher_id,
+            eduvia_campus_id: contract.campus_id,
+            apprenant_nom: learner?.last_name ?? null,
+            apprenant_prenom: learner?.first_name ?? null,
+            formation_titre: formation?.qualification_title ?? null,
+            date_debut: contract.contract_start_date,
+            date_fin: contract.contract_end_date,
+            contract_state: contract.contract_state,
+            contract_number: contract.contract_number,
+            internal_number: contract.internal_number,
+            contract_type: contract.contract_type,
+            contract_mode: contract.contract_mode,
+            contract_conclusion_date: contract.contract_conclusion_date,
+            practical_training_start_date:
+              contract.practical_training_start_date,
+            creation_mode: contract.creation_mode,
+            // Keep legacy column montant_prise_en_charge populated from npec_amount
+            // so downstream queries don't break.
+            montant_prise_en_charge: contract.npec_amount,
+            npec_amount: contract.npec_amount,
+            referrer_name: contract.referrer_name,
+            referrer_amount: contract.referrer_amount,
+            referrer_type: contract.referrer_type,
+            duree_mois,
+            last_synced_at: now,
+            archive: false,
+          },
+          { onConflict: 'eduvia_id' },
+        );
+
+        if (upsertError) {
+          result.errors.push(
+            `Contrat eduvia_id=${contract.id}: ${upsertError.message}`,
+          );
+        } else {
+          result.contrats++;
+        }
+      } catch (err) {
+        result.errors.push(
+          `Contrat eduvia_id=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+  } catch (err) {
+    // Abort this client's sync on any non-404 fetch failure so we don't
+    // corrupt denormalised columns with partial data. AuthError gets a
+    // more specific message so the admin knows to rotate the key.
+    const message = err instanceof Error ? err.message : String(err);
+    if (err instanceof AuthError) {
+      result.errors.push(
+        `Client ${clientId}: erreur d'authentification (${err.status}) - clé API invalide ou révoquée`,
+      );
+      logger.warn('eduvia_sync', 'Clé API invalide', {
+        clientId,
+        status: err.status,
+      });
+    } else {
+      result.errors.push(`Client ${clientId}: sync interrompue - ${message}`);
+      logger.error('eduvia_sync', err, { clientId, step: 'fetch_failure' });
     }
   }
 
@@ -256,14 +280,15 @@ export async function syncEduviaForClient(
 }
 
 // ---------------------------------------------------------------------------
-// safeFetchList - tolerant wrapper: 404 means endpoint not available yet,
-// other errors are pushed into result.errors and an empty array is returned.
+// safeFetchList - tolerant wrapper: 404 (endpoint not deployed yet) is silently
+// degraded to an empty array. All other errors (5xx, auth, timeouts, network)
+// propagate so the caller can abort this client's sync cleanly - otherwise
+// PASS 2 would run with empty lookup maps and corrupt the denormalised columns.
 // ---------------------------------------------------------------------------
 
 async function safeFetchList<T>(
   fetcher: () => Promise<T[]>,
   label: string,
-  result: SyncClientResult,
 ): Promise<T[]> {
   try {
     return await fetcher();
@@ -275,10 +300,7 @@ async function safeFetchList<T>(
       );
       return [];
     }
-    result.errors.push(
-      `Erreur fetch ${label}: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return [];
+    throw err;
   }
 }
 

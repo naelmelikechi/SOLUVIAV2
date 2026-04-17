@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
+import type { Database, Json } from '@/types/database';
 import { differenceInMonths } from 'date-fns';
 import {
   fetchAllPages,
+  fetchOne,
   EndpointNotAvailableError,
   AuthError,
 } from '@/lib/eduvia/client';
@@ -11,6 +12,7 @@ import type {
   EduviaLearner,
   EduviaFormation,
   EduviaCompany,
+  EduviaProgression,
 } from '@/lib/eduvia/client';
 import { logger } from '@/lib/utils/logger';
 import { decryptApiKey } from '@/lib/utils/encryption';
@@ -25,6 +27,7 @@ export interface SyncClientResult {
   apprenants: number;
   formations: number;
   companies: number;
+  progressions: number;
   errors: string[];
 }
 
@@ -37,9 +40,11 @@ export interface SyncResult {
 }
 
 // ---------------------------------------------------------------------------
-// syncEduviaForClient - 2-pass sync:
+// syncEduviaForClient - 3-pass sync:
 //   PASS 1: fetch + upsert reference tables (learners, formations, companies).
 //   PASS 2: fetch contracts and denormalise names via in-memory lookup maps.
+//   PASS 3: per-contract progressions upsert (needs freshly-upserted contrats
+//           rows to map eduvia_id -> UUID PK for FK contrat_id).
 // ---------------------------------------------------------------------------
 
 export async function syncEduviaForClient(
@@ -54,6 +59,7 @@ export async function syncEduviaForClient(
     apprenants: 0,
     formations: 0,
     companies: 0,
+    progressions: 0,
     errors: [],
   };
 
@@ -257,6 +263,77 @@ export async function syncEduviaForClient(
         );
       }
     }
+
+    // ── PASS 3 - per-contract progressions ─────────────────────────────
+    // Must run AFTER contracts so we can FK contrats_progressions.contrat_id
+    // to the freshly-upserted contrats rows.
+    const { data: syncedContrats, error: contratsLookupError } = await supabase
+      .from('contrats')
+      .select('id, eduvia_id')
+      .in(
+        'eduvia_id',
+        contracts.map((c) => c.id),
+      );
+
+    if (contratsLookupError) {
+      result.errors.push(
+        `Erreur lookup contrats pour progressions: ${contratsLookupError.message}`,
+      );
+      return result;
+    }
+
+    const contratIdByEduviaId = new Map(
+      (syncedContrats ?? []).map((c) => [c.eduvia_id, c.id] as const),
+    );
+
+    for (const contract of contracts) {
+      const contratId = contratIdByEduviaId.get(contract.id);
+      if (!contratId) continue;
+
+      try {
+        const progression = await fetchOne<EduviaProgression>(
+          instanceUrl,
+          apiKey,
+          `contracts/${contract.id}/progressions`,
+        );
+
+        const { error: upsertError } = await supabase
+          .from('contrats_progressions')
+          .upsert(
+            {
+              contrat_id: contratId,
+              eduvia_contract_id: progression.contract_id,
+              eduvia_formation_id: progression.formation_id,
+              total_spent_time_seconds: progression.total_spent_time,
+              total_spent_time_hours: progression.total_spent_time_hours,
+              completed_sequences_count: progression.completed_sequences_count,
+              sequence_count: progression.sequence_count,
+              progression_percentage: progression.progression_percentage,
+              estimated_relative_time: progression.estimated_relative_time,
+              average_score: progression.average_score,
+              last_activity_at: progression.last_activity_at,
+              sequences: progression.sequences as unknown as Json,
+              last_synced_at: now,
+            },
+            { onConflict: 'contrat_id' },
+          );
+
+        if (upsertError) {
+          result.errors.push(
+            `Progression contrat=${contract.id}: ${upsertError.message}`,
+          );
+        } else {
+          result.progressions++;
+        }
+      } catch (err) {
+        if (err instanceof EndpointNotAvailableError) continue;
+        // Other errors: log the single failure but keep going; we don't
+        // abort the whole sync for one flaky progression endpoint.
+        result.errors.push(
+          `Progression contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
   } catch (err) {
     // Abort this client's sync on any non-404 fetch failure so we don't
     // corrupt denormalised columns with partial data. AuthError gets a
@@ -386,6 +463,7 @@ export async function syncAllEduviaClients(
         apprenants: clientResult.apprenants,
         formations: clientResult.formations,
         companies: clientResult.companies,
+        progressions: clientResult.progressions,
       });
     } catch (err) {
       syncResult.skippedClients++;

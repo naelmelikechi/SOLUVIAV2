@@ -27,6 +27,9 @@ CREATE INDEX IF NOT EXISTS idx_contrats_eduvia_employee_id ON contrats(eduvia_em
 CREATE INDEX IF NOT EXISTS idx_contrats_eduvia_company_id  ON contrats(eduvia_company_id);
 CREATE INDEX IF NOT EXISTS idx_contrats_eduvia_formation_id ON contrats(eduvia_formation_id);
 
+-- Hot path for sync.ts Task 3: company -> client resolution to pick the projet.
+CREATE INDEX IF NOT EXISTS idx_eduvia_companies_client_id ON eduvia_companies(client_id);
+
 -- ── eduvia_companies: legal identifiers + address ───────────────────────
 ALTER TABLE eduvia_companies ADD COLUMN IF NOT EXISTS denomination TEXT;
 ALTER TABLE eduvia_companies ADD COLUMN IF NOT EXISTS siret TEXT;
@@ -57,8 +60,14 @@ ALTER TABLE apprenants ADD COLUMN IF NOT EXISTS internal_number TEXT;
 ALTER TABLE apprenants ADD COLUMN IF NOT EXISTS learning_start_date DATE;
 ALTER TABLE apprenants ADD COLUMN IF NOT EXISTS learning_end_date DATE;
 
-COMMENT ON COLUMN contrats.eduvia_employee_id IS 'Matches apprenants.eduvia_id — used by sync to denormalize apprenant_nom/prenom';
-COMMENT ON COLUMN contrats.eduvia_formation_id IS 'Matches formations.eduvia_id — used by sync to denormalize formation_titre';
-COMMENT ON COLUMN contrats.eduvia_company_id IS 'Matches eduvia_companies.eduvia_id — used by sync to resolve projet_id via the linked client';
+-- Symmetric to contrats.eduvia_formation_id: lets dashboards query "all learners of formation X".
+CREATE INDEX IF NOT EXISTS idx_apprenants_eduvia_formation_id ON apprenants(eduvia_formation_id);
+
+COMMENT ON COLUMN contrats.eduvia_employee_id IS 'Matches apprenants.eduvia_id - used by sync to denormalize apprenant_nom/prenom';
+COMMENT ON COLUMN contrats.eduvia_formation_id IS 'Matches formations.eduvia_id - used by sync to denormalize formation_titre';
+COMMENT ON COLUMN contrats.eduvia_company_id IS 'Matches eduvia_companies.eduvia_id - used by sync to resolve projet_id via the linked client';
+COMMENT ON COLUMN contrats.npec_amount IS 'NPEC = Niveau de Prise En Charge. Real Eduvia field; replaces our previous funding_amount assumption';
 COMMENT ON COLUMN eduvia_companies.denomination IS 'Legal name from Eduvia (real API field). Populated in parallel with the legacy name column for backwards compatibility';
-COMMENT ON COLUMN formations.qualification_title IS 'Real title from Eduvia API (replaces our previous assumption of a top-level title field).';
+COMMENT ON COLUMN eduvia_companies.idcc_code IS 'French labour-code identifier for the collective agreement (IDCC = Identifiant Des Conventions Collectives)';
+COMMENT ON COLUMN formations.qualification_title IS 'Real title from Eduvia API (replaces our previous assumption of a top-level title field)';
+COMMENT ON COLUMN formations.rncp IS 'RNCP = Repertoire National des Certifications Professionnelles. Official French qualification code';

@@ -5,6 +5,7 @@ import {
   fetchAllPages,
   fetchOne,
   fetchList,
+  fetchStatus,
   EndpointNotAvailableError,
   AuthError,
 } from '@/lib/eduvia/client';
@@ -96,6 +97,28 @@ export async function syncEduviaForClient(
 
   try {
     const now = new Date().toISOString();
+
+    // ── PRE-CHECK /api/v1/status ───────────────────────────────────────
+    // Cheap health + auth probe before we trigger dozens of paginated
+    // fetches. Unwrapped response shape { status, version, authenticated }.
+    // If authenticated !== 'ok' we bail out with a clear error; if the
+    // request itself throws (TLS, network, AuthError), the outer catch
+    // below turns it into a descriptive "sync interrompue" entry.
+    const status = await fetchStatus(instanceUrl, apiKey);
+    if (status.authenticated !== 'ok') {
+      result.errors.push(
+        `Client ${clientId}: token Eduvia refusé (authenticated=${status.authenticated}, status=${status.status})`,
+      );
+      logger.warn('eduvia_sync', 'Token Eduvia refusé sur /status', {
+        clientId,
+        eduviaStatus: status,
+      });
+      return result;
+    }
+    logger.info('eduvia_sync', 'Connexion Eduvia OK', {
+      clientId,
+      eduviaVersion: status.version,
+    });
 
     // ── PASS 1 - reference tables ──────────────────────────────────────
     const learners = await safeFetchList<EduviaLearner>(

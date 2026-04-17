@@ -133,6 +133,17 @@ export interface EduviaProgression {
   sequences: Array<Record<string, unknown>>;
 }
 
+/**
+ * Response of GET /api/v1/status. UNWRAPPED - no { data } envelope, unlike
+ * every other endpoint. `authenticated` is "ok" when the bearer token is
+ * valid, anything else means the token was refused.
+ */
+export interface EduviaStatus {
+  status: string;
+  version: string;
+  authenticated: string;
+}
+
 // ---------------------------------------------------------------------------
 // fetch helpers
 // ---------------------------------------------------------------------------
@@ -309,4 +320,19 @@ export async function fetchList<T>(
     apiKey,
   );
   return result.data ?? [];
+}
+
+/**
+ * Health check + token validation. Hits GET /api/v1/status which returns an
+ * UNWRAPPED { status, version, authenticated } object (no `data` envelope).
+ * Used as a cheap pre-check at the top of syncEduviaForClient so we bail out
+ * with a clear error before running N paginated fetches against a dead API
+ * or with a revoked token.
+ */
+export async function fetchStatus(
+  instanceUrl: string,
+  apiKey: string,
+): Promise<EduviaStatus> {
+  const baseUrl = baseUrlFrom(instanceUrl);
+  return fetchJson<EduviaStatus>(`${baseUrl}/api/v1/status`, apiKey);
 }

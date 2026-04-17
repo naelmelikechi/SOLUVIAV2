@@ -165,3 +165,57 @@ Both optional — app works without them, features gracefully degrade.
 3. **Email:** Create a facture with `RESEND_API_KEY` configured, verify email sent + `email_envoye = true`
 4. **Degraded mode:** Remove env vars, verify app still builds and functions without errors
 5. `npm run lint && npm run build` passes
+
+## 2026-04-17 Update - Schema drift resolved + invoice/progression endpoints wired
+
+Audit of the Eduvia API against the real OpenAPI spec (`/tmp/eduvia_openapi.yaml`,
+fetched from `https://demo.eduvia.app/api/docs/openapi.yaml`) revealed that the
+previous assumptions about the contract/learner/formation/company response shapes
+were wrong: the real API returns flat objects with `*_id` integers, not the
+nested `employee_learner` / `formation` / `company` objects we were reading. The
+sync was writing NULL into every denormalised column.
+
+Full plan: `docs/superpowers/plans/2026-04-17-eduvia-sync-refactor.md`.
+
+Delivered in eight commits on branch `feat/eduvia-sync-refactor`:
+
+- **00037 fix** (`03215ef`) - cast `role::text` in `is_admin()` so fresh local
+  `supabase start` no longer trips the "unsafe use of new enum value" error.
+- **Migration 00044** (`7dcb86e` + `131113e` follow-up) - additive columns on
+  `contrats` / `eduvia_companies` / `formations` / `apprenants` matching the
+  real API fields (`contract_start_date`, `npec_amount`, `denomination`,
+  `qualification_title`, `siret`, `rncp`, etc.) plus three new indexes.
+- **`client.ts` rewrite + `sync.ts` 2-pass refactor** (`91bf5ca` + `4c2932d`
+  follow-up) - types match OpenAPI, `REQUEST_TIMEOUT` raised 3s -> 15s with
+  exponential backoff on 5xx/network, fast-fail on 401/403/4xx via
+  `AuthError` / `HttpClientError`, PASS 1 upserts reference tables then PASS 2
+  resolves contract names via in-memory Maps, legacy columns kept populated
+  for backwards-compat, systemic fetch failures now abort the client's sync
+  instead of corrupting rows with NULLs.
+- **Migration 00045 + PASS 3** (`41a65a3` + `a8cbec2`) - `contrats_progressions`
+  table (one row per contract, UNIQUE on `contrat_id`, JSONB sequences) and the
+  per-contract `/progressions` fetch loop.
+- **Migration 00046 + PASS 4** (`a98612a` + `664b6ae`) - `eduvia_invoice_steps`
+  and `eduvia_invoice_forecast_steps` tables and the per-contract
+  `/invoice_steps` + `/invoice_forecast_steps` fetch loops.
+
+Live end-to-end verification is still blocked on the Eduvia TLS cert for
+`api.demo.eduvia.app` - Cloudflare returns SSL alert 40 handshake_failure
+because the subdomain is not covered by Universal SSL (the cert presented is
+for `CN=eduvia.app` only). The Eduvia team needs to enable Advanced
+Certificate Manager or issue a dedicated edge certificate for the subdomain.
+
+Follow-ups (out of scope):
+
+- `projets.eduvia_company_ids` mapping so multi-projet clients resolve the
+  right projet per contract (currently every contract still pins to the first
+  non-archived projet via `fallbackProjetId`).
+- 10 remaining files still on mock data (progress tracker).
+- Odoo push is still stubbed; no real credentials yet.
+- Resend email wiring on `createFactures`.
+- `/surveys` and `/graded_surveys` sync (Qualiopi tracking).
+- Remove the duplicated `idx_contrats_progressions_contrat_id` (redundant with
+  the UNIQUE constraint).
+- Drop the legacy `formations.titre` / `eduvia_companies.name` /
+  `contrats.montant_prise_en_charge` columns once all queries migrate to the
+  new real-API column names.

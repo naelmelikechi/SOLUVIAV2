@@ -691,6 +691,127 @@ export type Database = {
           },
         ];
       };
+      eduvia_invoice_forecast_steps: {
+        Row: {
+          contrat_id: string;
+          created_at: string;
+          eduvia_contract_id: number;
+          eduvia_id: number;
+          id: string;
+          last_synced_at: string;
+          npec_amount: number | null;
+          opening_date: string | null;
+          percentage: number | null;
+          step_number: number;
+          total_amount: number | null;
+        };
+        Insert: {
+          contrat_id: string;
+          created_at?: string;
+          eduvia_contract_id: number;
+          eduvia_id: number;
+          id?: string;
+          last_synced_at?: string;
+          npec_amount?: number | null;
+          opening_date?: string | null;
+          percentage?: number | null;
+          step_number: number;
+          total_amount?: number | null;
+        };
+        Update: {
+          contrat_id?: string;
+          created_at?: string;
+          eduvia_contract_id?: number;
+          eduvia_id?: number;
+          id?: string;
+          last_synced_at?: string;
+          npec_amount?: number | null;
+          opening_date?: string | null;
+          percentage?: number | null;
+          step_number?: number;
+          total_amount?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'eduvia_invoice_forecast_steps_contrat_id_fkey';
+            columns: ['contrat_id'];
+            isOneToOne: false;
+            referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      eduvia_invoice_steps: {
+        Row: {
+          contrat_id: string;
+          created_at: string;
+          eduvia_contract_id: number;
+          eduvia_id: number;
+          eduvia_invoice_id: number | null;
+          external_code: string | null;
+          id: string;
+          in_progress_amount: number | null;
+          including_pedagogie_amount: number | null;
+          including_rqth_amount: number | null;
+          invoice_sent_at: string | null;
+          invoice_state: string | null;
+          last_synced_at: string;
+          opening_date: string | null;
+          paid_amount: number | null;
+          siret_cfa: string | null;
+          step_number: number;
+          total_amount: number | null;
+        };
+        Insert: {
+          contrat_id: string;
+          created_at?: string;
+          eduvia_contract_id: number;
+          eduvia_id: number;
+          eduvia_invoice_id?: number | null;
+          external_code?: string | null;
+          id?: string;
+          in_progress_amount?: number | null;
+          including_pedagogie_amount?: number | null;
+          including_rqth_amount?: number | null;
+          invoice_sent_at?: string | null;
+          invoice_state?: string | null;
+          last_synced_at?: string;
+          opening_date?: string | null;
+          paid_amount?: number | null;
+          siret_cfa?: string | null;
+          step_number: number;
+          total_amount?: number | null;
+        };
+        Update: {
+          contrat_id?: string;
+          created_at?: string;
+          eduvia_contract_id?: number;
+          eduvia_id?: number;
+          eduvia_invoice_id?: number | null;
+          external_code?: string | null;
+          id?: string;
+          in_progress_amount?: number | null;
+          including_pedagogie_amount?: number | null;
+          including_rqth_amount?: number | null;
+          invoice_sent_at?: string | null;
+          invoice_state?: string | null;
+          last_synced_at?: string;
+          opening_date?: string | null;
+          paid_amount?: number | null;
+          siret_cfa?: string | null;
+          step_number?: number;
+          total_amount?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'eduvia_invoice_steps_contrat_id_fkey';
+            columns: ['contrat_id'];
+            isOneToOne: false;
+            referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       facture_lignes: {
         Row: {
           contrat_id: string;

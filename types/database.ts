@@ -462,6 +462,68 @@ export type Database = {
           },
         ];
       };
+      contrats_progressions: {
+        Row: {
+          average_score: number | null;
+          completed_sequences_count: number | null;
+          contrat_id: string;
+          created_at: string;
+          eduvia_contract_id: number;
+          eduvia_formation_id: number | null;
+          estimated_relative_time: number | null;
+          id: string;
+          last_activity_at: string | null;
+          last_synced_at: string;
+          progression_percentage: number | null;
+          sequence_count: number | null;
+          sequences: Json | null;
+          total_spent_time_hours: number | null;
+          total_spent_time_seconds: number | null;
+        };
+        Insert: {
+          average_score?: number | null;
+          completed_sequences_count?: number | null;
+          contrat_id: string;
+          created_at?: string;
+          eduvia_contract_id: number;
+          eduvia_formation_id?: number | null;
+          estimated_relative_time?: number | null;
+          id?: string;
+          last_activity_at?: string | null;
+          last_synced_at?: string;
+          progression_percentage?: number | null;
+          sequence_count?: number | null;
+          sequences?: Json | null;
+          total_spent_time_hours?: number | null;
+          total_spent_time_seconds?: number | null;
+        };
+        Update: {
+          average_score?: number | null;
+          completed_sequences_count?: number | null;
+          contrat_id?: string;
+          created_at?: string;
+          eduvia_contract_id?: number;
+          eduvia_formation_id?: number | null;
+          estimated_relative_time?: number | null;
+          id?: string;
+          last_activity_at?: string | null;
+          last_synced_at?: string;
+          progression_percentage?: number | null;
+          sequence_count?: number | null;
+          sequences?: Json | null;
+          total_spent_time_hours?: number | null;
+          total_spent_time_seconds?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'contrats_progressions_contrat_id_fkey';
+            columns: ['contrat_id'];
+            isOneToOne: true;
+            referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       donnees_financieres: {
         Row: {
           contrat_id: string;

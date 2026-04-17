@@ -33,7 +33,9 @@ export interface SyncResult {
 }
 
 // ---------------------------------------------------------------------------
-// syncEduviaForClient - sync all data for a single client
+// syncEduviaForClient - 2-pass sync:
+//   PASS 1: fetch + upsert reference tables (learners, formations, companies).
+//   PASS 2: fetch contracts and denormalise names via in-memory lookup maps.
 // ---------------------------------------------------------------------------
 
 export async function syncEduviaForClient(
@@ -56,7 +58,7 @@ export async function syncEduviaForClient(
   // ── Fetch projets for this client ──────────────────────────────────
   const { data: projets, error: projetsError } = await supabase
     .from('projets')
-    .select('id, client_id')
+    .select('id, client_id, archive')
     .eq('client_id', clientId)
     .eq('archive', false);
 
@@ -64,214 +66,188 @@ export async function syncEduviaForClient(
     result.errors.push(`Erreur récupération projets: ${projetsError.message}`);
     return result;
   }
-
   if (!projets || projets.length === 0) {
     result.errors.push(`Aucun projet actif pour le client ${clientId}`);
     return result;
   }
 
-  // Use the first projet as default target for contracts
-  const defaultProjetId = projets[0]!.id;
+  // Multi-projet clients: v1 uses the first non-archived projet as fallback.
+  // A future migration may hang contrats.projet_id resolution on a
+  // projets.eduvia_company_ids mapping so we can pick the right one per
+  // contract. Documented in the plan's follow-ups section.
+  const fallbackProjetId = projets[0]!.id;
 
-  // ── Sync contracts ─────────────────────────────────────────────────
-  try {
-    const contracts = await fetchAllPages<EduviaContract>(
-      instanceUrl,
-      apiKey,
-      'contracts',
+  // ── PASS 1 - reference tables ──────────────────────────────────────
+  const learners = await safeFetchList<EduviaLearner>(
+    () =>
+      fetchAllPages<EduviaLearner>(instanceUrl, apiKey, 'employee_learners'),
+    'employee_learners',
+    result,
+  );
+  const formations = await safeFetchList<EduviaFormation>(
+    () => fetchAllPages<EduviaFormation>(instanceUrl, apiKey, 'formations'),
+    'formations',
+    result,
+  );
+  const companies = await safeFetchList<EduviaCompany>(
+    () => fetchAllPages<EduviaCompany>(instanceUrl, apiKey, 'companies'),
+    'companies',
+    result,
+  );
+
+  for (const learner of learners) {
+    const { error: upsertError } = await supabase.from('apprenants').upsert(
+      {
+        eduvia_id: learner.id,
+        nom: learner.last_name,
+        prenom: learner.first_name,
+        gender: learner.gender,
+        phone_number: learner.phone_number,
+        eduvia_formation_id: learner.formation_id,
+        internal_number: learner.internal_number,
+        learning_start_date: learner.learning_start_date,
+        learning_end_date: learner.learning_end_date,
+        last_synced_at: now,
+      },
+      { onConflict: 'eduvia_id' },
     );
-
-    for (const contract of contracts) {
-      try {
-        const duree_mois =
-          contract.start_date && contract.end_date
-            ? differenceInMonths(
-                new Date(contract.end_date),
-                new Date(contract.start_date),
-              )
-            : null;
-
-        const { error: upsertError } = await supabase.from('contrats').upsert(
-          {
-            eduvia_id: contract.id,
-            projet_id: defaultProjetId,
-            apprenant_nom: contract.employee_learner?.last_name ?? null,
-            apprenant_prenom: contract.employee_learner?.first_name ?? null,
-            formation_titre: contract.formation?.title ?? null,
-            date_debut: contract.start_date ?? null,
-            date_fin: contract.end_date ?? null,
-            contract_state: contract.state,
-            montant_prise_en_charge: contract.funding_amount ?? null,
-            duree_mois,
-            last_synced_at: now,
-            archive: false,
-          },
-          { onConflict: 'eduvia_id' },
-        );
-
-        if (upsertError) {
-          result.errors.push(
-            `Contrat eduvia_id=${contract.id}: ${upsertError.message}`,
-          );
-        } else {
-          result.contrats++;
-        }
-      } catch (err) {
-        result.errors.push(
-          `Contrat eduvia_id=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-  } catch (err) {
-    if (err instanceof EndpointNotAvailableError) {
-      logger.info(
-        'eduvia_sync',
-        `Endpoint contracts pas encore disponible - ignoré`,
+    if (upsertError) {
+      result.errors.push(
+        `Apprenant eduvia_id=${learner.id}: ${upsertError.message}`,
       );
     } else {
-      result.errors.push(
-        `Erreur fetch contracts: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      result.apprenants++;
     }
   }
 
-  // ── Sync learners ──────────────────────────────────────────────────
-  try {
-    const learners = await fetchAllPages<EduviaLearner>(
-      instanceUrl,
-      apiKey,
-      'employee_learners',
+  for (const formation of formations) {
+    const { error: upsertError } = await supabase.from('formations').upsert(
+      {
+        eduvia_id: formation.id,
+        // Keep the legacy `titre` column populated for existing queries; the
+        // new `qualification_title` column mirrors the real API field name.
+        titre: formation.qualification_title,
+        qualification_title: formation.qualification_title,
+        duree: formation.duration?.toString() ?? null,
+        rncp: formation.rncp,
+        code_diploma: formation.code_diploma,
+        diploma_type: formation.diploma_type,
+        sequence_count: formation.sequence_count,
+        last_synced_at: now,
+      },
+      { onConflict: 'eduvia_id' },
     );
-
-    for (const learner of learners) {
-      try {
-        const { error: upsertError } = await supabase.from('apprenants').upsert(
-          {
-            eduvia_id: learner.id,
-            nom: learner.last_name,
-            prenom: learner.first_name,
-            email: learner.email ?? null,
-            last_synced_at: now,
-          },
-          { onConflict: 'eduvia_id' },
-        );
-
-        if (upsertError) {
-          result.errors.push(
-            `Apprenant eduvia_id=${learner.id}: ${upsertError.message}`,
-          );
-        } else {
-          result.apprenants++;
-        }
-      } catch (err) {
-        result.errors.push(
-          `Apprenant eduvia_id=${learner.id}: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-  } catch (err) {
-    if (err instanceof EndpointNotAvailableError) {
-      logger.info(
-        'eduvia_sync',
-        `Endpoint employee_learners pas encore disponible - ignoré`,
+    if (upsertError) {
+      result.errors.push(
+        `Formation eduvia_id=${formation.id}: ${upsertError.message}`,
       );
     } else {
-      result.errors.push(
-        `Erreur fetch learners: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      result.formations++;
     }
   }
 
-  // ── Sync formations ────────────────────────────────────────────────
-  try {
-    const formations = await fetchAllPages<EduviaFormation>(
-      instanceUrl,
-      apiKey,
-      'formations',
-    );
-
-    for (const formation of formations) {
-      try {
-        const { error: upsertError } = await supabase.from('formations').upsert(
-          {
-            eduvia_id: formation.id,
-            titre: formation.title,
-            duree: formation.duration?.toString() ?? null,
-            last_synced_at: now,
-          },
-          { onConflict: 'eduvia_id' },
-        );
-
-        if (upsertError) {
-          result.errors.push(
-            `Formation eduvia_id=${formation.id}: ${upsertError.message}`,
-          );
-        } else {
-          result.formations++;
-        }
-      } catch (err) {
-        result.errors.push(
-          `Formation eduvia_id=${formation.id}: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-  } catch (err) {
-    if (err instanceof EndpointNotAvailableError) {
-      logger.info(
-        'eduvia_sync',
-        `Endpoint formations pas encore disponible - ignoré`,
+  for (const company of companies) {
+    const { error: upsertError } = await supabase
+      .from('eduvia_companies')
+      .upsert(
+        {
+          eduvia_id: company.id,
+          // Keep the legacy `name` column populated; `denomination` mirrors the real API.
+          name: company.denomination,
+          denomination: company.denomination,
+          siret: company.siret,
+          naf: company.naf,
+          address: company.address,
+          postcode: company.postcode,
+          city: company.city,
+          country: company.country,
+          employee_count: company.employee_count,
+          idcc_code: company.idcc_code,
+          employer_type: company.employer_type,
+          eduvia_campus_id: company.campus_id,
+          client_id: clientId,
+          last_synced_at: now,
+        },
+        { onConflict: 'eduvia_id' },
+      );
+    if (upsertError) {
+      result.errors.push(
+        `Company eduvia_id=${company.id}: ${upsertError.message}`,
       );
     } else {
-      result.errors.push(
-        `Erreur fetch formations: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      result.companies++;
     }
   }
 
-  // ── Sync companies ─────────────────────────────────────────────────
-  try {
-    const companies = await fetchAllPages<EduviaCompany>(
-      instanceUrl,
-      apiKey,
-      'companies',
-    );
+  // In-memory lookups for the denormalised contract columns.
+  const learnerById = new Map(learners.map((l) => [l.id, l]));
+  const formationById = new Map(formations.map((f) => [f.id, f]));
 
-    for (const company of companies) {
-      try {
-        const { error: upsertError } = await supabase
-          .from('eduvia_companies')
-          .upsert(
-            {
-              eduvia_id: company.id,
-              name: company.name,
-              client_id: clientId,
-              last_synced_at: now,
-            },
-            { onConflict: 'eduvia_id' },
-          );
+  // ── PASS 2 - contracts ─────────────────────────────────────────────
+  const contracts = await safeFetchList<EduviaContract>(
+    () => fetchAllPages<EduviaContract>(instanceUrl, apiKey, 'contracts'),
+    'contracts',
+    result,
+  );
 
-        if (upsertError) {
-          result.errors.push(
-            `Company eduvia_id=${company.id}: ${upsertError.message}`,
-          );
-        } else {
-          result.companies++;
-        }
-      } catch (err) {
-        result.errors.push(
-          `Company eduvia_id=${company.id}: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-  } catch (err) {
-    if (err instanceof EndpointNotAvailableError) {
-      logger.info(
-        'eduvia_sync',
-        `Endpoint companies pas encore disponible - ignoré`,
+  for (const contract of contracts) {
+    try {
+      const learner = learnerById.get(contract.employee_id);
+      const formation = formationById.get(contract.formation_id);
+      const duree_mois =
+        contract.contract_start_date && contract.contract_end_date
+          ? differenceInMonths(
+              new Date(contract.contract_end_date),
+              new Date(contract.contract_start_date),
+            )
+          : null;
+
+      const { error: upsertError } = await supabase.from('contrats').upsert(
+        {
+          eduvia_id: contract.id,
+          projet_id: fallbackProjetId,
+          eduvia_employee_id: contract.employee_id,
+          eduvia_formation_id: contract.formation_id,
+          eduvia_company_id: contract.company_id,
+          eduvia_teacher_id: contract.teacher_id,
+          eduvia_campus_id: contract.campus_id,
+          apprenant_nom: learner?.last_name ?? null,
+          apprenant_prenom: learner?.first_name ?? null,
+          formation_titre: formation?.qualification_title ?? null,
+          date_debut: contract.contract_start_date,
+          date_fin: contract.contract_end_date,
+          contract_state: contract.contract_state,
+          contract_number: contract.contract_number,
+          internal_number: contract.internal_number,
+          contract_type: contract.contract_type,
+          contract_mode: contract.contract_mode,
+          contract_conclusion_date: contract.contract_conclusion_date,
+          practical_training_start_date: contract.practical_training_start_date,
+          creation_mode: contract.creation_mode,
+          // Keep legacy column montant_prise_en_charge populated from npec_amount
+          // so downstream queries don't break.
+          montant_prise_en_charge: contract.npec_amount,
+          npec_amount: contract.npec_amount,
+          referrer_name: contract.referrer_name,
+          referrer_amount: contract.referrer_amount,
+          referrer_type: contract.referrer_type,
+          duree_mois,
+          last_synced_at: now,
+          archive: false,
+        },
+        { onConflict: 'eduvia_id' },
       );
-    } else {
+
+      if (upsertError) {
+        result.errors.push(
+          `Contrat eduvia_id=${contract.id}: ${upsertError.message}`,
+        );
+      } else {
+        result.contrats++;
+      }
+    } catch (err) {
       result.errors.push(
-        `Erreur fetch companies: ${err instanceof Error ? err.message : String(err)}`,
+        `Contrat eduvia_id=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -280,7 +256,34 @@ export async function syncEduviaForClient(
 }
 
 // ---------------------------------------------------------------------------
-// syncAllEduviaClients - top-level orchestrator
+// safeFetchList - tolerant wrapper: 404 means endpoint not available yet,
+// other errors are pushed into result.errors and an empty array is returned.
+// ---------------------------------------------------------------------------
+
+async function safeFetchList<T>(
+  fetcher: () => Promise<T[]>,
+  label: string,
+  result: SyncClientResult,
+): Promise<T[]> {
+  try {
+    return await fetcher();
+  } catch (err) {
+    if (err instanceof EndpointNotAvailableError) {
+      logger.info(
+        'eduvia_sync',
+        `Endpoint ${label} pas encore disponible - ignoré`,
+      );
+      return [];
+    }
+    result.errors.push(
+      `Erreur fetch ${label}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// syncAllEduviaClients - top-level orchestrator (unchanged flow)
 // ---------------------------------------------------------------------------
 
 export async function syncAllEduviaClients(
@@ -294,7 +297,6 @@ export async function syncAllEduviaClients(
     errors: [],
   };
 
-  // Fetch all active API keys with their client info
   const { data: apiKeys, error: fetchError } = await supabase
     .from('client_api_keys')
     .select('id, client_id, api_key_encrypted, instance_url, label, is_active')
@@ -304,9 +306,7 @@ export async function syncAllEduviaClients(
     syncResult.errors.push(
       `Erreur récupération des clés API: ${fetchError.message}`,
     );
-    logger.error('eduvia_sync', fetchError, {
-      step: 'fetch_api_keys',
-    });
+    logger.error('eduvia_sync', fetchError, { step: 'fetch_api_keys' });
     return syncResult;
   }
 
@@ -331,17 +331,12 @@ export async function syncAllEduviaClients(
       continue;
     }
 
-    const instanceUrl = instance_url;
-
     try {
-      // Decrypt the API key
       const apiKey = decryptApiKey(api_key_encrypted);
-
-      // Run sync for this client
       const clientResult = await syncEduviaForClient(
         supabase,
         client_id,
-        instanceUrl,
+        instance_url,
         apiKey,
       );
 
@@ -356,7 +351,6 @@ export async function syncAllEduviaClients(
         });
       }
 
-      // Update last_sync_at on the API key record
       await supabase
         .from('client_api_keys')
         .update({ last_sync_at: new Date().toISOString() })

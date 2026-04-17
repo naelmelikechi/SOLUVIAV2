@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -66,6 +67,10 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
   const [notifyEnabled, setNotifyEnabled] = useState(false);
   const [canAskNotify, setCanAskNotify] = useState(false);
 
+  // Outer wrapper of the chat card. We use it to scroll the whole chat into
+  // view of the dashboard <main> scroll container on mount (the team grid
+  // above is tall, so the chat sits below the fold by default).
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Tracks whether the user is currently scrolled near the bottom. When they
   // aren't, new messages trigger the "X nouveaux" pill instead of auto-scroll.
@@ -314,7 +319,11 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
   // way to react to a messages-length change driven by external sources
   // (Realtime, delta-fetch). The cascade stays bounded because the setter
   // either resets to 0 or bumps once per arrived message.
-  useEffect(() => {
+  //
+  // Using useLayoutEffect (not useEffect) so the scroll lands BEFORE paint —
+  // prevents the "flash at top then jump down" on initial mount when
+  // initialMessages is already present.
+  useLayoutEffect(() => {
     if (!scrollRef.current) return;
     if (isAtBottomRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -324,6 +333,40 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
       setPendingCount((n) => n + 1);
     }
     // We only care about the *count* changing, not message identity.
+  }, [messages.length]);
+
+  // ----- Bring the chat into view on mount -------------------------------
+  // The /equipe page stacks PageHeader + EquipeGrid + TeamChat inside the
+  // dashboard <main overflow-y-auto>. With a full team the grid pushes the
+  // chat below the fold; users had to scroll the page manually to find it.
+  // We scroll the chat wrapper into view (block: 'end' keeps the bottom of
+  // the chat + input bar visible, and leaves the team grid partially visible
+  // above) synchronously before paint so there is no visible jump.
+  useLayoutEffect(() => {
+    wrapperRef.current?.scrollIntoView({ block: 'end', behavior: 'instant' });
+  }, []);
+
+  // ----- Re-stick on async layout shifts (GIF/avatar loads, font swap) -----
+  // The layout-effect above only measures scrollHeight right after commit.
+  // Images inside ChatMessage (GIFs, Dicebear avatars) load asynchronously and
+  // grow the container afterwards, which pushes the bottom out of view. We
+  // watch each message node with a ResizeObserver and re-pin to bottom any
+  // time the height grows while the user is still at the bottom.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => {
+      if (isAtBottomRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+
+    // Observe every message child so we catch every image-load layout shift.
+    const children = Array.from(el.children);
+    for (const child of children) observer.observe(child);
+
+    return () => observer.disconnect();
   }, [messages.length]);
 
   const handleScroll = useCallback(() => {
@@ -432,7 +475,10 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
   const canSend = !sending && (trimmedLen > 0 || !!pendingGif);
 
   return (
-    <div className="border-border bg-card flex flex-col rounded-xl border">
+    <div
+      ref={wrapperRef}
+      className="border-border bg-card flex flex-col rounded-xl border"
+    >
       <div className="border-border flex items-center justify-between border-b px-4 py-2">
         <h2 className="text-foreground text-sm font-medium">
           Chat équipe

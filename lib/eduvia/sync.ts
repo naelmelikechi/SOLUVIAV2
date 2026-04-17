@@ -143,6 +143,7 @@ export async function syncEduviaForClient(
           eduvia_id: formation.id,
           // Keep the legacy `titre` column populated for existing queries; the
           // new `qualification_title` column mirrors the real API field name.
+          // TODO(drop-legacy-2026-09): remove once all queries migrate to qualification_title.
           titre: formation.qualification_title,
           qualification_title: formation.qualification_title,
           duree: formation.duration?.toString() ?? null,
@@ -170,6 +171,7 @@ export async function syncEduviaForClient(
           {
             eduvia_id: company.id,
             // Keep the legacy `name` column populated; `denomination` mirrors the real API.
+            // TODO(drop-legacy-2026-09): remove once all queries migrate to denomination.
             name: company.denomination,
             denomination: company.denomination,
             siret: company.siret,
@@ -245,6 +247,7 @@ export async function syncEduviaForClient(
             creation_mode: contract.creation_mode,
             // Keep legacy column montant_prise_en_charge populated from npec_amount
             // so downstream queries don't break.
+            // TODO(drop-legacy-2026-09): remove once all queries migrate to npec_amount.
             montant_prise_en_charge: contract.npec_amount,
             npec_amount: contract.npec_amount,
             referrer_name: contract.referrer_name,
@@ -548,6 +551,11 @@ export async function syncAllEduviaClients(
           errors: clientResult.errors,
           contrats: clientResult.contrats,
           apprenants: clientResult.apprenants,
+          formations: clientResult.formations,
+          companies: clientResult.companies,
+          progressions: clientResult.progressions,
+          invoice_steps: clientResult.invoice_steps,
+          invoice_forecast_steps: clientResult.invoice_forecast_steps,
         });
       }
 

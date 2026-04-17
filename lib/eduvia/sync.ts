@@ -4,6 +4,7 @@ import { differenceInMonths } from 'date-fns';
 import {
   fetchAllPages,
   fetchOne,
+  fetchList,
   EndpointNotAvailableError,
   AuthError,
 } from '@/lib/eduvia/client';
@@ -13,6 +14,8 @@ import type {
   EduviaFormation,
   EduviaCompany,
   EduviaProgression,
+  EduviaInvoiceStep,
+  EduviaInvoiceForecastStep,
 } from '@/lib/eduvia/client';
 import { logger } from '@/lib/utils/logger';
 import { decryptApiKey } from '@/lib/utils/encryption';
@@ -28,6 +31,8 @@ export interface SyncClientResult {
   formations: number;
   companies: number;
   progressions: number;
+  invoice_steps: number;
+  invoice_forecast_steps: number;
   errors: string[];
 }
 
@@ -60,6 +65,8 @@ export async function syncEduviaForClient(
     formations: 0,
     companies: 0,
     progressions: 0,
+    invoice_steps: 0,
+    invoice_forecast_steps: 0,
     errors: [],
   };
 
@@ -334,6 +341,100 @@ export async function syncEduviaForClient(
         );
       }
     }
+
+    // ── PASS 4 - per-contract invoice steps (actual + forecast) ─────────
+    // Reuses contratIdByEduviaId from PASS 3.
+    for (const contract of contracts) {
+      const contratId = contratIdByEduviaId.get(contract.id);
+      if (!contratId) continue;
+
+      // Actual invoice steps
+      try {
+        const steps = await fetchList<EduviaInvoiceStep>(
+          instanceUrl,
+          apiKey,
+          `contracts/${contract.id}/invoice_steps`,
+        );
+        for (const step of steps) {
+          const { error: upsertError } = await supabase
+            .from('eduvia_invoice_steps')
+            .upsert(
+              {
+                eduvia_id: step.id,
+                contrat_id: contratId,
+                eduvia_contract_id: step.contract_id,
+                eduvia_invoice_id: step.invoice_id,
+                step_number: step.step_number,
+                opening_date: step.opening_date,
+                total_amount: step.total_amount,
+                including_pedagogie_amount: step.including_pedagogie_amount,
+                including_rqth_amount: step.including_rqth_amount,
+                paid_amount: step.paid_amount,
+                in_progress_amount: step.in_progress_amount,
+                siret_cfa: step.siret_cfa,
+                external_code: step.external_code,
+                invoice_state: step.invoice_state,
+                invoice_sent_at: step.invoice_sent_at,
+                last_synced_at: now,
+              },
+              { onConflict: 'eduvia_id' },
+            );
+          if (upsertError) {
+            result.errors.push(
+              `InvoiceStep eduvia_id=${step.id}: ${upsertError.message}`,
+            );
+          } else {
+            result.invoice_steps++;
+          }
+        }
+      } catch (err) {
+        if (!(err instanceof EndpointNotAvailableError)) {
+          result.errors.push(
+            `invoice_steps contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      // Forecast invoice steps
+      try {
+        const forecasts = await fetchList<EduviaInvoiceForecastStep>(
+          instanceUrl,
+          apiKey,
+          `contracts/${contract.id}/invoice_forecast_steps`,
+        );
+        for (const forecast of forecasts) {
+          const { error: upsertError } = await supabase
+            .from('eduvia_invoice_forecast_steps')
+            .upsert(
+              {
+                eduvia_id: forecast.id,
+                contrat_id: contratId,
+                eduvia_contract_id: forecast.contract_id,
+                step_number: forecast.step_number,
+                opening_date: forecast.opening_date,
+                total_amount: forecast.total_amount,
+                percentage: forecast.percentage,
+                npec_amount: forecast.npec_amount,
+                last_synced_at: now,
+              },
+              { onConflict: 'eduvia_id' },
+            );
+          if (upsertError) {
+            result.errors.push(
+              `InvoiceForecastStep eduvia_id=${forecast.id}: ${upsertError.message}`,
+            );
+          } else {
+            result.invoice_forecast_steps++;
+          }
+        }
+      } catch (err) {
+        if (!(err instanceof EndpointNotAvailableError)) {
+          result.errors.push(
+            `invoice_forecast_steps contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+    }
   } catch (err) {
     // Abort this client's sync on any non-404 fetch failure so we don't
     // corrupt denormalised columns with partial data. AuthError gets a
@@ -464,6 +565,8 @@ export async function syncAllEduviaClients(
         formations: clientResult.formations,
         companies: clientResult.companies,
         progressions: clientResult.progressions,
+        invoice_steps: clientResult.invoice_steps,
+        invoice_forecast_steps: clientResult.invoice_forecast_steps,
       });
     } catch (err) {
       syncResult.skippedClients++;

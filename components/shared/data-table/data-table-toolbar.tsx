@@ -1,7 +1,7 @@
 'use client';
 
-import type { Table } from '@tanstack/react-table';
-import { Search, ListFilter, X } from 'lucide-react';
+import type { Table, Column } from '@tanstack/react-table';
+import { Search, ListFilter, X, Settings2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,16 @@ export interface FilterOption {
   column: string;
   label: string;
   options: { label: string; value: string }[];
+}
+
+// Helper: extract a readable label for a column. Prefers meta.label,
+// then the header if it's a plain string, then the column id.
+function getColumnLabel<TData>(col: Column<TData, unknown>): string {
+  const meta = col.columnDef.meta as { label?: string } | undefined;
+  if (meta?.label) return meta.label;
+  const header = col.columnDef.header;
+  if (typeof header === 'string') return header;
+  return col.id;
 }
 
 interface DataTableToolbarProps<TData> {
@@ -119,6 +129,33 @@ export function DataTableToolbar<TData>({
             </DropdownMenu>
           );
         })}
+        {(() => {
+          const hidableColumns = table
+            .getAllLeafColumns()
+            .filter((col) => col.getCanHide());
+          if (hidableColumns.length === 0) return null;
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="bg-background border-input hover:bg-accent hover:text-accent-foreground inline-flex h-7 items-center justify-center gap-1 rounded-lg border px-2.5 text-[0.8rem] font-medium whitespace-nowrap transition-colors">
+                <Settings2 className="h-3.5 w-3.5" />
+                Colonnes
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel>Colonnes à afficher</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {hidableColumns.map((col) => (
+                  <DropdownMenuCheckboxItem
+                    key={col.id}
+                    checked={col.getIsVisible()}
+                    onCheckedChange={(v) => col.toggleVisibility(!!v)}
+                  >
+                    {getColumnLabel(col)}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        })()}
         {activeFilterCount > 0 && (
           <Button
             variant="ghost"

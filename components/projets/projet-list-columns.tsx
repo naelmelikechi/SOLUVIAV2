@@ -1,6 +1,7 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
+import Link from 'next/link';
 import type { ProjetListEnriched } from '@/lib/queries/projets';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -14,6 +15,7 @@ import {
 export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   {
     accessorKey: 'ref',
+    enableHiding: false,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="N° Projet" />
     ),
@@ -25,9 +27,20 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Client" />
     ),
-    cell: ({ row }) => (
-      <span className="text-sm">{row.original.client?.raison_sociale}</span>
-    ),
+    cell: ({ row }) => {
+      const client = row.original.client;
+      if (!client)
+        return <span className="text-muted-foreground text-sm">-</span>;
+      return (
+        <Link
+          href={`/admin/clients/${client.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="text-sm hover:underline"
+        >
+          {client.raison_sociale}
+        </Link>
+      );
+    },
   },
   {
     id: 'cdp',
@@ -35,16 +48,24 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="CDP" />
     ),
-    cell: ({ row }) => (
-      <span className="text-sm">
-        {row.original.cdp
-          ? `${row.original.cdp.prenom} ${row.original.cdp.nom}`
-          : '-'}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const cdp = row.original.cdp;
+      if (!cdp) return <span className="text-muted-foreground text-sm">-</span>;
+      return (
+        <Link
+          href="/admin/utilisateurs"
+          onClick={(e) => e.stopPropagation()}
+          className="text-sm hover:underline"
+          title={`${cdp.prenom} ${cdp.nom}`}
+        >
+          {cdp.prenom} {cdp.nom}
+        </Link>
+      );
+    },
   },
   {
     accessorKey: 'statut',
+    enableHiding: false,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Statut" />
     ),

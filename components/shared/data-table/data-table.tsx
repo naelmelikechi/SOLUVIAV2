@@ -99,6 +99,9 @@ export function DataTable<TData, TValue>({
     onColumnSizingChange: setColumnSizing,
     globalFilterFn: globalFilterFn as FilterFn<TData>,
     onGlobalFilterChange: setGlobalFilter,
+    initialState: {
+      pagination: { pageIndex: 0, pageSize: 25 },
+    },
     state: {
       sorting,
       columnFilters,

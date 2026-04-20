@@ -224,15 +224,15 @@ export function TimeGrid({
                     const fullDayAbsence = absenceOnDay >= 7;
                     const blocked = weekend || !!ferie || fullDayAbsence;
                     const today = isToday(d);
-                    const dayMax = MAX_HEURES_JOUR - absenceOnDay;
-                    const dayTotal = saisies.reduce(
-                      (sum, s) => sum + (s.heures[date] || 0),
-                      0,
-                    );
-                    const atMax = dayTotal >= dayMax;
                     const cellValue = saisie.heures[date] || 0;
 
-                    const disabled = blocked || (atMax && cellValue === 0);
+                    // Only truly blocked days (weekend, holiday, full-day absence)
+                    // disable the input. Reaching the 7h daily max does NOT disable
+                    // other projets' cells - the user needs to be able to type a
+                    // value to rebalance hours across projects. The onBlur
+                    // validation (handleCellChange) surfaces a toast if the total
+                    // would exceed the daily cap and blocks the save.
+                    const disabled = blocked;
 
                     return (
                       <td

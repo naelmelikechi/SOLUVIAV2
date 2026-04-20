@@ -7,7 +7,6 @@ import {
   FileText,
   Check,
   AlertTriangle,
-  Download,
   ChevronRight,
   ChevronDown,
 } from 'lucide-react';
@@ -256,34 +255,37 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
     },
   ];
 
-  // Export handler
-  const handleExport = async () => {
-    const XLSX = await import('xlsx');
-    const rows = displayData.map((m) => ({
-      Mois: m.label,
-      'Production (€)': m.production,
-      'Facturé (€)': m.facture,
-      'Encaissé (€)': m.isFuture ? '' : m.encaisse,
-      'En retard (€)': m.isFuture ? '' : m.en_retard,
-      'RAF (€)': m.raf,
-      'RAE (€)': m.rae,
-      '12M glissant (€)': m.rolling12,
-      'Année (€)': m.ytd,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Production');
-    XLSX.writeFile(
-      wb,
-      `production_${perspective}_${new Date().toISOString().split('T')[0]}.xlsx`,
-    );
-  };
-
   // Compute average commission ratio from data for drill-down display
   const totalProd = data.reduce((s, r) => s + r.production, 0);
   const totalSoluvia = data.reduce((s, r) => s + r.productionSoluvia, 0);
   const avgCommission = totalProd > 0 ? totalSoluvia / totalProd : 0.1;
   const commissionFactor = perspective === 'soluvia' ? avgCommission : 1;
+
+  // Total visible column count (for the year banner colSpan)
+  const totalColumnCount =
+    1 +
+    (showGroups.mois ? 3 : 0) +
+    (showGroups.soldes ? 3 : 0) +
+    (showGroups.rolling12 ? 1 : 0) +
+    (showGroups.annee ? 1 : 0);
+
+  type YearGroupItem =
+    | { kind: 'banner'; year: number }
+    | { kind: 'row'; row: MonthRow };
+
+  const rowsWithYearBreaks = useMemo<YearGroupItem[]>(() => {
+    const out: YearGroupItem[] = [];
+    let currentYear: number | null = null;
+    for (const row of displayData) {
+      const year = Number(row.mois.slice(0, 4));
+      if (year !== currentYear) {
+        out.push({ kind: 'banner', year });
+        currentYear = year;
+      }
+      out.push({ kind: 'row', row });
+    }
+    return out;
+  }, [displayData]);
 
   return (
     <div>
@@ -315,19 +317,19 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
       </div>
 
       {/* KPI Cards */}
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
         {kpis.map((kpi) => (
           <Card
             key={kpi.label}
-            className="p-5 transition-shadow hover:shadow-md"
+            className="p-3 transition-shadow hover:shadow-md"
           >
-            <div className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
-              <kpi.icon className={cn('h-4 w-4', kpi.color)} />
+            <div className="text-muted-foreground mb-1 flex items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase">
+              <kpi.icon className={cn('h-3.5 w-3.5', kpi.color)} />
               {kpi.label}
             </div>
             <div
               className={cn(
-                'text-2xl font-bold tabular-nums',
+                'text-lg font-bold tabular-nums',
                 kpi.valueColor && kpi.value > 0 && kpi.valueColor,
               )}
             >
@@ -336,22 +338,6 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
           </Card>
         ))}
       </div>
-
-      {/* Stacked bar chart (only at global level) */}
-      {drillLevel === 'global' && (
-        <ProductionChart
-          data={displayData
-            .filter((m) => !m.isFuture)
-            .map(
-              (m): ProductionChartRow => ({
-                label: m.label,
-                production: m.production,
-                facture: m.facture,
-                encaisse: m.encaisse,
-              }),
-            )}
-        />
-      )}
 
       {/* Breadcrumb navigation */}
       {drillLevel !== 'global' && (
@@ -435,10 +421,6 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="mr-1.5 h-4 w-4" />
-            Export Excel
-          </Button>
         </div>
       )}
 
@@ -524,76 +506,114 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayData.map((row) => (
-                <TableRow
-                  key={row.label}
-                  data-current-month={row.isCurrent ? 'true' : undefined}
-                  className={cn(
-                    'hover:bg-muted/50 cursor-pointer transition-colors',
-                    row.isCurrent && 'bg-primary/10 font-semibold',
-                    row.isFuture && 'text-muted-foreground italic',
-                  )}
-                  onClick={() => handleMonthClick(row.mois, row.label)}
-                >
-                  <TableCell className="font-medium">
-                    <span className="flex items-center gap-1.5">
-                      {row.isCurrent && (
-                        <span className="text-primary mr-1">&#9654;</span>
-                      )}
-                      {row.label}
-                      <ChevronRight className="text-muted-foreground h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
-                    </span>
-                  </TableCell>
-                  {showGroups.mois && (
-                    <>
-                      <TableCell className="border-l-2 border-l-emerald-500 text-right tabular-nums">
-                        {formatCurrency(row.production)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.isFuture ? '\u2014' : formatCurrency(row.facture)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.isFuture ? '\u2014' : formatCurrency(row.encaisse)}
-                      </TableCell>
-                    </>
-                  )}
-                  {showGroups.soldes && (
-                    <>
+              {rowsWithYearBreaks.map((item) => {
+                if (item.kind === 'banner') {
+                  return (
+                    <TableRow
+                      key={'year-' + item.year}
+                      className="bg-muted/80 hover:bg-muted/80 sticky top-0 z-10"
+                    >
                       <TableCell
-                        className={cn(
-                          'border-l-2 border-l-blue-500 text-right tabular-nums',
-                          !row.isFuture &&
-                            row.en_retard > 0 &&
-                            'font-semibold text-red-600',
-                        )}
+                        colSpan={totalColumnCount}
+                        className="text-muted-foreground py-2 text-xs font-semibold tracking-wider uppercase"
                       >
-                        {row.isFuture
-                          ? '\u2014'
-                          : formatCurrency(row.en_retard)}
+                        {item.year}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(row.raf)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.isFuture ? '\u2014' : formatCurrency(row.rae)}
-                      </TableCell>
-                    </>
-                  )}
-                  {showGroups.rolling12 && (
-                    <TableCell className="border-l-accent text-muted-foreground border-l-2 text-right tabular-nums">
-                      {formatCurrency(row.rolling12)}
+                    </TableRow>
+                  );
+                }
+                const row = item.row;
+                return (
+                  <TableRow
+                    key={row.label}
+                    data-current-month={row.isCurrent ? 'true' : undefined}
+                    className={cn(
+                      'hover:bg-muted/50 cursor-pointer transition-colors',
+                      row.isCurrent && 'bg-primary/10 font-semibold',
+                      row.isFuture && 'text-muted-foreground italic',
+                    )}
+                    onClick={() => handleMonthClick(row.mois, row.label)}
+                  >
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-1.5">
+                        {row.isCurrent && (
+                          <span className="text-primary mr-1">&#9654;</span>
+                        )}
+                        {row.label}
+                        <ChevronRight className="text-muted-foreground h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+                      </span>
                     </TableCell>
-                  )}
-                  {showGroups.annee && (
-                    <TableCell className="text-muted-foreground border-l-2 border-l-purple-500 text-right tabular-nums">
-                      {formatCurrency(row.ytd)}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
+                    {showGroups.mois && (
+                      <>
+                        <TableCell className="border-l-2 border-l-emerald-500 text-right tabular-nums">
+                          {formatCurrency(row.production)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.isFuture
+                            ? '\u2014'
+                            : formatCurrency(row.facture)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.isFuture
+                            ? '\u2014'
+                            : formatCurrency(row.encaisse)}
+                        </TableCell>
+                      </>
+                    )}
+                    {showGroups.soldes && (
+                      <>
+                        <TableCell
+                          className={cn(
+                            'border-l-2 border-l-blue-500 text-right tabular-nums',
+                            !row.isFuture &&
+                              row.en_retard > 0 &&
+                              'font-semibold text-red-600',
+                          )}
+                        >
+                          {row.isFuture
+                            ? '\u2014'
+                            : formatCurrency(row.en_retard)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatCurrency(row.raf)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.isFuture ? '\u2014' : formatCurrency(row.rae)}
+                        </TableCell>
+                      </>
+                    )}
+                    {showGroups.rolling12 && (
+                      <TableCell className="border-l-accent text-muted-foreground border-l-2 text-right tabular-nums">
+                        {formatCurrency(row.rolling12)}
+                      </TableCell>
+                    )}
+                    {showGroups.annee && (
+                      <TableCell className="text-muted-foreground border-l-2 border-l-purple-500 text-right tabular-nums">
+                        {formatCurrency(row.ytd)}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Card>
+      )}
+
+      {/* Stacked bar chart (only at global level) - shown AFTER the table */}
+      {drillLevel === 'global' && (
+        <ProductionChart
+          data={displayData
+            .filter((m) => !m.isFuture)
+            .map(
+              (m): ProductionChartRow => ({
+                label: m.label,
+                production: m.production,
+                facture: m.facture,
+                encaisse: m.encaisse,
+              }),
+            )}
+        />
       )}
 
       {/* Client drill-down table */}

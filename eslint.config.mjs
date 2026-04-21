@@ -37,15 +37,6 @@ const eslintConfig = defineConfig([
       'jsx-a11y/no-noninteractive-element-interactions': 'warn',
     },
   },
-  {
-    // Mock data is scheduled for deletion — exempt from strict rules
-    files: ['lib/mock-data/**/*.ts'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
-      '@typescript-eslint/ban-ts-comment': 'off',
-    },
-  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     '.next/**',

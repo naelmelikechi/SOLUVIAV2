@@ -49,6 +49,9 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<'div'> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
+    // shadcn primitive: click-to-focus nicety for the adjacent input.
+    // Keyboard users tab directly to the input; buttons inside the addon keep their own handlers.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <div
       role="group"
       data-slot="input-group-addon"

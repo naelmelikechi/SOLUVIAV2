@@ -212,6 +212,7 @@ export function NotificationsPageClient({
               <div
                 className="flex shrink-0 items-center gap-1"
                 onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
               >
                 {isUnread && (
                   <Button

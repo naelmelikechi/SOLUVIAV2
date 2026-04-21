@@ -120,20 +120,24 @@ export function createFactureListColumns(
       header: () => null,
       enableSorting: false,
       enableHiding: false,
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Aperçu PDF"
-          title="Aperçu PDF"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPreview(row.original.ref);
-          }}
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
-      ),
+      cell: ({ row }) => {
+        const ref = row.original.ref;
+        if (!ref) return null;
+        return (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Aperçu PDF"
+            title="Aperçu PDF"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPreview(ref);
+            }}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        );
+      },
     },
   ];
 }

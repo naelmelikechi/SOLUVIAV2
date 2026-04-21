@@ -50,9 +50,8 @@ function CustomTooltip({
 }
 
 const LEGEND_LABELS: Record<string, string> = {
-  production: 'Production',
-  facture: 'Facturé',
-  encaisse: 'Encaissé',
+  opco: 'OPCO',
+  soluvia: 'SOLUVIA',
 };
 
 function renderLegendText(value: string) {
@@ -65,7 +64,7 @@ export function ProductionChartInner({ data, formatCurrency }: Props) {
       <BarChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
         <XAxis
-          dataKey="label"
+          dataKey="monthLabel"
           tick={{ fontSize: 11 }}
           className="fill-muted-foreground"
           tickLine={false}
@@ -88,25 +87,18 @@ export function ProductionChartInner({ data, formatCurrency }: Props) {
           formatter={renderLegendText}
         />
         <Bar
-          dataKey="production"
-          name="production"
-          fill="#22c55e"
-          radius={[4, 4, 0, 0]}
-          barSize={20}
-        />
-        <Bar
-          dataKey="facture"
-          name="facture"
+          dataKey="opco"
+          name="opco"
           fill="#3b82f6"
           radius={[4, 4, 0, 0]}
-          barSize={20}
+          barSize={18}
         />
         <Bar
-          dataKey="encaisse"
-          name="encaisse"
-          fill="#f97316"
+          dataKey="soluvia"
+          name="soluvia"
+          fill="#22c55e"
           radius={[4, 4, 0, 0]}
-          barSize={20}
+          barSize={18}
         />
       </BarChart>
     </ResponsiveContainer>

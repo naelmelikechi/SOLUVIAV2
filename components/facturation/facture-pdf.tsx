@@ -134,6 +134,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     fontSize: 12,
   },
+  draftBanner: {
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    borderRadius: 4,
+    padding: 8,
+    marginBottom: 16,
+  },
+  draftText: {
+    color: '#b45309',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 12,
+  },
 });
 
 function formatEur(n: number): string {
@@ -148,9 +161,20 @@ interface FacturePdfProps {
   facture: FactureDetail;
   origineRef?: string | null;
   emetteur?: EmetteurInfo;
+  /**
+   * Render the facture as a draft preview (échéance not yet emitted).
+   * Shows an "APERÇU" banner so the document cannot be mistaken for
+   * a real invoice.
+   */
+  isDraft?: boolean;
 }
 
-export function FacturePdf({ facture, origineRef, emetteur }: FacturePdfProps) {
+export function FacturePdf({
+  facture,
+  origineRef,
+  emetteur,
+  isDraft,
+}: FacturePdfProps) {
   const isAvoir = facture.est_avoir;
   const EMETTEUR = emetteur ?? EMETTEUR_FALLBACK;
   // Split adresse into street + city if it contains a comma
@@ -171,7 +195,9 @@ export function FacturePdf({ facture, origineRef, emetteur }: FacturePdfProps) {
             <Text style={styles.muted}>TVA {EMETTEUR.tva}</Text>
           </View>
           <View style={styles.headerRight}>
-            <Text style={styles.docTitle}>{isAvoir ? 'AVOIR' : 'FACTURE'}</Text>
+            <Text style={styles.docTitle}>
+              {isAvoir ? 'AVOIR' : isDraft ? 'APERÇU FACTURE' : 'FACTURE'}
+            </Text>
             <Text style={styles.docRef}>{facture.ref}</Text>
             <Text>
               Date :{' '}
@@ -183,6 +209,19 @@ export function FacturePdf({ facture, origineRef, emetteur }: FacturePdfProps) {
             </Text>
           </View>
         </View>
+
+        {/* Draft banner */}
+        {isDraft && (
+          <View style={styles.draftBanner}>
+            <Text style={styles.draftText}>
+              Document provisoire - Aperçu d&apos;échéance non émise
+            </Text>
+            <Text style={{ marginTop: 2 }}>
+              Ce PDF n&apos;est pas une facture légale. Il sera régénéré avec un
+              numéro de facture officiel lors de l&apos;émission.
+            </Text>
+          </View>
+        )}
 
         {/* Avoir reference */}
         {isAvoir && origineRef && (

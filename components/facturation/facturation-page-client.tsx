@@ -48,12 +48,32 @@ export function FacturationPageClient({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
   const [echeanceView, setEcheanceView] = useState<'list' | 'calendar'>('list');
-  const [previewRef, setPreviewRef] = useState<string | null>(null);
+  const [preview, setPreview] = useState<
+    { kind: 'facture'; ref: string } | { kind: 'echeance'; id: string } | null
+  >(null);
 
   const factureColumns = useMemo(
-    () => createFactureListColumns(setPreviewRef),
+    () =>
+      createFactureListColumns((ref) => setPreview({ kind: 'facture', ref })),
     [],
   );
+
+  const previewTitle =
+    preview?.kind === 'facture'
+      ? `Aperçu de la facture ${preview.ref}`
+      : preview?.kind === 'echeance'
+        ? 'Aperçu de l\u2019échéance (brouillon)'
+        : '';
+
+  const previewInlineUrl =
+    preview?.kind === 'facture'
+      ? `/api/factures/${preview.ref}/pdf?inline=true`
+      : preview?.kind === 'echeance'
+        ? `/api/echeances/${preview.id}/pdf-preview`
+        : '';
+
+  const previewDownloadUrl =
+    preview?.kind === 'facture' ? `/api/factures/${preview.ref}/pdf` : null;
 
   const handleRowClick = (row: FactureListItem) => {
     router.push(`/facturation/${row.ref}`);
@@ -145,7 +165,10 @@ export function FacturationPageClient({
             </div>
           </div>
           {echeanceView === 'list' ? (
-            <EcheanceTable echeances={echeances} />
+            <EcheanceTable
+              echeances={echeances}
+              onPreview={(id) => setPreview({ kind: 'echeance', id })}
+            />
           ) : (
             <EcheanceCalendar echeances={echeances} />
           )}
@@ -173,9 +196,9 @@ export function FacturationPageClient({
       </TabsContent>
 
       <Sheet
-        open={previewRef !== null}
+        open={preview !== null}
         onOpenChange={(open) => {
-          if (!open) setPreviewRef(null);
+          if (!open) setPreview(null);
         }}
       >
         <SheetContent
@@ -183,10 +206,10 @@ export function FacturationPageClient({
           className="flex !w-[min(800px,95vw)] flex-col gap-0 p-0 data-[side=right]:sm:max-w-[min(800px,95vw)]"
         >
           <SheetHeader className="border-border flex flex-row items-center justify-between border-b p-4">
-            <SheetTitle>Aperçu de la facture {previewRef}</SheetTitle>
-            {previewRef && (
+            <SheetTitle>{previewTitle}</SheetTitle>
+            {previewDownloadUrl && (
               <a
-                href={`/api/factures/${previewRef}/pdf`}
+                href={previewDownloadUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={buttonVariants({ variant: 'outline', size: 'sm' })}
@@ -196,11 +219,11 @@ export function FacturationPageClient({
               </a>
             )}
           </SheetHeader>
-          {previewRef && (
+          {preview && (
             <iframe
-              key={previewRef}
-              src={`/api/factures/${previewRef}/pdf?inline=true`}
-              title={`Aperçu facture ${previewRef}`}
+              key={preview.kind === 'facture' ? preview.ref : preview.id}
+              src={previewInlineUrl}
+              title={previewTitle}
               className="h-full w-full flex-1 border-0 bg-white"
             />
           )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useTransition } from 'react';
+import { Eye } from 'lucide-react';
 import type { EcheancePending } from '@/lib/queries/factures';
 import {
   Table,
@@ -16,7 +17,12 @@ import { formatCurrency } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
 import { createFactures } from '@/lib/actions/factures';
 
-export function EcheanceTable({ echeances }: { echeances: EcheancePending[] }) {
+interface EcheanceTableProps {
+  echeances: EcheancePending[];
+  onPreview?: (echeanceId: string) => void;
+}
+
+export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
@@ -84,6 +90,7 @@ export function EcheanceTable({ echeances }: { echeances: EcheancePending[] }) {
               <TableHead>Client</TableHead>
               <TableHead>Mois concerné</TableHead>
               <TableHead className="text-right">Montant HT</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -123,13 +130,29 @@ export function EcheanceTable({ echeances }: { echeances: EcheancePending[] }) {
                         {formatCurrency(echeance.montant_prevu_ht)}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      {onPreview && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Aperçu PDF"
+                          title="Aperçu PDF (brouillon)"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPreview(echeance.id);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-muted-foreground h-24 text-center"
                 >
                   Aucune échéance à facturer.

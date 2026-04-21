@@ -1,16 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Download, FileText, List } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { DataTable } from '@/components/shared/data-table';
 import type { FilterOption } from '@/components/shared/data-table';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { BillingPeriodBanner } from '@/components/facturation/billing-period-banner';
 import { EcheanceTable } from '@/components/facturation/echeance-table';
 import { EcheanceCalendar } from '@/components/facturation/echeance-calendar';
-import { factureListColumns } from '@/components/facturation/facture-list-columns';
+import { createFactureListColumns } from '@/components/facturation/facture-list-columns';
 import { EmptyState } from '@/components/shared/empty-state';
 import type { FactureListItem, EcheancePending } from '@/lib/queries/factures';
 import { formatDate } from '@/lib/utils/formatters';
@@ -42,6 +48,12 @@ export function FacturationPageClient({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
   const [echeanceView, setEcheanceView] = useState<'list' | 'calendar'>('list');
+  const [previewRef, setPreviewRef] = useState<string | null>(null);
+
+  const factureColumns = useMemo(
+    () => createFactureListColumns(setPreviewRef),
+    [],
+  );
 
   const handleRowClick = (row: FactureListItem) => {
     router.push(`/facturation/${row.ref}`);
@@ -149,7 +161,7 @@ export function FacturationPageClient({
             </Button>
           </div>
           <DataTable
-            columns={factureListColumns}
+            columns={factureColumns}
             data={factures}
             searchKey="ref"
             searchPlaceholder="Rechercher une facture..."
@@ -159,6 +171,41 @@ export function FacturationPageClient({
           />
         </div>
       </TabsContent>
+
+      <Sheet
+        open={previewRef !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewRef(null);
+        }}
+      >
+        <SheetContent
+          side="right"
+          className="flex !w-[min(800px,95vw)] flex-col gap-0 p-0 data-[side=right]:sm:max-w-[min(800px,95vw)]"
+        >
+          <SheetHeader className="border-border flex flex-row items-center justify-between border-b p-4">
+            <SheetTitle>Aperçu de la facture {previewRef}</SheetTitle>
+            {previewRef && (
+              <a
+                href={`/api/factures/${previewRef}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <Download className="mr-1.5 h-4 w-4" />
+                Télécharger
+              </a>
+            )}
+          </SheetHeader>
+          {previewRef && (
+            <iframe
+              key={previewRef}
+              src={`/api/factures/${previewRef}/pdf?inline=true`}
+              title={`Aperçu facture ${previewRef}`}
+              className="h-full w-full flex-1 border-0 bg-white"
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </Tabs>
   );
 }

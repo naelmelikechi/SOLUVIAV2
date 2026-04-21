@@ -6,7 +6,7 @@ import { FacturePdf } from '@/components/facturation/facture-pdf';
 import { createElement, type ReactElement } from 'react';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ ref: string }> },
 ) {
   const { ref } = await params;
@@ -33,11 +33,17 @@ export async function GET(
   const buffer = await renderToBuffer(element);
   const uint8 = new Uint8Array(buffer);
 
+  // ?inline=true renders in a browser tab / iframe (side panel preview).
+  // Default: attachment download.
+  const { searchParams } = new URL(request.url);
+  const disposition =
+    searchParams.get('inline') === 'true' ? 'inline' : 'attachment';
+
   return new NextResponse(uint8, {
     status: 200,
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${facture.ref}.pdf"`,
+      'Content-Disposition': `${disposition}; filename="${facture.ref}.pdf"`,
       'Cache-Control': 'public, max-age=86400, immutable',
     },
   });

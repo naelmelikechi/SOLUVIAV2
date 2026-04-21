@@ -60,7 +60,38 @@ export async function getSaisiesForWeek(
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  // 1. Fetch saisies for the week
+  // 1. Fetch all active non-absence projets the user is assigned to (cdp or backup).
+  //    These are always rendered in the grid, even with no saisies yet (lazy render:
+  //    a DB row is only created when the user actually enters hours > 0).
+  const { data: userProjets, error: projetsError } = await supabase
+    .from('projets')
+    .select(
+      `
+      id,
+      ref,
+      client:clients!projets_client_id_fkey (
+        raison_sociale
+      )
+    `,
+    )
+    .eq('archive', false)
+    .eq('est_absence', false)
+    .eq('statut', 'actif')
+    .or(`cdp_id.eq.${user.id},backup_cdp_id.eq.${user.id}`)
+    .order('ref', { ascending: true });
+
+  if (projetsError) {
+    logger.error('queries.temps', 'getSaisiesForWeek failed (user projets)', {
+      error: projetsError,
+    });
+    throw new AppError(
+      'TEMPS_FETCH_FAILED',
+      'Impossible de charger les projets',
+      { cause: projetsError },
+    );
+  }
+
+  // 2. Fetch saisies for the week
   const { data: saisies, error: saisiesError } = await supabase
     .from('saisies_temps')
     .select(
@@ -91,14 +122,16 @@ export async function getSaisiesForWeek(
       { cause: saisiesError },
     );
   }
-  if (!saisies || saisies.length === 0) return [];
 
-  // 2. Fetch axes for those saisies
-  const saisieIds = saisies.map((s) => s.id);
-  const { data: axesRows, error: axesError } = await supabase
-    .from('saisies_temps_axes')
-    .select('saisie_id, axe, heures')
-    .in('saisie_id', saisieIds);
+  // 3. Fetch axes for those saisies
+  const saisieIds = (saisies ?? []).map((s) => s.id);
+  const { data: axesRows, error: axesError } =
+    saisieIds.length > 0
+      ? await supabase
+          .from('saisies_temps_axes')
+          .select('saisie_id, axe, heures')
+          .in('saisie_id', saisieIds)
+      : { data: [], error: null };
 
   if (axesError) {
     logger.error('queries.temps', 'getSaisiesForWeek failed (axes)', {
@@ -120,10 +153,24 @@ export async function getSaisiesForWeek(
     axesBySaisie[row.saisie_id]![row.axe] = row.heures;
   }
 
-  // 3. Group by projet_id
+  // 4. Seed grouped map with ALL user projets (empty heures/axes by default).
   const grouped: Record<string, SaisieTemps> = {};
+  for (const p of userProjets ?? []) {
+    const client = p.client as unknown as { raison_sociale: string } | null;
+    const ref = p.ref ?? '';
+    const clientName = client?.raison_sociale ?? '';
+    grouped[p.id] = {
+      projet_id: p.id,
+      projet_ref: ref,
+      projet_label: `${ref} - ${clientName}`,
+      est_absence: false,
+      heures: {},
+      axes: {},
+    };
+  }
 
-  for (const s of saisies) {
+  // 5. Merge in existing saisies (will also add absence rows not in userProjets).
+  for (const s of saisies ?? []) {
     const projet = s.projet as unknown as {
       ref: string | null;
       est_absence: boolean;

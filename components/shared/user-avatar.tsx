@@ -5,6 +5,8 @@
  * for the shared resolution logic.
  */
 
+import Image from 'next/image';
+
 import {
   dicebearUrl,
   resolveAvatarSeed,
@@ -53,11 +55,12 @@ export function UserAvatar({
   className = '',
 }: UserAvatarProps) {
   return (
-    <img
+    <Image
       src={getAvatarUrl(email, avatarSeed, size, avatarMode, avatarRegenDate)}
       alt={name || email}
       width={size}
       height={size}
+      unoptimized
       className={`rounded-full ${className}`}
     />
   );

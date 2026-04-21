@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, type TransitionStartFunction } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   User,
@@ -150,7 +151,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
         <CardContent>
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              <img
+              <Image
                 src={getAvatarUrl(
                   user.email,
                   avatarSeed,
@@ -161,6 +162,7 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
                 alt="Votre robot"
                 width={128}
                 height={128}
+                unoptimized
                 className="rounded-2xl border-2 border-dashed border-[var(--border)] p-2"
               />
               {effectiveMode === 'frozen' && (

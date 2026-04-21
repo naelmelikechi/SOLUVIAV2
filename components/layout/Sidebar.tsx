@@ -288,7 +288,7 @@ export function Sidebar({
               className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80"
             >
               {user ? (
-                <img
+                <Image
                   src={getAvatarUrl(
                     user.email,
                     user.avatar_seed,
@@ -297,6 +297,9 @@ export function Sidebar({
                     user.avatar_regen_date,
                   )}
                   alt={`${user.prenom} ${user.nom}`}
+                  width={32}
+                  height={32}
+                  unoptimized
                   className="h-full w-full"
                 />
               ) : (
@@ -324,7 +327,7 @@ export function Sidebar({
                 className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80"
               >
                 {user ? (
-                  <img
+                  <Image
                     src={getAvatarUrl(
                       user.email,
                       user.avatar_seed,
@@ -333,6 +336,9 @@ export function Sidebar({
                       user.avatar_regen_date,
                     )}
                     alt={`${user.prenom} ${user.nom}`}
+                    width={32}
+                    height={32}
+                    unoptimized
                     className="h-full w-full"
                   />
                 ) : (

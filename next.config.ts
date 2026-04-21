@@ -8,9 +8,15 @@ const nextConfig: NextConfig = {
       static: 300,
     },
   },
-  // Disable image optimization if not using next/image heavily (saves bandwidth)
   images: {
-    unoptimized: false,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+      },
+    ],
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 };
 

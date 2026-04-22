@@ -43,6 +43,7 @@ export interface EduviaContract {
   referrer_name: string | null;
   referrer_amount: number | null;
   referrer_type: string;
+  accepted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +106,7 @@ export interface EduviaInvoiceStep {
   external_code: string;
   invoice_state: string | null;
   invoice_sent_at: string | null;
+  paid_at: string | null;
 }
 
 export interface EduviaInvoiceForecastStep {
@@ -183,7 +185,7 @@ export class HttpClientError extends Error {
   }
 }
 
-function baseUrlFrom(instanceUrl: string): string {
+export function baseUrlFrom(instanceUrl: string): string {
   // instance_url is stored as "slug.eduvia.app" - API lives at "api.slug.eduvia.app"
   const cleanUrl = instanceUrl.replace(/\/$/, '').replace(/^https?:\/\//, '');
   return `https://api.${cleanUrl}`;

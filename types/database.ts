@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: '14.5';
   };
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
   public: {
     Tables: {
       apprenants: {
@@ -75,31 +100,31 @@ export type Database = {
       };
       audit_logs: {
         Row: {
+          action: string;
+          created_at: string | null;
+          details: Json | null;
+          entity_id: string | null;
+          entity_type: string;
           id: string;
           user_id: string | null;
-          action: string;
-          entity_type: string;
-          entity_id: string | null;
-          details: Json | null;
-          created_at: string;
         };
         Insert: {
+          action: string;
+          created_at?: string | null;
+          details?: Json | null;
+          entity_id?: string | null;
+          entity_type: string;
           id?: string;
           user_id?: string | null;
-          action: string;
-          entity_type: string;
-          entity_id?: string | null;
-          details?: Json | null;
-          created_at?: string;
         };
         Update: {
+          action?: string;
+          created_at?: string | null;
+          details?: Json | null;
+          entity_id?: string | null;
+          entity_type?: string;
           id?: string;
           user_id?: string | null;
-          action?: string;
-          entity_type?: string;
-          entity_id?: string | null;
-          details?: Json | null;
-          created_at?: string;
         };
         Relationships: [
           {
@@ -351,6 +376,7 @@ export type Database = {
       };
       contrats: {
         Row: {
+          accepted_at: string | null;
           apprenant_nom: string | null;
           apprenant_prenom: string | null;
           archive: boolean;
@@ -385,6 +411,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          accepted_at?: string | null;
           apprenant_nom?: string | null;
           apprenant_prenom?: string | null;
           archive?: boolean;
@@ -419,6 +446,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          accepted_at?: string | null;
           apprenant_nom?: string | null;
           apprenant_prenom?: string | null;
           archive?: boolean;
@@ -758,6 +786,7 @@ export type Database = {
           last_synced_at: string;
           opening_date: string | null;
           paid_amount: number | null;
+          paid_at: string | null;
           siret_cfa: string | null;
           step_number: number;
           total_amount: number | null;
@@ -778,6 +807,7 @@ export type Database = {
           last_synced_at?: string;
           opening_date?: string | null;
           paid_amount?: number | null;
+          paid_at?: string | null;
           siret_cfa?: string | null;
           step_number: number;
           total_amount?: number | null;
@@ -798,6 +828,7 @@ export type Database = {
           last_synced_at?: string;
           opening_date?: string | null;
           paid_amount?: number | null;
+          paid_at?: string | null;
           siret_cfa?: string | null;
           step_number?: number;
           total_amount?: number | null;
@@ -1094,6 +1125,39 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      odoo_sync_logs: {
+        Row: {
+          created_at: string | null;
+          direction: string;
+          entity_id: string | null;
+          entity_type: string;
+          erreur: string | null;
+          id: string;
+          payload: Json | null;
+          statut: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          direction: string;
+          entity_id?: string | null;
+          entity_type: string;
+          erreur?: string | null;
+          id?: string;
+          payload?: Json | null;
+          statut: string;
+        };
+        Update: {
+          created_at?: string | null;
+          direction?: string;
+          entity_id?: string | null;
+          entity_type?: string;
+          erreur?: string | null;
+          id?: string;
+          payload?: Json | null;
+          statut?: string;
+        };
+        Relationships: [];
       };
       paiements: {
         Row: {
@@ -1440,6 +1504,38 @@ export type Database = {
           },
         ];
       };
+      team_messages: {
+        Row: {
+          contenu: string | null;
+          created_at: string;
+          gif_url: string | null;
+          id: string;
+          user_id: string;
+        };
+        Insert: {
+          contenu?: string | null;
+          created_at?: string;
+          gif_url?: string | null;
+          id?: string;
+          user_id: string;
+        };
+        Update: {
+          contenu?: string | null;
+          created_at?: string;
+          gif_url?: string | null;
+          id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'team_messages_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       typologies_projet: {
         Row: {
           actif: boolean;
@@ -1464,44 +1560,12 @@ export type Database = {
         };
         Relationships: [];
       };
-      team_messages: {
-        Row: {
-          id: string;
-          user_id: string;
-          contenu: string | null;
-          gif_url: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          contenu?: string | null;
-          gif_url?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          contenu?: string | null;
-          gif_url?: string | null;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'team_messages_user_id_fkey';
-            columns: ['user_id'];
-            isOneToOne: false;
-            referencedRelation: 'users';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
       users: {
         Row: {
           actif: boolean;
-          avatar_mode: 'daily' | 'random' | 'frozen';
-          avatar_seed: string | null;
+          avatar_mode: string;
           avatar_regen_date: string | null;
+          avatar_seed: string | null;
           created_at: string;
           derniere_connexion: string | null;
           email: string;
@@ -1514,9 +1578,9 @@ export type Database = {
         };
         Insert: {
           actif?: boolean;
-          avatar_mode?: 'daily' | 'random' | 'frozen';
-          avatar_seed?: string | null;
+          avatar_mode?: string;
           avatar_regen_date?: string | null;
+          avatar_seed?: string | null;
           created_at?: string;
           derniere_connexion?: string | null;
           email: string;
@@ -1529,9 +1593,9 @@ export type Database = {
         };
         Update: {
           actif?: boolean;
-          avatar_mode?: 'daily' | 'random' | 'frozen';
-          avatar_seed?: string | null;
+          avatar_mode?: string;
           avatar_regen_date?: string | null;
+          avatar_seed?: string | null;
           created_at?: string;
           derniere_connexion?: string | null;
           email?: string;
@@ -1549,9 +1613,9 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      get_user_role: { Args: Record<string, never>; Returns: string };
-      is_admin: { Args: Record<string, never>; Returns: boolean };
-      show_limit: { Args: Record<string, never>; Returns: number };
+      get_user_role: { Args: never; Returns: string };
+      is_admin: { Args: never; Returns: boolean };
+      show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { '': string }; Returns: string[] };
     };
     Enums: {
@@ -1674,3 +1738,41 @@ export type Enums<
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
     ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
     : never;
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema['CompositeTypes']
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
+    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+    : never;
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {
+      role_utilisateur: ['admin', 'cdp', 'superadmin'],
+      scope_kpi: ['global', 'projet', 'cdp'],
+      statut_facture: ['a_emettre', 'emise', 'payee', 'en_retard', 'avoir'],
+      statut_projet: ['actif', 'en_pause', 'termine', 'archive'],
+      type_notification: [
+        'facture_retard',
+        'tache_retard',
+        'rappel_temps',
+        'periode_facturation',
+        'erreur_sync',
+      ],
+    },
+  },
+} as const;

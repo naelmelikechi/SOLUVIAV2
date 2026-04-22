@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { encryptApiKey, decryptApiKey } from '@/lib/utils/encryption';
+import { baseUrlFrom } from '@/lib/eduvia/client';
 import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -519,10 +520,9 @@ export async function testApiKeyConnection(
     apiKey = keyRow.api_key_encrypted;
   }
 
-  const baseUrl = keyRow.instance_url.replace(/\/$/, '');
-  const url = baseUrl.startsWith('http')
-    ? `${baseUrl}/api/v1/status`
-    : `https://${baseUrl}/api/v1/status`;
+  // Use the same URL construction as the sync engine so "test connection"
+  // validates the exact endpoint that will actually be hit during sync.
+  const url = `${baseUrlFrom(keyRow.instance_url)}/api/v1/status`;
 
   try {
     const response = await fetch(url, {

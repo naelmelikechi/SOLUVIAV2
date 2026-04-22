@@ -160,7 +160,9 @@ export default async function AuditPage() {
               | 'frozen'
               | null;
             const avatarRegenDate = u?.avatar_regen_date ?? null;
-            const timeAgo = formatDistanceToNow(parseISO(log.created_at), {
+            // created_at has a DB default NOW() so it's never null at runtime,
+            // but Supabase-gen types still widen to `string | null`.
+            const timeAgo = formatDistanceToNow(parseISO(log.created_at!), {
               addSuffix: true,
               locale: fr,
             });

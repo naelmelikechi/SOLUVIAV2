@@ -71,7 +71,18 @@ export async function getCurrentUser() {
     .eq('id', authUser.id)
     .single();
 
-  if (full.data) return full.data;
+  if (full.data) {
+    // users.avatar_mode is TEXT in the DB (no enum). Supabase types it as
+    // `string | null`; downstream code assumes the narrow union from avatar.ts.
+    return {
+      ...full.data,
+      avatar_mode: full.data.avatar_mode as
+        | 'daily'
+        | 'random'
+        | 'frozen'
+        | null,
+    };
+  }
 
   // Fallback for prod DBs where migrations 00041/00042 haven't been applied yet.
   // Select the columns guaranteed by migrations 00003 + 00038 and fill the

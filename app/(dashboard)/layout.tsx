@@ -42,7 +42,14 @@ export default function DashboardLayout({
         .single();
 
       if (full.data) {
-        setUser(full.data);
+        setUser({
+          ...full.data,
+          avatar_mode: full.data.avatar_mode as
+            | 'daily'
+            | 'random'
+            | 'frozen'
+            | null,
+        });
         return;
       }
 

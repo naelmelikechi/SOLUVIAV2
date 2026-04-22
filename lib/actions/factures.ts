@@ -91,11 +91,13 @@ export async function createFactures(
 
     if (!contrats || contrats.length === 0) continue;
 
-    // Build mois_concerne label
+    // Build mois_concerne label. Sort first so the range is chronological
+    // regardless of DB fetch order (otherwise you get "2024-04-01 - 2024-03-01").
+    const sortedMois = [...group.moisConcernes].sort();
     const moisLabel =
-      group.moisConcernes.length === 1
-        ? group.moisConcernes[0]!
-        : `${group.moisConcernes[0]} - ${group.moisConcernes[group.moisConcernes.length - 1]}`;
+      sortedMois.length === 1
+        ? sortedMois[0]!
+        : `${sortedMois[0]} - ${sortedMois[sortedMois.length - 1]}`;
 
     // Calculate line items
     const lignes = contrats.map((c) => {
@@ -188,6 +190,112 @@ export async function createFactures(
   }
 
   return { success: true, refs: createdRefs };
+}
+
+// ---------------------------------------------------------------------------
+// computeProrataAvoir — suggested avoir amount for a "Rupture anticipée" motif
+// ---------------------------------------------------------------------------
+// Spec 06: "Calcul automatique au pro-rata temporis : montant contrat × durée
+// réalisée / durée totale." Applied per-ligne: the non-realised fraction of
+// each contrat line is refunded. CDP can still override the suggestion.
+
+export type ProrataBreakdownItem = {
+  contratRef: string | null;
+  apprenant: string;
+  montantLigneHt: number;
+  dureeRealiseeMois: number;
+  dureeTotaleMois: number;
+  avoirLigneHt: number;
+};
+
+export async function computeProrataAvoir(params: {
+  factureOrigineId: string;
+  dateRupture: string; // YYYY-MM-DD
+}): Promise<{
+  success: boolean;
+  suggestedAmount?: number;
+  breakdown?: ProrataBreakdownItem[];
+  error?: string;
+}> {
+  const { factureOrigineId, dateRupture } = params;
+  if (!dateRupture) return { success: false, error: 'Date de rupture requise' };
+
+  const rupture = new Date(dateRupture);
+  if (Number.isNaN(rupture.getTime())) {
+    return { success: false, error: 'Date invalide' };
+  }
+
+  const supabase = await createClient();
+
+  const { data: lignes, error } = await supabase
+    .from('facture_lignes')
+    .select(
+      `
+      montant_ht,
+      contrat:contrats!facture_lignes_contrat_id_fkey(
+        ref, apprenant_nom, apprenant_prenom, date_debut, duree_mois
+      )
+    `,
+    )
+    .eq('facture_id', factureOrigineId);
+
+  if (error) return { success: false, error: error.message };
+  if (!lignes || lignes.length === 0) {
+    return { success: false, error: 'Aucune ligne sur cette facture' };
+  }
+
+  const breakdown: ProrataBreakdownItem[] = [];
+  let total = 0;
+
+  for (const ligne of lignes) {
+    const c = ligne.contrat;
+    const montantLigne = ligne.montant_ht ?? 0;
+    const apprenant = [c?.apprenant_prenom, c?.apprenant_nom]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    // Without dates we cannot compute pro-rata → treat as fully non-réalisé
+    // so the CDP reviews it (worst case = full refund of that line).
+    if (!c?.date_debut || !c?.duree_mois) {
+      breakdown.push({
+        contratRef: c?.ref ?? null,
+        apprenant: apprenant || '—',
+        montantLigneHt: montantLigne,
+        dureeRealiseeMois: 0,
+        dureeTotaleMois: 0,
+        avoirLigneHt: montantLigne,
+      });
+      total += montantLigne;
+      continue;
+    }
+
+    const debut = new Date(c.date_debut);
+    const totalMs = rupture.getTime() - debut.getTime();
+    const realiseeMois = Math.max(
+      0,
+      Math.min(c.duree_mois, totalMs / (1000 * 60 * 60 * 24 * 30.4375)),
+    );
+    const fractionNonRealisee = 1 - realiseeMois / c.duree_mois;
+    const avoirLigne =
+      Math.round(montantLigne * fractionNonRealisee * 100) / 100;
+
+    breakdown.push({
+      contratRef: c.ref ?? null,
+      apprenant: apprenant || '—',
+      montantLigneHt: montantLigne,
+      dureeRealiseeMois: Math.round(realiseeMois * 10) / 10,
+      dureeTotaleMois: c.duree_mois,
+      avoirLigneHt: avoirLigne,
+    });
+    total += avoirLigne;
+  }
+
+  return {
+    success: true,
+    suggestedAmount: Math.round(total * 100) / 100,
+    breakdown,
+  };
 }
 
 export async function createAvoir(params: {

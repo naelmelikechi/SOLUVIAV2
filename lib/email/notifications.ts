@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/utils/formatters';
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 const FROM = 'SOLUVIA <contact@mysoluvia.com>';
-const APP_URL = 'https://soluvia.vercel.app';
+const APP_URL = 'https://app.mysoluvia.com';
 
 type SendResult = { success: boolean; error?: string };
 

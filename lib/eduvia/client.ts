@@ -48,16 +48,27 @@ export interface EduviaContract {
   updated_at: string;
 }
 
+/**
+ * GET /api/v1/employees — liste les apprenants. Anciennement servie sous
+ * `/employee_learners`, conservée live mais vide. Les champs liés à la
+ * formation (formation_id, learning_start_date/end_date, internal_number)
+ * vivent désormais sur `contracts`, pas sur l'employee.
+ */
 export interface EduviaLearner {
   id: number;
   first_name: string;
   last_name: string;
   gender: string | null;
+  birth_date: string | null;
   phone_number: string | null;
-  formation_id: number | null;
-  internal_number: string | null;
-  learning_start_date: string | null;
-  learning_end_date: string | null;
+  address: string | null;
+  postcode: string | null;
+  city: string | null;
+  country: string | null;
+  nationality_code: number | null;
+  disabled_worker: boolean | null;
+  status: string | null;
+  company_id: number | null;
   created_at: string;
   updated_at: string;
 }

@@ -121,10 +121,11 @@ export async function syncEduviaForClient(
     });
 
     // ── PASS 1 - reference tables ──────────────────────────────────────
+    // Endpoint /employees (ancienne route /employee_learners toujours live
+    // mais vide côté API Eduvia — confirmation Ilies 2026-04-22).
     const learners = await safeFetchList<EduviaLearner>(
-      () =>
-        fetchAllPages<EduviaLearner>(instanceUrl, apiKey, 'employee_learners'),
-      'employee_learners',
+      () => fetchAllPages<EduviaLearner>(instanceUrl, apiKey, 'employees'),
+      'employees',
     );
     const formations = await safeFetchList<EduviaFormation>(
       () => fetchAllPages<EduviaFormation>(instanceUrl, apiKey, 'formations'),
@@ -136,6 +137,9 @@ export async function syncEduviaForClient(
     );
 
     for (const learner of learners) {
+      // formation_id / internal_number / learning_start/end_date ont quitté
+      // la réponse employees ; ils sont désormais portés par les contrats.
+      // On les laisse à NULL dans apprenants (les colonnes existent toujours).
       const { error: upsertError } = await supabase.from('apprenants').upsert(
         {
           eduvia_id: learner.id,
@@ -143,10 +147,6 @@ export async function syncEduviaForClient(
           prenom: learner.first_name,
           gender: learner.gender,
           phone_number: learner.phone_number,
-          eduvia_formation_id: learner.formation_id,
-          internal_number: learner.internal_number,
-          learning_start_date: learner.learning_start_date,
-          learning_end_date: learner.learning_end_date,
           last_synced_at: now,
         },
         { onConflict: 'eduvia_id' },

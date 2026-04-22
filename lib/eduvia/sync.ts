@@ -560,7 +560,16 @@ export async function syncAllEduviaClients(
     }
 
     try {
-      const apiKey = decryptApiKey(api_key_encrypted);
+      // Mirror testApiKeyConnection's behavior: if ENCRYPTION_KEY is not set
+      // or the stored value isn't in the iv:authTag:ciphertext format, treat
+      // the column as plaintext (addClientApiKey falls back to plaintext on
+      // insert when ENCRYPTION_KEY is missing, so this keeps parity).
+      let apiKey: string;
+      try {
+        apiKey = decryptApiKey(api_key_encrypted);
+      } catch {
+        apiKey = api_key_encrypted;
+      }
       const clientResult = await syncEduviaForClient(
         supabase,
         client_id,

@@ -5,7 +5,7 @@ import { syncOdoo } from '@/lib/odoo/sync';
 import { logger } from '@/lib/utils/logger';
 
 // CRON: Push invoices to Odoo, pull payment statuses
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
 

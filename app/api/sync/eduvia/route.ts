@@ -5,7 +5,7 @@ import { syncAllEduviaClients } from '@/lib/eduvia/sync';
 import { logger } from '@/lib/utils/logger';
 
 // CRON: Sync contracts, learners, formations, and companies from Eduvia API
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
 

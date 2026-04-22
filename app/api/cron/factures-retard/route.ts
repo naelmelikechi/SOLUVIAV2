@@ -5,7 +5,7 @@ import { logger } from '@/lib/utils/logger';
 import { format } from 'date-fns';
 
 // CRON: Mark overdue invoices as en_retard + create notifications
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
 

@@ -58,7 +58,10 @@ export async function proxy(request: NextRequest) {
   const response = await updateSession(request);
   response.cookies.set('sb-last-refresh', String(now), {
     httpOnly: true,
-    secure: true,
+    // In dev over HTTP, secure:true prevents the browser from storing the
+    // cookie, which silently breaks the 5-min throttle (every request re-runs
+    // updateSession). Gate on NODE_ENV so local dev works.
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 3600,
   });

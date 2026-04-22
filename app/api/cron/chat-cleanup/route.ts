@@ -7,7 +7,7 @@ import { logger } from '@/lib/utils/logger';
  * Deletes team_messages older than 48 hours.
  * Wired to hourly Vercel cron (see vercel.json).
  */
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
 

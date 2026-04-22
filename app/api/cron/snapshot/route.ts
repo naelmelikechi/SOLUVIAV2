@@ -5,7 +5,7 @@ import { logger } from '@/lib/utils/logger';
 import { format, startOfMonth } from 'date-fns';
 
 // CRON: Monthly KPI snapshot (runs on the 1st of each month)
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
 

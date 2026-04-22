@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyCronAuth } from '@/lib/utils/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
 
@@ -81,12 +81,10 @@ export async function POST(request: Request) {
   // Single batch upsert instead of N+1 individual calls
   let created = 0;
   if (allEcheances.length > 0) {
-    const { error } = await supabase
-      .from('echeances')
-      .upsert(allEcheances, {
-        onConflict: 'projet_id,mois_concerne',
-        ignoreDuplicates: true,
-      });
+    const { error } = await supabase.from('echeances').upsert(allEcheances, {
+      onConflict: 'projet_id,mois_concerne',
+      ignoreDuplicates: true,
+    });
 
     if (!error) created = allEcheances.length;
   }

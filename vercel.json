@@ -24,6 +24,26 @@
     {
       "path": "/api/cron/chat-cleanup",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/email-temps-non-saisi",
+      "schedule": "0 17 * * 1-5"
+    },
+    {
+      "path": "/api/cron/email-factures-retard",
+      "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/cron/email-fenetre-debut",
+      "schedule": "0 8 25 * *"
+    },
+    {
+      "path": "/api/cron/email-fenetre-fin",
+      "schedule": "0 8 2 * *"
+    },
+    {
+      "path": "/api/cron/email-rapport-mensuel",
+      "schedule": "0 9 1 * *"
     }
   ]
 }

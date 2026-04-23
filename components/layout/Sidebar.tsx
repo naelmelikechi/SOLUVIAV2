@@ -37,6 +37,7 @@ type MainNavItem = {
   label: string;
   icon: typeof ClipboardList;
   adminOnly?: boolean;
+  requiresIndicateursAccess?: boolean;
 };
 
 const mainNavItems: MainNavItem[] = [
@@ -50,11 +51,20 @@ const mainNavItems: MainNavItem[] = [
     href: '/indicateurs',
     label: 'Indicateurs',
     icon: LineChart,
-    adminOnly: true,
+    requiresIndicateursAccess: true,
   },
   { href: '/equipe', label: 'Équipe', icon: UsersRound },
   { href: '/idees', label: 'Idées', icon: Lightbulb },
 ];
+
+function canAccessIndicateurs(
+  role: string | null | undefined,
+  pipelineAccess: boolean | null | undefined,
+): boolean {
+  return (
+    isAdmin(role) || role === 'cdp' || canAccessPipeline(role, pipelineAccess)
+  );
+}
 
 const commercialNavItems = [
   { href: '/commercial/pipeline', label: 'Pipeline', icon: Target },
@@ -210,7 +220,15 @@ export function Sidebar({
       {/* Navigation */}
       <nav className="flex-1 space-y-0.5 px-2 py-3">
         {mainNavItems
-          .filter((item) => !item.adminOnly || isAdmin(user?.role))
+          .filter((item) => {
+            if (item.adminOnly && !isAdmin(user?.role)) return false;
+            if (
+              item.requiresIndicateursAccess &&
+              !canAccessIndicateurs(user?.role, user?.pipeline_access)
+            )
+              return false;
+            return true;
+          })
           .map((item) => {
             const isActive = pathname.startsWith(item.href);
             const Icon = item.icon;

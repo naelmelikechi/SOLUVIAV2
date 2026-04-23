@@ -1,35 +1,42 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/shared/page-header';
-import { createClient } from '@/lib/supabase/server';
-import { isAdmin } from '@/lib/utils/roles';
-import { getIndicateursData } from '@/lib/queries/indicateurs';
+import {
+  getIndicateursData,
+  getIndicateursScope,
+  getKpiKeysForScope,
+} from '@/lib/queries/indicateurs';
 import { KpiEvolutionCard } from '@/components/indicateurs/kpi-evolution-card';
 import { IndicateursTrendChart } from '@/components/indicateurs/indicateurs-trend-chart';
 
 export const metadata: Metadata = { title: 'Indicateurs - SOLUVIA' };
 export const revalidate = 60;
 
-export default async function IndicateursPage() {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  const { data: currentUser } = authUser
-    ? await supabase.from('users').select('role').eq('id', authUser.id).single()
-    : { data: null };
+function getDescription(kind: 'admin' | 'cdp' | 'commercial'): string {
+  switch (kind) {
+    case 'admin':
+      return "Évolution hebdomadaire des KPIs de l'équipe";
+    case 'cdp':
+      return 'Évolution hebdomadaire de vos projets';
+    case 'commercial':
+      return 'Évolution hebdomadaire de votre activité commerciale';
+  }
+}
 
-  if (!isAdmin(currentUser?.role)) {
+export default async function IndicateursPage() {
+  const scope = await getIndicateursScope();
+  if (!scope) {
     notFound();
   }
 
-  const { kpis, trend } = await getIndicateursData();
+  const { kpis, trend } = await getIndicateursData(scope);
+  const allowedKeys = getKpiKeysForScope(scope);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Indicateurs"
-        description="Évolution hebdomadaire des KPIs de l'équipe"
+        description={getDescription(scope.kind)}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -44,7 +51,7 @@ export default async function IndicateursPage() {
         ))}
       </div>
 
-      <IndicateursTrendChart data={trend} />
+      <IndicateursTrendChart data={trend} allowedKeys={allowedKeys} />
     </div>
   );
 }

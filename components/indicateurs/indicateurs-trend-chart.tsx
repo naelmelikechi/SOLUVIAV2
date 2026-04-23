@@ -69,10 +69,20 @@ const SERIES: SeriesConfig[] = [
   },
 ];
 
-export function IndicateursTrendChart({ data }: { data: TrendPoint[] }) {
-  const [selected, setSelected] = useState<KpiKey>('rdvFormateurs');
-  const fallback = SERIES[0]!;
-  const active = SERIES.find((s) => s.key === selected) ?? fallback;
+export function IndicateursTrendChart({
+  data,
+  allowedKeys,
+}: {
+  data: TrendPoint[];
+  allowedKeys?: KpiKey[];
+}) {
+  const visibleSeries =
+    allowedKeys && allowedKeys.length > 0
+      ? SERIES.filter((s) => allowedKeys.includes(s.key))
+      : SERIES;
+  const fallback = visibleSeries[0] ?? SERIES[0]!;
+  const [selected, setSelected] = useState<KpiKey>(fallback.key);
+  const active = visibleSeries.find((s) => s.key === selected) ?? fallback;
 
   const hasData = data.some((d) => {
     const v = d[active.key];
@@ -87,7 +97,7 @@ export function IndicateursTrendChart({ data }: { data: TrendPoint[] }) {
             Évolution sur 8 semaines
           </CardTitle>
           <div className="flex flex-wrap gap-1.5">
-            {SERIES.map((s) => (
+            {visibleSeries.map((s) => (
               <Button
                 key={s.key}
                 variant={s.key === selected ? 'default' : 'outline'}

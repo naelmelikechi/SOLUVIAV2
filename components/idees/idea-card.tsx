@@ -1,18 +1,31 @@
 'use client';
 
-import { User, CheckCircle, Rocket, XCircle, GripVertical } from 'lucide-react';
+import { useTransition } from 'react';
+import {
+  User,
+  CheckCircle,
+  Rocket,
+  XCircle,
+  ArrowRight,
+  Loader2,
+} from 'lucide-react';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CIBLE_IDEE_LABELS, CIBLE_IDEE_COLORS } from '@/lib/utils/constants';
 import { formatDateLong } from '@/lib/utils/formatters';
 import { cn } from '@/lib/utils';
+import { validateIdea, markIdeaImplemented } from '@/lib/actions/idees';
+import { toast } from 'sonner';
 import type { IdeeWithRefs } from '@/lib/queries/idees';
 
 interface IdeaCardProps {
   idee: IdeeWithRefs;
   onClick: () => void;
-  draggable?: boolean;
-  onDragStart?: (idee: IdeeWithRefs) => void;
-  onDragEnd?: () => void;
+  canModerate?: boolean;
+  canShip?: boolean;
+  onValidated?: (id: string) => void;
+  onImplemented?: (id: string) => void;
+  onRevert?: (id: string) => void;
+  onRequestReject?: (idee: IdeeWithRefs) => void;
 }
 
 const STATUT_ICONS = {
@@ -32,24 +45,16 @@ const STATUT_ICON_COLORS = {
 export function IdeaCard({
   idee,
   onClick,
-  draggable = false,
-  onDragStart,
-  onDragEnd,
+  canModerate = false,
+  canShip = false,
+  onValidated,
+  onImplemented,
+  onRevert,
+  onRequestReject,
 }: IdeaCardProps) {
+  const [isPending, startTransition] = useTransition();
   const StatutIcon = STATUT_ICONS[idee.statut];
   const iconColor = STATUT_ICON_COLORS[idee.statut];
-
-  function handleDragStart(e: React.DragEvent<HTMLDivElement>) {
-    if (!draggable) return;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/x-idee-id', idee.id);
-    e.dataTransfer.setData('application/x-idee-statut', idee.statut);
-    onDragStart?.(idee);
-  }
-
-  function handleDragEnd() {
-    onDragEnd?.();
-  }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -58,33 +63,62 @@ export function IdeaCard({
     }
   }
 
+  function stop(e: React.MouseEvent) {
+    e.stopPropagation();
+  }
+
+  function handleValidate(e: React.MouseEvent) {
+    e.stopPropagation();
+    onValidated?.(idee.id);
+    startTransition(async () => {
+      const r = await validateIdea(idee.id);
+      if (!r.success) {
+        onRevert?.(idee.id);
+        toast.error(r.error ?? 'Erreur');
+        return;
+      }
+      toast.success('Idée validée');
+    });
+  }
+
+  function handleImplement(e: React.MouseEvent) {
+    e.stopPropagation();
+    onImplemented?.(idee.id);
+    startTransition(async () => {
+      const r = await markIdeaImplemented(idee.id);
+      if (!r.success) {
+        onRevert?.(idee.id);
+        toast.error(r.error ?? 'Erreur');
+        return;
+      }
+      toast.success('Idée marquée comme implémentée');
+    });
+  }
+
+  function handleReject(e: React.MouseEvent) {
+    e.stopPropagation();
+    onRequestReject?.(idee);
+  }
+
+  const showProposeeActions = canModerate && idee.statut === 'proposee';
+  const showValideeAction = canShip && idee.statut === 'validee';
+
   return (
     <div
       role="button"
       tabIndex={0}
-      draggable={draggable}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
       onClick={onClick}
       onKeyDown={handleKeyDown}
       className={cn(
         'group bg-card border-border hover:border-primary/40 relative w-full cursor-pointer rounded-md border p-3 text-left transition-all duration-150 hover:-translate-y-px hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
-        draggable && 'cursor-grab active:cursor-grabbing',
+        isPending && 'pointer-events-none opacity-60',
       )}
     >
-      {draggable && (
-        <span
-          aria-hidden
-          className="text-muted-foreground/50 group-hover:text-muted-foreground pointer-events-none absolute top-2 right-1.5 transition-colors"
-        >
-          <GripVertical className="h-3.5 w-3.5" />
-        </span>
-      )}
       <div className="flex items-start gap-2">
         {StatutIcon && (
           <StatutIcon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconColor}`} />
         )}
-        <h4 className="line-clamp-2 flex-1 pr-6 text-[13px] leading-tight font-semibold">
+        <h4 className="line-clamp-2 flex-1 text-[13px] leading-tight font-semibold">
           {idee.titre}
         </h4>
       </div>
@@ -111,6 +145,53 @@ export function IdeaCard({
       <div className="text-muted-foreground mt-1.5 text-[10px]">
         {formatDateLong(idee.created_at)}
       </div>
+
+      {(showProposeeActions || showValideeAction) && (
+        <div
+          className="border-border/60 mt-2.5 flex gap-1.5 border-t pt-2.5"
+          onClick={stop}
+        >
+          {isPending ? (
+            <span className="text-muted-foreground inline-flex items-center gap-1.5 text-[11px]">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              En cours...
+            </span>
+          ) : (
+            <>
+              {showProposeeActions && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleValidate}
+                    className="inline-flex items-center gap-1 rounded border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700 transition-colors hover:bg-blue-500/20 dark:text-blue-400"
+                  >
+                    <ArrowRight className="h-3 w-3" />
+                    Valider
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReject}
+                    className="inline-flex items-center gap-1 rounded border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-500/20 dark:text-red-400"
+                  >
+                    <XCircle className="h-3 w-3" />
+                    Rejeter
+                  </button>
+                </>
+              )}
+              {showValideeAction && (
+                <button
+                  type="button"
+                  onClick={handleImplement}
+                  className="inline-flex items-center gap-1 rounded border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[11px] font-medium text-green-700 transition-colors hover:bg-green-500/20 dark:text-green-400"
+                >
+                  <Rocket className="h-3 w-3" />
+                  Implémenter
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

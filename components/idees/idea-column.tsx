@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { STATUT_IDEE_LABELS, type StatutIdee } from '@/lib/utils/constants';
 import { IdeaCard } from './idea-card';
@@ -10,11 +9,12 @@ interface IdeaColumnProps {
   statut: StatutIdee;
   idees: IdeeWithRefs[];
   onCardClick: (idee: IdeeWithRefs) => void;
-  draggable?: boolean;
-  onCardDragStart?: (idee: IdeeWithRefs) => void;
-  onCardDragEnd?: () => void;
-  onDropIdee?: (e: React.DragEvent<HTMLDivElement>, target: StatutIdee) => void;
-  isValidDropTarget?: boolean;
+  canModerate?: boolean;
+  canShip?: boolean;
+  onValidated?: (id: string) => void;
+  onImplemented?: (id: string) => void;
+  onRevert?: (id: string) => void;
+  onRequestReject?: (idee: IdeeWithRefs) => void;
 }
 
 const DOT_COLORS: Record<StatutIdee, string> = {
@@ -24,63 +24,19 @@ const DOT_COLORS: Record<StatutIdee, string> = {
   rejetee: 'bg-red-500',
 };
 
-const OUTLINE_COLORS: Record<StatutIdee, string> = {
-  proposee: 'ring-neutral-400/50 bg-neutral-400/5',
-  validee: 'ring-blue-500/50 bg-blue-500/5',
-  implementee: 'ring-green-500/50 bg-green-500/5',
-  rejetee: 'ring-red-500/50 bg-red-500/5',
-};
-
 export function IdeaColumn({
   statut,
   idees,
   onCardClick,
-  draggable = false,
-  onCardDragStart,
-  onCardDragEnd,
-  onDropIdee,
-  isValidDropTarget = false,
+  canModerate,
+  canShip,
+  onValidated,
+  onImplemented,
+  onRevert,
+  onRequestReject,
 }: IdeaColumnProps) {
-  const [isOver, setIsOver] = useState(false);
-
-  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
-    if (!isValidDropTarget) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  }
-
-  function handleDragEnter(e: React.DragEvent<HTMLDivElement>) {
-    if (!isValidDropTarget) return;
-    e.preventDefault();
-    setIsOver(true);
-  }
-
-  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
-    // Only clear when leaving the column itself, not crossing over child
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    setIsOver(false);
-  }
-
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    setIsOver(false);
-    if (!isValidDropTarget) return;
-    e.preventDefault();
-    onDropIdee?.(e, statut);
-  }
-
-  const highlight = isOver && isValidDropTarget;
-
   return (
-    <div
-      onDragOver={handleDragOver}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      className={cn(
-        'bg-muted/30 border-border/60 flex min-h-[calc(100vh-260px)] flex-col rounded-lg border transition-all duration-150',
-        highlight && `ring-2 ring-offset-0 ${OUTLINE_COLORS[statut]}`,
-      )}
-    >
+    <div className="bg-muted/30 border-border/60 flex min-h-[calc(100vh-260px)] flex-col rounded-lg border">
       <div className="border-border/60 flex items-center justify-between border-b px-3 py-2.5">
         <div className="flex items-center gap-2">
           <span
@@ -107,9 +63,12 @@ export function IdeaColumn({
               key={idee.id}
               idee={idee}
               onClick={() => onCardClick(idee)}
-              draggable={draggable}
-              onDragStart={onCardDragStart}
-              onDragEnd={onCardDragEnd}
+              canModerate={canModerate}
+              canShip={canShip}
+              onValidated={onValidated}
+              onImplemented={onImplemented}
+              onRevert={onRevert}
+              onRequestReject={onRequestReject}
             />
           ))
         )}

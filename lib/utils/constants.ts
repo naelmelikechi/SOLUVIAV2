@@ -73,6 +73,46 @@ export const TYPE_PROSPECT_LABELS: Record<TypeProspect, string> = {
   entreprise: 'Entreprise',
 };
 
+// Idées (boîte à idées)
+export const STATUT_IDEE_ORDER = [
+  'proposee',
+  'validee',
+  'implementee',
+  'rejetee',
+] as const;
+
+export type StatutIdee = (typeof STATUT_IDEE_ORDER)[number];
+
+export const STATUT_IDEE_LABELS: Record<StatutIdee, string> = {
+  proposee: 'Proposée',
+  validee: 'Validée',
+  implementee: 'Implémentée',
+  rejetee: 'Rejetée',
+};
+
+export const STATUT_IDEE_COLORS: Record<StatutIdee, BadgeColor> = {
+  proposee: 'gray',
+  validee: 'blue',
+  implementee: 'green',
+  rejetee: 'red',
+};
+
+export type CibleIdee = 'eduvia' | 'soluvia' | 'workflow' | 'autre';
+
+export const CIBLE_IDEE_LABELS: Record<CibleIdee, string> = {
+  eduvia: 'Eduvia',
+  soluvia: 'Soluvia',
+  workflow: 'Workflow',
+  autre: 'Autre',
+};
+
+export const CIBLE_IDEE_COLORS: Record<CibleIdee, BadgeColor> = {
+  eduvia: 'purple',
+  soluvia: 'green',
+  workflow: 'blue',
+  autre: 'gray',
+};
+
 // Invoice statuses
 export const STATUT_FACTURE_LABELS: Record<string, string> = {
   a_emettre: 'À émettre',

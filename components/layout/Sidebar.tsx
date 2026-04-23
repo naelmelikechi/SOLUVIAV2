@@ -21,6 +21,7 @@ import {
   User,
   X,
   Target,
+  Lightbulb,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,7 @@ const mainNavItems = [
   { href: '/facturation', label: 'Facturation', icon: FileText },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/equipe', label: 'Équipe', icon: UsersRound },
+  { href: '/idees', label: 'Idées', icon: Lightbulb },
 ];
 
 const commercialNavItems = [

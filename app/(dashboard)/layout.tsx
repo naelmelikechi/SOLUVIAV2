@@ -25,6 +25,8 @@ export default function DashboardLayout({
     avatar_seed: string | null;
     avatar_regen_date: string | null;
     pipeline_access: boolean;
+    can_validate_ideas: boolean;
+    can_ship_ideas: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function DashboardLayout({
       const full = await supabase
         .from('users')
         .select(
-          'nom, prenom, role, email, avatar_mode, avatar_seed, avatar_regen_date, pipeline_access',
+          'nom, prenom, role, email, avatar_mode, avatar_seed, avatar_regen_date, pipeline_access, can_validate_ideas, can_ship_ideas',
         )
         .eq('id', authUser.id)
         .single();
@@ -51,6 +53,8 @@ export default function DashboardLayout({
             | 'frozen'
             | null,
           pipeline_access: full.data.pipeline_access ?? false,
+          can_validate_ideas: full.data.can_validate_ideas ?? false,
+          can_ship_ideas: full.data.can_ship_ideas ?? false,
         });
         return;
       }
@@ -62,7 +66,13 @@ export default function DashboardLayout({
         .single();
 
       if (legacy.data) {
-        setUser({ ...legacy.data, avatar_mode: null, pipeline_access: false });
+        setUser({
+          ...legacy.data,
+          avatar_mode: null,
+          pipeline_access: false,
+          can_validate_ideas: false,
+          can_ship_ideas: false,
+        });
       }
     });
   }, []);

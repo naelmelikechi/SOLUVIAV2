@@ -22,6 +22,20 @@ export function canAccessPipeline(
   return isAdmin(role) || pipelineAccess === true;
 }
 
+export function canValidateIdeas(
+  role: string | null | undefined,
+  canValidateFlag: boolean | null | undefined,
+): boolean {
+  return isAdmin(role) || canValidateFlag === true;
+}
+
+export function canShipIdeas(
+  role: string | null | undefined,
+  canShipFlag: boolean | null | undefined,
+): boolean {
+  return isAdmin(role) || canShipFlag === true;
+}
+
 export function getRoleLabel(role: string | null | undefined): string {
   switch (role) {
     case 'superadmin':

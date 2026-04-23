@@ -9,7 +9,7 @@ export async function getUsersList() {
     supabase
       .from('users')
       .select(
-        'id, email, nom, prenom, role, actif, derniere_connexion, pipeline_access',
+        'id, email, nom, prenom, role, actif, derniere_connexion, pipeline_access, can_validate_ideas, can_ship_ideas',
       )
       .order('nom'),
     supabase

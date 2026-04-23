@@ -989,6 +989,79 @@ export type Database = {
           },
         ];
       };
+      idees: {
+        Row: {
+          archive: boolean;
+          auteur_id: string;
+          cible: Database['public']['Enums']['cible_idee'];
+          created_at: string;
+          description: string | null;
+          id: string;
+          implementee_at: string | null;
+          implementee_par: string | null;
+          rejet_motif: string | null;
+          statut: Database['public']['Enums']['statut_idee'];
+          titre: string;
+          updated_at: string;
+          validee_at: string | null;
+          validee_par: string | null;
+        };
+        Insert: {
+          archive?: boolean;
+          auteur_id: string;
+          cible?: Database['public']['Enums']['cible_idee'];
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          implementee_at?: string | null;
+          implementee_par?: string | null;
+          rejet_motif?: string | null;
+          statut?: Database['public']['Enums']['statut_idee'];
+          titre: string;
+          updated_at?: string;
+          validee_at?: string | null;
+          validee_par?: string | null;
+        };
+        Update: {
+          archive?: boolean;
+          auteur_id?: string;
+          cible?: Database['public']['Enums']['cible_idee'];
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          implementee_at?: string | null;
+          implementee_par?: string | null;
+          rejet_motif?: string | null;
+          statut?: Database['public']['Enums']['statut_idee'];
+          titre?: string;
+          updated_at?: string;
+          validee_at?: string | null;
+          validee_par?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'idees_auteur_id_fkey';
+            columns: ['auteur_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'idees_implementee_par_fkey';
+            columns: ['implementee_par'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'idees_validee_par_fkey';
+            columns: ['validee_par'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       formations: {
         Row: {
           code_diploma: string | null;
@@ -1734,6 +1807,8 @@ export type Database = {
           avatar_mode: string;
           avatar_regen_date: string | null;
           avatar_seed: string | null;
+          can_ship_ideas: boolean;
+          can_validate_ideas: boolean;
           created_at: string;
           derniere_connexion: string | null;
           email: string;
@@ -1750,6 +1825,8 @@ export type Database = {
           avatar_mode?: string;
           avatar_regen_date?: string | null;
           avatar_seed?: string | null;
+          can_ship_ideas?: boolean;
+          can_validate_ideas?: boolean;
           created_at?: string;
           derniere_connexion?: string | null;
           email: string;
@@ -1766,6 +1843,8 @@ export type Database = {
           avatar_mode?: string;
           avatar_regen_date?: string | null;
           avatar_seed?: string | null;
+          can_ship_ideas?: boolean;
+          can_validate_ideas?: boolean;
           created_at?: string;
           derniere_connexion?: string | null;
           email?: string;
@@ -1792,8 +1871,10 @@ export type Database = {
       show_trgm: { Args: { '': string }; Returns: string[] };
     };
     Enums: {
+      cible_idee: 'eduvia' | 'soluvia' | 'workflow' | 'autre';
       role_utilisateur: 'admin' | 'cdp' | 'commercial' | 'superadmin';
       stage_prospect: 'non_contacte' | 'r1' | 'r2' | 'signe';
+      statut_idee: 'proposee' | 'validee' | 'implementee' | 'rejetee';
       type_prospect: 'cfa' | 'entreprise';
       scope_kpi: 'global' | 'projet' | 'cdp';
       statut_facture: 'a_emettre' | 'emise' | 'payee' | 'en_retard' | 'avoir';
@@ -1803,7 +1884,10 @@ export type Database = {
         | 'tache_retard'
         | 'rappel_temps'
         | 'periode_facturation'
-        | 'erreur_sync';
+        | 'erreur_sync'
+        | 'idee_validee'
+        | 'idee_rejetee'
+        | 'idee_implementee';
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -1949,6 +2033,9 @@ export const Constants = {
         'rappel_temps',
         'periode_facturation',
         'erreur_sync',
+        'idee_validee',
+        'idee_rejetee',
+        'idee_implementee',
       ],
     },
   },

@@ -152,6 +152,45 @@ export async function updateUserPipelineAccess(
 }
 
 // ---------------------------------------------------------------------------
+// updateUserIdeasPermissions - admin-only: toggle validate/ship ideas flags
+// ---------------------------------------------------------------------------
+
+export async function updateUserIdeasPermissions(
+  userId: string,
+  permissions: { canValidateIdeas: boolean; canShipIdeas: boolean },
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', authUser.id)
+    .single();
+  if (!isAdmin(caller?.role)) {
+    return { success: false, error: 'Accès refusé - réservé aux admins' };
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update({
+      can_validate_ideas: permissions.canValidateIdeas,
+      can_ship_ideas: permissions.canShipIdeas,
+    })
+    .eq('id', userId);
+
+  if (error) return { success: false, error: error.message };
+
+  logAudit('user_ideas_permissions_changed', 'user', userId, permissions);
+  revalidatePath('/admin/utilisateurs');
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
 // toggleUserActive - admin-only: enable / disable a user
 // ---------------------------------------------------------------------------
 

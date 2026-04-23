@@ -26,6 +26,7 @@ import {
   deleteUser,
   updateUserProfile,
   updateUserPipelineAccess,
+  updateUserIdeasPermissions,
 } from '@/lib/actions/users';
 import { Checkbox } from '@/components/ui/checkbox';
 import { isAdmin } from '@/lib/utils/roles';
@@ -52,11 +53,16 @@ export function UserEditDialog({
   const [pipelineAccess, setPipelineAccess] = useState<boolean>(
     user?.pipeline_access ?? false,
   );
+  const [canValidateIdeasFlag, setCanValidateIdeasFlag] = useState<boolean>(
+    user?.can_validate_ideas ?? false,
+  );
+  const [canShipIdeasFlag, setCanShipIdeasFlag] = useState<boolean>(
+    user?.can_ship_ideas ?? false,
+  );
   const [isPending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
 
-  // Sync local state when a different user is opened
   const [prevUserId, setPrevUserId] = useState<string | null>(null);
   if (user && user.id !== prevUserId) {
     setPrevUserId(user.id);
@@ -65,6 +71,8 @@ export function UserEditDialog({
     setRole(user.role);
     setActif(user.actif ? 'true' : 'false');
     setPipelineAccess(user.pipeline_access ?? false);
+    setCanValidateIdeasFlag(user.can_validate_ideas ?? false);
+    setCanShipIdeasFlag(user.can_ship_ideas ?? false);
   }
 
   if (!user) return null;
@@ -81,8 +89,17 @@ export function UserEditDialog({
       const actifChanged = newActif !== user.actif;
       const pipelineChanged =
         pipelineAccess !== (user.pipeline_access ?? false);
+      const ideasChanged =
+        canValidateIdeasFlag !== (user.can_validate_ideas ?? false) ||
+        canShipIdeasFlag !== (user.can_ship_ideas ?? false);
 
-      if (!nameChanged && !roleChanged && !actifChanged && !pipelineChanged) {
+      if (
+        !nameChanged &&
+        !roleChanged &&
+        !actifChanged &&
+        !pipelineChanged &&
+        !ideasChanged
+      ) {
         onOpenChange(false);
         return;
       }
@@ -122,6 +139,20 @@ export function UserEditDialog({
         if (!result.success) {
           toast.error(
             result.error ?? "Erreur lors de la mise à jour de l'accès pipeline",
+          );
+          return;
+        }
+      }
+
+      if (ideasChanged) {
+        const result = await updateUserIdeasPermissions(user.id, {
+          canValidateIdeas: canValidateIdeasFlag,
+          canShipIdeas: canShipIdeasFlag,
+        });
+        if (!result.success) {
+          toast.error(
+            result.error ??
+              'Erreur lors de la mise à jour des permissions idées',
           );
           return;
         }
@@ -189,28 +220,44 @@ export function UserEditDialog({
 
           <div className="space-y-2">
             <Label>Permissions</Label>
-            <label
-              htmlFor="edit-pipeline-access"
-              className="border-border hover:bg-muted/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors"
-            >
-              <Checkbox
+            <div className="space-y-2">
+              <PermissionRow
                 id="edit-pipeline-access"
+                title="Accès au pipeline commercial"
+                description={
+                  isAdmin(role)
+                    ? 'Accès implicite pour les administrateurs.'
+                    : 'Autorise cet utilisateur à voir et gérer le pipeline commercial.'
+                }
                 checked={isAdmin(role) ? true : pipelineAccess}
                 disabled={isAdmin(role)}
-                onCheckedChange={(v) => setPipelineAccess(v === true)}
-                className="mt-0.5"
+                onChange={setPipelineAccess}
               />
-              <div className="flex-1">
-                <div className="text-sm font-medium">
-                  Accès au pipeline commercial
-                </div>
-                <div className="text-muted-foreground mt-0.5 text-xs">
-                  {isAdmin(role)
+              <PermissionRow
+                id="edit-validate-ideas"
+                title="Valider les idées"
+                description={
+                  isAdmin(role)
                     ? 'Accès implicite pour les administrateurs.'
-                    : 'Autorise cet utilisateur à voir et gérer le pipeline commercial en plus de ses fonctions habituelles.'}
-                </div>
-              </div>
-            </label>
+                    : 'Peut valider ou rejeter les idées proposées dans la boîte à idées.'
+                }
+                checked={isAdmin(role) ? true : canValidateIdeasFlag}
+                disabled={isAdmin(role)}
+                onChange={setCanValidateIdeasFlag}
+              />
+              <PermissionRow
+                id="edit-ship-ideas"
+                title="Marquer les idées implémentées"
+                description={
+                  isAdmin(role)
+                    ? 'Accès implicite pour les administrateurs.'
+                    : 'Peut marquer une idée validée comme livrée / implémentée.'
+                }
+                checked={isAdmin(role) ? true : canShipIdeasFlag}
+                disabled={isAdmin(role)}
+                onChange={setCanShipIdeasFlag}
+              />
+            </div>
           </div>
         </div>
 
@@ -264,5 +311,42 @@ export function UserEditDialog({
         }}
       />
     </Dialog>
+  );
+}
+
+function PermissionRow({
+  id,
+  title,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className="border-border hover:bg-muted/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors"
+    >
+      <Checkbox
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(v) => onChange(v === true)}
+        className="mt-0.5"
+      />
+      <div className="flex-1">
+        <div className="text-sm font-medium">{title}</div>
+        <div className="text-muted-foreground mt-0.5 text-xs">
+          {description}
+        </div>
+      </div>
+    </label>
   );
 }

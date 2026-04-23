@@ -1,5 +1,6 @@
 'use client';
 
+import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import { STATUT_IDEE_LABELS, type StatutIdee } from '@/lib/utils/constants';
 import { IdeaCard } from './idea-card';
@@ -9,6 +10,8 @@ interface IdeaColumnProps {
   statut: StatutIdee;
   idees: IdeeWithRefs[];
   onCardClick: (idee: IdeeWithRefs) => void;
+  draggable?: boolean;
+  isValidDropTarget?: boolean;
 }
 
 const DOT_COLORS: Record<StatutIdee, string> = {
@@ -18,9 +21,32 @@ const DOT_COLORS: Record<StatutIdee, string> = {
   rejetee: 'bg-red-500',
 };
 
-export function IdeaColumn({ statut, idees, onCardClick }: IdeaColumnProps) {
+const OUTLINE_COLORS: Record<StatutIdee, string> = {
+  proposee: 'ring-neutral-400/50 bg-neutral-400/5',
+  validee: 'ring-blue-500/50 bg-blue-500/5',
+  implementee: 'ring-green-500/50 bg-green-500/5',
+  rejetee: 'ring-red-500/50 bg-red-500/5',
+};
+
+export function IdeaColumn({
+  statut,
+  idees,
+  onCardClick,
+  draggable = false,
+  isValidDropTarget = false,
+}: IdeaColumnProps) {
+  const { isOver, setNodeRef } = useDroppable({ id: statut });
+
+  const highlight = isOver && isValidDropTarget;
+
   return (
-    <div className="bg-muted/30 border-border/60 flex min-h-[calc(100vh-260px)] flex-col rounded-lg border">
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'bg-muted/30 border-border/60 flex min-h-[calc(100vh-260px)] flex-col rounded-lg border transition-all duration-150',
+        highlight && `ring-2 ring-offset-0 ${OUTLINE_COLORS[statut]}`,
+      )}
+    >
       <div className="border-border/60 flex items-center justify-between border-b px-3 py-2.5">
         <div className="flex items-center gap-2">
           <span
@@ -47,6 +73,7 @@ export function IdeaColumn({ statut, idees, onCardClick }: IdeaColumnProps) {
               key={idee.id}
               idee={idee}
               onClick={() => onCardClick(idee)}
+              draggable={draggable}
             />
           ))
         )}

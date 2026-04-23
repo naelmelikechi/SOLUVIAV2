@@ -22,11 +22,16 @@ export function canAccessPipeline(
   return isAdmin(role) || pipelineAccess === true;
 }
 
+/**
+ * Validating / rejecting ideas is admin-only.
+ * The `_canValidateFlag` parameter is kept for backwards compatibility
+ * with existing callers but its value is ignored.
+ */
 export function canValidateIdeas(
   role: string | null | undefined,
-  canValidateFlag: boolean | null | undefined,
+  _canValidateFlag?: boolean | null | undefined,
 ): boolean {
-  return isAdmin(role) || canValidateFlag === true;
+  return isAdmin(role);
 }
 
 export function canShipIdeas(

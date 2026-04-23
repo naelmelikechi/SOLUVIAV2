@@ -1,6 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import { Search, Plus, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,13 +21,28 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
+import {
   STATUT_IDEE_ORDER,
   CIBLE_IDEE_LABELS,
   type StatutIdee,
   type CibleIdee,
 } from '@/lib/utils/constants';
 import { cn } from '@/lib/utils';
+import {
+  validateIdea,
+  rejectIdea,
+  markIdeaImplemented,
+} from '@/lib/actions/idees';
 import { IdeaColumn } from './idea-column';
+import { IdeaCard } from './idea-card';
 import { IdeaSubmitDialog } from './idea-submit-dialog';
 import { IdeaDetailSheet } from './idea-detail-sheet';
 import type { IdeeWithRefs } from '@/lib/queries/idees';
@@ -26,13 +50,31 @@ import type { IdeeWithRefs } from '@/lib/queries/idees';
 interface IdeasBoardProps {
   initialGrouped: Record<StatutIdee, IdeeWithRefs[]>;
   currentUserId: string;
+  isAdmin: boolean;
   canValidate: boolean;
   canShip: boolean;
+}
+
+type PendingReject = {
+  id: string;
+  titre: string;
+};
+
+const ALLOWED_TRANSITIONS: Record<StatutIdee, StatutIdee[]> = {
+  proposee: ['validee', 'rejetee'],
+  validee: ['implementee'],
+  implementee: [],
+  rejetee: [],
+};
+
+function isAllowedTransition(from: StatutIdee, to: StatutIdee): boolean {
+  return ALLOWED_TRANSITIONS[from].includes(to);
 }
 
 export function IdeasBoard({
   initialGrouped,
   currentUserId,
+  isAdmin,
   canValidate,
   canShip,
 }: IdeasBoardProps) {
@@ -42,10 +84,53 @@ export function IdeasBoard({
   const [cibleFilter, setCibleFilter] = useState<string>('all');
   const [authorFilter, setAuthorFilter] = useState<string>('all');
 
+  // Optimistic status overrides, keyed by idea id
+  const [overrides, setOverrides] = useState<Record<string, StatutIdee>>({});
+  const [groupedRef, setGroupedRef] = useState(initialGrouped);
+  if (groupedRef !== initialGrouped) {
+    setGroupedRef(initialGrouped);
+    setOverrides({});
+  }
+
+  const [activeIdee, setActiveIdee] = useState<IdeeWithRefs | null>(null);
+  const [activeFromStatut, setActiveFromStatut] = useState<StatutIdee | null>(
+    null,
+  );
+  const [pendingReject, setPendingReject] = useState<PendingReject | null>(
+    null,
+  );
+  const [rejectMotif, setRejectMotif] = useState('');
+  const [, startTransition] = useTransition();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  // Apply overrides to grouped ideas before filtering
+  const groupedWithOverrides = useMemo(() => {
+    if (Object.keys(overrides).length === 0) return initialGrouped;
+    const result: Record<StatutIdee, IdeeWithRefs[]> = {
+      proposee: [],
+      validee: [],
+      implementee: [],
+      rejetee: [],
+    };
+    for (const s of STATUT_IDEE_ORDER) {
+      for (const idee of initialGrouped[s]) {
+        const override = overrides[idee.id];
+        const targetStatut = override ?? idee.statut;
+        result[targetStatut].push(
+          override ? { ...idee, statut: override } : idee,
+        );
+      }
+    }
+    return result;
+  }, [initialGrouped, overrides]);
+
   const filtered = useMemo(() => {
     const result = {} as Record<StatutIdee, IdeeWithRefs[]>;
     for (const s of STATUT_IDEE_ORDER) {
-      result[s] = initialGrouped[s].filter((i) => {
+      result[s] = groupedWithOverrides[s].filter((i) => {
         if (
           search &&
           !i.titre.toLowerCase().includes(search.toLowerCase()) &&
@@ -59,7 +144,7 @@ export function IdeasBoard({
       });
     }
     return result;
-  }, [initialGrouped, search, cibleFilter, authorFilter, currentUserId]);
+  }, [groupedWithOverrides, search, cibleFilter, authorFilter, currentUserId]);
 
   const totals = useMemo(() => {
     const proposees = filtered.proposee.length;
@@ -70,6 +155,110 @@ export function IdeasBoard({
 
   const hasActiveFilter =
     search !== '' || cibleFilter !== 'all' || authorFilter !== 'all';
+
+  function setOverride(id: string, statut: StatutIdee) {
+    setOverrides((prev) => ({ ...prev, [id]: statut }));
+  }
+
+  function clearOverride(id: string) {
+    setOverrides((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    const ideeId = String(event.active.id);
+    const from = event.active.data.current?.statut as StatutIdee | undefined;
+    if (!from) return;
+    const idee = groupedWithOverrides[from].find((i) => i.id === ideeId);
+    if (idee) {
+      setActiveIdee(idee);
+      setActiveFromStatut(from);
+    }
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    const from = active.data.current?.statut as StatutIdee | undefined;
+    setActiveIdee(null);
+    setActiveFromStatut(null);
+
+    if (!over || !from) return;
+    const to = over.id as StatutIdee;
+    if (!isAllowedTransition(from, to)) return;
+
+    const id = String(active.id);
+
+    if (to === 'validee') {
+      setOverride(id, 'validee');
+      startTransition(async () => {
+        const r = await validateIdea(id);
+        if (r.success) {
+          toast.success('Idée validée');
+        } else {
+          clearOverride(id);
+          toast.error(r.error ?? 'Erreur');
+        }
+      });
+      return;
+    }
+
+    if (to === 'implementee') {
+      setOverride(id, 'implementee');
+      startTransition(async () => {
+        const r = await markIdeaImplemented(id);
+        if (r.success) {
+          toast.success('Idée marquée comme implémentée');
+        } else {
+          clearOverride(id);
+          toast.error(r.error ?? 'Erreur');
+        }
+      });
+      return;
+    }
+
+    if (to === 'rejetee') {
+      const idee = groupedWithOverrides[from].find((i) => i.id === id);
+      if (!idee) return;
+      setPendingReject({ id, titre: idee.titre });
+      setRejectMotif('');
+    }
+  }
+
+  function handleConfirmReject() {
+    if (!pendingReject) return;
+    const motif = rejectMotif.trim();
+    if (!motif) {
+      toast.error('Le motif est requis');
+      return;
+    }
+    const id = pendingReject.id;
+    setOverride(id, 'rejetee');
+    setPendingReject(null);
+    setRejectMotif('');
+    startTransition(async () => {
+      const r = await rejectIdea(id, motif);
+      if (r.success) {
+        toast.success('Idée rejetée');
+      } else {
+        clearOverride(id);
+        toast.error(r.error ?? 'Erreur');
+      }
+    });
+  }
+
+  function handleCancelReject() {
+    setPendingReject(null);
+    setRejectMotif('');
+  }
+
+  // Which columns are valid drop targets for the currently dragged card
+  const validDropTargets = useMemo(() => {
+    if (!activeFromStatut) return new Set<StatutIdee>();
+    return new Set(ALLOWED_TRANSITIONS[activeFromStatut]);
+  }, [activeFromStatut]);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -153,16 +342,36 @@ export function IdeasBoard({
       </div>
 
       {/* Kanban */}
-      <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {STATUT_IDEE_ORDER.map((s) => (
-          <IdeaColumn
-            key={s}
-            statut={s}
-            idees={filtered[s]}
-            onCardClick={setSelected}
-          />
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => {
+          setActiveIdee(null);
+          setActiveFromStatut(null);
+        }}
+      >
+        <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {STATUT_IDEE_ORDER.map((s) => (
+            <IdeaColumn
+              key={s}
+              statut={s}
+              idees={filtered[s]}
+              onCardClick={setSelected}
+              draggable={isAdmin}
+              isValidDropTarget={validDropTargets.has(s)}
+            />
+          ))}
+        </div>
+
+        <DragOverlay>
+          {activeIdee ? (
+            <div className="rotate-2 shadow-lg">
+              <IdeaCard idee={activeIdee} onClick={() => {}} draggable />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <IdeaSubmitDialog open={submitOpen} onOpenChange={setSubmitOpen} />
 
@@ -173,6 +382,44 @@ export function IdeasBoard({
         canShip={canShip}
         onOpenChange={(open) => !open && setSelected(null)}
       />
+
+      {/* Reject motif dialog (triggered by DnD drop on "rejetee") */}
+      <Dialog
+        open={pendingReject !== null}
+        onOpenChange={(o) => !o && handleCancelReject()}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rejeter l&apos;idée</DialogTitle>
+          </DialogHeader>
+          {pendingReject && (
+            <div className="space-y-3">
+              <p className="text-muted-foreground text-sm">
+                &laquo; {pendingReject.titre} &raquo;
+              </p>
+              <Textarea
+                value={rejectMotif}
+                onChange={(e) => setRejectMotif(e.target.value)}
+                placeholder="Motif du rejet (obligatoire)..."
+                rows={4}
+                autoFocus
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={handleCancelReject}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmReject}
+              disabled={!rejectMotif.trim()}
+            >
+              Confirmer le rejet
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

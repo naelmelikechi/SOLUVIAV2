@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getIdeesGroupedByStatut } from '@/lib/queries/idees';
-import { canValidateIdeas, canShipIdeas } from '@/lib/utils/roles';
+import { canValidateIdeas, canShipIdeas, isAdmin } from '@/lib/utils/roles';
 import { IdeasBoard } from '@/components/idees/ideas-board';
 
 export const metadata: Metadata = {
@@ -36,10 +36,8 @@ export default async function IdeesPage() {
       <IdeasBoard
         initialGrouped={grouped}
         currentUserId={user.id}
-        canValidate={canValidateIdeas(
-          currentUser?.role,
-          currentUser?.can_validate_ideas,
-        )}
+        isAdmin={isAdmin(currentUser?.role)}
+        canValidate={canValidateIdeas(currentUser?.role)}
         canShip={canShipIdeas(currentUser?.role, currentUser?.can_ship_ideas)}
       />
     </div>

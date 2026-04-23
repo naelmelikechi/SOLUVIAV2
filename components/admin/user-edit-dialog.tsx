@@ -53,9 +53,6 @@ export function UserEditDialog({
   const [pipelineAccess, setPipelineAccess] = useState<boolean>(
     user?.pipeline_access ?? false,
   );
-  const [canValidateIdeasFlag, setCanValidateIdeasFlag] = useState<boolean>(
-    user?.can_validate_ideas ?? false,
-  );
   const [canShipIdeasFlag, setCanShipIdeasFlag] = useState<boolean>(
     user?.can_ship_ideas ?? false,
   );
@@ -71,7 +68,6 @@ export function UserEditDialog({
     setRole(user.role);
     setActif(user.actif ? 'true' : 'false');
     setPipelineAccess(user.pipeline_access ?? false);
-    setCanValidateIdeasFlag(user.can_validate_ideas ?? false);
     setCanShipIdeasFlag(user.can_ship_ideas ?? false);
   }
 
@@ -89,9 +85,7 @@ export function UserEditDialog({
       const actifChanged = newActif !== user.actif;
       const pipelineChanged =
         pipelineAccess !== (user.pipeline_access ?? false);
-      const ideasChanged =
-        canValidateIdeasFlag !== (user.can_validate_ideas ?? false) ||
-        canShipIdeasFlag !== (user.can_ship_ideas ?? false);
+      const ideasChanged = canShipIdeasFlag !== (user.can_ship_ideas ?? false);
 
       if (
         !nameChanged &&
@@ -146,7 +140,7 @@ export function UserEditDialog({
 
       if (ideasChanged) {
         const result = await updateUserIdeasPermissions(user.id, {
-          canValidateIdeas: canValidateIdeasFlag,
+          canValidateIdeas: user.can_validate_ideas ?? false,
           canShipIdeas: canShipIdeasFlag,
         });
         if (!result.success) {
@@ -232,18 +226,6 @@ export function UserEditDialog({
                 checked={isAdmin(role) ? true : pipelineAccess}
                 disabled={isAdmin(role)}
                 onChange={setPipelineAccess}
-              />
-              <PermissionRow
-                id="edit-validate-ideas"
-                title="Valider les idées"
-                description={
-                  isAdmin(role)
-                    ? 'Accès implicite pour les administrateurs.'
-                    : 'Peut valider ou rejeter les idées proposées dans la boîte à idées.'
-                }
-                checked={isAdmin(role) ? true : canValidateIdeasFlag}
-                disabled={isAdmin(role)}
-                onChange={setCanValidateIdeasFlag}
               />
               <PermissionRow
                 id="edit-ship-ideas"

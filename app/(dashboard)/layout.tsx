@@ -24,6 +24,7 @@ export default function DashboardLayout({
     avatar_mode: 'daily' | 'random' | 'frozen' | null;
     avatar_seed: string | null;
     avatar_regen_date: string | null;
+    pipeline_access: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export default function DashboardLayout({
       const full = await supabase
         .from('users')
         .select(
-          'nom, prenom, role, email, avatar_mode, avatar_seed, avatar_regen_date',
+          'nom, prenom, role, email, avatar_mode, avatar_seed, avatar_regen_date, pipeline_access',
         )
         .eq('id', authUser.id)
         .single();
@@ -49,6 +50,7 @@ export default function DashboardLayout({
             | 'random'
             | 'frozen'
             | null,
+          pipeline_access: full.data.pipeline_access ?? false,
         });
         return;
       }
@@ -60,7 +62,7 @@ export default function DashboardLayout({
         .single();
 
       if (legacy.data) {
-        setUser({ ...legacy.data, avatar_mode: null });
+        setUser({ ...legacy.data, avatar_mode: null, pipeline_access: false });
       }
     });
   }, []);

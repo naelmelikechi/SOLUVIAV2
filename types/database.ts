@@ -1739,6 +1739,7 @@ export type Database = {
           email: string;
           id: string;
           nom: string;
+          pipeline_access: boolean;
           prenom: string;
           role: Database['public']['Enums']['role_utilisateur'];
           telephone: string | null;
@@ -1754,6 +1755,7 @@ export type Database = {
           email: string;
           id: string;
           nom: string;
+          pipeline_access?: boolean;
           prenom: string;
           role?: Database['public']['Enums']['role_utilisateur'];
           telephone?: string | null;
@@ -1769,6 +1771,7 @@ export type Database = {
           email?: string;
           id?: string;
           nom?: string;
+          pipeline_access?: boolean;
           prenom?: string;
           role?: Database['public']['Enums']['role_utilisateur'];
           telephone?: string | null;
@@ -1782,7 +1785,9 @@ export type Database = {
     };
     Functions: {
       get_user_role: { Args: never; Returns: string };
+      has_pipeline_access: { Args: never; Returns: boolean };
       is_admin: { Args: never; Returns: boolean };
+      is_commercial: { Args: never; Returns: boolean };
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { '': string }; Returns: string[] };
     };

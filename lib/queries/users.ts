@@ -8,7 +8,9 @@ export async function getUsersList() {
   const [usersResult, projetsResult] = await Promise.all([
     supabase
       .from('users')
-      .select('id, email, nom, prenom, role, actif, derniere_connexion')
+      .select(
+        'id, email, nom, prenom, role, actif, derniere_connexion, pipeline_access',
+      )
       .order('nom'),
     supabase
       .from('projets')

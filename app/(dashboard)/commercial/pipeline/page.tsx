@@ -23,11 +23,11 @@ export default async function PipelinePage() {
 
   const { data: currentUser } = await supabase
     .from('users')
-    .select('role')
+    .select('role, pipeline_access')
     .eq('id', user.id)
     .single();
 
-  if (!canAccessPipeline(currentUser?.role)) {
+  if (!canAccessPipeline(currentUser?.role, currentUser?.pipeline_access)) {
     redirect('/projets');
   }
 

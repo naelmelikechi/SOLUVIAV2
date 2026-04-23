@@ -76,6 +76,7 @@ interface SidebarProps {
     avatar_mode?: 'daily' | 'random' | 'frozen' | null;
     avatar_seed: string | null;
     avatar_regen_date?: string | null;
+    pipeline_access?: boolean;
   } | null;
   /** Mobile overlay mode */
   mobile?: boolean;
@@ -244,7 +245,7 @@ export function Sidebar({
           );
         })}
 
-        {canAccessPipeline(user?.role) && (
+        {canAccessPipeline(user?.role, user?.pipeline_access) && (
           <>
             <Separator className="my-2" />
 

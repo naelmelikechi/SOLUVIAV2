@@ -25,7 +25,10 @@ import {
   toggleUserActive,
   deleteUser,
   updateUserProfile,
+  updateUserPipelineAccess,
 } from '@/lib/actions/users';
+import { Checkbox } from '@/components/ui/checkbox';
+import { isAdmin } from '@/lib/utils/roles';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import type { UserListItem } from '@/lib/queries/users';
 
@@ -46,6 +49,9 @@ export function UserEditDialog({
   const [nom, setNom] = useState(user?.nom ?? '');
   const [role, setRole] = useState<string>(user?.role ?? 'cdp');
   const [actif, setActif] = useState<string>(user?.actif ? 'true' : 'false');
+  const [pipelineAccess, setPipelineAccess] = useState<boolean>(
+    user?.pipeline_access ?? false,
+  );
   const [isPending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
@@ -58,6 +64,7 @@ export function UserEditDialog({
     setNom(user.nom);
     setRole(user.role);
     setActif(user.actif ? 'true' : 'false');
+    setPipelineAccess(user.pipeline_access ?? false);
   }
 
   if (!user) return null;
@@ -72,8 +79,10 @@ export function UserEditDialog({
         prenom.trim() !== user.prenom || nom.trim() !== user.nom;
       const roleChanged = newRole !== user.role;
       const actifChanged = newActif !== user.actif;
+      const pipelineChanged =
+        pipelineAccess !== (user.pipeline_access ?? false);
 
-      if (!nameChanged && !roleChanged && !actifChanged) {
+      if (!nameChanged && !roleChanged && !actifChanged && !pipelineChanged) {
         onOpenChange(false);
         return;
       }
@@ -103,6 +112,16 @@ export function UserEditDialog({
         if (!result.success) {
           toast.error(
             result.error ?? 'Erreur lors de la mise à jour du statut',
+          );
+          return;
+        }
+      }
+
+      if (pipelineChanged) {
+        const result = await updateUserPipelineAccess(user.id, pipelineAccess);
+        if (!result.success) {
+          toast.error(
+            result.error ?? "Erreur lors de la mise à jour de l'accès pipeline",
           );
           return;
         }
@@ -166,6 +185,32 @@ export function UserEditDialog({
                 <SelectItem value="false">Inactif</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Permissions</Label>
+            <label
+              htmlFor="edit-pipeline-access"
+              className="border-border hover:bg-muted/40 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors"
+            >
+              <Checkbox
+                id="edit-pipeline-access"
+                checked={isAdmin(role) ? true : pipelineAccess}
+                disabled={isAdmin(role)}
+                onCheckedChange={(v) => setPipelineAccess(v === true)}
+                className="mt-0.5"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-medium">
+                  Accès au pipeline commercial
+                </div>
+                <div className="text-muted-foreground mt-0.5 text-xs">
+                  {isAdmin(role)
+                    ? 'Accès implicite pour les administrateurs.'
+                    : 'Autorise cet utilisateur à voir et gérer le pipeline commercial en plus de ses fonctions habituelles.'}
+                </div>
+              </div>
+            </label>
           </div>
         </div>
 

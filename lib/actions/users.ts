@@ -116,6 +116,42 @@ export async function updateUserProfile(
 }
 
 // ---------------------------------------------------------------------------
+// updateUserPipelineAccess - admin-only: toggle pipeline access flag
+// ---------------------------------------------------------------------------
+
+export async function updateUserPipelineAccess(
+  userId: string,
+  pipelineAccess: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  if (!authUser) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', authUser.id)
+    .single();
+  if (!isAdmin(caller?.role)) {
+    return { success: false, error: 'Accès refusé - réservé aux admins' };
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update({ pipeline_access: pipelineAccess })
+    .eq('id', userId);
+
+  if (error) return { success: false, error: error.message };
+
+  logAudit('user_pipeline_access_changed', 'user', userId, { pipelineAccess });
+  revalidatePath('/admin/utilisateurs');
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
 // toggleUserActive - admin-only: enable / disable a user
 // ---------------------------------------------------------------------------
 

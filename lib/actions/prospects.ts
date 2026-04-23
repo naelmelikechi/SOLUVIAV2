@@ -18,13 +18,25 @@ async function getCaller() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { supabase, user: null, role: null };
+  if (!user) {
+    return {
+      supabase,
+      user: null,
+      role: null,
+      pipelineAccess: false,
+    };
+  }
   const { data } = await supabase
     .from('users')
-    .select('role')
+    .select('role, pipeline_access')
     .eq('id', user.id)
     .single();
-  return { supabase, user, role: data?.role ?? null };
+  return {
+    supabase,
+    user,
+    role: data?.role ?? null,
+    pipelineAccess: data?.pipeline_access ?? false,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -81,9 +93,9 @@ export async function updateProspectStage(
     return { success: false, error: 'Stage invalide' };
   }
 
-  const { supabase, user, role } = await getCaller();
+  const { supabase, user, role, pipelineAccess } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
-  if (!canAccessPipeline(role)) {
+  if (!canAccessPipeline(role, pipelineAccess)) {
     return { success: false, error: 'Accès refusé' };
   }
 
@@ -114,9 +126,9 @@ export async function updateProspectAssignment(
   id: string,
   commercialId: string | null,
 ): Promise<{ success: boolean; error?: string }> {
-  const { supabase, user, role } = await getCaller();
+  const { supabase, user, role, pipelineAccess } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
-  if (!canAccessPipeline(role)) {
+  if (!canAccessPipeline(role, pipelineAccess)) {
     return { success: false, error: 'Accès refusé' };
   }
 
@@ -151,9 +163,9 @@ export async function addProspectNote(
     return { success: false, error: 'Le contenu est requis' };
   }
 
-  const { supabase, user, role } = await getCaller();
+  const { supabase, user, role, pipelineAccess } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
-  if (!canAccessPipeline(role)) {
+  if (!canAccessPipeline(role, pipelineAccess)) {
     return { success: false, error: 'Accès refusé' };
   }
 

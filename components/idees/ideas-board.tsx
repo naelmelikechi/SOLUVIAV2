@@ -1,16 +1,6 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  closestCorners,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from '@dnd-kit/core';
 import { Search, Plus, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -43,7 +33,6 @@ import {
   markIdeaImplemented,
 } from '@/lib/actions/idees';
 import { IdeaColumn } from './idea-column';
-import { IdeaCard } from './idea-card';
 import { IdeaSubmitDialog } from './idea-submit-dialog';
 import { IdeaDetailSheet } from './idea-detail-sheet';
 import type { IdeeWithRefs } from '@/lib/queries/idees';
@@ -85,7 +74,6 @@ export function IdeasBoard({
   const [cibleFilter, setCibleFilter] = useState<string>('all');
   const [authorFilter, setAuthorFilter] = useState<string>('all');
 
-  // Optimistic status overrides, keyed by idea id
   const [overrides, setOverrides] = useState<Record<string, StatutIdee>>({});
   const [groupedRef, setGroupedRef] = useState(initialGrouped);
   if (groupedRef !== initialGrouped) {
@@ -93,21 +81,13 @@ export function IdeasBoard({
     setOverrides({});
   }
 
-  const [activeIdee, setActiveIdee] = useState<IdeeWithRefs | null>(null);
-  const [activeFromStatut, setActiveFromStatut] = useState<StatutIdee | null>(
-    null,
-  );
+  const [draggedIdee, setDraggedIdee] = useState<IdeeWithRefs | null>(null);
   const [pendingReject, setPendingReject] = useState<PendingReject | null>(
     null,
   );
   const [rejectMotif, setRejectMotif] = useState('');
   const [, startTransition] = useTransition();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
-  );
-
-  // Apply overrides to grouped ideas before filtering
   const groupedWithOverrides = useMemo(() => {
     if (Object.keys(overrides).length === 0) return initialGrouped;
     const result: Record<StatutIdee, IdeeWithRefs[]> = {
@@ -169,28 +149,23 @@ export function IdeasBoard({
     });
   }
 
-  function handleDragStart(event: DragStartEvent) {
-    const ideeId = String(event.active.id);
-    const from = event.active.data.current?.statut as StatutIdee | undefined;
-    if (!from) return;
-    const idee = groupedWithOverrides[from].find((i) => i.id === ideeId);
-    if (idee) {
-      setActiveIdee(idee);
-      setActiveFromStatut(from);
-    }
+  function handleCardDragStart(idee: IdeeWithRefs) {
+    setDraggedIdee(idee);
   }
 
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    const from = active.data.current?.statut as StatutIdee | undefined;
-    setActiveIdee(null);
-    setActiveFromStatut(null);
+  function handleCardDragEnd() {
+    setDraggedIdee(null);
+  }
 
-    if (!over || !from) return;
-    const to = over.id as StatutIdee;
+  function handleDrop(e: React.DragEvent<HTMLDivElement>, to: StatutIdee) {
+    const id = e.dataTransfer.getData('application/x-idee-id');
+    const from = e.dataTransfer.getData(
+      'application/x-idee-statut',
+    ) as StatutIdee;
+    setDraggedIdee(null);
+
+    if (!id || !from) return;
     if (!isAllowedTransition(from, to)) return;
-
-    const id = String(active.id);
 
     if (to === 'validee') {
       setOverride(id, 'validee');
@@ -255,15 +230,13 @@ export function IdeasBoard({
     setRejectMotif('');
   }
 
-  // Which columns are valid drop targets for the currently dragged card
   const validDropTargets = useMemo(() => {
-    if (!activeFromStatut) return new Set<StatutIdee>();
-    return new Set(ALLOWED_TRANSITIONS[activeFromStatut]);
-  }, [activeFromStatut]);
+    if (!draggedIdee) return new Set<StatutIdee>();
+    return new Set(ALLOWED_TRANSITIONS[draggedIdee.statut]);
+  }, [draggedIdee]);
 
   return (
     <div className="flex h-full flex-col gap-4">
-      {/* Stats strip */}
       <div className="grid grid-cols-3 gap-3">
         <StatTile label="Proposées" value={totals.proposees} />
         <StatTile label="Validées" value={totals.validees} accent="blue" />
@@ -274,7 +247,6 @@ export function IdeasBoard({
         />
       </div>
 
-      {/* Toolbar */}
       <div className="border-border/60 bg-card/50 flex flex-wrap items-center gap-2 rounded-lg border p-2">
         <div className="relative min-w-[220px] flex-1">
           <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
@@ -342,38 +314,21 @@ export function IdeasBoard({
         </div>
       </div>
 
-      {/* Kanban */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={() => {
-          setActiveIdee(null);
-          setActiveFromStatut(null);
-        }}
-      >
-        <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {STATUT_IDEE_ORDER.map((s) => (
-            <IdeaColumn
-              key={s}
-              statut={s}
-              idees={filtered[s]}
-              onCardClick={setSelected}
-              draggable={isAdmin}
-              isValidDropTarget={validDropTargets.has(s)}
-            />
-          ))}
-        </div>
-
-        <DragOverlay>
-          {activeIdee ? (
-            <div className="rotate-2 shadow-lg">
-              <IdeaCard idee={activeIdee} onClick={() => {}} draggable />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      <div className="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {STATUT_IDEE_ORDER.map((s) => (
+          <IdeaColumn
+            key={s}
+            statut={s}
+            idees={filtered[s]}
+            onCardClick={setSelected}
+            draggable={isAdmin}
+            onCardDragStart={handleCardDragStart}
+            onCardDragEnd={handleCardDragEnd}
+            onDropIdee={handleDrop}
+            isValidDropTarget={validDropTargets.has(s)}
+          />
+        ))}
+      </div>
 
       <IdeaSubmitDialog open={submitOpen} onOpenChange={setSubmitOpen} />
 
@@ -385,7 +340,6 @@ export function IdeasBoard({
         onOpenChange={(open) => !open && setSelected(null)}
       />
 
-      {/* Reject motif dialog (triggered by DnD drop on "rejetee") */}
       <Dialog
         open={pendingReject !== null}
         onOpenChange={(o) => !o && handleCancelReject()}

@@ -1,6 +1,5 @@
 'use client';
 
-import { useDraggable } from '@dnd-kit/core';
 import { User, CheckCircle, Rocket, XCircle, GripVertical } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CIBLE_IDEE_LABELS, CIBLE_IDEE_COLORS } from '@/lib/utils/constants';
@@ -12,6 +11,8 @@ interface IdeaCardProps {
   idee: IdeeWithRefs;
   onClick: () => void;
   draggable?: boolean;
+  onDragStart?: (idee: IdeeWithRefs) => void;
+  onDragEnd?: () => void;
 }
 
 const STATUT_ICONS = {
@@ -28,15 +29,27 @@ const STATUT_ICON_COLORS = {
   rejetee: 'text-red-500',
 } as const;
 
-export function IdeaCard({ idee, onClick, draggable = false }: IdeaCardProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: idee.id,
-    data: { statut: idee.statut },
-    disabled: !draggable,
-  });
-
+export function IdeaCard({
+  idee,
+  onClick,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
+}: IdeaCardProps) {
   const StatutIcon = STATUT_ICONS[idee.statut];
   const iconColor = STATUT_ICON_COLORS[idee.statut];
+
+  function handleDragStart(e: React.DragEvent<HTMLDivElement>) {
+    if (!draggable) return;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/x-idee-id', idee.id);
+    e.dataTransfer.setData('application/x-idee-statut', idee.statut);
+    onDragStart?.(idee);
+  }
+
+  function handleDragEnd() {
+    onDragEnd?.();
+  }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -47,27 +60,25 @@ export function IdeaCard({ idee, onClick, draggable = false }: IdeaCardProps) {
 
   return (
     <div
-      ref={setNodeRef}
       role="button"
       tabIndex={0}
+      draggable={draggable}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       onClick={onClick}
       onKeyDown={handleKeyDown}
       className={cn(
-        'group bg-card border-border hover:border-primary/40 relative w-full cursor-pointer rounded-md border p-3 text-left transition-all duration-150 select-none hover:-translate-y-px hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
-        isDragging && 'opacity-40',
+        'group bg-card border-border hover:border-primary/40 relative w-full cursor-pointer rounded-md border p-3 text-left transition-all duration-150 hover:-translate-y-px hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
+        draggable && 'cursor-grab active:cursor-grabbing',
       )}
     >
       {draggable && (
-        <button
-          type="button"
-          aria-label="Déplacer l'idée"
-          {...attributes}
-          {...listeners}
-          onClick={(e) => e.stopPropagation()}
-          className="text-muted-foreground/50 hover:bg-muted hover:text-foreground absolute top-1.5 right-1 inline-flex h-5 w-5 cursor-grab touch-none items-center justify-center rounded transition-colors active:cursor-grabbing"
+        <span
+          aria-hidden
+          className="text-muted-foreground/50 group-hover:text-muted-foreground pointer-events-none absolute top-2 right-1.5 transition-colors"
         >
           <GripVertical className="h-3.5 w-3.5" />
-        </button>
+        </span>
       )}
       <div className="flex items-start gap-2">
         {StatutIcon && (

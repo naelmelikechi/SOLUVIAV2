@@ -1,6 +1,6 @@
 'use client';
 
-import { useDroppable } from '@dnd-kit/core';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { STATUT_IDEE_LABELS, type StatutIdee } from '@/lib/utils/constants';
 import { IdeaCard } from './idea-card';
@@ -11,6 +11,9 @@ interface IdeaColumnProps {
   idees: IdeeWithRefs[];
   onCardClick: (idee: IdeeWithRefs) => void;
   draggable?: boolean;
+  onCardDragStart?: (idee: IdeeWithRefs) => void;
+  onCardDragEnd?: () => void;
+  onDropIdee?: (e: React.DragEvent<HTMLDivElement>, target: StatutIdee) => void;
   isValidDropTarget?: boolean;
 }
 
@@ -33,15 +36,46 @@ export function IdeaColumn({
   idees,
   onCardClick,
   draggable = false,
+  onCardDragStart,
+  onCardDragEnd,
+  onDropIdee,
   isValidDropTarget = false,
 }: IdeaColumnProps) {
-  const { isOver, setNodeRef } = useDroppable({ id: statut });
+  const [isOver, setIsOver] = useState(false);
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    if (!isValidDropTarget) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }
+
+  function handleDragEnter(e: React.DragEvent<HTMLDivElement>) {
+    if (!isValidDropTarget) return;
+    e.preventDefault();
+    setIsOver(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    // Only clear when leaving the column itself, not crossing over child
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsOver(false);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    setIsOver(false);
+    if (!isValidDropTarget) return;
+    e.preventDefault();
+    onDropIdee?.(e, statut);
+  }
 
   const highlight = isOver && isValidDropTarget;
 
   return (
     <div
-      ref={setNodeRef}
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       className={cn(
         'bg-muted/30 border-border/60 flex min-h-[calc(100vh-260px)] flex-col rounded-lg border transition-all duration-150',
         highlight && `ring-2 ring-offset-0 ${OUTLINE_COLORS[statut]}`,
@@ -74,6 +108,8 @@ export function IdeaColumn({
               idee={idee}
               onClick={() => onCardClick(idee)}
               draggable={draggable}
+              onDragStart={onCardDragStart}
+              onDragEnd={onCardDragEnd}
             />
           ))
         )}

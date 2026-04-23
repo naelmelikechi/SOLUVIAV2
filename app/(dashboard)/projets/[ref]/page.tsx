@@ -8,6 +8,7 @@ import {
   getProjetQualiteStats,
   getDocumentsByProjetId,
 } from '@/lib/queries/projets';
+import { getRdvFormateursByProjetId } from '@/lib/queries/rdv';
 
 export async function generateMetadata({
   params,
@@ -28,6 +29,7 @@ import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
 import { ProjetPerformancePlaceholders } from '@/components/projets/projet-performance-placeholders';
 import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
 import { ProjetDocumentsSection } from '@/components/projets/projet-documents-section';
+import { ProjetRdvSection } from '@/components/projets/projet-rdv-section';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/roles';
 
@@ -52,13 +54,15 @@ export default async function ProjetDetailPage({
     : { data: null };
   const userIsAdmin = isAdmin(currentUser?.role);
 
-  const [contrats, finance, temps, qualite, documents] = await Promise.all([
-    getContratsByProjetId(projet.id),
-    getProjetFinance(projet.id),
-    getProjetTempsStats(projet.id),
-    getProjetQualiteStats(projet.id),
-    getDocumentsByProjetId(projet.id),
-  ]);
+  const [contrats, finance, temps, qualite, documents, rdvsFormateurs] =
+    await Promise.all([
+      getContratsByProjetId(projet.id),
+      getProjetFinance(projet.id),
+      getProjetTempsStats(projet.id),
+      getProjetQualiteStats(projet.id),
+      getDocumentsByProjetId(projet.id),
+      getRdvFormateursByProjetId(projet.id),
+    ]);
 
   const apprentisActifs = contrats.filter(
     (c) => c.contract_state === 'actif',
@@ -100,6 +104,10 @@ export default async function ProjetDetailPage({
           Volets de performance
         </h3>
         <ProjetPerformancePlaceholders />
+      </div>
+
+      <div className="mt-6">
+        <ProjetRdvSection projetId={projet.id} rdvs={rdvsFormateurs} />
       </div>
 
       <div className="mt-6">

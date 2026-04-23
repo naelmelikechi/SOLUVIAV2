@@ -49,10 +49,10 @@ export async function loadProspectDetails(id: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { prospect: null, notes: [], convertedClient: null };
+    return { prospect: null, notes: [], convertedClient: null, rdvs: [] };
   }
 
-  const [prospectResult, notesResult] = await Promise.all([
+  const [prospectResult, notesResult, rdvsResult] = await Promise.all([
     supabase
       .from('prospects')
       .select(
@@ -67,10 +67,18 @@ export async function loadProspectDetails(id: string) {
       )
       .eq('prospect_id', id)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('rdv_commerciaux')
+      .select(
+        '*, commercial:users!rdv_commerciaux_commercial_id_fkey(id, nom, prenom)',
+      )
+      .eq('prospect_id', id)
+      .order('date_prevue', { ascending: false }),
   ]);
 
   const prospect = prospectResult.data;
   const notes = notesResult.data ?? [];
+  const rdvs = rdvsResult.data ?? [];
   const convertedClient = prospect?.client
     ? {
         id: prospect.client.id,
@@ -78,7 +86,7 @@ export async function loadProspectDetails(id: string) {
       }
     : null;
 
-  return { prospect, notes, convertedClient };
+  return { prospect, notes, convertedClient, rdvs };
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +233,8 @@ export async function convertProspectToClient(
       trigramme: '',
       raison_sociale: prospect.nom,
       siret: prospect.siret,
+      apporteur_commercial_id: prospect.commercial_id,
+      apporteur_date: new Date().toISOString().slice(0, 10),
     })
     .select('id')
     .single();

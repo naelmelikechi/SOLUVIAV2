@@ -113,6 +113,21 @@ export const CIBLE_IDEE_COLORS: Record<CibleIdee, BadgeColor> = {
   autre: 'gray',
 };
 
+// RDV (formateurs et commerciaux)
+export type StatutRdv = 'prevu' | 'realise' | 'annule';
+
+export const STATUT_RDV_LABELS: Record<StatutRdv, string> = {
+  prevu: 'Prévu',
+  realise: 'Réalisé',
+  annule: 'Annulé',
+};
+
+export const STATUT_RDV_COLORS: Record<StatutRdv, BadgeColor> = {
+  prevu: 'blue',
+  realise: 'green',
+  annule: 'gray',
+};
+
 // Invoice statuses
 export const STATUT_FACTURE_LABELS: Record<string, string> = {
   a_emettre: 'À émettre',

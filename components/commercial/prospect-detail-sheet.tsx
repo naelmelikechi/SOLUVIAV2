@@ -40,10 +40,12 @@ import {
 } from '@/lib/actions/prospects';
 import { toast } from 'sonner';
 import { ProspectNotesSection } from './prospect-notes-section';
+import { ProspectRdvSection } from './prospect-rdv-section';
 import type {
   ProspectWithCommercial,
   ProspectNote,
 } from '@/lib/queries/prospects';
+import type { RdvCommercialWithRefs } from '@/lib/queries/rdv';
 
 interface Commercial {
   id: string;
@@ -54,6 +56,7 @@ interface Commercial {
 interface ProspectDetailSheetProps {
   prospect: ProspectWithCommercial | null;
   notes: ProspectNote[];
+  rdvs: RdvCommercialWithRefs[];
   commerciaux: Commercial[];
   onOpenChange: (open: boolean) => void;
   isAdminUser: boolean;
@@ -64,6 +67,7 @@ interface ProspectDetailSheetProps {
 export function ProspectDetailSheet({
   prospect,
   notes,
+  rdvs,
   commerciaux,
   onOpenChange,
   isAdminUser,
@@ -280,6 +284,11 @@ export function ProspectDetailSheet({
               </p>
             </section>
           )}
+
+          <Separator />
+
+          {/* RDV commerciaux */}
+          <ProspectRdvSection prospectId={prospect.id} rdvs={rdvs} />
 
           <Separator />
 

@@ -34,6 +34,7 @@ import type {
   ProspectWithCommercial,
   ProspectNote,
 } from '@/lib/queries/prospects';
+import type { RdvCommercialWithRefs } from '@/lib/queries/rdv';
 
 interface Commercial {
   id: string;
@@ -71,6 +72,7 @@ export function PipelineBoard({
   // Detail sheet
   const [selected, setSelected] = useState<ProspectWithCommercial | null>(null);
   const [selectedNotes, setSelectedNotes] = useState<ProspectNote[]>([]);
+  const [selectedRdvs, setSelectedRdvs] = useState<RdvCommercialWithRefs[]>([]);
   const [selectedClient, setSelectedClient] = useState<{
     id: string;
     raison_sociale: string;
@@ -159,11 +161,13 @@ export function PipelineBoard({
   async function handleCardClick(prospect: ProspectWithCommercial) {
     setSelected(prospect);
     setSelectedNotes([]);
+    setSelectedRdvs([]);
     setSelectedClient(null);
     const details = await loadProspectDetails(prospect.id);
     if (details.prospect) {
       setSelected(details.prospect as ProspectWithCommercial);
       setSelectedNotes(details.notes as ProspectNote[]);
+      setSelectedRdvs(details.rdvs as RdvCommercialWithRefs[]);
       setSelectedClient(details.convertedClient);
     }
   }
@@ -307,6 +311,7 @@ export function PipelineBoard({
       <ProspectDetailSheet
         prospect={selected}
         notes={selectedNotes}
+        rdvs={selectedRdvs}
         commerciaux={commerciaux}
         convertedClient={selectedClient}
         onOpenChange={(open) => !open && setSelected(null)}

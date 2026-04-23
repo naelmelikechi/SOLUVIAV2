@@ -51,12 +51,8 @@ function isoDate(d: Date): string {
   return format(d, 'yyyy-MM-dd');
 }
 
-function isoDateTimeStart(d: Date): string {
-  return `${format(d, 'yyyy-MM-dd')}T00:00:00.000Z`;
-}
-
-function isoDateTimeEnd(d: Date): string {
-  return `${format(d, 'yyyy-MM-dd')}T23:59:59.999Z`;
+function isoTimestamp(d: Date): string {
+  return d.toISOString();
 }
 
 interface WeeklyAggregates {
@@ -75,8 +71,8 @@ async function computeWeek(
 ): Promise<WeeklyAggregates> {
   const startDate = isoDate(start);
   const endDate = isoDate(end);
-  const startTs = isoDateTimeStart(start);
-  const endTs = isoDateTimeEnd(end);
+  const startTs = isoTimestamp(start);
+  const endTs = isoTimestamp(end);
 
   const [
     rdvFormateursRes,

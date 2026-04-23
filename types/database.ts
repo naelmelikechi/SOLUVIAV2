@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: '14.5';
   };
-  graphql_public: {
-    Tables: {
-      [_ in never]: never;
-    };
-    Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json;
-          operationName?: string;
-          query?: string;
-          variables?: Json;
-        };
-        Returns: Json;
-      };
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
   public: {
     Tables: {
       apprenants: {
@@ -378,7 +353,15 @@ export type Database = {
           tva_intracommunautaire?: string | null;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'clients_apporteur_commercial_id_fkey';
+            columns: ['apporteur_commercial_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       contrats: {
         Row: {
@@ -995,6 +978,48 @@ export type Database = {
           },
         ];
       };
+      formations: {
+        Row: {
+          code_diploma: string | null;
+          created_at: string;
+          diploma_type: string | null;
+          duree: string | null;
+          eduvia_id: number;
+          id: string;
+          last_synced_at: string | null;
+          qualification_title: string | null;
+          rncp: string | null;
+          sequence_count: number | null;
+          titre: string | null;
+        };
+        Insert: {
+          code_diploma?: string | null;
+          created_at?: string;
+          diploma_type?: string | null;
+          duree?: string | null;
+          eduvia_id: number;
+          id?: string;
+          last_synced_at?: string | null;
+          qualification_title?: string | null;
+          rncp?: string | null;
+          sequence_count?: number | null;
+          titre?: string | null;
+        };
+        Update: {
+          code_diploma?: string | null;
+          created_at?: string;
+          diploma_type?: string | null;
+          duree?: string | null;
+          eduvia_id?: number;
+          id?: string;
+          last_synced_at?: string | null;
+          qualification_title?: string | null;
+          rncp?: string | null;
+          sequence_count?: number | null;
+          titre?: string | null;
+        };
+        Relationships: [];
+      };
       idees: {
         Row: {
           archive: boolean;
@@ -1067,48 +1092,6 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
-      };
-      formations: {
-        Row: {
-          code_diploma: string | null;
-          created_at: string;
-          diploma_type: string | null;
-          duree: string | null;
-          eduvia_id: number;
-          id: string;
-          last_synced_at: string | null;
-          qualification_title: string | null;
-          rncp: string | null;
-          sequence_count: number | null;
-          titre: string | null;
-        };
-        Insert: {
-          code_diploma?: string | null;
-          created_at?: string;
-          diploma_type?: string | null;
-          duree?: string | null;
-          eduvia_id: number;
-          id?: string;
-          last_synced_at?: string | null;
-          qualification_title?: string | null;
-          rncp?: string | null;
-          sequence_count?: number | null;
-          titre?: string | null;
-        };
-        Update: {
-          code_diploma?: string | null;
-          created_at?: string;
-          diploma_type?: string | null;
-          duree?: string | null;
-          eduvia_id?: number;
-          id?: string;
-          last_synced_at?: string | null;
-          qualification_title?: string | null;
-          rncp?: string | null;
-          sequence_count?: number | null;
-          titre?: string | null;
-        };
-        Relationships: [];
       };
       jours_feries: {
         Row: {
@@ -1376,6 +1359,44 @@ export type Database = {
           },
         ];
       };
+      progression_snapshots_weekly: {
+        Row: {
+          captured_at: string;
+          completed_sequences: number | null;
+          contrat_id: string;
+          id: string;
+          progression_percentage: number;
+          semaine_debut: string;
+          total_spent_time_hours: number | null;
+        };
+        Insert: {
+          captured_at?: string;
+          completed_sequences?: number | null;
+          contrat_id: string;
+          id?: string;
+          progression_percentage: number;
+          semaine_debut: string;
+          total_spent_time_hours?: number | null;
+        };
+        Update: {
+          captured_at?: string;
+          completed_sequences?: number | null;
+          contrat_id?: string;
+          id?: string;
+          progression_percentage?: number;
+          semaine_debut?: string;
+          total_spent_time_hours?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'progression_snapshots_weekly_contrat_id_fkey';
+            columns: ['contrat_id'];
+            isOneToOne: false;
+            referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       projet_documents: {
         Row: {
           created_at: string;
@@ -1494,165 +1515,6 @@ export type Database = {
             columns: ['typologie_id'];
             isOneToOne: false;
             referencedRelation: 'typologies_projet';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      progression_snapshots_weekly: {
-        Row: {
-          captured_at: string;
-          completed_sequences: number | null;
-          contrat_id: string;
-          id: string;
-          progression_percentage: number;
-          semaine_debut: string;
-          total_spent_time_hours: number | null;
-        };
-        Insert: {
-          captured_at?: string;
-          completed_sequences?: number | null;
-          contrat_id: string;
-          id?: string;
-          progression_percentage: number;
-          semaine_debut: string;
-          total_spent_time_hours?: number | null;
-        };
-        Update: {
-          captured_at?: string;
-          completed_sequences?: number | null;
-          contrat_id?: string;
-          id?: string;
-          progression_percentage?: number;
-          semaine_debut?: string;
-          total_spent_time_hours?: number | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'progression_snapshots_weekly_contrat_id_fkey';
-            columns: ['contrat_id'];
-            isOneToOne: false;
-            referencedRelation: 'contrats';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      rdv_commerciaux: {
-        Row: {
-          commercial_id: string;
-          created_at: string;
-          date_prevue: string;
-          date_realisee: string | null;
-          id: string;
-          notes: string | null;
-          objet: string | null;
-          prospect_id: string;
-          statut: Database['public']['Enums']['statut_rdv'];
-          updated_at: string;
-        };
-        Insert: {
-          commercial_id: string;
-          created_at?: string;
-          date_prevue: string;
-          date_realisee?: string | null;
-          id?: string;
-          notes?: string | null;
-          objet?: string | null;
-          prospect_id: string;
-          statut?: Database['public']['Enums']['statut_rdv'];
-          updated_at?: string;
-        };
-        Update: {
-          commercial_id?: string;
-          created_at?: string;
-          date_prevue?: string;
-          date_realisee?: string | null;
-          id?: string;
-          notes?: string | null;
-          objet?: string | null;
-          prospect_id?: string;
-          statut?: Database['public']['Enums']['statut_rdv'];
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'rdv_commerciaux_commercial_id_fkey';
-            columns: ['commercial_id'];
-            isOneToOne: false;
-            referencedRelation: 'users';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'rdv_commerciaux_prospect_id_fkey';
-            columns: ['prospect_id'];
-            isOneToOne: false;
-            referencedRelation: 'prospects';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      rdv_formateurs: {
-        Row: {
-          cdp_id: string | null;
-          created_at: string;
-          date_prevue: string;
-          date_realisee: string | null;
-          formateur_id: string | null;
-          formateur_nom: string | null;
-          id: string;
-          notes: string | null;
-          objet: string | null;
-          projet_id: string;
-          statut: Database['public']['Enums']['statut_rdv'];
-          updated_at: string;
-        };
-        Insert: {
-          cdp_id?: string | null;
-          created_at?: string;
-          date_prevue: string;
-          date_realisee?: string | null;
-          formateur_id?: string | null;
-          formateur_nom?: string | null;
-          id?: string;
-          notes?: string | null;
-          objet?: string | null;
-          projet_id: string;
-          statut?: Database['public']['Enums']['statut_rdv'];
-          updated_at?: string;
-        };
-        Update: {
-          cdp_id?: string | null;
-          created_at?: string;
-          date_prevue?: string;
-          date_realisee?: string | null;
-          formateur_id?: string | null;
-          formateur_nom?: string | null;
-          id?: string;
-          notes?: string | null;
-          objet?: string | null;
-          projet_id?: string;
-          statut?: Database['public']['Enums']['statut_rdv'];
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'rdv_formateurs_cdp_id_fkey';
-            columns: ['cdp_id'];
-            isOneToOne: false;
-            referencedRelation: 'users';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'rdv_formateurs_formateur_id_fkey';
-            columns: ['formateur_id'];
-            isOneToOne: false;
-            referencedRelation: 'users';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'rdv_formateurs_projet_id_fkey';
-            columns: ['projet_id'];
-            isOneToOne: false;
-            referencedRelation: 'projets';
             referencedColumns: ['id'];
           },
         ];
@@ -1776,6 +1638,127 @@ export type Database = {
             columns: ['commercial_id'];
             isOneToOne: false;
             referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      rdv_commerciaux: {
+        Row: {
+          commercial_id: string;
+          created_at: string;
+          date_prevue: string;
+          date_realisee: string | null;
+          id: string;
+          notes: string | null;
+          objet: string | null;
+          prospect_id: string;
+          statut: Database['public']['Enums']['statut_rdv'];
+          updated_at: string;
+        };
+        Insert: {
+          commercial_id: string;
+          created_at?: string;
+          date_prevue: string;
+          date_realisee?: string | null;
+          id?: string;
+          notes?: string | null;
+          objet?: string | null;
+          prospect_id: string;
+          statut?: Database['public']['Enums']['statut_rdv'];
+          updated_at?: string;
+        };
+        Update: {
+          commercial_id?: string;
+          created_at?: string;
+          date_prevue?: string;
+          date_realisee?: string | null;
+          id?: string;
+          notes?: string | null;
+          objet?: string | null;
+          prospect_id?: string;
+          statut?: Database['public']['Enums']['statut_rdv'];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'rdv_commerciaux_commercial_id_fkey';
+            columns: ['commercial_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'rdv_commerciaux_prospect_id_fkey';
+            columns: ['prospect_id'];
+            isOneToOne: false;
+            referencedRelation: 'prospects';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      rdv_formateurs: {
+        Row: {
+          cdp_id: string | null;
+          created_at: string;
+          date_prevue: string;
+          date_realisee: string | null;
+          formateur_id: string | null;
+          formateur_nom: string | null;
+          id: string;
+          notes: string | null;
+          objet: string | null;
+          projet_id: string;
+          statut: Database['public']['Enums']['statut_rdv'];
+          updated_at: string;
+        };
+        Insert: {
+          cdp_id?: string | null;
+          created_at?: string;
+          date_prevue: string;
+          date_realisee?: string | null;
+          formateur_id?: string | null;
+          formateur_nom?: string | null;
+          id?: string;
+          notes?: string | null;
+          objet?: string | null;
+          projet_id: string;
+          statut?: Database['public']['Enums']['statut_rdv'];
+          updated_at?: string;
+        };
+        Update: {
+          cdp_id?: string | null;
+          created_at?: string;
+          date_prevue?: string;
+          date_realisee?: string | null;
+          formateur_id?: string | null;
+          formateur_nom?: string | null;
+          id?: string;
+          notes?: string | null;
+          objet?: string | null;
+          projet_id?: string;
+          statut?: Database['public']['Enums']['statut_rdv'];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'rdv_formateurs_cdp_id_fkey';
+            columns: ['cdp_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'rdv_formateurs_formateur_id_fkey';
+            columns: ['formateur_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'rdv_formateurs_projet_id_fkey';
+            columns: ['projet_id'];
+            isOneToOne: false;
+            referencedRelation: 'projets';
             referencedColumns: ['id'];
           },
         ];
@@ -2033,6 +2016,8 @@ export type Database = {
     Functions: {
       get_user_role: { Args: never; Returns: string };
       has_pipeline_access: { Args: never; Returns: boolean };
+      has_ship_ideas_access: { Args: never; Returns: boolean };
+      has_validate_ideas_access: { Args: never; Returns: boolean };
       is_admin: { Args: never; Returns: boolean };
       is_commercial: { Args: never; Returns: boolean };
       show_limit: { Args: never; Returns: number };
@@ -2040,14 +2025,13 @@ export type Database = {
     };
     Enums: {
       cible_idee: 'eduvia' | 'soluvia' | 'workflow' | 'autre';
-      role_utilisateur: 'admin' | 'cdp' | 'commercial' | 'superadmin';
-      stage_prospect: 'non_contacte' | 'r1' | 'r2' | 'signe';
-      statut_idee: 'proposee' | 'validee' | 'implementee' | 'rejetee';
-      statut_rdv: 'prevu' | 'realise' | 'annule';
-      type_prospect: 'cfa' | 'entreprise';
+      role_utilisateur: 'admin' | 'cdp' | 'superadmin' | 'commercial';
       scope_kpi: 'global' | 'projet' | 'cdp';
+      stage_prospect: 'non_contacte' | 'r1' | 'r2' | 'signe';
       statut_facture: 'a_emettre' | 'emise' | 'payee' | 'en_retard' | 'avoir';
+      statut_idee: 'proposee' | 'validee' | 'implementee' | 'rejetee';
       statut_projet: 'actif' | 'en_pause' | 'termine' | 'archive';
+      statut_rdv: 'prevu' | 'realise' | 'annule';
       type_notification:
         | 'facture_retard'
         | 'tache_retard'
@@ -2057,6 +2041,7 @@ export type Database = {
         | 'idee_validee'
         | 'idee_rejetee'
         | 'idee_implementee';
+      type_prospect: 'cfa' | 'entreprise';
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -2185,18 +2170,16 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
-      role_utilisateur: ['admin', 'cdp', 'commercial', 'superadmin'],
-      stage_prospect: ['non_contacte', 'r1', 'r2', 'signe'],
-      statut_rdv: ['prevu', 'realise', 'annule'],
-      type_prospect: ['cfa', 'entreprise'],
+      cible_idee: ['eduvia', 'soluvia', 'workflow', 'autre'],
+      role_utilisateur: ['admin', 'cdp', 'superadmin', 'commercial'],
       scope_kpi: ['global', 'projet', 'cdp'],
+      stage_prospect: ['non_contacte', 'r1', 'r2', 'signe'],
       statut_facture: ['a_emettre', 'emise', 'payee', 'en_retard', 'avoir'],
+      statut_idee: ['proposee', 'validee', 'implementee', 'rejetee'],
       statut_projet: ['actif', 'en_pause', 'termine', 'archive'],
+      statut_rdv: ['prevu', 'realise', 'annule'],
       type_notification: [
         'facture_retard',
         'tache_retard',
@@ -2207,6 +2190,7 @@ export const Constants = {
         'idee_rejetee',
         'idee_implementee',
       ],
+      type_prospect: ['cfa', 'entreprise'],
     },
   },
 } as const;

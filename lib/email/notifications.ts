@@ -119,6 +119,9 @@ export async function sendTempsHebdoRecapEmail(params: {
     </table>
     <p style="margin:12px 0 0;color:#2d4a2d;font-size:14px;line-height:1.6;">
       N'oublie pas de bien remplir l'après-midi du vendredi avant de partir en weekend.
+    </p>
+    <p style="margin:16px 0 0;color:#4b6a4b;font-size:13px;line-height:1.6;font-style:italic;">
+      Bon weekend et repose-toi bien, tu l'as mérité ✨
     </p>`;
 
   const html = wrapHtml({

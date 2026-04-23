@@ -22,6 +22,7 @@ import {
   X,
   Target,
   Lightbulb,
+  LineChart,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -31,13 +32,26 @@ import { ThemeToggle } from '@/components/shared/theme-toggle';
 import type { BadgeCounts } from '@/hooks/use-badge-counts';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 
-const mainNavItems = [
+type MainNavItem = {
+  href: string;
+  label: string;
+  icon: typeof ClipboardList;
+  adminOnly?: boolean;
+};
+
+const mainNavItems: MainNavItem[] = [
   { href: '/projets', label: 'Projets', icon: ClipboardList },
   { href: '/qualite', label: 'Qualité', icon: CheckCircle },
   { href: '/temps', label: 'Temps', icon: Clock },
   { href: '/production', label: 'Production', icon: TrendingUp },
   { href: '/facturation', label: 'Facturation', icon: FileText },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+  {
+    href: '/indicateurs',
+    label: 'Indicateurs',
+    icon: LineChart,
+    adminOnly: true,
+  },
   { href: '/equipe', label: 'Équipe', icon: UsersRound },
   { href: '/idees', label: 'Idées', icon: Lightbulb },
 ];
@@ -195,57 +209,59 @@ export function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 space-y-0.5 px-2 py-3">
-        {mainNavItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
-          const Icon = item.icon;
-          const badge = badgeConfig[item.href];
-          const count = badge ? badgeCounts[badge.key] : 0;
+        {mainNavItems
+          .filter((item) => !item.adminOnly || isAdmin(user?.role))
+          .map((item) => {
+            const isActive = pathname.startsWith(item.href);
+            const Icon = item.icon;
+            const badge = badgeConfig[item.href];
+            const count = badge ? badgeCounts[badge.key] : 0;
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              onClick={mobile ? onClose : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
-                collapsed && 'justify-center',
-                isActive
-                  ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
-              )}
-            >
-              <span className="relative shrink-0">
-                <Icon className="h-[18px] w-[18px]" />
-                {collapsed && badge && count > 0 && (
-                  <span
-                    className={cn(
-                      'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
-                      badge.color,
-                    )}
-                  >
-                    {count}
-                  </span>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={collapsed ? item.label : undefined}
+                onClick={mobile ? onClose : undefined}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
+                  collapsed && 'justify-center',
+                  isActive
+                    ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
                 )}
-              </span>
-              {!collapsed && (
-                <>
-                  <span>{item.label}</span>
-                  {badge && count > 0 && (
+              >
+                <span className="relative shrink-0">
+                  <Icon className="h-[18px] w-[18px]" />
+                  {collapsed && badge && count > 0 && (
                     <span
                       className={cn(
-                        'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
+                        'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
                         badge.color,
                       )}
                     >
                       {count}
                     </span>
                   )}
-                </>
-              )}
-            </Link>
-          );
-        })}
+                </span>
+                {!collapsed && (
+                  <>
+                    <span>{item.label}</span>
+                    {badge && count > 0 && (
+                      <span
+                        className={cn(
+                          'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
+                          badge.color,
+                        )}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </>
+                )}
+              </Link>
+            );
+          })}
 
         {canAccessPipeline(user?.role, user?.pipeline_access) && (
           <>

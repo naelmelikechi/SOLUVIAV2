@@ -22,7 +22,6 @@ import {
   Mail,
   Phone,
   Globe,
-  Users,
   MapPin,
   UserCheck,
   Loader2,
@@ -121,43 +120,61 @@ export function ProspectDetailSheet({
     <Sheet open={prospect !== null} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex !w-[min(640px,95vw)] flex-col gap-0 overflow-y-auto p-0 data-[side=right]:sm:max-w-[min(640px,95vw)]"
+        className="flex !w-[min(680px,95vw)] flex-col gap-0 overflow-y-auto p-0 data-[side=right]:sm:max-w-[min(680px,95vw)]"
       >
-        <SheetHeader className="border-border border-b p-4">
-          <div className="flex items-start gap-2">
-            <Building2 className="text-muted-foreground mt-1 h-4 w-4 shrink-0" />
-            <SheetTitle className="text-left leading-tight">
-              {prospect.nom}
-            </SheetTitle>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <StatusBadge
-              label={STAGE_PROSPECT_LABELS[prospect.stage]}
-              color={STAGE_PROSPECT_COLORS[prospect.stage]}
-            />
-            <StatusBadge
-              label={TYPE_PROSPECT_LABELS[prospect.type_prospect]}
-              color="gray"
-            />
-            {prospect.client_id && convertedClient && (
-              <Link
-                href={`/admin/clients/${prospect.client_id}`}
-                className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
-              >
-                <LinkIcon className="h-3 w-3" />
-                Client : {convertedClient.raison_sociale}
-              </Link>
-            )}
+        <SheetHeader className="border-border from-primary/[0.03] border-b bg-gradient-to-b to-transparent p-5">
+          <div className="flex items-start gap-3">
+            <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-md">
+              <Building2 className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="text-left text-base leading-tight">
+                {prospect.nom}
+              </SheetTitle>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <StatusBadge
+                  label={STAGE_PROSPECT_LABELS[prospect.stage]}
+                  color={STAGE_PROSPECT_COLORS[prospect.stage]}
+                />
+                <StatusBadge
+                  label={TYPE_PROSPECT_LABELS[prospect.type_prospect]}
+                  color="gray"
+                />
+                {prospect.client_id && convertedClient && (
+                  <Link
+                    href={`/admin/clients/${prospect.client_id}`}
+                    className="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+                  >
+                    <LinkIcon className="h-3 w-3" />
+                    {convertedClient.raison_sociale}
+                  </Link>
+                )}
+              </div>
+            </div>
           </div>
         </SheetHeader>
 
-        <div className="flex-1 space-y-6 p-4">
-          {/* Infos */}
+        <div className="flex-1 space-y-6 p-5">
+          {/* Key metric tile */}
+          {prospect.volume_apprenants !== null && (
+            <div className="bg-primary/5 border-primary/15 rounded-lg border p-4">
+              <div className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                {prospect.type_prospect === 'cfa'
+                  ? 'Apprentis potentiels'
+                  : 'Salariés'}
+              </div>
+              <div className="text-primary mt-1 text-3xl font-semibold tabular-nums">
+                {prospect.volume_apprenants.toLocaleString('fr-FR')}
+              </div>
+            </div>
+          )}
+
+          {/* Infos grid */}
           <section>
-            <h4 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
+            <h4 className="text-muted-foreground mb-3 text-[11px] font-semibold tracking-wider uppercase">
               Informations
             </h4>
-            <div className="grid grid-cols-1 gap-2 text-sm">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
               {prospect.region && (
                 <InfoRow icon={MapPin} label="Région" value={prospect.region} />
               )}
@@ -166,17 +183,6 @@ export function ProspectDetailSheet({
                   icon={Building2}
                   label="SIRET"
                   value={prospect.siret}
-                />
-              )}
-              {prospect.volume_apprenants !== null && (
-                <InfoRow
-                  icon={Users}
-                  label={
-                    prospect.type_prospect === 'cfa'
-                      ? 'Nb apprentis'
-                      : 'Nb salariés'
-                  }
-                  value={prospect.volume_apprenants.toLocaleString('fr-FR')}
                 />
               )}
               {prospect.dirigeant_nom && (
@@ -188,6 +194,7 @@ export function ProspectDetailSheet({
                       ? ` — ${prospect.dirigeant_poste}`
                       : ''
                   }`}
+                  wide
                 />
               )}
               {prospect.dirigeant_email && (
@@ -219,6 +226,7 @@ export function ProspectDetailSheet({
                   icon={Mail}
                   label="Emails génériques"
                   value={prospect.emails_generiques}
+                  wide
                 />
               )}
               {prospect.site_web && (
@@ -231,9 +239,10 @@ export function ProspectDetailSheet({
                       ? prospect.site_web
                       : `https://${prospect.site_web}`
                   }
+                  wide
                 />
               )}
-            </div>
+            </dl>
           </section>
 
           {/* Assignation */}
@@ -279,8 +288,18 @@ export function ProspectDetailSheet({
 
           {/* Conversion */}
           {prospect.stage === 'signe' && !prospect.client_id && isAdminUser && (
-            <section>
-              <Separator className="mb-4" />
+            <section className="border-primary/20 bg-primary/[0.03] rounded-lg border p-4">
+              <div className="mb-3 flex items-start gap-2">
+                <CheckCircle className="text-primary mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Prêt à être converti</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    Ce prospect est signé. Crée une fiche client avec un
+                    trigramme auto-généré — le projet CFA pourra être lancé
+                    depuis la page Clients.
+                  </p>
+                </div>
+              </div>
               <Button
                 onClick={handleConvert}
                 disabled={converting}
@@ -291,12 +310,8 @@ export function ProspectDetailSheet({
                 ) : (
                   <CheckCircle className="mr-2 h-4 w-4" />
                 )}
-                Convertir en client
+                {converting ? 'Conversion...' : 'Convertir en client'}
               </Button>
-              <p className="text-muted-foreground mt-2 text-xs">
-                Crée une fiche dans <strong>Clients</strong> avec un trigramme
-                auto-généré.
-              </p>
             </section>
           )}
         </div>
@@ -310,17 +325,21 @@ function InfoRow({
   label,
   value,
   href,
+  wide,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   href?: string;
+  wide?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-2">
-      <Icon className="text-muted-foreground mt-0.5 h-3.5 w-3.5 shrink-0" />
-      <div className="flex-1 text-sm">
-        <div className="text-muted-foreground text-xs">{label}</div>
+    <div className={wide ? 'col-span-2' : undefined}>
+      <dt className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
+        <Icon className="h-3 w-3" />
+        {label}
+      </dt>
+      <dd className="mt-1 text-sm">
         {href ? (
           <a
             href={href}
@@ -331,9 +350,9 @@ function InfoRow({
             {value}
           </a>
         ) : (
-          <div className="break-words">{value}</div>
+          <span className="break-words">{value}</span>
         )}
-      </div>
+      </dd>
     </div>
   );
 }

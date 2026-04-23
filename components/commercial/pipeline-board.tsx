@@ -8,7 +8,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core';
-import { Search } from 'lucide-react';
+import { Search, Filter, Users as UsersIcon } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import {
   STAGE_PROSPECT_ORDER,
   type StageProspect,
@@ -167,19 +168,69 @@ export function PipelineBoard({
     }
   }
 
+  const totals = useMemo(() => {
+    const counts = STAGE_PROSPECT_ORDER.reduce(
+      (acc, stage) => acc + filtered[stage].length,
+      0,
+    );
+    const volume = STAGE_PROSPECT_ORDER.reduce(
+      (acc, stage) =>
+        acc +
+        filtered[stage].reduce((sub, p) => sub + (p.volume_apprenants ?? 0), 0),
+      0,
+    );
+    const signed = filtered.signe.length;
+    return { counts, volume, signed };
+  }, [filtered]);
+
+  const hasActiveFilter =
+    search !== '' ||
+    commercialFilter !== 'all' ||
+    regionFilter !== 'all' ||
+    minVolume !== '';
+
+  function resetFilters() {
+    setSearch('');
+    setCommercialFilter('all');
+    setRegionFilter('all');
+    setMinVolume('');
+  }
+
   return (
     <div className="flex h-full flex-col gap-4">
+      {/* Stats strip */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatTile
+          label="Prospects affichés"
+          value={totals.counts.toLocaleString('fr-FR')}
+          icon={UsersIcon}
+        />
+        <StatTile
+          label="Volume apprentis potentiel"
+          value={totals.volume.toLocaleString('fr-FR')}
+        />
+        <StatTile
+          label="Signés"
+          value={totals.signed.toLocaleString('fr-FR')}
+          accent
+        />
+      </div>
+
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="border-border/60 bg-card/50 flex flex-wrap items-center gap-2 rounded-lg border p-2">
         <div className="relative min-w-[220px] flex-1">
-          <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
-            placeholder="Rechercher..."
+            placeholder="Rechercher un prospect..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
+            className="border-transparent bg-transparent pl-8 focus-visible:border-transparent"
           />
         </div>
+
+        <div className="bg-border/60 mx-1 h-6 w-px" aria-hidden />
+
+        <Filter className="text-muted-foreground ml-1 h-3.5 w-3.5" />
 
         <Select
           value={commercialFilter}
@@ -225,7 +276,17 @@ export function PipelineBoard({
           className="w-[120px]"
         />
 
-        {isAdmin && <ProspectImportButton />}
+        {hasActiveFilter && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="text-muted-foreground hover:text-foreground text-xs underline-offset-2 hover:underline"
+          >
+            Réinitialiser
+          </button>
+        )}
+
+        <div className="ml-auto">{isAdmin && <ProspectImportButton />}</div>
       </div>
 
       {/* Kanban */}
@@ -251,6 +312,40 @@ export function PipelineBoard({
         onOpenChange={(open) => !open && setSelected(null)}
         isAdminUser={isAdmin}
       />
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        'border-border/60 rounded-lg border p-4 transition-colors',
+        accent ? 'bg-primary/5 border-primary/20' : 'bg-card',
+      )}
+    >
+      <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wide uppercase">
+        {Icon && <Icon className="h-3 w-3" />}
+        {label}
+      </div>
+      <div
+        className={cn(
+          'mt-1 text-2xl font-semibold tabular-nums',
+          accent && 'text-primary',
+        )}
+      >
+        {value}
+      </div>
     </div>
   );
 }

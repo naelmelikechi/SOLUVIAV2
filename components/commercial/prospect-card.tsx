@@ -2,7 +2,7 @@
 
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Building2, User, Users } from 'lucide-react';
+import { GripVertical, MapPin, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/shared/status-badge';
 import type { ProspectWithCommercial } from '@/lib/queries/prospects';
@@ -15,7 +15,8 @@ interface ProspectCardProps {
 
 function formatVolume(n: number | null): string {
   if (n === null) return '-';
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}k`;
   return String(n);
 }
 
@@ -35,35 +36,41 @@ export function ProspectCard({
       ref={setNodeRef}
       style={{
         transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.4 : 1,
       }}
       className={cn(
-        'bg-card border-border hover:border-primary/50 group cursor-grab rounded-lg border p-3 shadow-sm transition-colors active:cursor-grabbing',
+        'group bg-card border-border hover:border-primary/40 relative rounded-md border p-3 transition-all duration-150',
+        'hover:-translate-y-px hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
+        isDragging && 'opacity-40 shadow-lg',
       )}
-      {...attributes}
-      {...listeners}
     >
+      {/* Drag handle — only this triggers dnd, so the card body stays clickable */}
       <button
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick();
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-        className="w-full text-left"
+        aria-label="Déplacer"
+        className={cn(
+          'text-muted-foreground/40 group-hover:text-muted-foreground absolute top-2 right-2 cursor-grab rounded p-0.5 transition-colors active:cursor-grabbing',
+          disabled && 'hidden',
+        )}
+        {...attributes}
+        {...listeners}
       >
-        <div className="mb-1.5 flex items-start gap-2">
-          <Building2 className="text-muted-foreground mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <h4 className="line-clamp-2 flex-1 text-sm leading-tight font-semibold">
-            {prospect.nom}
-          </h4>
-        </div>
+        <GripVertical className="h-3.5 w-3.5" />
+      </button>
 
-        <div className="text-muted-foreground mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          {prospect.region && <span>{prospect.region}</span>}
-          {prospect.volume_apprenants !== null && (
+      <button type="button" onClick={onClick} className="w-full text-left">
+        <h4 className="line-clamp-2 pr-6 text-[13px] leading-tight font-semibold">
+          {prospect.nom}
+        </h4>
+
+        <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+          {prospect.region && (
             <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {prospect.region}
+            </span>
+          )}
+          {prospect.volume_apprenants !== null && (
+            <span className="inline-flex items-center gap-1 tabular-nums">
               <Users className="h-3 w-3" />
               {formatVolume(prospect.volume_apprenants)}
             </span>
@@ -71,15 +78,15 @@ export function ProspectCard({
         </div>
 
         {prospect.dirigeant_nom && (
-          <div className="text-muted-foreground text-xs">
+          <div className="text-muted-foreground mt-1.5 truncate text-[11px]">
             {prospect.dirigeant_nom}
           </div>
         )}
 
-        <div className="mt-2 flex items-center justify-between">
+        <div className="border-border/60 mt-2.5 flex items-center justify-between border-t pt-2">
           {prospect.commercial ? (
-            <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-              <User className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium">
+              <User className="text-muted-foreground h-3 w-3" />
               {prospect.commercial.prenom}
             </span>
           ) : (

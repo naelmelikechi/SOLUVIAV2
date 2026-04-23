@@ -57,29 +57,73 @@ function wrapHtml(options: {
 // 1. Temps non saisi (quotidien 18h Paris, lun-ven)
 // ---------------------------------------------------------------------------
 
-export async function sendTempsNonSaisiEmail(params: {
+export type JourSaisie = {
+  date: string; // yyyy-MM-dd
+  jourIndex: number; // 0=lun, 4=ven
+  saisi: number;
+  attendu: number;
+  ferie: boolean;
+};
+
+const JOUR_LABELS = [
+  'Lundi',
+  'Mardi',
+  'Mercredi',
+  'Jeudi',
+  'Vendredi',
+] as const;
+
+export async function sendTempsHebdoRecapEmail(params: {
   to: string;
   prenom: string;
-  dateJour: string;
+  jours: JourSaisie[];
   heuresManquantes: number;
 }): Promise<SendResult> {
   if (!resend) return { success: false, error: 'Resend non configuré' };
 
-  const { to, prenom, dateJour, heuresManquantes } = params;
-  const dateLabel = formatDate(dateJour);
+  const { to, prenom, jours, heuresManquantes } = params;
+
+  const rows = jours
+    .map((j) => {
+      const label = JOUR_LABELS[j.jourIndex] ?? '';
+      const dateLabel = formatDate(j.date);
+      if (j.ferie) {
+        return `
+        <tr>
+          <td style="padding:8px 10px;font-size:13px;color:#4b6a4b;">${label} ${dateLabel}</td>
+          <td style="padding:8px 10px;font-size:13px;color:#6b7280;" align="right">Férié</td>
+        </tr>`;
+      }
+      const isComplete = j.saisi >= j.attendu;
+      const colorSaisi = isComplete ? '#166534' : '#b45309';
+      const marker = isComplete
+        ? '-'
+        : `(manque ${Math.round((j.attendu - j.saisi) * 100) / 100}h)`;
+      return `
+      <tr>
+        <td style="padding:8px 10px;font-size:13px;color:#2d4a2d;">${label} ${dateLabel}</td>
+        <td style="padding:8px 10px;font-size:13px;color:${colorSaisi};" align="right">
+          <strong>${j.saisi}h</strong> / ${j.attendu}h <span style="color:#6b7280;font-size:11px;">${marker}</span>
+        </td>
+      </tr>`;
+    })
+    .join('');
 
   const body = `
     <h2 style="margin:0 0 16px;font-size:18px;color:#1a2e1a;">Bonjour ${prenom},</h2>
     <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">
-      Il te manque <strong>${heuresManquantes}h</strong> pour compléter ta saisie du <strong>${dateLabel}</strong>.
+      Récap de ta semaine de saisie du temps. Il te reste <strong>${heuresManquantes}h</strong> à renseigner pour que la semaine soit complète.
     </p>
-    <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">
-      Pense à renseigner ton temps avant de quitter la journée pour que tes heures soient prises en compte.
+    <table cellpadding="0" cellspacing="0" border="0" style="width:100%;border:1px solid #d1e7d1;border-radius:6px;background:#f8fcf8;margin:8px 0 12px;">
+      ${rows}
+    </table>
+    <p style="margin:12px 0 0;color:#2d4a2d;font-size:14px;line-height:1.6;">
+      N'oublie pas de bien remplir l'après-midi du vendredi avant de partir en weekend.
     </p>`;
 
   const html = wrapHtml({
-    title: 'Rappel de saisie du temps',
-    preheader: `Il te manque ${heuresManquantes}h pour aujourd'hui`,
+    title: 'Ta semaine de saisie du temps',
+    preheader: `Il te reste ${heuresManquantes}h à renseigner cette semaine`,
     headerBg: '#16a34a',
     body,
     ctaLabel: 'Saisir mon temps',
@@ -90,7 +134,7 @@ export async function sendTempsNonSaisiEmail(params: {
     await resend.emails.send({
       from: FROM,
       to,
-      subject: 'SOLUVIA - Pense à saisir ton temps',
+      subject: 'SOLUVIA - Récap hebdo de ta saisie du temps',
       html,
     });
     return { success: true };

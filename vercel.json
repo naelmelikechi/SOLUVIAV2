@@ -27,7 +27,7 @@
     },
     {
       "path": "/api/cron/email-temps-non-saisi",
-      "schedule": "0 17 * * 1-5"
+      "schedule": "0 12 * * 5"
     },
     {
       "path": "/api/cron/email-factures-retard",

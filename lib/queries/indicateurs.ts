@@ -140,7 +140,8 @@ async function fetchProjetsScope(
     .select(
       'id, client_id, cdp_id, backup_cdp_id, client:clients!projets_client_id_fkey(id, raison_sociale)',
     )
-    .eq('archive', false);
+    .eq('archive', false)
+    .eq('est_absence', false);
 
   if (scope.kind === 'cdp') {
     query = query.or(

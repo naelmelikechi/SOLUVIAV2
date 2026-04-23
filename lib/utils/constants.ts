@@ -42,6 +42,37 @@ export const STATUT_PROJET_COLORS: Record<string, BadgeColor> = {
   archive: 'gray',
 };
 
+// Prospect stages (pipeline commercial)
+export const STAGE_PROSPECT_ORDER = [
+  'non_contacte',
+  'r1',
+  'r2',
+  'signe',
+] as const;
+
+export type StageProspect = (typeof STAGE_PROSPECT_ORDER)[number];
+
+export const STAGE_PROSPECT_LABELS: Record<StageProspect, string> = {
+  non_contacte: 'Non contacté',
+  r1: 'R1 validé',
+  r2: 'R2 validé',
+  signe: 'Signé',
+};
+
+export const STAGE_PROSPECT_COLORS: Record<StageProspect, BadgeColor> = {
+  non_contacte: 'gray',
+  r1: 'blue',
+  r2: 'orange',
+  signe: 'green',
+};
+
+export type TypeProspect = 'cfa' | 'entreprise';
+
+export const TYPE_PROSPECT_LABELS: Record<TypeProspect, string> = {
+  cfa: 'CFA',
+  entreprise: 'Entreprise',
+};
+
 // Invoice statuses
 export const STATUT_FACTURE_LABELS: Record<string, string> = {
   a_emettre: 'À émettre',

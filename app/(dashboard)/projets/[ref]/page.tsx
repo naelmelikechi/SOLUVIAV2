@@ -6,6 +6,7 @@ import {
   getProjetFinance,
   getProjetTempsStats,
   getProjetQualiteStats,
+  getDocumentsByProjetId,
 } from '@/lib/queries/projets';
 
 export async function generateMetadata({
@@ -26,6 +27,7 @@ import { ProjetStatCards } from '@/components/projets/projet-stat-cards';
 import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
 import { ProjetPerformancePlaceholders } from '@/components/projets/projet-performance-placeholders';
 import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
+import { ProjetDocumentsSection } from '@/components/projets/projet-documents-section';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/roles';
 
@@ -50,11 +52,12 @@ export default async function ProjetDetailPage({
     : { data: null };
   const userIsAdmin = isAdmin(currentUser?.role);
 
-  const [contrats, finance, temps, qualite] = await Promise.all([
+  const [contrats, finance, temps, qualite, documents] = await Promise.all([
     getContratsByProjetId(projet.id),
     getProjetFinance(projet.id),
     getProjetTempsStats(projet.id),
     getProjetQualiteStats(projet.id),
+    getDocumentsByProjetId(projet.id),
   ]);
 
   const apprentisActifs = contrats.filter(
@@ -97,6 +100,14 @@ export default async function ProjetDetailPage({
           Volets de performance
         </h3>
         <ProjetPerformancePlaceholders />
+      </div>
+
+      <div className="mt-6">
+        <ProjetDocumentsSection
+          projetId={projet.id}
+          projetRef={ref}
+          documents={documents}
+        />
       </div>
     </div>
   );

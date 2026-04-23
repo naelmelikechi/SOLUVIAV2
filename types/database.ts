@@ -1297,6 +1297,51 @@ export type Database = {
           },
         ];
       };
+      projet_documents: {
+        Row: {
+          created_at: string;
+          id: string;
+          nom_fichier: string;
+          projet_id: string;
+          storage_path: string;
+          type_document: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          nom_fichier: string;
+          projet_id: string;
+          storage_path: string;
+          type_document?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          nom_fichier?: string;
+          projet_id?: string;
+          storage_path?: string;
+          type_document?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'projet_documents_projet_id_fkey';
+            columns: ['projet_id'];
+            isOneToOne: false;
+            referencedRelation: 'projets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'projet_documents_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       projets: {
         Row: {
           archive: boolean;
@@ -1370,6 +1415,129 @@ export type Database = {
             columns: ['typologie_id'];
             isOneToOne: false;
             referencedRelation: 'typologies_projet';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      prospect_notes: {
+        Row: {
+          contenu: string;
+          created_at: string;
+          id: string;
+          prospect_id: string;
+          user_id: string;
+        };
+        Insert: {
+          contenu: string;
+          created_at?: string;
+          id?: string;
+          prospect_id: string;
+          user_id: string;
+        };
+        Update: {
+          contenu?: string;
+          created_at?: string;
+          id?: string;
+          prospect_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'prospect_notes_prospect_id_fkey';
+            columns: ['prospect_id'];
+            isOneToOne: false;
+            referencedRelation: 'prospects';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prospect_notes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      prospects: {
+        Row: {
+          archive: boolean;
+          client_id: string | null;
+          commercial_id: string | null;
+          created_at: string;
+          dirigeant_email: string | null;
+          dirigeant_nom: string | null;
+          dirigeant_poste: string | null;
+          dirigeant_telephone: string | null;
+          emails_generiques: string | null;
+          id: string;
+          nom: string;
+          notes_import: string | null;
+          region: string | null;
+          siret: string | null;
+          site_web: string | null;
+          stage: Database['public']['Enums']['stage_prospect'];
+          telephone_standard: string | null;
+          type_prospect: Database['public']['Enums']['type_prospect'];
+          updated_at: string;
+          volume_apprenants: number | null;
+        };
+        Insert: {
+          archive?: boolean;
+          client_id?: string | null;
+          commercial_id?: string | null;
+          created_at?: string;
+          dirigeant_email?: string | null;
+          dirigeant_nom?: string | null;
+          dirigeant_poste?: string | null;
+          dirigeant_telephone?: string | null;
+          emails_generiques?: string | null;
+          id?: string;
+          nom: string;
+          notes_import?: string | null;
+          region?: string | null;
+          siret?: string | null;
+          site_web?: string | null;
+          stage?: Database['public']['Enums']['stage_prospect'];
+          telephone_standard?: string | null;
+          type_prospect: Database['public']['Enums']['type_prospect'];
+          updated_at?: string;
+          volume_apprenants?: number | null;
+        };
+        Update: {
+          archive?: boolean;
+          client_id?: string | null;
+          commercial_id?: string | null;
+          created_at?: string;
+          dirigeant_email?: string | null;
+          dirigeant_nom?: string | null;
+          dirigeant_poste?: string | null;
+          dirigeant_telephone?: string | null;
+          emails_generiques?: string | null;
+          id?: string;
+          nom?: string;
+          notes_import?: string | null;
+          region?: string | null;
+          siret?: string | null;
+          site_web?: string | null;
+          stage?: Database['public']['Enums']['stage_prospect'];
+          telephone_standard?: string | null;
+          type_prospect?: Database['public']['Enums']['type_prospect'];
+          updated_at?: string;
+          volume_apprenants?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'prospects_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prospects_commercial_id_fkey';
+            columns: ['commercial_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
             referencedColumns: ['id'];
           },
         ];
@@ -1619,7 +1787,9 @@ export type Database = {
       show_trgm: { Args: { '': string }; Returns: string[] };
     };
     Enums: {
-      role_utilisateur: 'admin' | 'cdp' | 'superadmin';
+      role_utilisateur: 'admin' | 'cdp' | 'commercial' | 'superadmin';
+      stage_prospect: 'non_contacte' | 'r1' | 'r2' | 'signe';
+      type_prospect: 'cfa' | 'entreprise';
       scope_kpi: 'global' | 'projet' | 'cdp';
       statut_facture: 'a_emettre' | 'emise' | 'payee' | 'en_retard' | 'avoir';
       statut_projet: 'actif' | 'en_pause' | 'termine' | 'archive';
@@ -1762,7 +1932,9 @@ export const Constants = {
   },
   public: {
     Enums: {
-      role_utilisateur: ['admin', 'cdp', 'superadmin'],
+      role_utilisateur: ['admin', 'cdp', 'commercial', 'superadmin'],
+      stage_prospect: ['non_contacte', 'r1', 'r2', 'signe'],
+      type_prospect: ['cfa', 'entreprise'],
       scope_kpi: ['global', 'projet', 'cdp'],
       statut_facture: ['a_emettre', 'emise', 'payee', 'en_retard', 'avoir'],
       statut_projet: ['actif', 'en_pause', 'termine', 'archive'],

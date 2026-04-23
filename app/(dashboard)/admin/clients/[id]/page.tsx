@@ -235,6 +235,7 @@ export default async function ClientDetailPage({
                         clientId={id}
                         storagePath={doc.storage_path}
                         fileName={doc.nom_fichier}
+                        typeDocument={doc.type_document}
                       />
                     </TableCell>
                   </TableRow>

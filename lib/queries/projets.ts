@@ -379,3 +379,30 @@ export async function getProjetQualiteStats(projetId: string) {
 export type ProjetQualiteStats = NonNullable<
   Awaited<ReturnType<typeof getProjetQualiteStats>>
 >;
+
+export async function getDocumentsByProjetId(projetId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('projet_documents')
+    .select('*, user:users!projet_documents_user_id_fkey(id, nom, prenom)')
+    .eq('projet_id', projetId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error('queries.projets', 'getDocumentsByProjetId failed', {
+      projetId,
+      error,
+    });
+    throw new AppError(
+      'PROJETS_DOCUMENTS_FETCH_FAILED',
+      'Impossible de charger les documents',
+      { cause: error },
+    );
+  }
+  return data;
+}
+
+export type ProjetDocument = Awaited<
+  ReturnType<typeof getDocumentsByProjetId>
+>[number];

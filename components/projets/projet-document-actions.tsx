@@ -6,26 +6,26 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
   getDocumentDownloadUrl,
-  deleteClientDocument,
+  deleteProjetDocument,
 } from '@/lib/actions/documents';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { DocumentPreviewSheet } from '@/components/shared/document-preview-sheet';
 
-interface ClientDocumentActionsProps {
+interface ProjetDocumentActionsProps {
   documentId: string;
-  clientId: string;
+  projetRef: string;
   storagePath: string;
   fileName: string;
   typeDocument: string | null;
 }
 
-export function ClientDocumentActions({
+export function ProjetDocumentActions({
   documentId,
-  clientId,
+  projetRef,
   storagePath,
   fileName,
   typeDocument,
-}: ClientDocumentActionsProps) {
+}: ProjetDocumentActionsProps) {
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -38,7 +38,7 @@ export function ClientDocumentActions({
     try {
       const result = await getDocumentDownloadUrl(
         storagePath,
-        'client-documents',
+        'project-documents',
       );
       if (result.url) {
         setPreviewUrl(result.url);
@@ -58,7 +58,7 @@ export function ClientDocumentActions({
     try {
       const result = await getDocumentDownloadUrl(
         storagePath,
-        'client-documents',
+        'project-documents',
       );
       if (result.url) {
         window.open(result.url, '_blank');
@@ -75,7 +75,7 @@ export function ClientDocumentActions({
   async function handleDelete() {
     setDeleting(true);
     try {
-      const result = await deleteClientDocument(documentId, clientId);
+      const result = await deleteProjetDocument(documentId, projetRef);
       if (result.success) {
         toast.success('Document supprimé');
       } else {

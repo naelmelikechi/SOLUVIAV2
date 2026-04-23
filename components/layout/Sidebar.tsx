@@ -20,10 +20,11 @@ import {
   LogOut,
   User,
   X,
+  Target,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
-import { isAdmin, getRoleLabel } from '@/lib/utils/roles';
+import { isAdmin, canAccessPipeline, getRoleLabel } from '@/lib/utils/roles';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import type { BadgeCounts } from '@/hooks/use-badge-counts';
@@ -37,6 +38,10 @@ const mainNavItems = [
   { href: '/facturation', label: 'Facturation', icon: FileText },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   { href: '/equipe', label: 'Équipe', icon: UsersRound },
+];
+
+const commercialNavItems = [
+  { href: '/commercial/pipeline', label: 'Pipeline', icon: Target },
 ];
 
 const adminNavItems = [
@@ -238,6 +243,41 @@ export function Sidebar({
             </Link>
           );
         })}
+
+        {canAccessPipeline(user?.role) && (
+          <>
+            <Separator className="my-2" />
+
+            {!collapsed && (
+              <div className="text-muted-foreground px-3 py-1 text-[10px] font-semibold tracking-wider uppercase">
+                Commercial
+              </div>
+            )}
+
+            {commercialNavItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  title={collapsed ? item.label : undefined}
+                  onClick={mobile ? onClose : undefined}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
+                    collapsed && 'justify-center',
+                    isActive
+                      ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
+                  )}
+                >
+                  <Icon className="h-[18px] w-[18px] shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </>
+        )}
 
         {isAdmin(user?.role) && (
           <>

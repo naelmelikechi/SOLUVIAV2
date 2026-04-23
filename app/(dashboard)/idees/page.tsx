@@ -29,7 +29,7 @@ export default async function IdeesPage() {
       <div className="mb-4">
         <h1 className="text-xl font-semibold">Boîte à idées</h1>
         <p className="text-muted-foreground text-sm">
-          Propose une amélioration pour Eduvia, Soluvia ou un workflow —
+          Propose une amélioration pour Eduvia, Soluvia ou un workflow -
           l&apos;équipe la revoit et la livre si elle est pertinente.
         </p>
       </div>

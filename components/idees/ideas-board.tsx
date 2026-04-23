@@ -5,6 +5,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  closestCorners,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -103,7 +104,7 @@ export function IdeasBoard({
   const [, startTransition] = useTransition();
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
   );
 
   // Apply overrides to grouped ideas before filtering
@@ -344,6 +345,7 @@ export function IdeasBoard({
       {/* Kanban */}
       <DndContext
         sensors={sensors}
+        collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={() => {

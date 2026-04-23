@@ -27,7 +27,11 @@ import {
   type CibleIdee,
 } from '@/lib/utils/constants';
 import { cn } from '@/lib/utils';
-import { rejectIdea } from '@/lib/actions/idees';
+import {
+  validateIdea,
+  rejectIdea,
+  markIdeaImplemented,
+} from '@/lib/actions/idees';
 import { IdeaColumn } from './idea-column';
 import { IdeaSubmitDialog } from './idea-submit-dialog';
 import { IdeaDetailSheet } from './idea-detail-sheet';
@@ -45,6 +49,17 @@ type PendingReject = {
   id: string;
   titre: string;
 };
+
+const ALLOWED_TRANSITIONS: Record<StatutIdee, StatutIdee[]> = {
+  proposee: ['validee', 'rejetee'],
+  validee: ['implementee'],
+  implementee: [],
+  rejetee: [],
+};
+
+function isAllowedTransition(from: StatutIdee, to: StatutIdee): boolean {
+  return ALLOWED_TRANSITIONS[from].includes(to);
+}
 
 export function IdeasBoard({
   initialGrouped,
@@ -66,6 +81,7 @@ export function IdeasBoard({
     setOverrides({});
   }
 
+  const [draggedIdee, setDraggedIdee] = useState<IdeeWithRefs | null>(null);
   const [pendingReject, setPendingReject] = useState<PendingReject | null>(
     null,
   );
@@ -121,22 +137,70 @@ export function IdeasBoard({
   const hasActiveFilter =
     search !== '' || cibleFilter !== 'all' || authorFilter !== 'all';
 
-  function handleValidated(id: string) {
-    setOverrides((prev) => ({ ...prev, [id]: 'validee' }));
+  function setOverride(id: string, statut: StatutIdee) {
+    setOverrides((prev) => ({ ...prev, [id]: statut }));
   }
-  function handleImplemented(id: string) {
-    setOverrides((prev) => ({ ...prev, [id]: 'implementee' }));
-  }
-  function handleRevert(id: string) {
+
+  function clearOverride(id: string) {
     setOverrides((prev) => {
       const next = { ...prev };
       delete next[id];
       return next;
     });
   }
-  function handleRequestReject(idee: IdeeWithRefs) {
-    setPendingReject({ id: idee.id, titre: idee.titre });
-    setRejectMotif('');
+
+  function handleCardDragStart(idee: IdeeWithRefs) {
+    setDraggedIdee(idee);
+  }
+
+  function handleCardDragEnd() {
+    setDraggedIdee(null);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>, to: StatutIdee) {
+    const id = e.dataTransfer.getData('application/x-idee-id');
+    const from = e.dataTransfer.getData(
+      'application/x-idee-statut',
+    ) as StatutIdee;
+    setDraggedIdee(null);
+
+    if (!id || !from) return;
+    if (!isAllowedTransition(from, to)) return;
+
+    if (to === 'validee') {
+      setOverride(id, 'validee');
+      startTransition(async () => {
+        const r = await validateIdea(id);
+        if (r.success) {
+          toast.success('Idée validée');
+        } else {
+          clearOverride(id);
+          toast.error(r.error ?? 'Erreur');
+        }
+      });
+      return;
+    }
+
+    if (to === 'implementee') {
+      setOverride(id, 'implementee');
+      startTransition(async () => {
+        const r = await markIdeaImplemented(id);
+        if (r.success) {
+          toast.success('Idée marquée comme implémentée');
+        } else {
+          clearOverride(id);
+          toast.error(r.error ?? 'Erreur');
+        }
+      });
+      return;
+    }
+
+    if (to === 'rejetee') {
+      const idee = groupedWithOverrides[from].find((i) => i.id === id);
+      if (!idee) return;
+      setPendingReject({ id, titre: idee.titre });
+      setRejectMotif('');
+    }
   }
 
   function handleConfirmReject() {
@@ -147,7 +211,7 @@ export function IdeasBoard({
       return;
     }
     const id = pendingReject.id;
-    setOverrides((prev) => ({ ...prev, [id]: 'rejetee' }));
+    setOverride(id, 'rejetee');
     setPendingReject(null);
     setRejectMotif('');
     startTransition(async () => {
@@ -155,7 +219,7 @@ export function IdeasBoard({
       if (r.success) {
         toast.success('Idée rejetée');
       } else {
-        handleRevert(id);
+        clearOverride(id);
         toast.error(r.error ?? 'Erreur');
       }
     });
@@ -165,6 +229,11 @@ export function IdeasBoard({
     setPendingReject(null);
     setRejectMotif('');
   }
+
+  const validDropTargets = useMemo(() => {
+    if (!draggedIdee) return new Set<StatutIdee>();
+    return new Set(ALLOWED_TRANSITIONS[draggedIdee.statut]);
+  }, [draggedIdee]);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -252,12 +321,11 @@ export function IdeasBoard({
             statut={s}
             idees={filtered[s]}
             onCardClick={setSelected}
-            canModerate={isAdmin}
-            canShip={canShip}
-            onValidated={handleValidated}
-            onImplemented={handleImplemented}
-            onRevert={handleRevert}
-            onRequestReject={handleRequestReject}
+            draggable={isAdmin}
+            onCardDragStart={handleCardDragStart}
+            onCardDragEnd={handleCardDragEnd}
+            onDropIdee={handleDrop}
+            isValidDropTarget={validDropTargets.has(s)}
           />
         ))}
       </div>

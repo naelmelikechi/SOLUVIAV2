@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import {
   getClientById,
   getProjetsByClientId,
@@ -8,6 +8,8 @@ import {
   getDocumentsByClientId,
   getClientApiKeys,
 } from '@/lib/queries/clients';
+import { getCurrentUser, getActiveUsersMinimal } from '@/lib/queries/users';
+import { isAdmin } from '@/lib/utils/roles';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
@@ -29,6 +31,7 @@ import { ClientDetailActions } from '@/components/admin/client-detail-actions';
 import { ClientContactsSection } from '@/components/admin/client-contacts-section';
 import { ClientNotesSection } from '@/components/admin/client-notes-section';
 import { ClientApiKeysSection } from '@/components/admin/client-api-keys-section';
+import { ClientApporteurSection } from '@/components/admin/client-apporteur-section';
 import { ClientUploadButton } from '@/components/admin/client-upload-button';
 import { ClientDocumentActions } from '@/components/admin/client-document-actions';
 
@@ -37,6 +40,11 @@ export default async function ClientDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const currentUser = await getCurrentUser();
+  if (!isAdmin(currentUser?.role)) {
+    redirect('/projets');
+  }
+
   const { id } = await params;
   const client = await getClientById(id);
 
@@ -44,13 +52,15 @@ export default async function ClientDetailPage({
     notFound();
   }
 
-  const [projets, contacts, notes, documents, apiKeys] = await Promise.all([
-    getProjetsByClientId(id),
-    getContactsByClientId(id),
-    getNotesByClientId(id),
-    getDocumentsByClientId(id),
-    getClientApiKeys(id),
-  ]);
+  const [projets, contacts, notes, documents, apiKeys, users] =
+    await Promise.all([
+      getProjetsByClientId(id),
+      getContactsByClientId(id),
+      getNotesByClientId(id),
+      getDocumentsByClientId(id),
+      getClientApiKeys(id),
+      getActiveUsersMinimal(),
+    ]);
 
   return (
     <div>
@@ -128,6 +138,14 @@ export default async function ClientDetailPage({
           </div>
         </div>
       </Card>
+
+      {/* Apporteur commercial */}
+      <ClientApporteurSection
+        clientId={id}
+        apporteur={client.apporteur}
+        apporteurDate={client.apporteur_date}
+        users={users}
+      />
 
       {/* Contacts */}
       <ClientContactsSection clientId={id} contacts={contacts} />

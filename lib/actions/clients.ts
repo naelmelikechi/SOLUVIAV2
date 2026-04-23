@@ -125,6 +125,77 @@ export async function updateClientAction(
 }
 
 // ---------------------------------------------------------------------------
+// updateClientApporteur - update apporteur commercial + date
+// ---------------------------------------------------------------------------
+
+export async function updateClientApporteur(
+  clientId: string,
+  apporteurId: string | null,
+  apporteurDate: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (!isAdmin(caller?.role)) {
+    return { success: false, error: 'Accès réservé aux administrateurs' };
+  }
+
+  const normalizedId = apporteurId && apporteurId.trim() ? apporteurId : null;
+  let normalizedDate =
+    apporteurDate && apporteurDate.trim() ? apporteurDate : null;
+
+  if (normalizedId) {
+    const { data: apporteur, error: lookupError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', normalizedId)
+      .maybeSingle();
+
+    if (lookupError || !apporteur) {
+      return {
+        success: false,
+        error: "L'apporteur sélectionné est introuvable",
+      };
+    }
+
+    if (!normalizedDate) {
+      normalizedDate = new Date().toISOString().slice(0, 10);
+    }
+  } else {
+    normalizedDate = null;
+  }
+
+  const { error } = await supabase
+    .from('clients')
+    .update({
+      apporteur_commercial_id: normalizedId,
+      apporteur_date: normalizedDate,
+    })
+    .eq('id', clientId);
+
+  if (error) return { success: false, error: error.message };
+
+  logAudit('client_apporteur_updated', 'client', clientId, {
+    apporteurId: normalizedId,
+    apporteurDate: normalizedDate,
+  });
+
+  revalidatePath('/admin/clients');
+  revalidatePath(`/admin/clients/${clientId}`);
+
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
 // archiveClient - soft delete (archive = true)
 // ---------------------------------------------------------------------------
 

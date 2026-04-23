@@ -107,3 +107,27 @@ export async function getCurrentUser() {
 export type CurrentUser = NonNullable<
   Awaited<ReturnType<typeof getCurrentUser>>
 >;
+
+export async function getActiveUsersMinimal() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, nom, prenom')
+    .eq('actif', true)
+    .order('nom');
+
+  if (error) {
+    logger.error('queries.users', 'getActiveUsersMinimal failed', { error });
+    throw new AppError(
+      'USERS_FETCH_FAILED',
+      'Impossible de charger les utilisateurs actifs',
+      { cause: error },
+    );
+  }
+  return data;
+}
+
+export type ActiveUserMinimal = Awaited<
+  ReturnType<typeof getActiveUsersMinimal>
+>[number];

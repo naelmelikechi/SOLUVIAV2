@@ -33,7 +33,7 @@ export async function getClientById(id: string) {
   const { data, error } = await supabase
     .from('clients')
     .select(
-      'id, trigramme, raison_sociale, siret, adresse, localisation, numero_qualiopi, numero_nda, numero_uai, date_entree, archive, tva_intracommunautaire, created_at',
+      'id, trigramme, raison_sociale, siret, adresse, localisation, numero_qualiopi, numero_nda, numero_uai, date_entree, archive, tva_intracommunautaire, created_at, apporteur_commercial_id, apporteur_date, apporteur:users!clients_apporteur_commercial_id_fkey(id, nom, prenom)',
     )
     .eq('id', id)
     .single();

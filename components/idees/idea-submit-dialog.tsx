@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -45,13 +45,16 @@ export function IdeaSubmitDialog({
   const [cible, setCible] = useState<CibleIdee>(initial?.cible ?? 'soluvia');
   const [isPending, startTransition] = useTransition();
 
-  const [prevInitialId, setPrevInitialId] = useState<string | null>(null);
-  if (initial?.id !== prevInitialId) {
-    setPrevInitialId(initial?.id ?? null);
-    setTitre(initial?.titre ?? '');
-    setDescription(initial?.description ?? '');
-    setCible(initial?.cible ?? 'soluvia');
-  }
+  const initialId = initial?.id ?? null;
+  const initialTitre = initial?.titre ?? '';
+  const initialDescription = initial?.description ?? '';
+  const initialCible = initial?.cible ?? 'soluvia';
+  useEffect(() => {
+    setTitre(initialTitre);
+    setDescription(initialDescription);
+    setCible(initialCible);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialId]);
 
   function handleSubmit() {
     if (!titre.trim()) {

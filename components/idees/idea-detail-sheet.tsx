@@ -56,13 +56,7 @@ export function IdeaDetailSheet({
   const [editOpen, setEditOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  if (!idee) {
-    return (
-      <Sheet open={false} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="hidden" />
-      </Sheet>
-    );
-  }
+  if (!idee) return null;
 
   const isAuthor = idee.auteur_id === currentUserId;
   const canEdit = isAuthor && idee.statut === 'proposee';

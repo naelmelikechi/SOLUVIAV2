@@ -1,4 +1,12 @@
 -- Pipeline commercial: prospects (CFA + entreprises) et leurs notes
+
+-- Helper: check if current user is commercial (needs 'commercial' enum value
+-- added in 00052, so defined here in a separate transaction)
+CREATE OR REPLACE FUNCTION is_commercial()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'commercial')
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 CREATE TYPE type_prospect AS ENUM ('cfa', 'entreprise');
 CREATE TYPE stage_prospect AS ENUM ('non_contacte', 'r1', 'r2', 'signe');
 

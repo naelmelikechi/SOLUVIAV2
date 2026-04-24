@@ -17,14 +17,11 @@ function buildLimiter(
   limit: number,
   windowSeconds: number,
 ): Ratelimit | null {
-  if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
-    return null;
-  }
+  const url = env.UPSTASH_REDIS_REST_KV_REST_API_URL;
+  const token = env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN;
+  if (!url || !token) return null;
 
-  const redis = new Redis({
-    url: env.UPSTASH_REDIS_REST_URL,
-    token: env.UPSTASH_REDIS_REST_TOKEN,
-  });
+  const redis = new Redis({ url, token });
 
   return new Ratelimit({
     redis,

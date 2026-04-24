@@ -59,10 +59,12 @@ const serverSchema = z
     SENTRY_DSN: z.string().url().optional(),
     NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 
-    // Upstash Redis - rate limiting for auth endpoints. If either var is
-    // missing, rate limiting is disabled (fail-open for availability).
-    UPSTASH_REDIS_REST_URL: z.string().url().optional(),
-    UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+    // Upstash Redis - rate limiting for auth endpoints. Les noms longs
+    // sont ceux auto-provisionnes par la Vercel Marketplace integration
+    // (prefix "UPSTASH_REDIS_REST" applique devant les noms KV standards).
+    // Si l une des deux manque, le rate limit est desactive (fail-open).
+    UPSTASH_REDIS_REST_KV_REST_API_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_KV_REST_API_TOKEN: z.string().min(1).optional(),
 
     // Runtime
     NODE_ENV: z
@@ -137,8 +139,10 @@ function parseEnv(): Env {
     AVATAR_UNLOCK_SECRET: process.env.AVATAR_UNLOCK_SECRET?.trim(),
     SENTRY_DSN: process.env.SENTRY_DSN?.trim(),
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN?.trim(),
-    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL?.trim(),
-    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN?.trim(),
+    UPSTASH_REDIS_REST_KV_REST_API_URL:
+      process.env.UPSTASH_REDIS_REST_KV_REST_API_URL?.trim(),
+    UPSTASH_REDIS_REST_KV_REST_API_TOKEN:
+      process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN?.trim(),
     NODE_ENV: process.env.NODE_ENV?.trim(),
     NEXT_PHASE: process.env.NEXT_PHASE?.trim(),
     VERCEL_ENV: process.env.VERCEL_ENV?.trim(),

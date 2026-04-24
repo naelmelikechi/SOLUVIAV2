@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import { format } from 'date-fns';
 
+export const maxDuration = 60;
+
 // CRON: Mark overdue invoices as en_retard + create notifications
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);

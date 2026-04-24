@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import { format, startOfMonth } from 'date-fns';
 
+export const maxDuration = 120;
+
 // CRON: Monthly KPI snapshot (runs on the 1st of each month)
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);

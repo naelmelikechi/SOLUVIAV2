@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { syncAllEduviaClients } from '@/lib/eduvia/sync';
 import { logger } from '@/lib/utils/logger';
 
+export const maxDuration = 300;
+
 // CRON: Sync contracts, learners, formations, and companies from Eduvia API
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);

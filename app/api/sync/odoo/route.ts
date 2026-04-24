@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { syncOdoo } from '@/lib/odoo/sync';
 import { logger } from '@/lib/utils/logger';
 
+export const maxDuration = 300;
+
 // CRON: Push invoices to Odoo, pull payment statuses
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);

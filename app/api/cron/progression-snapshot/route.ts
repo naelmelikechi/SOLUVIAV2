@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import { startOfWeek, format } from 'date-fns';
 
+export const maxDuration = 120;
+
 // CRON : snapshot hebdomadaire de la progression des apprenants.
 // Exécuté chaque lundi matin. Source : contrats_progressions (remplie par le sync Eduvia).
 // Cible : progression_snapshots_weekly, indexée par (contrat_id, semaine_debut).

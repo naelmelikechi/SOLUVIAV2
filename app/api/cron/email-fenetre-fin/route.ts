@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import { sendFenetreFinEmail } from '@/lib/email/notifications';
 
+export const maxDuration = 60;
+
 // Sent on the 2nd of each month: the billing window closes tomorrow (3rd).
 // Only CDPs with remaining pending echeances, plus all active admins.
 export async function GET(request: Request) {

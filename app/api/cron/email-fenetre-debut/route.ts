@@ -6,6 +6,8 @@ import { logger } from '@/lib/utils/logger';
 import { sendFenetreDebutEmail } from '@/lib/email/notifications';
 import { FENETRE_FACTURATION_FIN } from '@/lib/utils/constants';
 
+export const maxDuration = 60;
+
 // Sent on the 25th of each month to admins + CDPs with pending echeances.
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);

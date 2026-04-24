@@ -8,6 +8,8 @@ import {
   type FactureRetardItem,
 } from '@/lib/email/notifications';
 
+export const maxDuration = 60;
+
 // Weekly digest (Monday 9h Paris) of overdue invoices sent to all active admins.
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);

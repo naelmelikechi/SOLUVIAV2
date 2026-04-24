@@ -6,6 +6,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import { sendRapportMensuelEmail } from '@/lib/email/notifications';
 
+export const maxDuration = 120;
+
 // Sent on the 1st of each month to active admins: recap of the previous month.
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);

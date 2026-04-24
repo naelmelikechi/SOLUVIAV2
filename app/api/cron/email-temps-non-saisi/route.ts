@@ -9,6 +9,8 @@ import {
 } from '@/lib/email/notifications';
 import { MAX_HEURES_JOUR } from '@/lib/utils/constants';
 
+export const maxDuration = 60;
+
 // Weekly reminder email to CDPs (Friday 12h Paris): recap of hours logged
 // Monday -> Friday morning, with how much is still missing + reminder to fill
 // Friday afternoon before the weekend.

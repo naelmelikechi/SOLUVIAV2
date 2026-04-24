@@ -3,6 +3,8 @@ import { verifyCronAuth } from '@/lib/utils/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 
+export const maxDuration = 30;
+
 /**
  * Deletes team_messages older than 48 hours.
  * Wired to hourly Vercel cron (see vercel.json).

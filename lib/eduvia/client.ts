@@ -206,7 +206,16 @@ async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** GET with timeout + exponential backoff on 5xx / network errors. 404 throws EndpointNotAvailableError, 401/403 throw immediately. */
+/**
+ * Ajoute un jitter de +/- 20 % au delay pour eviter le thundering herd quand
+ * plusieurs workers retentent au meme instant.
+ */
+function jittered(ms: number): number {
+  const span = ms * 0.2;
+  return Math.round(ms + (Math.random() * 2 - 1) * span);
+}
+
+/** GET with timeout + exponential backoff (+/- 20 % jitter) on 5xx / network errors. 404 throws EndpointNotAvailableError, 401/403 throw immediately. */
 async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
   let lastErr: unknown = null;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -220,7 +229,15 @@ async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT),
       });
 
-      if (response.ok) return (await response.json()) as T;
+      if (response.ok) {
+        if (attempt > 0) {
+          logger.info('eduvia.client', 'fetch recovered after retry', {
+            url,
+            attempts: attempt + 1,
+          });
+        }
+        return (await response.json()) as T;
+      }
 
       if (response.status === 404) {
         const resource = new URL(url).pathname.replace(/^\/api\/v1\//, '');
@@ -231,7 +248,14 @@ async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
       }
       if (response.status >= 500 && attempt < MAX_RETRIES) {
         lastErr = new Error(`HTTP ${response.status} on ${url}`);
-        await sleep(RETRY_BACKOFF_MS[attempt] ?? 4_000);
+        const delay = jittered(RETRY_BACKOFF_MS[attempt] ?? 4_000);
+        logger.warn('eduvia.client', 'server error, will retry', {
+          url,
+          status: response.status,
+          attempt: attempt + 1,
+          nextDelayMs: delay,
+        });
+        await sleep(delay);
         continue;
       }
 
@@ -254,7 +278,14 @@ async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
       // Timeouts, DNS, TLS - retry
       if (attempt < MAX_RETRIES) {
         lastErr = err;
-        await sleep(RETRY_BACKOFF_MS[attempt] ?? 4_000);
+        const delay = jittered(RETRY_BACKOFF_MS[attempt] ?? 4_000);
+        logger.warn('eduvia.client', 'network error, will retry', {
+          url,
+          attempt: attempt + 1,
+          nextDelayMs: delay,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        await sleep(delay);
         continue;
       }
       throw err;

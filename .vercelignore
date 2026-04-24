@@ -15,6 +15,7 @@ supabase/.branches/
 supabase/.temp/
 
 # Donnees brutes metier, gardees en local
+_local/
 *.xlsx
 *.xls
 *.csv

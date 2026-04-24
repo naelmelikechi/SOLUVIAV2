@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database, Json } from '@/types/database';
 import { logger } from '@/lib/utils/logger';
 
 const SCOPE = 'email.send-log';
@@ -12,20 +13,16 @@ const SCOPE = 'email.send-log';
  * constraint (job, periode_key) : on recupere 23505 et on renvoie false.
  */
 export async function tryAcquireEmailLock(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: SupabaseClient<any, 'public', any>,
+  supabase: SupabaseClient<Database>,
   job: string,
   periodeKey: string,
-  metadata?: Record<string, unknown>,
+  metadata?: Record<string, Json>,
 ): Promise<boolean> {
-  const { error } = await supabase
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .from('email_send_log' as any)
-    .insert({
-      job,
-      periode_key: periodeKey,
-      metadata: metadata ?? null,
-    });
+  const { error } = await supabase.from('email_send_log').insert({
+    job,
+    periode_key: periodeKey,
+    metadata: (metadata ?? null) as Json | null,
+  });
 
   if (!error) return true;
 

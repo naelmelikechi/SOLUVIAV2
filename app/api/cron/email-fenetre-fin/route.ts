@@ -3,6 +3,8 @@ import { verifyCronAuth } from '@/lib/utils/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import { sendFenetreFinEmail } from '@/lib/email/notifications';
+import { tryAcquireEmailLock } from '@/lib/email/send-log';
+import { format } from 'date-fns';
 
 export const maxDuration = 60;
 
@@ -13,6 +15,19 @@ export async function GET(request: Request) {
   if (authError) return authError;
 
   const supabase = createAdminClient();
+
+  const lockAcquired = await tryAcquireEmailLock(
+    supabase,
+    'email-fenetre-fin',
+    format(new Date(), 'yyyy-MM'),
+  );
+  if (!lockAcquired) {
+    return NextResponse.json({
+      success: true,
+      sent: 0,
+      skipped: 'already_sent',
+    });
+  }
 
   try {
     // Pending echeances grouped by CDP

@@ -7,6 +7,7 @@ import {
   sendFacturesRetardDigestEmail,
   type FactureRetardItem,
 } from '@/lib/email/notifications';
+import { tryAcquireEmailLock, isoWeekKey } from '@/lib/email/send-log';
 
 export const maxDuration = 60;
 
@@ -18,6 +19,19 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd');
+
+  const lockAcquired = await tryAcquireEmailLock(
+    supabase,
+    'email-factures-retard',
+    isoWeekKey(today),
+  );
+  if (!lockAcquired) {
+    return NextResponse.json({
+      success: true,
+      sent: 0,
+      skipped: 'already_sent',
+    });
+  }
 
   try {
     // Fetch overdue invoices + client name

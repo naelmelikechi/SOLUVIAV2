@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import { sendFenetreDebutEmail } from '@/lib/email/notifications';
 import { FENETRE_FACTURATION_FIN } from '@/lib/utils/constants';
+import { tryAcquireEmailLock } from '@/lib/email/send-log';
 
 export const maxDuration = 60;
 
@@ -23,6 +24,19 @@ export async function GET(request: Request) {
     FENETRE_FACTURATION_FIN,
   );
   const dateFinStr = format(dateFinFenetre, 'yyyy-MM-dd');
+
+  const lockAcquired = await tryAcquireEmailLock(
+    supabase,
+    'email-fenetre-debut',
+    format(today, 'yyyy-MM'),
+  );
+  if (!lockAcquired) {
+    return NextResponse.json({
+      success: true,
+      sent: 0,
+      skipped: 'already_sent',
+    });
+  }
 
   try {
     // Fetch pending echeances grouped by CDP

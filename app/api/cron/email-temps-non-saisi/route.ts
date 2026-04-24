@@ -8,6 +8,7 @@ import {
   type JourSaisie,
 } from '@/lib/email/notifications';
 import { MAX_HEURES_JOUR } from '@/lib/utils/constants';
+import { tryAcquireEmailLock, isoWeekKey } from '@/lib/email/send-log';
 
 export const maxDuration = 60;
 
@@ -25,6 +26,19 @@ export async function GET(request: Request) {
   const weekDayStrs = weekDays.map((d) => format(d, 'yyyy-MM-dd'));
   const mondayStr = weekDayStrs[0]!;
   const fridayStr = weekDayStrs[4]!;
+
+  const lockAcquired = await tryAcquireEmailLock(
+    supabase,
+    'email-temps-non-saisi',
+    isoWeekKey(today),
+  );
+  if (!lockAcquired) {
+    return NextResponse.json({
+      success: true,
+      sent: 0,
+      skipped: 'already_sent',
+    });
+  }
 
   try {
     // Fetch jours fériés of the current week

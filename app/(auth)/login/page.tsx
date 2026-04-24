@@ -1,41 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
+import { loginAction } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+const INITIAL_STATE = {
+  success: false as boolean,
+  error: undefined as string | undefined,
+};
+
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [state, formAction, pending] = useActionState(
+    loginAction,
+    INITIAL_STATE,
+  );
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
+  useEffect(() => {
+    if (state.success) {
+      router.refresh();
+      router.push('/projets');
     }
-
-    router.refresh();
-    router.push('/projets');
-  }
+  }, [state.success, router]);
 
   return (
     <div className="border-border bg-card mx-auto max-w-md rounded-lg border p-8">
@@ -53,18 +44,17 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form action={formAction} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
+            name="email"
             type="email"
             placeholder="vous@exemple.fr"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
-            disabled={loading}
+            disabled={pending}
           />
         </div>
 
@@ -72,24 +62,23 @@ export default function LoginPage() {
           <Label htmlFor="password">Mot de passe</Label>
           <Input
             id="password"
+            name="password"
             type="password"
             placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            disabled={loading}
+            disabled={pending}
           />
         </div>
 
-        {error && (
+        {state.error && (
           <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/50 dark:text-red-400">
-            {error}
+            {state.error}
           </div>
         )}
 
-        <Button type="submit" className="w-full" size="lg" disabled={loading}>
-          {loading ? 'Connexion...' : 'Se connecter'}
+        <Button type="submit" className="w-full" size="lg" disabled={pending}>
+          {pending ? 'Connexion...' : 'Se connecter'}
         </Button>
       </form>
 

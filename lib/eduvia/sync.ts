@@ -560,15 +560,32 @@ export async function syncAllEduviaClients(
     }
 
     try {
-      // Mirror testApiKeyConnection's behavior: if ENCRYPTION_KEY is not set
-      // or the stored value isn't in the iv:authTag:ciphertext format, treat
-      // the column as plaintext (addClientApiKey falls back to plaintext on
-      // insert when ENCRYPTION_KEY is missing, so this keeps parity).
+      // Dechiffrement strict: une ligne en plaintext (heritage du fallback
+      // desormais supprime) ou une ENCRYPTION_KEY absente fait echouer ce
+      // client et on passe au suivant. L'admin doit recreer la cle pour
+      // la remettre en service.
       let apiKey: string;
       try {
         apiKey = decryptApiKey(api_key_encrypted);
-      } catch {
-        apiKey = api_key_encrypted;
+      } catch (err) {
+        logger.error('eduvia_sync', 'dechiffrement cle API impossible', {
+          clientId: client_id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        syncResult.results.push({
+          clientId: client_id,
+          contrats: 0,
+          apprenants: 0,
+          formations: 0,
+          companies: 0,
+          progressions: 0,
+          invoice_steps: 0,
+          invoice_forecast_steps: 0,
+          errors: [
+            'Cle API non dechiffrable (ENCRYPTION_KEY manquante ou cle stockee en clair). Recreez la cle pour la reactiver.',
+          ],
+        });
+        continue;
       }
       const clientResult = await syncEduviaForClient(
         supabase,

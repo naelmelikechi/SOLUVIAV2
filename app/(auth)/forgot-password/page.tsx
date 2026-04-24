@@ -1,38 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useActionState, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
+import { requestPasswordResetAction } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+const INITIAL_STATE = {
+  success: false as boolean,
+  error: undefined as string | undefined,
+};
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/api/auth/callback`,
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
-
-    setSuccess(true);
-    setLoading(false);
-  }
+  const [state, formAction, pending] = useActionState(
+    requestPasswordResetAction,
+    INITIAL_STATE,
+  );
+  const submitted = state.success;
 
   return (
     <div className="border-border bg-card mx-auto max-w-md rounded-lg border p-8">
@@ -53,11 +40,12 @@ export default function ForgotPasswordPage() {
         </p>
       </div>
 
-      {success ? (
+      {submitted ? (
         <div className="space-y-4">
           <div className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-950/50 dark:text-green-400">
-            Un email a été envoyé à <span className="font-medium">{email}</span>
-            . Vérifiez votre boîte de réception.
+            Si un compte correspond à{' '}
+            <span className="font-medium">{email}</span>, un email vient
+            d&apos;être envoyé. Vérifiez votre boîte de réception.
           </div>
           <div className="text-center">
             <Link
@@ -70,24 +58,32 @@ export default function ForgotPasswordPage() {
         </div>
       ) : (
         <>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form action={formAction} className="space-y-4">
+            <input
+              type="hidden"
+              name="origin"
+              value={
+                typeof window !== 'undefined' ? window.location.origin : ''
+              }
+            />
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="vous@exemple.fr"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                disabled={loading}
+                disabled={pending}
               />
             </div>
 
-            {error && (
+            {state.error && (
               <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/50 dark:text-red-400">
-                {error}
+                {state.error}
               </div>
             )}
 
@@ -95,9 +91,9 @@ export default function ForgotPasswordPage() {
               type="submit"
               className="w-full"
               size="lg"
-              disabled={loading}
+              disabled={pending}
             >
-              {loading ? 'Envoi en cours...' : 'Envoyer le lien'}
+              {pending ? 'Envoi en cours...' : 'Envoyer le lien'}
             </Button>
           </form>
 

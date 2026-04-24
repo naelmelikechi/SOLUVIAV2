@@ -25,10 +25,14 @@ export async function GET(request: Request) {
   );
   const dateFinStr = format(dateFinFenetre, 'yyyy-MM-dd');
 
+  // Cle d'idempotence indexee sur la fenetre cible (mois de fermeture), pas
+  // sur la date courante: si Vercel rejoue le cron apres minuit ou deborde
+  // sur le jour suivant, la cle reste identique et l'email ne part pas deux
+  // fois. `dateFinFenetre` porte le mois metier, donc c'est le bon ancrage.
   const lockAcquired = await tryAcquireEmailLock(
     supabase,
     'email-fenetre-debut',
-    format(today, 'yyyy-MM'),
+    format(dateFinFenetre, 'yyyy-MM'),
   );
   if (!lockAcquired) {
     return NextResponse.json({

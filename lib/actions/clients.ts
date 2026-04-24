@@ -427,13 +427,16 @@ export async function addClientApiKey(
   try {
     apiKeyEncrypted = encryptApiKey(data.apiKey.trim());
   } catch (err) {
-    logger.warn(
+    logger.error(
       'actions.clients',
-      'ENCRYPTION_KEY non disponible, stockage en clair',
+      'ENCRYPTION_KEY manquante: refus de stocker la cle API en clair',
       { error: err instanceof Error ? err.message : String(err) },
     );
-    // Fallback: store as-is when ENCRYPTION_KEY is not configured
-    apiKeyEncrypted = data.apiKey.trim();
+    return {
+      success: false,
+      error:
+        'Configuration serveur invalide: le chiffrement des cles API est indisponible. Contactez un administrateur.',
+    };
   }
 
   const { error } = await supabase.from('client_api_keys').insert({
@@ -586,9 +589,16 @@ export async function testApiKeyConnection(
   let apiKey: string;
   try {
     apiKey = decryptApiKey(keyRow.api_key_encrypted);
-  } catch {
-    // If decryption fails, try using the raw value (unencrypted fallback)
-    apiKey = keyRow.api_key_encrypted;
+  } catch (err) {
+    logger.error('actions.clients', 'dechiffrement cle API impossible', {
+      error: err instanceof Error ? err.message : String(err),
+      keyId,
+    });
+    return {
+      success: false,
+      error:
+        'Impossible de dechiffrer la cle API. Verifiez la configuration ENCRYPTION_KEY ou recreez la cle.',
+    };
   }
 
   // Use the same URL construction as the sync engine so "test connection"

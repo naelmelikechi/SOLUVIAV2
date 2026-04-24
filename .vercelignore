@@ -2,3 +2,19 @@
 .env*.local
 .env.development.local
 .env.production.local
+
+# Dossiers non necessaires au runtime Vercel
+.claude/
+.superpowers/
+.husky/
+docs/
+specs/
+supabase/migrations/
+supabase/snippets/
+supabase/.branches/
+supabase/.temp/
+
+# Donnees brutes metier, gardees en local
+*.xlsx
+*.xls
+*.csv

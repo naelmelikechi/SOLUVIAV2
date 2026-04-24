@@ -44,8 +44,33 @@ function serializeError(err: unknown): LogRecord['error'] {
   return { name: 'Unknown', message: String(err) };
 }
 
+function forwardToSentry(record: LogRecord): void {
+  if (record.level !== 'error' && record.level !== 'warn') return;
+  if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
+  // Dynamic import evite de tirer Sentry dans le bundle si non configure.
+  void import('@sentry/nextjs').then((Sentry) => {
+    if (record.error) {
+      const err = new Error(record.error.message);
+      err.name = record.error.name;
+      if (record.error.stack) err.stack = record.error.stack;
+      Sentry.captureException(err, {
+        level: record.level === 'warn' ? 'warning' : 'error',
+        tags: { scope: record.scope },
+        extra: record.context,
+      });
+    } else {
+      Sentry.captureMessage(record.message, {
+        level: record.level === 'warn' ? 'warning' : 'error',
+        tags: { scope: record.scope },
+        extra: record.context,
+      });
+    }
+  });
+}
+
 function emit(record: LogRecord): void {
   const { level } = record;
+  forwardToSentry(record);
   if (isProduction) {
     // Single-line JSON for log collectors
     const line = JSON.stringify(record);

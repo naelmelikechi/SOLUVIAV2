@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/utils/rate-limit';
 import { logger } from '@/lib/utils/logger';
+import { getRequestId } from '@/lib/utils/request-id';
 
 // Auth actions server-side. Le login etait fait client-side, ce qui rendait
 // impossible le rate limit (l'appel sortait directement vers Supabase). On
@@ -33,7 +34,7 @@ export async function loginAction(
     return { success: false, error: 'Email et mot de passe sont requis.' };
   }
 
-  const ip = await getClientIp();
+  const [ip, requestId] = await Promise.all([getClientIp(), getRequestId()]);
   // Limite combinee IP+email pour ne pas bloquer un bureau partage sur un
   // seul email tape, tout en empechant un balayage par un attaquant.
   const limit = await checkRateLimit('login', `${ip}:${email}`, {
@@ -41,7 +42,11 @@ export async function loginAction(
     windowSeconds: 5 * 60,
   });
   if (limit.limited) {
-    logger.warn('actions.auth', 'login rate limit hit', { ip, email });
+    logger.warn('actions.auth', 'login rate limit hit', {
+      ip,
+      email,
+      requestId,
+    });
     return {
       success: false,
       error: `Trop de tentatives. Reessayez dans ${limit.retryAfter}s.`,
@@ -57,6 +62,7 @@ export async function loginAction(
     logger.info('actions.auth', 'login failure', {
       email,
       code: error.code,
+      requestId,
     });
     return { success: false, error: 'Identifiants invalides.' };
   }
@@ -75,7 +81,7 @@ export async function requestPasswordResetAction(
     return { success: false, error: "L'email est requis." };
   }
 
-  const ip = await getClientIp();
+  const [ip, requestId] = await Promise.all([getClientIp(), getRequestId()]);
   const limit = await checkRateLimit('password-reset', `${ip}:${email}`, {
     limit: 3,
     windowSeconds: 60 * 60,
@@ -83,7 +89,11 @@ export async function requestPasswordResetAction(
   if (limit.limited) {
     // Toujours repondre success pour ne pas reveler l'existence d'un email
     // (enumeration). Le rate limit lui-meme n'expose pas cette info.
-    logger.warn('actions.auth', 'password reset rate limit hit', { ip, email });
+    logger.warn('actions.auth', 'password reset rate limit hit', {
+      ip,
+      email,
+      requestId,
+    });
     return { success: true };
   }
 
@@ -99,6 +109,7 @@ export async function requestPasswordResetAction(
     logger.error('actions.auth', 'password reset failed', {
       email,
       code: error.code,
+      requestId,
     });
     // Reponse neutre: on ne revele pas si l'email existe.
     return { success: true };

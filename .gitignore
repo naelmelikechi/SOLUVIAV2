@@ -50,4 +50,5 @@ supabase/.branches/
 
 # Raw data files (kept local only)
 *.xlsx
+_local/
 .claude/

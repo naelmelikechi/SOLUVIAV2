@@ -832,6 +832,33 @@ export type Database = {
           },
         ];
       };
+      email_send_log: {
+        Row: {
+          id: string;
+          job: string;
+          metadata: Json | null;
+          periode_key: string;
+          recipients_count: number | null;
+          sent_at: string;
+        };
+        Insert: {
+          id?: string;
+          job: string;
+          metadata?: Json | null;
+          periode_key: string;
+          recipients_count?: number | null;
+          sent_at?: string;
+        };
+        Update: {
+          id?: string;
+          job?: string;
+          metadata?: Json | null;
+          periode_key?: string;
+          recipients_count?: number | null;
+          sent_at?: string;
+        };
+        Relationships: [];
+      };
       facture_lignes: {
         Row: {
           contrat_id: string;

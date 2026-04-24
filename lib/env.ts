@@ -72,15 +72,26 @@ const serverSchema = z
     // Skip fail-fast checks for prod-required vars during `next build`
     // (build time has no DB/cron/email, so requiring them would break CI).
     NEXT_PHASE: z.string().optional(),
+
+    // Vercel-injected env: 'production' | 'preview' | 'development'.
+    // Sur Vercel, NODE_ENV vaut 'production' pour les previews ET la prod,
+    // donc on gate les checks stricts sur VERCEL_ENV pour laisser un
+    // preview booter meme sans tous les secrets prod configures.
+    VERCEL_ENV: z.enum(['production', 'preview', 'development']).optional(),
   })
   .superRefine((data, ctx) => {
-    // In production runtime (not at build), require the secrets that gate
-    // security-critical features. Fail-fast at boot rather than silently
-    // degrading (e.g. storing API keys in plaintext).
+    // Ne pas bloquer pendant `next build` (pas d'acces DB/cron/email).
     const isBuild =
       data.NEXT_PHASE === 'phase-production-build' ||
       process.env.NEXT_PHASE === 'phase-production-build';
-    if (data.NODE_ENV !== 'production' || isBuild) return;
+    if (isBuild) return;
+
+    // Sur Vercel: on exige uniquement sur la prod (pas les previews).
+    // Hors Vercel (self-hosted, tests e2e): on retombe sur NODE_ENV.
+    const isStrictProd = data.VERCEL_ENV
+      ? data.VERCEL_ENV === 'production'
+      : data.NODE_ENV === 'production';
+    if (!isStrictProd) return;
 
     const required: Array<keyof typeof data> = [
       'SUPABASE_SERVICE_ROLE_KEY',
@@ -130,6 +141,7 @@ function parseEnv(): Env {
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN?.trim(),
     NODE_ENV: process.env.NODE_ENV?.trim(),
     NEXT_PHASE: process.env.NEXT_PHASE?.trim(),
+    VERCEL_ENV: process.env.VERCEL_ENV?.trim(),
   };
 
   const schema = isServer ? serverSchema : clientSchema;

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: '14.5';
   };
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
   public: {
     Tables: {
       apprenants: {
@@ -307,6 +332,7 @@ export type Database = {
           created_at: string;
           date_entree: string | null;
           id: string;
+          is_demo: boolean;
           localisation: string | null;
           numero_nda: string | null;
           numero_qualiopi: string | null;
@@ -325,6 +351,7 @@ export type Database = {
           created_at?: string;
           date_entree?: string | null;
           id?: string;
+          is_demo?: boolean;
           localisation?: string | null;
           numero_nda?: string | null;
           numero_qualiopi?: string | null;
@@ -343,6 +370,7 @@ export type Database = {
           created_at?: string;
           date_entree?: string | null;
           id?: string;
+          is_demo?: boolean;
           localisation?: string | null;
           numero_nda?: string | null;
           numero_qualiopi?: string | null;
@@ -2197,6 +2225,9 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       cible_idee: ['eduvia', 'soluvia', 'workflow', 'autre'],

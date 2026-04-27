@@ -18,6 +18,10 @@ export interface OdooInvoicePayload {
     price_unit: number;
   }>;
   is_credit_note: boolean;
+  // Quand true, la facture reste en draft cote Odoo (pas de action_post).
+  // Utilise pour les clients de demo (clients.is_demo = true) afin que les
+  // factures de test n entrent pas dans les livres comptables.
+  is_draft?: boolean;
 }
 
 export interface OdooPayment {
@@ -239,14 +243,21 @@ class OdooJsonRpcClient implements OdooClient {
       },
     ]);
 
-    // Post the invoice (draft -> posted)
-    await this.executeKw<boolean>('account.move', 'action_post', [[moveId]]);
+    // Post the invoice (draft -> posted) sauf si is_draft (mode demo)
+    if (!payload.is_draft) {
+      await this.executeKw<boolean>('account.move', 'action_post', [[moveId]]);
+    }
 
-    logger.info(SCOPE, 'Posted move', {
-      ref: payload.ref,
-      odoo_id: moveId,
-      type: moveType,
-    });
+    logger.info(
+      SCOPE,
+      payload.is_draft ? 'Created draft move' : 'Posted move',
+      {
+        ref: payload.ref,
+        odoo_id: moveId,
+        type: moveType,
+        is_draft: payload.is_draft ?? false,
+      },
+    );
     return { odoo_id: String(moveId) };
   }
 

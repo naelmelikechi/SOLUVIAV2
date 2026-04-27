@@ -21,6 +21,7 @@ interface ClientData {
   numero_qualiopi?: string | null;
   numero_nda?: string | null;
   numero_uai?: string | null;
+  is_demo?: boolean;
 }
 
 export async function createClientAction(
@@ -59,6 +60,7 @@ export async function createClientAction(
       numero_qualiopi: data.numero_qualiopi?.trim() || null,
       numero_nda: data.numero_nda?.trim() || null,
       numero_uai: data.numero_uai?.trim() || null,
+      is_demo: data.is_demo ?? false,
     })
     .select('id')
     .single();
@@ -111,6 +113,7 @@ export async function updateClientAction(
       numero_qualiopi: data.numero_qualiopi?.trim() || null,
       numero_nda: data.numero_nda?.trim() || null,
       numero_uai: data.numero_uai?.trim() || null,
+      is_demo: data.is_demo ?? false,
     })
     .eq('id', id);
 

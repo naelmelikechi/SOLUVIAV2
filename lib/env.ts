@@ -47,6 +47,11 @@ const serverSchema = z
     // Resend - email sending, optional (emails skipped if missing)
     RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required').optional(),
 
+    // Email override - quand defini, tous les emails sortants sont rediriges
+    // vers cette adresse (sujet prefixe par "[DEMO -> original@x]"). Sert
+    // pour le mode demo / staging. Ne JAMAIS positionner en prod reelle.
+    EMAIL_OVERRIDE: z.string().email().optional(),
+
     // Giphy - team chat GIF search, optional (GIF search disabled if missing)
     GIPHY_API_KEY: z.string().min(1, 'GIPHY_API_KEY is required').optional(),
 
@@ -135,6 +140,7 @@ function parseEnv(): Env {
     CRON_SECRET: process.env.CRON_SECRET?.trim(),
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY?.trim(),
     RESEND_API_KEY: process.env.RESEND_API_KEY?.trim(),
+    EMAIL_OVERRIDE: process.env.EMAIL_OVERRIDE?.trim(),
     GIPHY_API_KEY: process.env.GIPHY_API_KEY?.trim(),
     AVATAR_UNLOCK_SECRET: process.env.AVATAR_UNLOCK_SECRET?.trim(),
     SENTRY_DSN: process.env.SENTRY_DSN?.trim(),

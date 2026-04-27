@@ -1,15 +1,14 @@
-import { Resend } from 'resend';
 import { createElement, type ReactElement } from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
-import { env } from '@/lib/env';
 import { logger } from '@/lib/utils/logger';
 import { formatDate } from '@/lib/utils/formatters';
 import { buildFactureEmailHtml } from '@/lib/email/templates';
+import { sendEmail } from '@/lib/email/_send';
 import { FacturePdf } from '@/components/facturation/facture-pdf';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
-const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+const FROM_FACTURATION = 'SOLUVIA Facturation <contact@mysoluvia.com>';
 
 export async function sendFactureEmail(params: {
   to: string;
@@ -19,40 +18,22 @@ export async function sendFactureEmail(params: {
   dateEcheance: string;
   pdfBuffer: Buffer;
 }): Promise<{ success: boolean; error?: string }> {
-  if (!resend) {
-    logger.warn('email', 'RESEND_API_KEY non configuré - email non envoyé');
-    return { success: false, error: 'Service email non configuré' };
-  }
-
   const subject = params.isAvoir
     ? `Avoir ${params.factureRef} - SOLUVIA`
     : `Facture ${params.factureRef} - SOLUVIA`;
 
-  try {
-    await resend.emails.send({
-      from: 'SOLUVIA Facturation <contact@mysoluvia.com>',
-      to: params.to,
-      subject,
-      html: buildFactureEmailHtml(params),
-      attachments: [
-        {
-          filename: `${params.factureRef}.pdf`,
-          content: params.pdfBuffer,
-        },
-      ],
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error('email', 'Échec envoi email', {
-      error,
-      to: params.to,
-      ref: params.factureRef,
-    });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-    };
-  }
+  return sendEmail({
+    from: FROM_FACTURATION,
+    to: params.to,
+    subject,
+    html: buildFactureEmailHtml(params),
+    attachments: [
+      {
+        filename: `${params.factureRef}.pdf`,
+        content: params.pdfBuffer,
+      },
+    ],
+  });
 }
 
 /**
@@ -152,10 +133,6 @@ export async function sendRelanceEmail(
   factureId: string,
   supabase: SupabaseClient<Database>,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!resend) {
-    return { success: false, error: 'Service email non configuré' };
-  }
-
   // Fetch facture
   const { data: facture } = await supabase
     .from('factures')
@@ -230,25 +207,21 @@ export async function sendRelanceEmail(
 </body>
 </html>`;
 
-  try {
-    await resend.emails.send({
-      from: 'SOLUVIA Facturation <contact@mysoluvia.com>',
-      to: contactEmail,
-      subject: `Rappel - Facture ${facture.ref} en attente de paiement`,
-      html,
-    });
-    return { success: true };
-  } catch (error) {
+  const result = await sendEmail({
+    from: FROM_FACTURATION,
+    to: contactEmail,
+    subject: `Rappel - Facture ${facture.ref} en attente de paiement`,
+    html,
+  });
+
+  if (!result.success && !result.skipped) {
     logger.error('email', 'Échec envoi relance', {
-      error,
       to: contactEmail,
       ref: facture.ref,
+      error: result.error,
     });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-    };
   }
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -262,31 +235,14 @@ export async function sendInvitationEmail(params: {
   role: string;
   tempPassword: string;
 }): Promise<{ success: boolean; error?: string }> {
-  if (!resend) {
-    logger.warn(
-      'email',
-      'RESEND_API_KEY non configuré - invitation email non envoyée',
-    );
-    return { success: false, error: 'Service email non configuré' };
-  }
-
   const html = buildInvitationEmailHtml(params);
 
-  try {
-    await resend.emails.send({
-      from: `${params.inviterName} via SOLUVIA <contact@mysoluvia.com>`,
-      to: params.to,
-      subject: `${params.inviterName} vous invite sur SOLUVIA`,
-      html,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error('email', 'Échec envoi invitation', { error, to: params.to });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-    };
-  }
+  return sendEmail({
+    from: `${params.inviterName} via SOLUVIA <contact@mysoluvia.com>`,
+    to: params.to,
+    subject: `${params.inviterName} vous invite sur SOLUVIA`,
+    html,
+  });
 }
 
 function buildInvitationEmailHtml(params: {

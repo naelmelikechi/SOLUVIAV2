@@ -55,7 +55,7 @@ async function pushFactures(
       `
       id, ref, date_emission, date_echeance, est_avoir,
       montant_ht, montant_ttc, taux_tva,
-      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire),
+      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo),
       lignes:facture_lignes(description, montant_ht)
     `,
     )
@@ -79,6 +79,7 @@ async function pushFactures(
         siret: string | null;
         raison_sociale: string | null;
         tva_intracommunautaire: string | null;
+        is_demo: boolean | null;
       } | null;
 
       const lines = (
@@ -102,6 +103,7 @@ async function pushFactures(
         taux_tva: Number(f.taux_tva ?? 20),
         lines,
         is_credit_note: false,
+        is_draft: client?.is_demo === true,
       };
 
       const result = await odoo.pushInvoice(payload);
@@ -169,7 +171,7 @@ async function pushAvoirs(
       `
       id, ref, date_emission, date_echeance,
       montant_ht, montant_ttc, taux_tva,
-      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire),
+      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo),
       lignes:facture_lignes(description, montant_ht)
     `,
     )
@@ -192,6 +194,7 @@ async function pushAvoirs(
         siret: string | null;
         raison_sociale: string | null;
         tva_intracommunautaire: string | null;
+        is_demo: boolean | null;
       } | null;
 
       const lines = (
@@ -215,6 +218,7 @@ async function pushAvoirs(
         taux_tva: Number(a.taux_tva ?? 20),
         lines,
         is_credit_note: true,
+        is_draft: client?.is_demo === true,
       };
 
       const result = await odoo.pushCreditNote(payload);

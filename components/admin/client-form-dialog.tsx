@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { createClientAction, updateClientAction } from '@/lib/actions/clients';
 import type { ClientDetail } from '@/lib/queries/clients';
@@ -60,6 +61,7 @@ function ClientFormContent({
   );
   const [numeroNda, setNumeroNda] = useState(client?.numero_nda ?? '');
   const [numeroUai, setNumeroUai] = useState(client?.numero_uai ?? '');
+  const [isDemo, setIsDemo] = useState(client?.is_demo ?? false);
 
   function handleSubmit() {
     if (!raisonSociale.trim()) {
@@ -84,6 +86,7 @@ function ClientFormContent({
       numero_qualiopi: numeroQualiopi || null,
       numero_nda: numeroNda || null,
       numero_uai: numeroUai || null,
+      is_demo: isDemo,
     };
 
     startTransition(async () => {
@@ -168,6 +171,28 @@ function ClientFormContent({
             value={localisation}
             onChange={(e) => setLocalisation(e.target.value)}
           />
+        </div>
+
+        <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-950/30">
+          <Checkbox
+            id="is_demo"
+            checked={isDemo}
+            onCheckedChange={(v) => setIsDemo(v === true)}
+            className="mt-0.5"
+          />
+          <div className="space-y-1">
+            <Label
+              htmlFor="is_demo"
+              className="cursor-pointer text-sm font-medium"
+            >
+              Client de démo
+            </Label>
+            <p className="text-muted-foreground text-xs">
+              Les factures de ce client sont poussées en draft dans Odoo (pas de
+              comptabilisation) et les emails sont redirigés vers EMAIL_OVERRIDE
+              si défini.
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

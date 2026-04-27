@@ -1,9 +1,5 @@
-import { Resend } from 'resend';
-import { env } from '@/lib/env';
-import { logger } from '@/lib/utils/logger';
+import { sendEmail } from '@/lib/email/_send';
 import { formatDate } from '@/lib/utils/formatters';
-
-const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 const FROM = 'SOLUVIA <contact@mysoluvia.com>';
 const APP_URL = 'https://app.mysoluvia.com';
@@ -79,8 +75,6 @@ export async function sendTempsHebdoRecapEmail(params: {
   jours: JourSaisie[];
   heuresManquantes: number;
 }): Promise<SendResult> {
-  if (!resend) return { success: false, error: 'Resend non configuré' };
-
   const { to, prenom, jours, heuresManquantes } = params;
 
   const rows = jours
@@ -133,21 +127,12 @@ export async function sendTempsHebdoRecapEmail(params: {
     ctaHref: `${APP_URL}/temps`,
   });
 
-  try {
-    await resend.emails.send({
-      from: FROM,
-      to,
-      subject: 'SOLUVIA - Récap hebdo de ta saisie du temps',
-      html,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error('email.notif.temps', 'Échec envoi', { to, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-    };
-  }
+  return sendEmail({
+    from: FROM,
+    to,
+    subject: 'SOLUVIA - Récap hebdo de ta saisie du temps',
+    html,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +151,6 @@ export async function sendFacturesRetardDigestEmail(params: {
   prenom: string;
   factures: FactureRetardItem[];
 }): Promise<SendResult> {
-  if (!resend) return { success: false, error: 'Resend non configuré' };
   if (params.factures.length === 0) return { success: true }; // nothing to send
 
   const { to, prenom, factures } = params;
@@ -217,21 +201,12 @@ export async function sendFacturesRetardDigestEmail(params: {
     ctaHref: `${APP_URL}/facturation`,
   });
 
-  try {
-    await resend.emails.send({
-      from: FROM,
-      to,
-      subject: `SOLUVIA - ${factures.length} facture${factures.length > 1 ? 's' : ''} en retard`,
-      html,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error('email.notif.factures-retard', 'Échec envoi', { to, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-    };
-  }
+  return sendEmail({
+    from: FROM,
+    to,
+    subject: `SOLUVIA - ${factures.length} facture${factures.length > 1 ? 's' : ''} en retard`,
+    html,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -244,8 +219,6 @@ export async function sendFenetreDebutEmail(params: {
   nbEcheances: number;
   dateFinFenetre: string;
 }): Promise<SendResult> {
-  if (!resend) return { success: false, error: 'Resend non configuré' };
-
   const { to, prenom, nbEcheances, dateFinFenetre } = params;
 
   const body = `
@@ -266,21 +239,12 @@ export async function sendFenetreDebutEmail(params: {
     ctaHref: `${APP_URL}/facturation`,
   });
 
-  try {
-    await resend.emails.send({
-      from: FROM,
-      to,
-      subject: 'SOLUVIA - Fenêtre de facturation ouverte',
-      html,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error('email.notif.fenetre-debut', 'Échec envoi', { to, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-    };
-  }
+  return sendEmail({
+    from: FROM,
+    to,
+    subject: 'SOLUVIA - Fenêtre de facturation ouverte',
+    html,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -292,8 +256,6 @@ export async function sendFenetreFinEmail(params: {
   prenom: string;
   nbEcheancesRestantes: number;
 }): Promise<SendResult> {
-  if (!resend) return { success: false, error: 'Resend non configuré' };
-
   const { to, prenom, nbEcheancesRestantes } = params;
   if (nbEcheancesRestantes === 0) return { success: true };
 
@@ -315,21 +277,12 @@ export async function sendFenetreFinEmail(params: {
     ctaHref: `${APP_URL}/facturation`,
   });
 
-  try {
-    await resend.emails.send({
-      from: FROM,
-      to,
-      subject: 'SOLUVIA - Dernier jour pour facturer',
-      html,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error('email.notif.fenetre-fin', 'Échec envoi', { to, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-    };
-  }
+  return sendEmail({
+    from: FROM,
+    to,
+    subject: 'SOLUVIA - Dernier jour pour facturer',
+    html,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -350,8 +303,6 @@ export async function sendRapportMensuelEmail(params: {
   prenom: string;
   kpis: RapportKpis;
 }): Promise<SendResult> {
-  if (!resend) return { success: false, error: 'Resend non configuré' };
-
   const { to, prenom, kpis } = params;
 
   const kpiRow = (label: string, value: string, accent?: string) => `
@@ -384,19 +335,10 @@ export async function sendRapportMensuelEmail(params: {
     ctaHref: `${APP_URL}/dashboard`,
   });
 
-  try {
-    await resend.emails.send({
-      from: FROM,
-      to,
-      subject: `SOLUVIA - Rapport du mois de ${kpis.moisPrecedent}`,
-      html,
-    });
-    return { success: true };
-  } catch (error) {
-    logger.error('email.notif.rapport', 'Échec envoi', { to, error });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-    };
-  }
+  return sendEmail({
+    from: FROM,
+    to,
+    subject: `SOLUVIA - Rapport du mois de ${kpis.moisPrecedent}`,
+    html,
+  });
 }

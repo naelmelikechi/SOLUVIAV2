@@ -322,6 +322,98 @@ export async function markIdeaImplemented(
 }
 
 // ---------------------------------------------------------------------------
+// Re-open a rejected idea as-is
+// ---------------------------------------------------------------------------
+
+export async function reopenIdea(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  const { supabase, user, role } = await getCaller();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('idees')
+    .select('auteur_id, titre, statut')
+    .eq('id', id)
+    .single();
+  if (fetchError || !existing) {
+    return { success: false, error: 'Idée introuvable' };
+  }
+  if (existing.statut !== 'rejetee') {
+    return {
+      success: false,
+      error: 'Seules les idées rejetées peuvent être rouvertes',
+    };
+  }
+  const isAuthor = existing.auteur_id === user.id;
+  const isAdminRole = isAdmin(role);
+  if (!isAuthor && !isAdminRole) {
+    return { success: false, error: 'Accès refusé' };
+  }
+
+  const { error } = await supabase
+    .from('idees')
+    .update({ statut: 'proposee', rejet_motif: null })
+    .eq('id', id);
+  if (error) return { success: false, error: error.message };
+
+  logAudit('idea_reopened', 'idee', id);
+  revalidatePath('/idees');
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// Re-open a rejected idea AND update its content
+// ---------------------------------------------------------------------------
+
+export async function reopenAndEditIdea(
+  id: string,
+  data: { titre: string; description?: string; cible: CibleIdee },
+): Promise<{ success: boolean; error?: string }> {
+  const titreCheck = requireString(data.titre, 'Le titre');
+  if (!titreCheck.ok) return { success: false, error: titreCheck.error };
+
+  const { supabase, user, role } = await getCaller();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('idees')
+    .select('auteur_id, statut')
+    .eq('id', id)
+    .single();
+  if (fetchError || !existing) {
+    return { success: false, error: 'Idée introuvable' };
+  }
+  if (existing.statut !== 'rejetee') {
+    return {
+      success: false,
+      error: 'Seules les idées rejetées peuvent être rouvertes',
+    };
+  }
+  const isAuthor = existing.auteur_id === user.id;
+  const isAdminRole = isAdmin(role);
+  if (!isAuthor && !isAdminRole) {
+    return { success: false, error: 'Accès refusé' };
+  }
+
+  const { error } = await supabase
+    .from('idees')
+    .update({
+      titre: titreCheck.value,
+      description: data.description?.trim() || null,
+      cible: data.cible,
+      statut: 'proposee',
+      rejet_motif: null,
+    })
+    .eq('id', id);
+  if (error) return { success: false, error: error.message };
+
+  logAudit('idea_reopened_with_edit', 'idee', id);
+  revalidatePath('/idees');
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
 // Archive an idea (admin only)
 // ---------------------------------------------------------------------------
 

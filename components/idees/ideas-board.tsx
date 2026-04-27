@@ -31,6 +31,7 @@ import {
   validateIdea,
   rejectIdea,
   markIdeaImplemented,
+  reopenIdea,
 } from '@/lib/actions/idees';
 import { IdeaColumn } from './idea-column';
 import { IdeaSubmitDialog } from './idea-submit-dialog';
@@ -54,7 +55,7 @@ const ALLOWED_TRANSITIONS: Record<StatutIdee, StatutIdee[]> = {
   proposee: ['validee', 'rejetee'],
   validee: ['implementee'],
   implementee: [],
-  rejetee: [],
+  rejetee: ['proposee'],
 };
 
 function isAllowedTransition(from: StatutIdee, to: StatutIdee): boolean {
@@ -200,6 +201,21 @@ export function IdeasBoard({
       if (!idee) return;
       setPendingReject({ id, titre: idee.titre });
       setRejectMotif('');
+      return;
+    }
+
+    if (to === 'proposee' && from === 'rejetee') {
+      setOverride(id, 'proposee');
+      startTransition(async () => {
+        const r = await reopenIdea(id);
+        if (r.success) {
+          toast.success('Idée remise en proposée');
+        } else {
+          clearOverride(id);
+          toast.error(r.error ?? 'Erreur');
+        }
+      });
+      return;
     }
   }
 
@@ -335,6 +351,7 @@ export function IdeasBoard({
       <IdeaDetailSheet
         idee={selected}
         currentUserId={currentUserId}
+        isAdmin={isAdmin}
         canValidate={canValidate}
         canShip={canShip}
         onOpenChange={(open) => !open && setSelected(null)}

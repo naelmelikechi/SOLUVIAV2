@@ -22,7 +22,11 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Lightbulb } from 'lucide-react';
-import { proposeIdea, updateProposedIdea } from '@/lib/actions/idees';
+import {
+  proposeIdea,
+  updateProposedIdea,
+  reopenAndEditIdea,
+} from '@/lib/actions/idees';
 import { CIBLE_IDEE_LABELS, type CibleIdee } from '@/lib/utils/constants';
 
 interface IdeaSubmitDialogProps {
@@ -34,12 +38,15 @@ interface IdeaSubmitDialogProps {
     description: string | null;
     cible: CibleIdee;
   };
+  /** When set, submit calls reopenAndEditIdea instead of updateProposedIdea */
+  reopenWithEditId?: string;
 }
 
 export function IdeaSubmitDialog({
   open,
   onOpenChange,
   initial,
+  reopenWithEditId,
 }: IdeaSubmitDialogProps) {
   const [titre, setTitre] = useState(initial?.titre ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
@@ -64,17 +71,30 @@ export function IdeaSubmitDialog({
         return;
       }
       startTransition(async () => {
-        const result = initial
-          ? await updateProposedIdea(initial.id, {
-              titre,
-              description,
-              cible,
-            })
-          : await proposeIdea({ titre, description, cible });
+        let result: { success: boolean; error?: string; id?: string };
+        if (reopenWithEditId) {
+          result = await reopenAndEditIdea(reopenWithEditId, {
+            titre,
+            description,
+            cible,
+          });
+        } else if (initial) {
+          result = await updateProposedIdea(initial.id, {
+            titre,
+            description,
+            cible,
+          });
+        } else {
+          result = await proposeIdea({ titre, description, cible });
+        }
         if (result.success) {
-          toast.success(initial ? 'Idée mise à jour' : 'Idée proposée');
+          if (reopenWithEditId) {
+            toast.success('Idée reouverte et modifiée');
+          } else {
+            toast.success(initial ? 'Idée mise à jour' : 'Idée proposée');
+          }
           onOpenChange(false);
-          if (!initial) {
+          if (!initial && !reopenWithEditId) {
             setTitre('');
             setDescription('');
             setCible('soluvia');
@@ -84,7 +104,7 @@ export function IdeaSubmitDialog({
         }
       });
     },
-    [titre, description, cible, initial, onOpenChange],
+    [titre, description, cible, initial, reopenWithEditId, onOpenChange],
   );
 
   useCmdEnter(handleSubmit, !isPending);
@@ -95,7 +115,11 @@ export function IdeaSubmitDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lightbulb className="text-primary h-4 w-4" />
-            {initial ? 'Modifier mon idée' : 'Proposer une idée'}
+            {reopenWithEditId
+              ? "Rouvrir et modifier l'idée"
+              : initial
+                ? 'Modifier mon idée'
+                : 'Proposer une idée'}
           </DialogTitle>
         </DialogHeader>
 
@@ -151,7 +175,13 @@ export function IdeaSubmitDialog({
             Annuler
           </Button>
           <Button onClick={handleSubmit} disabled={isPending || !titre.trim()}>
-            {isPending ? 'Envoi...' : initial ? 'Enregistrer' : 'Proposer'}
+            {isPending
+              ? 'Envoi...'
+              : reopenWithEditId
+                ? 'Rouvrir'
+                : initial
+                  ? 'Enregistrer'
+                  : 'Proposer'}
             {!isPending && <span className="ml-2 text-xs opacity-50">⌘↵</span>}
           </Button>
         </DialogFooter>

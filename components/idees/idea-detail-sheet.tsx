@@ -18,6 +18,7 @@ import {
   Rocket,
   Loader2,
   Pencil,
+  RotateCcw,
   User,
 } from 'lucide-react';
 import {
@@ -30,6 +31,7 @@ import {
   validateIdea,
   rejectIdea,
   markIdeaImplemented,
+  reopenIdea,
 } from '@/lib/actions/idees';
 import { toast } from 'sonner';
 import { formatDateLong } from '@/lib/utils/formatters';
@@ -39,6 +41,7 @@ import type { IdeeWithRefs } from '@/lib/queries/idees';
 interface IdeaDetailSheetProps {
   idee: IdeeWithRefs | null;
   currentUserId: string;
+  isAdmin: boolean;
   canValidate: boolean;
   canShip: boolean;
   onOpenChange: (open: boolean) => void;
@@ -47,6 +50,7 @@ interface IdeaDetailSheetProps {
 export function IdeaDetailSheet({
   idee,
   currentUserId,
+  isAdmin,
   canValidate,
   canShip,
   onOpenChange,
@@ -54,6 +58,7 @@ export function IdeaDetailSheet({
   const [rejectOpen, setRejectOpen] = useState(false);
   const [motif, setMotif] = useState('');
   const [editOpen, setEditOpen] = useState(false);
+  const [reopenEditOpen, setReopenEditOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   if (!idee) return null;
@@ -62,6 +67,7 @@ export function IdeaDetailSheet({
   const canEdit = isAuthor && idee.statut === 'proposee';
   const showValidateActions = canValidate && idee.statut === 'proposee';
   const showShipAction = canShip && idee.statut === 'validee';
+  const showReopenActions = idee.statut === 'rejetee' && (isAuthor || isAdmin);
 
   function handleValidate() {
     if (!idee) return;
@@ -97,6 +103,17 @@ export function IdeaDetailSheet({
       const r = await markIdeaImplemented(idee.id);
       if (r.success) {
         toast.success('Idée marquée comme implémentée');
+        onOpenChange(false);
+      } else toast.error(r.error ?? 'Erreur');
+    });
+  }
+
+  function handleReopen() {
+    if (!idee) return;
+    startTransition(async () => {
+      const r = await reopenIdea(idee.id);
+      if (r.success) {
+        toast.success('Idée remise en proposée');
         onOpenChange(false);
       } else toast.error(r.error ?? 'Erreur');
     });
@@ -219,7 +236,10 @@ export function IdeaDetailSheet({
             </section>
 
             {/* Actions */}
-            {(canEdit || showValidateActions || showShipAction) && (
+            {(canEdit ||
+              showValidateActions ||
+              showShipAction ||
+              showReopenActions) && (
               <section>
                 <Separator className="mb-4" />
                 <div className="space-y-2">
@@ -301,6 +321,32 @@ export function IdeaDetailSheet({
                       Marquer implémentée
                     </Button>
                   )}
+                  {showReopenActions && (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleReopen}
+                        disabled={isPending}
+                      >
+                        {isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                        )}
+                        Rouvrir
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setReopenEditOpen(true)}
+                        disabled={isPending}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Modifier et rouvrir
+                      </Button>
+                    </>
+                  )}
                 </div>
               </section>
             )}
@@ -318,6 +364,20 @@ export function IdeaDetailSheet({
             description: idee.description,
             cible: idee.cible,
           }}
+        />
+      )}
+
+      {showReopenActions && (
+        <IdeaSubmitDialog
+          open={reopenEditOpen}
+          onOpenChange={setReopenEditOpen}
+          initial={{
+            id: idee.id,
+            titre: idee.titre,
+            description: idee.description,
+            cible: idee.cible,
+          }}
+          reopenWithEditId={idee.id}
         />
       )}
     </>

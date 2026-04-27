@@ -39,6 +39,50 @@ export type Database = {
   };
   public: {
     Tables: {
+      absences: {
+        Row: {
+          created_at: string;
+          date_debut: string;
+          date_fin: string;
+          demi_jour_debut: boolean;
+          demi_jour_fin: boolean;
+          id: string;
+          type: Database['public']['Enums']['absence_type'];
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          date_debut: string;
+          date_fin: string;
+          demi_jour_debut?: boolean;
+          demi_jour_fin?: boolean;
+          id?: string;
+          type: Database['public']['Enums']['absence_type'];
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          date_debut?: string;
+          date_fin?: string;
+          demi_jour_debut?: boolean;
+          demi_jour_fin?: boolean;
+          id?: string;
+          type?: Database['public']['Enums']['absence_type'];
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'absences_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       apprenants: {
         Row: {
           contrat_id: string | null;
@@ -2079,6 +2123,7 @@ export type Database = {
       show_trgm: { Args: { '': string }; Returns: string[] };
     };
     Enums: {
+      absence_type: 'conges' | 'maladie';
       cible_idee: 'eduvia' | 'soluvia' | 'workflow' | 'autre';
       role_utilisateur: 'admin' | 'cdp' | 'superadmin' | 'commercial';
       scope_kpi: 'global' | 'projet' | 'cdp';
@@ -2230,6 +2275,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      absence_type: ['conges', 'maladie'],
       cible_idee: ['eduvia', 'soluvia', 'workflow', 'autre'],
       role_utilisateur: ['admin', 'cdp', 'superadmin', 'commercial'],
       scope_kpi: ['global', 'projet', 'cdp'],

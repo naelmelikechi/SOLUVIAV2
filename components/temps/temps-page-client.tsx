@@ -68,11 +68,10 @@ export function TempsPageClient({
     [absences, weekDates],
   );
 
-  /** Heures de projet par jour (hors absences) */
+  /** Heures de projet par jour */
   const saisiesHoursPerDate = useMemo<Record<string, number>>(() => {
     const map: Record<string, number> = {};
     for (const proj of saisies) {
-      if (proj.est_absence) continue;
       for (const [date, h] of Object.entries(proj.heures)) {
         map[date] = (map[date] ?? 0) + h;
       }
@@ -278,10 +277,7 @@ export function TempsPageClient({
               const MAX_H = 7;
               const absOnDay = absenceHoursMap[selectedCell.date] || 0;
               const otherOnDay = saisies
-                .filter(
-                  (s) =>
-                    s.projet_id !== selectedCell.projetId && !s.est_absence,
-                )
+                .filter((s) => s.projet_id !== selectedCell.projetId)
                 .reduce(
                   (sum, s) => sum + (s.heures[selectedCell.date] || 0),
                   0,
@@ -302,17 +298,15 @@ export function TempsPageClient({
                 .reduce(
                   (sum, d) =>
                     sum +
-                    saisies
-                      .filter((s) => !s.est_absence)
-                      .reduce(
-                        (s, saisie) =>
-                          s +
-                          (d === selectedCell.date &&
-                          saisie.projet_id === selectedCell.projetId
-                            ? 0
-                            : saisie.heures[d] || 0),
-                        0,
-                      ),
+                    saisies.reduce(
+                      (s, saisie) =>
+                        s +
+                        (d === selectedCell.date &&
+                        saisie.projet_id === selectedCell.projetId
+                          ? 0
+                          : saisie.heures[d] || 0),
+                      0,
+                    ),
                   0,
                 );
               return maxWeek - absTotal - currentWeek;

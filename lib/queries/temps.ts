@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
-import { ABSENCE_PROJECTS } from '@/lib/utils/constants';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -11,8 +10,6 @@ export interface SaisieTemps {
   projet_id: string;
   projet_ref: string;
   projet_label: string;
-  est_absence: boolean;
-  absence_type?: 'conges' | 'maladie' | 'ferie';
   /** date (ISO) -> heures */
   heures: Record<string, number>;
   /** date -> { axe_code -> heures } */
@@ -44,12 +41,6 @@ export function getWeekDates(weekOffset: number = 0): string[] {
 // getSaisiesForWeek
 // ---------------------------------------------------------------------------
 
-const ABSENCE_TYPE_MAP: Record<string, 'conges' | 'maladie' | 'ferie'> = {
-  [ABSENCE_PROJECTS.CONGES]: 'conges',
-  [ABSENCE_PROJECTS.MALADIE]: 'maladie',
-  [ABSENCE_PROJECTS.FERIES]: 'ferie',
-};
-
 export async function getSaisiesForWeek(
   weekDates: string[],
 ): Promise<SaisieTemps[]> {
@@ -60,7 +51,7 @@ export async function getSaisiesForWeek(
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  // 1. Fetch all active non-absence projets the user is assigned to (cdp or backup).
+  // 1. Fetch all active projets the user is assigned to (cdp or backup).
   //    These are always rendered in the grid, even with no saisies yet (lazy render:
   //    a DB row is only created when the user actually enters hours > 0).
   const { data: userProjets, error: projetsError } = await supabase
@@ -75,7 +66,6 @@ export async function getSaisiesForWeek(
     `,
     )
     .eq('archive', false)
-    .eq('est_absence', false)
     .eq('statut', 'actif')
     .or(`cdp_id.eq.${user.id},backup_cdp_id.eq.${user.id}`)
     .order('ref', { ascending: true });
@@ -102,7 +92,6 @@ export async function getSaisiesForWeek(
       heures,
       projet:projets!saisies_temps_projet_id_fkey (
         ref,
-        est_absence,
         client:clients!projets_client_id_fkey (
           raison_sociale
         )
@@ -163,31 +152,26 @@ export async function getSaisiesForWeek(
       projet_id: p.id,
       projet_ref: ref,
       projet_label: `${ref} - ${clientName}`,
-      est_absence: false,
       heures: {},
       axes: {},
     };
   }
 
-  // 5. Merge in existing saisies (will also add absence rows not in userProjets).
+  // 5. Merge in existing saisies (adds any projet rows not already in userProjets).
   for (const s of saisies ?? []) {
     const projet = s.projet as unknown as {
       ref: string | null;
-      est_absence: boolean;
       client: { raison_sociale: string } | null;
     };
 
     if (!grouped[s.projet_id]) {
       const ref = projet.ref ?? '';
       const clientName = projet.client?.raison_sociale ?? '';
-      const label = projet.est_absence ? ref : `${ref} - ${clientName}`;
 
       grouped[s.projet_id] = {
         projet_id: s.projet_id,
         projet_ref: ref,
-        projet_label: label,
-        est_absence: projet.est_absence,
-        absence_type: ABSENCE_TYPE_MAP[ref],
+        projet_label: `${ref} - ${clientName}`,
         heures: {},
         axes: {},
       };
@@ -308,14 +292,12 @@ export async function getUserProjets(): Promise<
       `
       id,
       ref,
-      est_absence,
       client:clients!projets_client_id_fkey (
         raison_sociale
       )
     `,
     )
     .eq('archive', false)
-    .eq('est_absence', false)
     .eq('statut', 'actif')
     .or(`cdp_id.eq.${user.id},backup_cdp_id.eq.${user.id}`)
     .order('ref', { ascending: true });
@@ -337,41 +319,4 @@ export async function getUserProjets(): Promise<
       label: `${p.ref ?? ''} - ${client?.raison_sociale ?? ''}`,
     };
   });
-}
-
-// ---------------------------------------------------------------------------
-// getAbsenceProjets - absence projects (congés, maladie, fériés)
-// ---------------------------------------------------------------------------
-
-export async function getAbsenceProjets(): Promise<
-  {
-    id: string;
-    ref: string;
-    label: string;
-    absence_type: 'conges' | 'maladie' | 'ferie';
-  }[]
-> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('projets')
-    .select('id, ref')
-    .eq('est_absence', true)
-    .eq('archive', false);
-
-  if (error) {
-    logger.error('queries.temps', 'getAbsenceProjets failed', { error });
-    throw new AppError(
-      'TEMPS_FETCH_FAILED',
-      'Impossible de charger les projets absence',
-      { cause: error },
-    );
-  }
-
-  return (data ?? []).map((p) => ({
-    id: p.id,
-    ref: p.ref ?? '',
-    label: p.ref ?? '',
-    absence_type: ABSENCE_TYPE_MAP[p.ref ?? ''] ?? 'conges',
-  }));
 }

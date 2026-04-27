@@ -5,7 +5,6 @@ import {
   getWeekDates,
   getSaisiesForWeek,
   getTeamWeekSummary,
-  getAbsenceProjets,
 } from '@/lib/queries/temps';
 
 // ---------------------------------------------------------------------------
@@ -206,14 +205,4 @@ export async function copyPreviousWeek(
     return { success: false, copied: 0, error: insertError.message };
 
   return { success: true, copied: rowsToInsert.length };
-}
-
-// ---------------------------------------------------------------------------
-// fetchAbsenceProjets - get absence projects (congés, maladie) for banner resolution
-// ---------------------------------------------------------------------------
-
-export async function fetchAbsenceProjets(): Promise<
-  { id: string; ref: string; label: string }[]
-> {
-  return getAbsenceProjets();
 }

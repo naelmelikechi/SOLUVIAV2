@@ -181,10 +181,3 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     adminOnly: true,
   },
 ];
-
-// Absence project refs
-export const ABSENCE_PROJECTS = {
-  CONGES: '9999-CON-ABS',
-  MALADIE: '9998-MAL-ABS',
-  FERIES: '9997-FER-ABS',
-} as const;

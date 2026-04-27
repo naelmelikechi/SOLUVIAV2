@@ -26,11 +26,7 @@ export async function getDashboardData() {
     contratsRes,
     staleContratsRes,
   ] = await Promise.all([
-    supabase
-      .from('projets')
-      .select('id')
-      .eq('statut', 'actif')
-      .eq('est_absence', false),
+    supabase.from('projets').select('id').eq('statut', 'actif'),
     supabase.from('factures').select('id, statut'),
     supabase.from('taches_qualite').select('id').eq('fait', false),
     supabase

@@ -12,7 +12,6 @@ export async function getQualiteSummaries() {
       'id, ref, statut, client:clients!projets_client_id_fkey(raison_sociale), cdp:users!projets_cdp_id_fkey(prenom, nom)',
     )
     .in('statut', ['actif', 'en_pause'])
-    .eq('est_absence', false)
     .order('ref');
   if (pError) {
     logger.error('queries.qualite', 'getQualiteSummaries failed (projets)', {

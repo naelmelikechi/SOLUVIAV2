@@ -16,7 +16,6 @@ export async function getProjetsList() {
       statut,
       date_debut,
       taux_commission,
-      est_absence,
       client:clients!projets_client_id_fkey (
         id,
         trigramme,
@@ -38,7 +37,6 @@ export async function getProjetsList() {
       )
     `,
     )
-    .eq('est_absence', false)
     .eq('archive', false)
     .order('ref', { ascending: true });
 
@@ -174,7 +172,6 @@ export async function getProjetByRef(ref: string) {
       statut,
       date_debut,
       taux_commission,
-      est_absence,
       client:clients!projets_client_id_fkey (
         id,
         trigramme,

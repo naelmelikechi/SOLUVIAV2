@@ -1,14 +1,8 @@
 'use client';
 
-import {
-  useState,
-  useCallback,
-  useTransition,
-  useMemo,
-  useEffect,
-} from 'react';
+import { useState, useCallback, useTransition, useMemo } from 'react';
 import Link from 'next/link';
-import { Copy, Download, Users } from 'lucide-react';
+import { Copy, Download, Plus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import {
@@ -16,23 +10,24 @@ import {
   saveSaisieTemps,
   saveSaisieTempsAxes,
   copyPreviousWeek,
-  fetchAbsenceProjets,
 } from '@/lib/actions/temps';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { TimeWeekNavigator } from '@/components/temps/time-week-navigator';
 import { TimeGrid } from '@/components/temps/time-grid';
 import { TimeAxisPanel } from '@/components/temps/time-axis-panel';
-import {
-  AbsenceBanner,
-  type AbsenceInfo,
-} from '@/components/temps/absence-banner';
+import { AbsenceBanner } from '@/components/temps/absence-banner';
+import { AbsenceFormDialog } from '@/components/temps/absence-form-dialog';
 import { formatHeures } from '@/lib/utils/formatters';
-import { ABSENCE_PROJECTS } from '@/lib/utils/constants';
+import {
+  computeAbsenceHoursPerDay,
+  type AbsencePeriod,
+} from '@/lib/utils/absences';
 
 interface TempsPageClientProps {
   weekDates: string[];
   initialSaisies: SaisieTemps[];
+  initialAbsences: AbsencePeriod[];
   isAdmin?: boolean;
   joursFeries?: Record<string, string>;
 }
@@ -40,6 +35,7 @@ interface TempsPageClientProps {
 export function TempsPageClient({
   weekDates: initialWeekDates,
   initialSaisies,
+  initialAbsences,
   isAdmin,
   joursFeries = {},
 }: TempsPageClientProps) {
@@ -53,156 +49,55 @@ export function TempsPageClient({
     date: string;
   } | null>(null);
 
-  // Absence projets IDs (needed by the banner to create saisies for congés/maladie)
-  const [absenceProjets, setAbsenceProjets] = useState<
-    { id: string; ref: string; label: string }[]
-  >([]);
-
   const selectedSaisie = selectedCell
     ? saisies.find((s) => s.projet_id === selectedCell.projetId)
     : null;
 
   // ---------------------------------------------------------------------------
-  // Split saisies into project rows vs absence data for the banner
+  // Absence state (nouvelle architecture - periodes)
   // ---------------------------------------------------------------------------
 
-  const absenceMap = useMemo<Record<string, AbsenceInfo>>(() => {
-    const map: Record<string, AbsenceInfo> = {};
-    for (const s of saisies) {
-      if (!s.est_absence || !s.absence_type) continue;
-      if (s.absence_type === 'ferie') continue; // holidays handled separately
-      for (const [date, hours] of Object.entries(s.heures)) {
-        if (hours > 0) {
-          map[date] = {
-            type: s.absence_type as 'conges' | 'maladie',
-            hours,
-          };
-        }
+  const [absences] = useState<AbsencePeriod[]>(initialAbsences);
+  const [editingAbsence, setEditingAbsence] = useState<
+    AbsencePeriod | undefined
+  >();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const absencesPerDate = useMemo(
+    () => computeAbsenceHoursPerDay(absences, weekDates),
+    [absences, weekDates],
+  );
+
+  /** Heures de projet par jour (hors absences) */
+  const saisiesHoursPerDate = useMemo<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    for (const proj of saisies) {
+      if (proj.est_absence) continue;
+      for (const [date, h] of Object.entries(proj.heures)) {
+        map[date] = (map[date] ?? 0) + h;
       }
     }
     return map;
   }, [saisies]);
 
-  /** date -> hours consumed by absences (for the grid) */
+  /** Conversion absencesPerDate -> Record<date, number> pour time-grid (legacy shape, sera retire Task 8) */
   const absenceHoursMap = useMemo<Record<string, number>>(() => {
     const map: Record<string, number> = {};
-    for (const [date, info] of Object.entries(absenceMap)) {
+    for (const [date, info] of Object.entries(absencesPerDate)) {
       map[date] = info.hours;
     }
     return map;
-  }, [absenceMap]);
+  }, [absencesPerDate]);
 
-  // ---------------------------------------------------------------------------
-  // Absence banner handlers
-  // ---------------------------------------------------------------------------
+  function handleAddAbsenceClick() {
+    setEditingAbsence(undefined);
+    setDialogOpen(true);
+  }
 
-  const absenceProjetId = useCallback(
-    (type: 'conges' | 'maladie'): string | null => {
-      const ref =
-        type === 'conges' ? ABSENCE_PROJECTS.CONGES : ABSENCE_PROJECTS.MALADIE;
-      // Check existing saisies first
-      const existing = saisies.find((s) => s.projet_ref === ref);
-      if (existing) return existing.projet_id;
-      // Fall back to the absence projets list
-      const absence = absenceProjets.find((p) => p.ref === ref);
-      return absence?.id ?? null;
-    },
-    [saisies, absenceProjets],
-  );
-
-  const handleSetAbsence = useCallback(
-    async (date: string, type: 'conges' | 'maladie', hours: number) => {
-      const projetId = absenceProjetId(type);
-      if (!projetId) {
-        toast.error('Projet absence introuvable');
-        return;
-      }
-
-      // If switching type, remove the other type first
-      const existing = absenceMap[date];
-      if (existing && existing.type !== type) {
-        const oldId = absenceProjetId(existing.type);
-        if (oldId) {
-          // Optimistic remove
-          setSaisies((prev) =>
-            prev.map((s) => {
-              if (s.projet_id !== oldId) return s;
-              const newH = { ...s.heures };
-              delete newH[date];
-              return { ...s, heures: newH };
-            }),
-          );
-          await saveSaisieTemps(oldId, date, 0);
-        }
-      }
-
-      // Optimistic update
-      setSaisies((prev) => {
-        const hasSaisie = prev.some((s) => s.projet_id === projetId);
-        if (hasSaisie) {
-          return prev.map((s) => {
-            if (s.projet_id !== projetId) return s;
-            return { ...s, heures: { ...s.heures, [date]: hours } };
-          });
-        }
-        // Need to add the absence project row
-        const ref =
-          type === 'conges'
-            ? ABSENCE_PROJECTS.CONGES
-            : ABSENCE_PROJECTS.MALADIE;
-        return [
-          ...prev,
-          {
-            projet_id: projetId,
-            projet_ref: ref,
-            projet_label: ref,
-            est_absence: true,
-            absence_type: type,
-            heures: { [date]: hours },
-            axes: {},
-          },
-        ];
-      });
-
-      // Server save
-      const result = await saveSaisieTemps(projetId, date, hours);
-      if (!result.success) {
-        toast.error(result.error ?? 'Erreur lors de la sauvegarde');
-        // Rollback by refreshing
-        const refreshed = await fetchWeekData(weekOffset);
-        setSaisies(refreshed.saisies);
-      }
-    },
-    [absenceProjetId, absenceMap, weekOffset],
-  );
-
-  const handleRemoveAbsence = useCallback(
-    async (date: string) => {
-      const existing = absenceMap[date];
-      if (!existing) return;
-
-      const projetId = absenceProjetId(existing.type);
-      if (!projetId) return;
-
-      // Optimistic remove
-      setSaisies((prev) =>
-        prev.map((s) => {
-          if (s.projet_id !== projetId) return s;
-          const newH = { ...s.heures };
-          delete newH[date];
-          return { ...s, heures: newH };
-        }),
-      );
-
-      const result = await saveSaisieTemps(projetId, date, 0);
-      if (!result.success) {
-        toast.error(result.error ?? 'Erreur lors de la suppression');
-        const refreshed = await fetchWeekData(weekOffset);
-        setSaisies(refreshed.saisies);
-      }
-    },
-    [absenceMap, absenceProjetId, weekOffset],
-  );
+  const handleEditAbsence = useCallback((absence: AbsencePeriod) => {
+    setEditingAbsence(absence);
+    setDialogOpen(true);
+  }, []);
 
   const changeWeek = useCallback((newOffset: number) => {
     setWeekOffset(newOffset);
@@ -216,11 +111,6 @@ export function TempsPageClient({
 
   const handleCellClick = useCallback((projetId: string, date: string) => {
     setSelectedCell({ projetId, date });
-  }, []);
-
-  // Load absence projets on mount (for quick absence buttons in banner)
-  useEffect(() => {
-    fetchAbsenceProjets().then(setAbsenceProjets);
   }, []);
 
   const handleClosePanel = useCallback(() => {
@@ -341,21 +231,28 @@ export function TempsPageClient({
         </Button>
       </PageHeader>
 
-      <TimeWeekNavigator
-        weekDates={weekDates}
-        onPrev={() => changeWeek(weekOffset - 1)}
-        onNext={() => changeWeek(weekOffset + 1)}
-        onToday={() => changeWeek(0)}
-        loading={isPending}
-      />
+      <div className="mb-4 flex items-center justify-between">
+        <TimeWeekNavigator
+          weekDates={weekDates}
+          onPrev={() => changeWeek(weekOffset - 1)}
+          onNext={() => changeWeek(weekOffset + 1)}
+          onToday={() => changeWeek(0)}
+          loading={isPending}
+        />
+        <Button onClick={handleAddAbsenceClick} size="sm">
+          <Plus className="mr-1 h-4 w-4" />
+          Absence
+        </Button>
+      </div>
 
       {/* Absence banner */}
       <AbsenceBanner
         weekDates={weekDates}
-        absences={absenceMap}
+        absencesPerDate={absencesPerDate}
+        absences={absences}
+        saisiesHoursPerDate={saisiesHoursPerDate}
         joursFeries={joursFeries}
-        onSetAbsence={handleSetAbsence}
-        onRemoveAbsence={handleRemoveAbsence}
+        onEditAbsence={handleEditAbsence}
       />
 
       <div className="flex gap-4">
@@ -425,6 +322,12 @@ export function TempsPageClient({
           />
         )}
       </div>
+
+      <AbsenceFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        absence={editingAbsence}
+      />
     </div>
   );
 }

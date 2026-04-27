@@ -30,8 +30,8 @@ export function TimeGrid({
   joursFeries = {},
   absences = {},
 }: TimeGridProps) {
-  // Filter out absence rows - they are now managed by the AbsenceBanner
-  const saisies = initialSaisies.filter((s) => !s.est_absence);
+  // No longer filtering - absence rows were removed from saisies_temps (table absences is the source of truth)
+  const saisies = initialSaisies;
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
     'idle',
   );

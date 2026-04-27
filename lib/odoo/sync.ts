@@ -54,8 +54,8 @@ async function pushFactures(
     .select(
       `
       id, ref, date_emission, date_echeance, est_avoir,
-      montant_ht, montant_ttc,
-      client:clients!factures_client_id_fkey(siret),
+      montant_ht, montant_ttc, taux_tva,
+      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire),
       lignes:facture_lignes(description, montant_ht)
     `,
     )
@@ -75,8 +75,11 @@ async function pushFactures(
 
   for (const f of factures ?? []) {
     try {
-      const siret =
-        (f.client as unknown as { siret: string | null })?.siret ?? '';
+      const client = f.client as unknown as {
+        siret: string | null;
+        raison_sociale: string | null;
+        tva_intracommunautaire: string | null;
+      } | null;
 
       const lines = (
         (f.lignes as unknown as Array<{
@@ -91,9 +94,12 @@ async function pushFactures(
 
       const payload: OdooInvoicePayload = {
         ref: f.ref ?? '',
-        partner_siret: siret,
+        partner_siret: client?.siret ?? '',
+        partner_name: client?.raison_sociale ?? 'Client inconnu',
+        partner_vat: client?.tva_intracommunautaire ?? null,
         date_invoice: f.date_emission ?? '',
         date_due: f.date_echeance ?? '',
+        taux_tva: Number(f.taux_tva ?? 20),
         lines,
         is_credit_note: false,
       };
@@ -162,8 +168,8 @@ async function pushAvoirs(
     .select(
       `
       id, ref, date_emission, date_echeance,
-      montant_ht, montant_ttc,
-      client:clients!factures_client_id_fkey(siret),
+      montant_ht, montant_ttc, taux_tva,
+      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire),
       lignes:facture_lignes(description, montant_ht)
     `,
     )
@@ -182,8 +188,11 @@ async function pushAvoirs(
 
   for (const a of avoirs ?? []) {
     try {
-      const siret =
-        (a.client as unknown as { siret: string | null })?.siret ?? '';
+      const client = a.client as unknown as {
+        siret: string | null;
+        raison_sociale: string | null;
+        tva_intracommunautaire: string | null;
+      } | null;
 
       const lines = (
         (a.lignes as unknown as Array<{
@@ -198,9 +207,12 @@ async function pushAvoirs(
 
       const payload: OdooInvoicePayload = {
         ref: a.ref ?? '',
-        partner_siret: siret,
+        partner_siret: client?.siret ?? '',
+        partner_name: client?.raison_sociale ?? 'Client inconnu',
+        partner_vat: client?.tva_intracommunautaire ?? null,
         date_invoice: a.date_emission ?? '',
         date_due: a.date_echeance ?? '',
+        taux_tva: Number(a.taux_tva ?? 20),
         lines,
         is_credit_note: true,
       };

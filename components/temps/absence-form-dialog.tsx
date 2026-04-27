@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useCallback, useState, useTransition } from 'react';
+import { useCmdEnter } from '@/lib/hooks/use-cmd-enter';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -89,30 +90,47 @@ function FormContent({
 
   const sameDay = dateDebut === dateFin;
 
-  function handleSubmit() {
-    if (sameDay && demiJourDebut && demiJourFin) {
-      toast.error('Un seul jour ne peut pas etre demi-journee aux deux bornes');
-      return;
-    }
-    startTransition(async () => {
-      const data = {
-        type,
-        date_debut: dateDebut,
-        date_fin: dateFin,
-        demi_jour_debut: demiJourDebut,
-        demi_jour_fin: demiJourFin,
-      };
-      const result = isEdit
-        ? await updateAbsenceAction(absence!.id, data)
-        : await createAbsenceAction(data);
-      if (result.success) {
-        toast.success(isEdit ? 'Absence mise a jour' : 'Absence enregistree');
-        onOpenChange(false);
-      } else {
-        toast.error(result.error ?? 'Erreur lors de l enregistrement');
+  const handleSubmit = useCallback(
+    function handleSubmit() {
+      if (sameDay && demiJourDebut && demiJourFin) {
+        toast.error(
+          'Un seul jour ne peut pas etre demi-journee aux deux bornes',
+        );
+        return;
       }
-    });
-  }
+      startTransition(async () => {
+        const data = {
+          type,
+          date_debut: dateDebut,
+          date_fin: dateFin,
+          demi_jour_debut: demiJourDebut,
+          demi_jour_fin: demiJourFin,
+        };
+        const result = isEdit
+          ? await updateAbsenceAction(absence!.id, data)
+          : await createAbsenceAction(data);
+        if (result.success) {
+          toast.success(isEdit ? 'Absence mise a jour' : 'Absence enregistree');
+          onOpenChange(false);
+        } else {
+          toast.error(result.error ?? 'Erreur lors de l enregistrement');
+        }
+      });
+    },
+    [
+      sameDay,
+      demiJourDebut,
+      demiJourFin,
+      type,
+      dateDebut,
+      dateFin,
+      isEdit,
+      absence,
+      onOpenChange,
+    ],
+  );
+
+  useCmdEnter(handleSubmit, !isPending);
 
   function handleDelete() {
     if (!absence) return;
@@ -246,6 +264,7 @@ function FormContent({
               : isEdit
                 ? 'Enregistrer'
                 : 'Creer'}
+            {!isPending && <span className="ml-2 text-xs opacity-50">⌘↵</span>}
           </Button>
         </div>
       </DialogFooter>

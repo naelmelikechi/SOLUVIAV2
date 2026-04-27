@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCmdEnter } from '@/lib/hooks/use-cmd-enter';
 import {
   Dialog,
   DialogContent,
@@ -92,56 +93,69 @@ export function AvoirDialog({
     });
   }, [motif, dateRupture, factureOrigineId, montantHtDefault]);
 
-  function handleConfirm() {
-    if (!motif) {
-      toast.error('Veuillez sélectionner un motif');
-      return;
-    }
-    const montantValue = parseFloat(montantHt);
-    if (isNaN(montantValue) || montantValue <= 0) {
-      toast.error('Le montant doit être strictement positif');
-      return;
-    }
-    if (!/^\d+(\.\d{1,2})?$/.test(montantHt.trim())) {
-      toast.error('Le montant ne peut avoir que 2 décimales maximum');
-      return;
-    }
-    if (montantValue > montantHtDefault) {
-      toast.error('Le montant ne peut pas dépasser le montant de la facture');
-      return;
-    }
-    if (motif === MOTIF_RUPTURE && !dateRupture) {
-      toast.error('Date de rupture requise');
-      return;
-    }
-
-    const finalNote =
-      motif === MOTIF_RUPTURE
-        ? [`Date de rupture : ${dateRupture}`, note.trim()]
-            .filter(Boolean)
-            .join(' · ')
-        : note.trim() || undefined;
-
-    startTransition(async () => {
-      const result = await createAvoir({
-        factureOrigineId,
-        motif: motif.trim(),
-        montant: montantValue,
-        note: finalNote || undefined,
-      });
-      if (result.success) {
-        toast.success(`Avoir ${result.ref} émis avec succès`);
-        onOpenChange(false);
-        setMotif('');
-        setMontantHt(montantHtDefault.toString());
-        setNote('');
-        setDateRupture('');
-        setBreakdown(null);
-      } else {
-        toast.error(result.error ?? 'Erreur lors de la création');
+  const handleConfirm = useCallback(
+    function handleConfirm() {
+      if (!motif) {
+        toast.error('Veuillez sélectionner un motif');
+        return;
       }
-    });
-  }
+      const montantValue = parseFloat(montantHt);
+      if (isNaN(montantValue) || montantValue <= 0) {
+        toast.error('Le montant doit être strictement positif');
+        return;
+      }
+      if (!/^\d+(\.\d{1,2})?$/.test(montantHt.trim())) {
+        toast.error('Le montant ne peut avoir que 2 décimales maximum');
+        return;
+      }
+      if (montantValue > montantHtDefault) {
+        toast.error('Le montant ne peut pas dépasser le montant de la facture');
+        return;
+      }
+      if (motif === MOTIF_RUPTURE && !dateRupture) {
+        toast.error('Date de rupture requise');
+        return;
+      }
+
+      const finalNote =
+        motif === MOTIF_RUPTURE
+          ? [`Date de rupture : ${dateRupture}`, note.trim()]
+              .filter(Boolean)
+              .join(' · ')
+          : note.trim() || undefined;
+
+      startTransition(async () => {
+        const result = await createAvoir({
+          factureOrigineId,
+          motif: motif.trim(),
+          montant: montantValue,
+          note: finalNote || undefined,
+        });
+        if (result.success) {
+          toast.success(`Avoir ${result.ref} émis avec succès`);
+          onOpenChange(false);
+          setMotif('');
+          setMontantHt(montantHtDefault.toString());
+          setNote('');
+          setDateRupture('');
+          setBreakdown(null);
+        } else {
+          toast.error(result.error ?? 'Erreur lors de la création');
+        }
+      });
+    },
+    [
+      motif,
+      montantHt,
+      montantHtDefault,
+      dateRupture,
+      note,
+      factureOrigineId,
+      onOpenChange,
+    ],
+  );
+
+  useCmdEnter(handleConfirm, open && !isPending && !isComputing);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

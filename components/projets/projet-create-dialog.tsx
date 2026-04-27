@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useCallback, useState, useTransition } from 'react';
+import { useCmdEnter } from '@/lib/hooks/use-cmd-enter';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -55,48 +56,62 @@ export function ProjetCreateDialog({
     setDateDebut('');
   }
 
-  function handleSubmit() {
-    if (!clientId) {
-      toast.error('Veuillez sélectionner un client');
-      return;
-    }
-    if (!typologieId) {
-      toast.error('Veuillez sélectionner une typologie');
-      return;
-    }
-    if (!cdpId) {
-      toast.error('Veuillez sélectionner un chef de projet');
-      return;
-    }
-
-    const taux = parseFloat(tauxCommission);
-    if (isNaN(taux) || taux < 0 || taux > 100) {
-      toast.error('Le taux de commission doit être entre 0 et 100');
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await createProjet({
-        clientId,
-        typologieId,
-        cdpId,
-        backupCdpId: backupCdpId || undefined,
-        tauxCommission: taux,
-        dateDebut: dateDebut || undefined,
-      });
-
-      if (result.success) {
-        toast.success(`Projet ${result.ref} créé avec succès`);
-        onOpenChange(false);
-        resetForm();
-        if (result.ref) {
-          router.push(`/projets/${result.ref}`);
-        }
-      } else {
-        toast.error(result.error ?? 'Erreur lors de la création');
+  const handleSubmit = useCallback(
+    function handleSubmit() {
+      if (!clientId) {
+        toast.error('Veuillez sélectionner un client');
+        return;
       }
-    });
-  }
+      if (!typologieId) {
+        toast.error('Veuillez sélectionner une typologie');
+        return;
+      }
+      if (!cdpId) {
+        toast.error('Veuillez sélectionner un chef de projet');
+        return;
+      }
+
+      const taux = parseFloat(tauxCommission);
+      if (isNaN(taux) || taux < 0 || taux > 100) {
+        toast.error('Le taux de commission doit être entre 0 et 100');
+        return;
+      }
+
+      startTransition(async () => {
+        const result = await createProjet({
+          clientId,
+          typologieId,
+          cdpId,
+          backupCdpId: backupCdpId || undefined,
+          tauxCommission: taux,
+          dateDebut: dateDebut || undefined,
+        });
+
+        if (result.success) {
+          toast.success(`Projet ${result.ref} créé avec succès`);
+          onOpenChange(false);
+          resetForm();
+          if (result.ref) {
+            router.push(`/projets/${result.ref}`);
+          }
+        } else {
+          toast.error(result.error ?? 'Erreur lors de la création');
+        }
+      });
+    },
+    [
+      clientId,
+      typologieId,
+      cdpId,
+      backupCdpId,
+      tauxCommission,
+      dateDebut,
+      onOpenChange,
+      router,
+    ],
+  );
+
+  useCmdEnter(handleSubmit, !isPending);
 
   // Filter active typologies (exclude ABS)
   const activeTypologies = typologies.filter((t) => t.code !== 'ABS');

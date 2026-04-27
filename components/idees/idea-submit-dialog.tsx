@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCmdEnter } from '@/lib/hooks/use-cmd-enter';
 import {
   Dialog,
   DialogContent,
@@ -56,32 +57,37 @@ export function IdeaSubmitDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialId]);
 
-  function handleSubmit() {
-    if (!titre.trim()) {
-      toast.error('Le titre est requis');
-      return;
-    }
-    startTransition(async () => {
-      const result = initial
-        ? await updateProposedIdea(initial.id, {
-            titre,
-            description,
-            cible,
-          })
-        : await proposeIdea({ titre, description, cible });
-      if (result.success) {
-        toast.success(initial ? 'Idée mise à jour' : 'Idée proposée');
-        onOpenChange(false);
-        if (!initial) {
-          setTitre('');
-          setDescription('');
-          setCible('soluvia');
-        }
-      } else {
-        toast.error(result.error ?? 'Erreur');
+  const handleSubmit = useCallback(
+    function handleSubmit() {
+      if (!titre.trim()) {
+        toast.error('Le titre est requis');
+        return;
       }
-    });
-  }
+      startTransition(async () => {
+        const result = initial
+          ? await updateProposedIdea(initial.id, {
+              titre,
+              description,
+              cible,
+            })
+          : await proposeIdea({ titre, description, cible });
+        if (result.success) {
+          toast.success(initial ? 'Idée mise à jour' : 'Idée proposée');
+          onOpenChange(false);
+          if (!initial) {
+            setTitre('');
+            setDescription('');
+            setCible('soluvia');
+          }
+        } else {
+          toast.error(result.error ?? 'Erreur');
+        }
+      });
+    },
+    [titre, description, cible, initial, onOpenChange],
+  );
+
+  useCmdEnter(handleSubmit, !isPending);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,6 +152,7 @@ export function IdeaSubmitDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={isPending || !titre.trim()}>
             {isPending ? 'Envoi...' : initial ? 'Enregistrer' : 'Proposer'}
+            {!isPending && <span className="ml-2 text-xs opacity-50">⌘↵</span>}
           </Button>
         </DialogFooter>
       </DialogContent>

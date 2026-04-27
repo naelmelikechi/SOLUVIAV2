@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useCallback, useState, useTransition } from 'react';
+import { useCmdEnter } from '@/lib/hooks/use-cmd-enter';
 import {
   Dialog,
   DialogContent,
@@ -63,52 +64,70 @@ function ClientFormContent({
   const [numeroUai, setNumeroUai] = useState(client?.numero_uai ?? '');
   const [isDemo, setIsDemo] = useState(client?.is_demo ?? false);
 
-  function handleSubmit() {
-    if (!raisonSociale.trim()) {
-      toast.error('La raison sociale est requise');
-      return;
-    }
-
-    if (siret) {
-      const cleaned = siret.replace(/\s/g, '');
-      if (!/^\d{14}$/.test(cleaned)) {
-        toast.error('Le SIRET doit comporter 14 chiffres');
+  const handleSubmit = useCallback(
+    function handleSubmit() {
+      if (!raisonSociale.trim()) {
+        toast.error('La raison sociale est requise');
         return;
       }
-    }
 
-    const data = {
-      raison_sociale: raisonSociale,
-      siret: siret || null,
-      adresse: adresse || null,
-      localisation: localisation || null,
-      tva_intracommunautaire: tvaIntra || null,
-      numero_qualiopi: numeroQualiopi || null,
-      numero_nda: numeroNda || null,
-      numero_uai: numeroUai || null,
-      is_demo: isDemo,
-    };
-
-    startTransition(async () => {
-      if (isEdit) {
-        const result = await updateClientAction(client.id, data);
-        if (result.success) {
-          toast.success('Client mis à jour');
-          onOpenChange(false);
-        } else {
-          toast.error(result.error ?? 'Erreur lors de la mise à jour');
-        }
-      } else {
-        const result = await createClientAction(data);
-        if (result.success) {
-          toast.success('Client créé avec succès');
-          onOpenChange(false);
-        } else {
-          toast.error(result.error ?? 'Erreur lors de la création');
+      if (siret) {
+        const cleaned = siret.replace(/\s/g, '');
+        if (!/^\d{14}$/.test(cleaned)) {
+          toast.error('Le SIRET doit comporter 14 chiffres');
+          return;
         }
       }
-    });
-  }
+
+      const data = {
+        raison_sociale: raisonSociale,
+        siret: siret || null,
+        adresse: adresse || null,
+        localisation: localisation || null,
+        tva_intracommunautaire: tvaIntra || null,
+        numero_qualiopi: numeroQualiopi || null,
+        numero_nda: numeroNda || null,
+        numero_uai: numeroUai || null,
+        is_demo: isDemo,
+      };
+
+      startTransition(async () => {
+        if (isEdit) {
+          const result = await updateClientAction(client.id, data);
+          if (result.success) {
+            toast.success('Client mis à jour');
+            onOpenChange(false);
+          } else {
+            toast.error(result.error ?? 'Erreur lors de la mise à jour');
+          }
+        } else {
+          const result = await createClientAction(data);
+          if (result.success) {
+            toast.success('Client créé avec succès');
+            onOpenChange(false);
+          } else {
+            toast.error(result.error ?? 'Erreur lors de la création');
+          }
+        }
+      });
+    },
+    [
+      raisonSociale,
+      siret,
+      adresse,
+      localisation,
+      tvaIntra,
+      numeroQualiopi,
+      numeroNda,
+      numeroUai,
+      isDemo,
+      isEdit,
+      client,
+      onOpenChange,
+    ],
+  );
+
+  useCmdEnter(handleSubmit, !isPending);
 
   return (
     <DialogContent className="sm:max-w-lg">

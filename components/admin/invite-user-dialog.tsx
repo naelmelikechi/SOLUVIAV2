@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useCallback, useState, useTransition } from 'react';
+import { useCmdEnter } from '@/lib/hooks/use-cmd-enter';
 import {
   Dialog,
   DialogContent,
@@ -36,37 +37,42 @@ export function InviteUserDialog({
   const [role, setRole] = useState<string>('cdp');
   const [isPending, startTransition] = useTransition();
 
-  function handleSubmit() {
-    if (!email || !prenom.trim() || !nom.trim()) {
-      toast.error('Veuillez remplir tous les champs');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast.error('Adresse email invalide');
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await inviteUser(
-        email,
-        role as 'admin' | 'cdp',
-        prenom.trim(),
-        nom.trim(),
-      );
-      if (result.success) {
-        toast.success(`Invitation envoyée à ${prenom} ${nom}`);
-        onOpenChange(false);
-        setEmail('');
-        setPrenom('');
-        setNom('');
-        setRole('cdp');
-      } else {
-        toast.error(result.error ?? "Erreur lors de l'invitation");
+  const handleSubmit = useCallback(
+    function handleSubmit() {
+      if (!email || !prenom.trim() || !nom.trim()) {
+        toast.error('Veuillez remplir tous les champs');
+        return;
       }
-    });
-  }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        toast.error('Adresse email invalide');
+        return;
+      }
+
+      startTransition(async () => {
+        const result = await inviteUser(
+          email,
+          role as 'admin' | 'cdp',
+          prenom.trim(),
+          nom.trim(),
+        );
+        if (result.success) {
+          toast.success(`Invitation envoyée à ${prenom} ${nom}`);
+          onOpenChange(false);
+          setEmail('');
+          setPrenom('');
+          setNom('');
+          setRole('cdp');
+        } else {
+          toast.error(result.error ?? "Erreur lors de l'invitation");
+        }
+      });
+    },
+    [email, prenom, nom, role, onOpenChange],
+  );
+
+  useCmdEnter(handleSubmit, open && !isPending);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

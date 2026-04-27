@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useCallback, useState, useTransition } from 'react';
+import { useCmdEnter } from '@/lib/hooks/use-cmd-enter';
 import {
   Dialog,
   DialogContent,
@@ -71,91 +72,112 @@ export function UserEditDialog({
     setCanShipIdeasFlag(user.can_ship_ideas ?? false);
   }
 
-  if (!user) return null;
+  const handleSave = useCallback(
+    function handleSave() {
+      if (!user) return;
+      startTransition(async () => {
+        const newRole = role as 'admin' | 'cdp';
+        const newActif = actif === 'true';
 
-  function handleSave() {
-    if (!user) return;
-    startTransition(async () => {
-      const newRole = role as 'admin' | 'cdp';
-      const newActif = actif === 'true';
+        const nameChanged =
+          prenom.trim() !== user.prenom || nom.trim() !== user.nom;
+        const roleChanged = newRole !== user.role;
+        const actifChanged = newActif !== user.actif;
+        const pipelineChanged =
+          pipelineAccess !== (user.pipeline_access ?? false);
+        const ideasChanged =
+          canShipIdeasFlag !== (user.can_ship_ideas ?? false);
 
-      const nameChanged =
-        prenom.trim() !== user.prenom || nom.trim() !== user.nom;
-      const roleChanged = newRole !== user.role;
-      const actifChanged = newActif !== user.actif;
-      const pipelineChanged =
-        pipelineAccess !== (user.pipeline_access ?? false);
-      const ideasChanged = canShipIdeasFlag !== (user.can_ship_ideas ?? false);
+        if (
+          !nameChanged &&
+          !roleChanged &&
+          !actifChanged &&
+          !pipelineChanged &&
+          !ideasChanged
+        ) {
+          onOpenChange(false);
+          return;
+        }
 
-      if (
-        !nameChanged &&
-        !roleChanged &&
-        !actifChanged &&
-        !pipelineChanged &&
-        !ideasChanged
-      ) {
+        if (nameChanged) {
+          const result = await updateUserProfile(
+            user.id,
+            prenom.trim(),
+            nom.trim(),
+          );
+          if (!result.success) {
+            toast.error(result.error ?? 'Erreur lors de la mise à jour du nom');
+            return;
+          }
+        }
+
+        if (roleChanged) {
+          const result = await updateUserRole(user.id, newRole);
+          if (!result.success) {
+            toast.error(
+              result.error ?? 'Erreur lors de la mise à jour du rôle',
+            );
+            return;
+          }
+        }
+
+        if (actifChanged) {
+          const result = await toggleUserActive(user.id, newActif);
+          if (!result.success) {
+            toast.error(
+              result.error ?? 'Erreur lors de la mise à jour du statut',
+            );
+            return;
+          }
+        }
+
+        if (pipelineChanged) {
+          const result = await updateUserPipelineAccess(
+            user.id,
+            pipelineAccess,
+          );
+          if (!result.success) {
+            toast.error(
+              result.error ??
+                "Erreur lors de la mise à jour de l'accès pipeline",
+            );
+            return;
+          }
+        }
+
+        if (ideasChanged) {
+          const result = await updateUserIdeasPermissions(user.id, {
+            canValidateIdeas: user.can_validate_ideas ?? false,
+            canShipIdeas: canShipIdeasFlag,
+          });
+          if (!result.success) {
+            toast.error(
+              result.error ??
+                'Erreur lors de la mise à jour des permissions idées',
+            );
+            return;
+          }
+        }
+
+        toast.success('Utilisateur mis à jour');
         onOpenChange(false);
-        return;
-      }
+      });
+    },
+    [
+      user,
+      role,
+      actif,
+      prenom,
+      nom,
+      pipelineAccess,
+      canShipIdeasFlag,
+      onOpenChange,
+    ],
+  );
 
-      if (nameChanged) {
-        const result = await updateUserProfile(
-          user.id,
-          prenom.trim(),
-          nom.trim(),
-        );
-        if (!result.success) {
-          toast.error(result.error ?? 'Erreur lors de la mise à jour du nom');
-          return;
-        }
-      }
+  useCmdEnter(handleSave, open && !isPending);
 
-      if (roleChanged) {
-        const result = await updateUserRole(user.id, newRole);
-        if (!result.success) {
-          toast.error(result.error ?? 'Erreur lors de la mise à jour du rôle');
-          return;
-        }
-      }
-
-      if (actifChanged) {
-        const result = await toggleUserActive(user.id, newActif);
-        if (!result.success) {
-          toast.error(
-            result.error ?? 'Erreur lors de la mise à jour du statut',
-          );
-          return;
-        }
-      }
-
-      if (pipelineChanged) {
-        const result = await updateUserPipelineAccess(user.id, pipelineAccess);
-        if (!result.success) {
-          toast.error(
-            result.error ?? "Erreur lors de la mise à jour de l'accès pipeline",
-          );
-          return;
-        }
-      }
-
-      if (ideasChanged) {
-        const result = await updateUserIdeasPermissions(user.id, {
-          canValidateIdeas: user.can_validate_ideas ?? false,
-          canShipIdeas: canShipIdeasFlag,
-        });
-        if (!result.success) {
-          toast.error(
-            result.error ??
-              'Erreur lors de la mise à jour des permissions idées',
-          );
-          return;
-        }
-      }
-
-      toast.success('Utilisateur mis à jour');
-      onOpenChange(false);
-    });
-  }
+  if (!user) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

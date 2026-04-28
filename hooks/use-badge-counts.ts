@@ -8,6 +8,7 @@ export interface BadgeCounts {
   tempsNonSaisi: number;
   notifications: number;
   tachesEnAttente: number;
+  intercontrat: number;
 }
 
 const INITIAL_COUNTS: BadgeCounts = {
@@ -15,6 +16,7 @@ const INITIAL_COUNTS: BadgeCounts = {
   tempsNonSaisi: 0,
   notifications: 0,
   tachesEnAttente: 0,
+  intercontrat: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -92,17 +94,61 @@ async function fetchQualiteCount(): Promise<number> {
   return res.count ?? 0;
 }
 
+/**
+ * Compte les collaborateurs en intercontrat (CDP actifs sans pipeline_access
+ * ni projet client). RLS limite l acces a admin/superadmin (qui sont admin
+ * du systeme) - le badge ne s affiche que pour eux dans la sidebar.
+ */
+async function fetchIntercontratCount(): Promise<number> {
+  const supabase = supabaseClient();
+
+  const usersRes = await supabase
+    .from('users')
+    .select('id, role, pipeline_access')
+    .eq('actif', true)
+    .eq('role', 'cdp');
+
+  const candidates = (usersRes.data ?? []).filter((u) => !u.pipeline_access);
+  if (candidates.length === 0) return 0;
+
+  const projetsRes = await supabase
+    .from('projets')
+    .select('cdp_id, backup_cdp_id')
+    .eq('archive', false)
+    .eq('est_interne', false);
+
+  const assigned = new Set<string>();
+  for (const p of projetsRes.data ?? []) {
+    if (p.cdp_id) assigned.add(p.cdp_id);
+    if (p.backup_cdp_id) assigned.add(p.backup_cdp_id);
+  }
+
+  return candidates.filter((u) => !assigned.has(u.id)).length;
+}
+
 /** Fetch all badge counts at once (used for initial load). */
 async function fetchAllBadgeCounts(): Promise<BadgeCounts> {
-  const [facturesEnRetard, tempsNonSaisi, notifications, tachesEnAttente] =
-    await Promise.all([
-      fetchFacturesCount(),
-      fetchTempsCount(),
-      fetchNotificationsCount(),
-      fetchQualiteCount(),
-    ]);
+  const [
+    facturesEnRetard,
+    tempsNonSaisi,
+    notifications,
+    tachesEnAttente,
+    intercontrat,
+  ] = await Promise.all([
+    fetchFacturesCount(),
+    fetchTempsCount(),
+    fetchNotificationsCount(),
+    fetchQualiteCount(),
+    fetchIntercontratCount(),
+  ]);
 
-  return { facturesEnRetard, tempsNonSaisi, notifications, tachesEnAttente };
+  return {
+    facturesEnRetard,
+    tempsNonSaisi,
+    notifications,
+    tachesEnAttente,
+    intercontrat,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -151,6 +197,13 @@ export function useBadgeCounts(): BadgeCounts {
     });
   }, []);
 
+  const refreshIntercontrat = useCallback(() => {
+    fetchIntercontratCount().then((v) => {
+      if (mountedRef.current)
+        setCounts((prev) => ({ ...prev, intercontrat: v }));
+    });
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
 
@@ -187,6 +240,16 @@ export function useBadgeCounts(): BadgeCounts {
           { event: '*', schema: 'public', table: 'taches_qualite' },
           () => refreshQualite(),
         )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'projets' },
+          () => refreshIntercontrat(),
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'users' },
+          () => refreshIntercontrat(),
+        )
         .subscribe();
     } catch {
       // Realtime unavailable (e.g. bad API key) - badges still work via initial fetch
@@ -204,6 +267,7 @@ export function useBadgeCounts(): BadgeCounts {
     refreshNotifications,
     refreshTemps,
     refreshQualite,
+    refreshIntercontrat,
   ]);
 
   return counts;

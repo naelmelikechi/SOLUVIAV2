@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { format, parseISO, isToday, isWeekend } from 'date-fns';
+import { format, parseISO, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { Minus, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import { saveSaisieTemps } from '@/lib/actions/temps';
@@ -20,7 +21,7 @@ interface TimeGridProps {
   absences?: Record<string, number>;
 }
 
-const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
 
 export function TimeGrid({
   weekDates,
@@ -32,6 +33,8 @@ export function TimeGrid({
 }: TimeGridProps) {
   // No longer filtering - absence rows were removed from saisies_temps (table absences is the source of truth)
   const saisies = initialSaisies;
+  // Only display weekdays (Mon-Fri) in the grid
+  const displayDates = weekDates.slice(0, 5);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
     'idle',
   );
@@ -51,7 +54,7 @@ export function TimeGrid({
   }, []);
 
   // Calculate daily totals (project hours only - absences tracked separately)
-  const dailyTotals = weekDates.map((date) =>
+  const dailyTotals = displayDates.map((date) =>
     saisies.reduce((sum, s) => sum + (s.heures[date] || 0), 0),
   );
 
@@ -74,10 +77,11 @@ export function TimeGrid({
         0,
       ) + absenceTotal;
 
-  const handleCellChange = (projetId: string, date: string, value: string) => {
-    const parsed = parseTimeInput(value);
-    if (parsed === null) return;
-
+  const handleCellSave = (
+    projetId: string,
+    date: string,
+    parsed: number,
+  ): boolean => {
     // Daily max adjusted for absence hours on this day
     const absenceOnDay = absences[date] || 0;
     const dayMax = MAX_HEURES_JOUR - absenceOnDay;
@@ -92,7 +96,7 @@ export function TimeGrid({
           ? `Maximum ${dayMax}h de projet (absence de ${absenceOnDay}h)`
           : `Maximum ${MAX_HEURES_JOUR}h par jour`,
       );
-      return;
+      return false;
     }
 
     // Check weekly max
@@ -115,7 +119,7 @@ export function TimeGrid({
         ) + absenceTotal;
     if (currentWeekOther + parsed > weeklyMax) {
       toast.error(`Maximum ${formatHeures(weeklyMax)} par semaine`);
-      return;
+      return false;
     }
 
     // Notify parent of optimistic update (parent updates saisies state)
@@ -139,6 +143,8 @@ export function TimeGrid({
         toast.error(result.error ?? 'Erreur lors de la sauvegarde');
       }
     }, DEBOUNCE_MS);
+
+    return true;
   };
 
   return (
@@ -157,28 +163,27 @@ export function TimeGrid({
         )}
       </div>
       <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[640px] border-collapse text-[13px]">
+        <table className="w-full min-w-[820px] table-fixed border-collapse text-[13px]">
           <thead>
             <tr className="bg-[var(--card-alt)]">
               <th className="text-muted-foreground min-w-[220px] px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase">
                 Projet
               </th>
-              {weekDates.map((date, i) => {
+              {displayDates.map((date, i) => {
                 const d = parseISO(date);
-                const weekend = isWeekend(d);
                 const ferie = joursFeries[date];
                 const today = isToday(d);
                 return (
                   <th
                     key={date}
                     className={cn(
-                      'text-muted-foreground w-[68px] px-1 py-2.5 text-center text-xs font-semibold tracking-wider uppercase',
-                      (weekend || ferie) && 'bg-[var(--card-alt)]',
+                      'text-muted-foreground w-[104px] px-1 py-2.5 text-center text-xs font-semibold tracking-wider uppercase',
+                      ferie && 'bg-[var(--card-alt)]',
                       today && !ferie && 'bg-[var(--primary-bg)]',
                     )}
                     title={ferie ?? undefined}
                   >
-                    {DAY_LABELS[i]} {!weekend && format(d, 'd', { locale: fr })}
+                    {DAY_LABELS[i]} {format(d, 'd', { locale: fr })}
                     {ferie && (
                       <div className="text-[9px] font-normal tracking-normal text-orange-500 normal-case">
                         {ferie}
@@ -193,46 +198,67 @@ export function TimeGrid({
             </tr>
           </thead>
           <tbody>
-            {saisies.map((saisie) => {
+            {saisies.map((saisie, idx) => {
               const rowTotal = weekDates
                 .slice(0, 5)
                 .reduce((sum, d) => sum + (saisie.heures[d] || 0), 0);
 
+              const prev = idx > 0 ? saisies[idx - 1] : null;
+              const isFirstInterne =
+                saisie.est_interne && (!prev || !prev.est_interne);
+
               return (
                 <tr
                   key={saisie.projet_id}
-                  className="border-b border-[var(--border-light)]"
+                  className={cn(
+                    'border-b border-[var(--border-light)]',
+                    saisie.est_interne && 'bg-[var(--card-alt)]/40',
+                    isFirstInterne && 'border-t-2 border-t-[var(--border)]',
+                  )}
+                  title={
+                    saisie.est_interne
+                      ? 'Temps interne - non comptabilise dans la production'
+                      : undefined
+                  }
                 >
                   {/* Project label */}
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-primary font-mono text-xs font-bold">
+                      <span
+                        className={cn(
+                          'font-mono text-xs font-bold',
+                          saisie.est_interne
+                            ? 'text-muted-foreground'
+                            : 'text-primary',
+                        )}
+                      >
                         {saisie.projet_ref}
                       </span>
-                      <span className="text-muted-foreground truncate text-xs">
+                      <span
+                        className={cn(
+                          'text-muted-foreground truncate text-xs',
+                          saisie.est_interne && 'italic',
+                        )}
+                      >
                         {saisie.projet_label}
                       </span>
+                      {saisie.est_interne && (
+                        <span className="text-muted-foreground ml-auto rounded bg-[var(--card-alt)] px-1.5 py-0.5 text-[9px] font-semibold tracking-wider uppercase">
+                          Interne
+                        </span>
+                      )}
                     </div>
                   </td>
 
                   {/* Day cells */}
-                  {weekDates.map((date) => {
+                  {displayDates.map((date) => {
                     const d = parseISO(date);
-                    const weekend = isWeekend(d);
                     const ferie = joursFeries[date];
                     const absenceOnDay = absences[date] || 0;
                     const fullDayAbsence = absenceOnDay >= 7;
-                    const blocked = weekend || !!ferie || fullDayAbsence;
+                    const blocked = !!ferie || fullDayAbsence;
                     const today = isToday(d);
                     const cellValue = saisie.heures[date] || 0;
-
-                    // Only truly blocked days (weekend, holiday, full-day absence)
-                    // disable the input. Reaching the 7h daily max does NOT disable
-                    // other projets' cells - the user needs to be able to type a
-                    // value to rebalance hours across projects. The onBlur
-                    // validation (handleCellChange) surfaces a toast if the total
-                    // would exceed the daily cap and blocks the save.
-                    const disabled = blocked;
 
                     return (
                       <td
@@ -248,33 +274,18 @@ export function TimeGrid({
                             -
                           </span>
                         ) : (
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            className={cn(
-                              'w-[52px] rounded-md border bg-white px-1 py-1.5 text-center font-mono text-[13px] transition-colors outline-none',
-                              'border-border focus:border-primary focus:ring-primary/15 focus:ring-2',
-                              today &&
-                                'border-primary shadow-[0_0_0_2px_rgba(22,163,74,0.15)]',
-                              disabled && 'opacity-30',
-                            )}
-                            disabled={disabled}
-                            defaultValue={
-                              cellValue > 0 ? String(cellValue) : ''
+                          <TimeCell
+                            key={`${saisie.projet_id}:${date}:${weekDates[0]}`}
+                            initialValue={cellValue}
+                            today={today}
+                            onSave={(parsed) =>
+                              handleCellSave(saisie.projet_id, date, parsed)
                             }
-                            placeholder="0"
-                            onBlur={(e) =>
-                              handleCellChange(
-                                saisie.projet_id,
-                                date,
-                                e.target.value,
-                              )
+                            onClickCell={
+                              onCellClick
+                                ? () => onCellClick(saisie.projet_id, date)
+                                : undefined
                             }
-                            onClick={() => {
-                              if (onCellClick) {
-                                onCellClick(saisie.projet_id, date);
-                              }
-                            }}
                           />
                         )}
                       </td>
@@ -292,10 +303,9 @@ export function TimeGrid({
             {/* Daily totals row with gauges */}
             <tr className="bg-[var(--card-alt)] font-bold">
               <td className="px-3 py-2 text-sm">Total journalier</td>
-              {weekDates.map((date, i) => {
-                const weekend = i >= 5;
+              {displayDates.map((date, i) => {
                 const ferie = joursFeries[date];
-                const blocked = weekend || !!ferie;
+                const blocked = !!ferie;
                 const today = isToday(parseISO(date));
                 const absOnDay = absences[date] || 0;
                 const total = (dailyTotals[i] ?? 0) + absOnDay;
@@ -385,6 +395,104 @@ export function TimeGrid({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+interface TimeCellProps {
+  initialValue: number;
+  today: boolean;
+  onSave: (parsed: number) => boolean;
+  onClickCell?: () => void;
+}
+
+function TimeCell({ initialValue, today, onSave, onClickCell }: TimeCellProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const display = (v: number) => (v > 0 ? formatHeures(v) : '');
+
+  const stepBy = (delta: number) => {
+    const input = inputRef.current;
+    if (!input) return;
+    const current = parseTimeInput(input.value) ?? 0;
+    const snapped = Math.round(current * 2) / 2;
+    const next = Math.max(
+      0,
+      Math.min(MAX_HEURES_JOUR, Math.round((snapped + delta) * 2) / 2),
+    );
+    if (next === snapped) return;
+    if (onSave(next)) {
+      input.value = display(next);
+    }
+  };
+
+  const btnClass =
+    'border-border bg-white text-muted-foreground hover:text-primary hover:bg-muted/60 flex h-[28px] w-5 items-center justify-center rounded-md border transition-colors disabled:opacity-30';
+
+  return (
+    <div className="inline-flex items-center gap-1">
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Retirer 30 minutes"
+        onClick={(e) => {
+          e.stopPropagation();
+          stepBy(-0.5);
+        }}
+        className={btnClass}
+      >
+        <Minus className="h-3 w-3" strokeWidth={2.5} />
+      </button>
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="text"
+        className={cn(
+          'h-[28px] w-[44px] rounded-md border bg-white px-1 text-center font-mono text-[13px] transition-colors outline-none',
+          'border-border focus:border-primary focus:ring-primary/15 focus:ring-2',
+          today && 'border-primary shadow-[0_0_0_2px_rgba(22,163,74,0.15)]',
+        )}
+        defaultValue={initialValue > 0 ? formatHeures(initialValue) : ''}
+        placeholder="0h"
+        onFocus={(e) => e.target.select()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            stepBy(0.5);
+          }
+          if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            stepBy(-0.5);
+          }
+        }}
+        onBlur={(e) => {
+          const parsed = parseTimeInput(e.target.value);
+          if (parsed === null) {
+            // Invalid input - restore last accepted value
+            e.target.value = display(initialValue);
+            return;
+          }
+          if (onSave(parsed)) {
+            e.target.value = display(parsed);
+          } else {
+            // Validation rejected - restore last accepted value
+            e.target.value = display(initialValue);
+          }
+        }}
+        onClick={onClickCell}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Ajouter 30 minutes"
+        onClick={(e) => {
+          e.stopPropagation();
+          stepBy(0.5);
+        }}
+        className={btnClass}
+      >
+        <Plus className="h-3 w-3" strokeWidth={2.5} />
+      </button>
     </div>
   );
 }

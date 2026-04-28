@@ -6,7 +6,12 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { CommandPalette } from '@/components/shared/command-palette';
 import { OnboardingDialog } from '@/components/shared/onboarding';
+import { UnassignedBanner } from '@/components/layout/unassigned-banner';
 import { useBadgeCounts } from '@/hooks/use-badge-counts';
+import {
+  deriveCollabStatus,
+  isUnassignedCollab,
+} from '@/lib/utils/collab-status';
 
 export default function DashboardLayout({
   children,
@@ -28,6 +33,7 @@ export default function DashboardLayout({
     can_validate_ideas: boolean;
     can_ship_ideas: boolean;
   } | null>(null);
+  const [projetsCount, setProjetsCount] = useState<number | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -56,26 +62,42 @@ export default function DashboardLayout({
           can_validate_ideas: full.data.can_validate_ideas ?? false,
           can_ship_ideas: full.data.can_ship_ideas ?? false,
         });
-        return;
+      } else {
+        const legacy = await supabase
+          .from('users')
+          .select('nom, prenom, role, email, avatar_seed, avatar_regen_date')
+          .eq('id', authUser.id)
+          .single();
+
+        if (legacy.data) {
+          setUser({
+            ...legacy.data,
+            avatar_mode: null,
+            pipeline_access: false,
+            can_validate_ideas: false,
+            can_ship_ideas: false,
+          });
+        }
       }
 
-      const legacy = await supabase
-        .from('users')
-        .select('nom, prenom, role, email, avatar_seed, avatar_regen_date')
-        .eq('id', authUser.id)
-        .single();
-
-      if (legacy.data) {
-        setUser({
-          ...legacy.data,
-          avatar_mode: null,
-          pipeline_access: false,
-          can_validate_ideas: false,
-          can_ship_ideas: false,
-        });
-      }
+      // Compte les projets clients (non internes) ou l user est cdp ou backup
+      // pour deriver son statut (unassigned_collaborator).
+      const { count } = await supabase
+        .from('projets')
+        .select('id', { count: 'exact', head: true })
+        .eq('archive', false)
+        .eq('est_interne', false)
+        .or(`cdp_id.eq.${authUser.id},backup_cdp_id.eq.${authUser.id}`);
+      setProjetsCount(count ?? 0);
     });
   }, []);
+
+  const collabStatus =
+    user && projetsCount !== null
+      ? deriveCollabStatus(user.role, user.pipeline_access, projetsCount)
+      : null;
+  const showUnassignedBanner =
+    collabStatus !== null && isUnassignedCollab(collabStatus);
 
   return (
     <div className="flex min-h-screen">
@@ -85,6 +107,7 @@ export default function DashboardLayout({
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           user={user}
+          isUnassigned={showUnassignedBanner}
           badgeCounts={badgeCounts}
         />
       </div>
@@ -95,6 +118,7 @@ export default function DashboardLayout({
           onHamburgerClick={() => setMobileOpen(true)}
           badgeCounts={badgeCounts}
         />
+        <UnassignedBanner visible={showUnassignedBanner} />
         <main className="bg-background animate-in fade-in flex-1 overflow-y-auto p-4 duration-200 md:p-6">
           {children}
         </main>
@@ -116,6 +140,7 @@ export default function DashboardLayout({
               collapsed={false}
               onToggle={() => setMobileOpen(false)}
               user={user}
+              isUnassigned={showUnassignedBanner}
               mobile
               onClose={() => setMobileOpen(false)}
               badgeCounts={badgeCounts}

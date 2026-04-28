@@ -23,6 +23,7 @@ import {
   Target,
   Lightbulb,
   LineChart,
+  Sparkles,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -38,9 +39,16 @@ type MainNavItem = {
   icon: typeof ClipboardList;
   adminOnly?: boolean;
   requiresIndicateursAccess?: boolean;
+  unassignedOnly?: boolean;
 };
 
 const mainNavItems: MainNavItem[] = [
+  {
+    href: '/accueil',
+    label: 'Accueil',
+    icon: Sparkles,
+    unassignedOnly: true,
+  },
   { href: '/projets', label: 'Projets', icon: ClipboardList },
   { href: '/qualite', label: 'Qualité', icon: CheckCircle },
   { href: '/temps', label: 'Temps', icon: Clock },
@@ -84,6 +92,12 @@ const adminNavItems = [
     adminOnly: true,
   },
   {
+    href: '/admin/intercontrat',
+    label: 'Intercontrat',
+    icon: UsersRound,
+    adminOnly: true,
+  },
+  {
     href: '/admin/parametres',
     label: 'Paramètres',
     icon: Settings,
@@ -104,6 +118,8 @@ interface SidebarProps {
     avatar_regen_date?: string | null;
     pipeline_access?: boolean;
   } | null;
+  /** Collaborateur sans projet client affecte (ni admin, ni commercial). */
+  isUnassigned?: boolean;
   /** Mobile overlay mode */
   mobile?: boolean;
   /** Close the mobile sidebar */
@@ -116,13 +132,18 @@ interface SidebarProps {
 const badgeConfig: Record<
   string,
   {
-    key: 'facturesEnRetard' | 'tempsNonSaisi' | 'tachesEnAttente';
+    key:
+      | 'facturesEnRetard'
+      | 'tempsNonSaisi'
+      | 'tachesEnAttente'
+      | 'intercontrat';
     color: string;
   }
 > = {
   '/facturation': { key: 'facturesEnRetard', color: 'bg-red-500' },
   '/qualite': { key: 'tachesEnAttente', color: 'bg-orange-500' },
   '/temps': { key: 'tempsNonSaisi', color: 'bg-orange-500' },
+  '/admin/intercontrat': { key: 'intercontrat', color: 'bg-amber-500' },
 };
 
 const INITIAL_BADGE_COUNTS: BadgeCounts = {
@@ -130,12 +151,14 @@ const INITIAL_BADGE_COUNTS: BadgeCounts = {
   tempsNonSaisi: 0,
   notifications: 0,
   tachesEnAttente: 0,
+  intercontrat: 0,
 };
 
 export function Sidebar({
   collapsed,
   onToggle,
   user,
+  isUnassigned = false,
   mobile,
   onClose,
   badgeCounts = INITIAL_BADGE_COUNTS,
@@ -227,6 +250,7 @@ export function Sidebar({
               !canAccessIndicateurs(user?.role, user?.pipeline_access)
             )
               return false;
+            if (item.unassignedOnly && !isUnassigned) return false;
             return true;
           })
           .map((item) => {
@@ -333,6 +357,8 @@ export function Sidebar({
           .map((item) => {
             const isActive = pathname.startsWith(item.href);
             const Icon = item.icon;
+            const badge = badgeConfig[item.href];
+            const count = badge ? badgeCounts[badge.key] : 0;
 
             return (
               <Link
@@ -348,8 +374,36 @@ export function Sidebar({
                     : 'text-muted-foreground hover:text-sidebar-foreground',
                 )}
               >
-                {collapsed && <Icon className="h-[18px] w-[18px] shrink-0" />}
-                {!collapsed && <span>{item.label}</span>}
+                {collapsed && (
+                  <span className="relative shrink-0">
+                    <Icon className="h-[18px] w-[18px]" />
+                    {badge && count > 0 && (
+                      <span
+                        className={cn(
+                          'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
+                          badge.color,
+                        )}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </span>
+                )}
+                {!collapsed && (
+                  <>
+                    <span>{item.label}</span>
+                    {badge && count > 0 && (
+                      <span
+                        className={cn(
+                          'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
+                          badge.color,
+                        )}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </>
+                )}
               </Link>
             );
           })}

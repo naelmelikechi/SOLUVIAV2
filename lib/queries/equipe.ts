@@ -71,6 +71,7 @@ export async function getEquipeWithProjets(): Promise<EquipeMember[]> {
       `,
     )
     .eq('archive', false)
+    .eq('est_interne', false)
     .in('statut', ['actif', 'en_pause']);
 
   if (usersResult.error) {

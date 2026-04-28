@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: '14.5';
   };
-  graphql_public: {
-    Tables: {
-      [_ in never]: never;
-    };
-    Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json;
-          operationName?: string;
-          query?: string;
-          variables?: Json;
-        };
-        Returns: Json;
-      };
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
   public: {
     Tables: {
       absences: {
@@ -1253,6 +1228,7 @@ export type Database = {
           lien: string | null;
           message: string | null;
           read_at: string | null;
+          subject_user_id: string | null;
           titre: string;
           type: Database['public']['Enums']['type_notification'];
           user_id: string;
@@ -1263,6 +1239,7 @@ export type Database = {
           lien?: string | null;
           message?: string | null;
           read_at?: string | null;
+          subject_user_id?: string | null;
           titre: string;
           type: Database['public']['Enums']['type_notification'];
           user_id: string;
@@ -1273,11 +1250,19 @@ export type Database = {
           lien?: string | null;
           message?: string | null;
           read_at?: string | null;
+          subject_user_id?: string | null;
           titre?: string;
           type?: Database['public']['Enums']['type_notification'];
           user_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'notifications_subject_user_id_fkey';
+            columns: ['subject_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'notifications_user_id_fkey';
             columns: ['user_id'];
@@ -1545,11 +1530,13 @@ export type Database = {
         Row: {
           archive: boolean;
           backup_cdp_id: string | null;
+          categorie_interne: string | null;
           cdp_id: string | null;
           client_id: string;
           created_at: string;
           date_debut: string | null;
           est_absence: boolean;
+          est_interne: boolean;
           id: string;
           ref: string | null;
           statut: Database['public']['Enums']['statut_projet'];
@@ -1560,11 +1547,13 @@ export type Database = {
         Insert: {
           archive?: boolean;
           backup_cdp_id?: string | null;
+          categorie_interne?: string | null;
           cdp_id?: string | null;
           client_id: string;
           created_at?: string;
           date_debut?: string | null;
           est_absence?: boolean;
+          est_interne?: boolean;
           id?: string;
           ref?: string | null;
           statut?: Database['public']['Enums']['statut_projet'];
@@ -1575,11 +1564,13 @@ export type Database = {
         Update: {
           archive?: boolean;
           backup_cdp_id?: string | null;
+          categorie_interne?: string | null;
           cdp_id?: string | null;
           client_id?: string;
           created_at?: string;
           date_debut?: string | null;
           est_absence?: boolean;
+          est_interne?: boolean;
           id?: string;
           ref?: string | null;
           statut?: Database['public']['Enums']['statut_projet'];
@@ -2054,6 +2045,7 @@ export type Database = {
       users: {
         Row: {
           actif: boolean;
+          avantages_annuels: number | null;
           avatar_mode: string;
           avatar_regen_date: string | null;
           avatar_seed: string | null;
@@ -2062,16 +2054,23 @@ export type Database = {
           created_at: string;
           derniere_connexion: string | null;
           email: string;
+          heures_hebdo: number | null;
           id: string;
+          jours_conges_payes: number | null;
+          jours_rtt: number | null;
           nom: string;
           pipeline_access: boolean;
           prenom: string;
+          primes_annuelles: number | null;
           role: Database['public']['Enums']['role_utilisateur'];
+          salaire_brut_annuel: number | null;
+          taux_charges_patronales: number | null;
           telephone: string | null;
           updated_at: string;
         };
         Insert: {
           actif?: boolean;
+          avantages_annuels?: number | null;
           avatar_mode?: string;
           avatar_regen_date?: string | null;
           avatar_seed?: string | null;
@@ -2080,16 +2079,23 @@ export type Database = {
           created_at?: string;
           derniere_connexion?: string | null;
           email: string;
+          heures_hebdo?: number | null;
           id: string;
+          jours_conges_payes?: number | null;
+          jours_rtt?: number | null;
           nom: string;
           pipeline_access?: boolean;
           prenom: string;
+          primes_annuelles?: number | null;
           role?: Database['public']['Enums']['role_utilisateur'];
+          salaire_brut_annuel?: number | null;
+          taux_charges_patronales?: number | null;
           telephone?: string | null;
           updated_at?: string;
         };
         Update: {
           actif?: boolean;
+          avantages_annuels?: number | null;
           avatar_mode?: string;
           avatar_regen_date?: string | null;
           avatar_seed?: string | null;
@@ -2098,13 +2104,61 @@ export type Database = {
           created_at?: string;
           derniere_connexion?: string | null;
           email?: string;
+          heures_hebdo?: number | null;
           id?: string;
+          jours_conges_payes?: number | null;
+          jours_rtt?: number | null;
           nom?: string;
           pipeline_access?: boolean;
           prenom?: string;
+          primes_annuelles?: number | null;
           role?: Database['public']['Enums']['role_utilisateur'];
+          salaire_brut_annuel?: number | null;
+          taux_charges_patronales?: number | null;
           telephone?: string | null;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      webauthn_credentials: {
+        Row: {
+          backed_up: boolean;
+          counter: number;
+          created_at: string;
+          credential_id: string;
+          device_name: string | null;
+          device_type: string | null;
+          id: string;
+          last_used_at: string | null;
+          public_key: string;
+          transports: string[] | null;
+          user_id: string;
+        };
+        Insert: {
+          backed_up?: boolean;
+          counter?: number;
+          created_at?: string;
+          credential_id: string;
+          device_name?: string | null;
+          device_type?: string | null;
+          id?: string;
+          last_used_at?: string | null;
+          public_key: string;
+          transports?: string[] | null;
+          user_id: string;
+        };
+        Update: {
+          backed_up?: boolean;
+          counter?: number;
+          created_at?: string;
+          credential_id?: string;
+          device_name?: string | null;
+          device_type?: string | null;
+          id?: string;
+          last_used_at?: string | null;
+          public_key?: string;
+          transports?: string[] | null;
+          user_id?: string;
         };
         Relationships: [];
       };
@@ -2140,7 +2194,8 @@ export type Database = {
         | 'erreur_sync'
         | 'idee_validee'
         | 'idee_rejetee'
-        | 'idee_implementee';
+        | 'idee_implementee'
+        | 'collaborateur_a_affecter';
       type_prospect: 'cfa' | 'entreprise';
     };
     CompositeTypes: {
@@ -2270,9 +2325,6 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       absence_type: ['conges', 'maladie'],
@@ -2293,6 +2345,7 @@ export const Constants = {
         'idee_validee',
         'idee_rejetee',
         'idee_implementee',
+        'collaborateur_a_affecter',
       ],
       type_prospect: ['cfa', 'entreprise'],
     },

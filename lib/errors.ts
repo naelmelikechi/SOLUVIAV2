@@ -77,7 +77,9 @@ export type AppErrorCode =
   | 'TEAM_CHAT_SEND_FAILED'
   | 'TEAM_CHAT_DELETE_FAILED'
   // Eduvia Sync
-  | 'EDUVIA_SYNC_FAILED';
+  | 'EDUVIA_SYNC_FAILED'
+  // Intercontrat
+  | 'INTERCONTRAT_FETCH_FAILED';
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

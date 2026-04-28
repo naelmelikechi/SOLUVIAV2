@@ -444,6 +444,32 @@ export async function inviteUser(
 
   logAudit('user_invited', 'user', newUser.user.id, { email, role });
 
+  // Notification fan-out aux admins quand on invite un CDP : ils sauront
+  // qu un nouveau collaborateur attend une affectation projet. La notif
+  // se resout automatiquement (trigger SQL) quand le user recoit son
+  // premier projet client.
+  if (role === 'cdp') {
+    const { data: adminsRows } = await adminClient
+      .from('users')
+      .select('id')
+      .in('role', ['admin', 'superadmin'])
+      .eq('actif', true);
+
+    const admins = adminsRows ?? [];
+    if (admins.length > 0) {
+      const fullName = `${prenom!.trim()} ${nom!.trim()}`.trim();
+      const notifs = admins.map((a) => ({
+        user_id: a.id,
+        subject_user_id: newUser.user.id,
+        type: 'collaborateur_a_affecter' as const,
+        titre: 'Nouveau collaborateur a affecter',
+        message: `${fullName} vient d etre invite et attend une affectation projet.`,
+        lien: '/admin/intercontrat',
+      }));
+      await adminClient.from('notifications').insert(notifs);
+    }
+  }
+
   revalidatePath('/admin/utilisateurs');
   return { success: true };
 }

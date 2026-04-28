@@ -33,6 +33,7 @@ import { ProjetDocumentsSection } from '@/components/projets/projet-documents-se
 import { ProjetRdvSection } from '@/components/projets/projet-rdv-section';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/roles';
+import { isContratActif } from '@/lib/utils/contrat-states';
 
 export default async function ProjetDetailPage({
   params,
@@ -73,8 +74,8 @@ export default async function ProjetDetailPage({
     getProjetPerformance(projet.id),
   ]);
 
-  const apprentisActifs = contrats.filter(
-    (c) => c.contract_state === 'actif',
+  const apprentisActifs = contrats.filter((c) =>
+    isContratActif(c.contract_state),
   ).length;
 
   return (

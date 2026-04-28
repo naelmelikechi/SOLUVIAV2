@@ -9,6 +9,7 @@ import {
   filterBySearch,
 } from '@/components/shared/table-search-input';
 import { Card } from '@/components/ui/card';
+import { isContratActif } from '@/lib/utils/contrat-states';
 import {
   Table,
   TableBody,
@@ -88,7 +89,9 @@ function ProgressBar({
 
 export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
   const [search, setSearch] = useState('');
-  const actifs = contrats.filter((c) => c.contract_state === 'actif').length;
+  const actifs = contrats.filter((c) =>
+    isContratActif(c.contract_state),
+  ).length;
 
   const progressions = contrats.map((c) =>
     computeProgressionTheorique(c.date_debut, c.date_fin),

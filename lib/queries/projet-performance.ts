@@ -7,6 +7,7 @@ import {
   type EmployeeCostInputs,
 } from '@/lib/utils/employee-cost';
 import { getEmployeeCostDefaults } from '@/lib/queries/employee-cost';
+import { isContratActif } from '@/lib/utils/contrat-states';
 
 export interface VoletPerformance {
   // valeur % numerique (null si pas calculable). Pour rentabilite: % marge.
@@ -121,15 +122,7 @@ export async function getProjetPerformance(
   // Moyenne (progression_reelle / progression_theorique × 100) sur les contrats actifs.
   // 100 % = on time. Au-dessus = en avance, en-dessous = en retard.
   const pedagogieRows = contrats
-    .filter((c) =>
-      [
-        'actif',
-        'ENGAGE',
-        'EN_COURS_INSTRUCTION',
-        'TRANSMIS',
-        'NOTSENT',
-      ].includes(c.contract_state),
-    )
+    .filter((c) => isContratActif(c.contract_state))
     .map((c) => {
       const prog = Array.isArray(c.contrats_progressions)
         ? c.contrats_progressions[0]

@@ -484,8 +484,7 @@ export function ParametresForm({
         <div className="space-y-3">
           <p className="text-muted-foreground text-sm">
             Synchronisation Odoo : pousse les factures vers Odoo et tire les
-            paiements. Mode stub actif (remplacer par l&apos;API XML-RPC quand
-            Odoo sera en production).
+            paiements. Client JSON-RPC en production.
           </p>
           <div className="flex items-center gap-3">
             <Button

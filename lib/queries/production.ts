@@ -1,18 +1,20 @@
+import { addMonths, format, startOfMonth } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 
 // -----------------------------------------------------------------------------
 // Pure computation: theoretical payment schedule per contract
 //
-// OPCO side (100% du NPEC étalé en 4 versements) :
-//   - M+1  : 40% (approximation "30j après la 1ère facture CFA→OPCO", affiné
-//            quand Eduvia fournira le réel encaissé)
+// OPCO side (100% du NPEC etale en 4 versements) :
+//   - M+1  : 40% (approximation "30j apres la 1ere facture CFA->OPCO", affine
+//            quand Eduvia fournira le reel encaisse)
 //   - M+7  : 30%
 //   - M+10 : 20%
 //   - M+(dureeMois)+1 : 10% (approximation "dans les 4 mois suivant le terme")
 //
-// SOLUVIA side (12 mensualités = NPEC × tauxCommission / 100) :
-//   - M+3 à M+14 inclus, chaque mensualité = (NPEC × taux / 100) / 12
+// SOLUVIA side (12 mensualites = NPEC x tauxCommission / 100) :
+//   - M+3 a M+14 inclus, chaque mensualite = (NPEC x taux / 100) / 12
 // -----------------------------------------------------------------------------
 
 export interface ScheduleEntry {
@@ -24,7 +26,7 @@ export interface ScheduleEntry {
 export interface ContractSchedule {
   /** 4 versements OPCO = 100% NPEC */
   opco: ScheduleEntry[];
-  /** 12 mensualités SOLUVIA = NPEC × tauxCommission / 100 */
+  /** 12 mensualites SOLUVIA = NPEC x tauxCommission / 100 */
   soluvia: ScheduleEntry[];
 }
 
@@ -71,141 +73,96 @@ export function computeContractSchedule(
 }
 
 // -----------------------------------------------------------------------------
-// Data types exposed to the UI
+// 25-month rolling window data (12 past + current + 12 future)
 // -----------------------------------------------------------------------------
 
 export interface ProductionRow {
-  projetId: string;
-  projetRef: string;
-  clientName: string;
-  monthKey: string;
-  monthLabel: string;
-  montantOpco: number;
-  montantSoluvia: number;
+  /** YYYY-MM-DD (first of month) */
+  mois: string;
+  /** "Avr 2026" */
+  label: string;
+  /** OPCO theoretical revenue from contract schedule */
+  production: number;
+  /** SOLUVIA theoretical revenue (NPEC x taux / 100, etale 12 mois) */
+  productionSoluvia: number;
+  /** Sum of factures.montant_ht for the month */
+  facture: number;
+  /** Sum of paiements.montant for the month */
+  encaisse: number;
+  /** Sum of factures.montant_ht with statut = 'en_retard' */
+  en_retard: number;
 }
 
-export interface ProductionKpis {
-  year: number;
-  currentMonthKey: string;
-  totalOpcoYear: number;
-  totalSoluviaYear: number;
-  totalOpcoCurrentMonth: number;
-  totalSoluviaCurrentMonth: number;
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export interface ProductionMonthlyTotal {
-  monthKey: string;
-  /** Short label (e.g. "Avr") for the chart X-axis */
-  monthLabel: string;
-  opco: number;
-  soluvia: number;
+/** 25-month window: 12 past + current + 12 future, ISO YYYY-MM-DD strings. */
+function buildMonthRange(): string[] {
+  const today = new Date();
+  const months: string[] = [];
+  for (let offset = -12; offset <= 12; offset++) {
+    const d = startOfMonth(addMonths(today, offset));
+    months.push(format(d, 'yyyy-MM-dd'));
+  }
+  return months;
 }
 
-export interface ProductionPageData {
-  year: number;
-  rows: ProductionRow[];
-  kpis: ProductionKpis;
-  monthlyTotals: ProductionMonthlyTotal[];
-}
-
-// -----------------------------------------------------------------------------
-// Formatting helpers
-// -----------------------------------------------------------------------------
-
-const MONTH_LABELS_FULL = [
-  'Janvier',
-  'Février',
-  'Mars',
-  'Avril',
-  'Mai',
-  'Juin',
-  'Juillet',
-  'Août',
-  'Septembre',
-  'Octobre',
-  'Novembre',
-  'Décembre',
-];
-
-const MONTH_LABELS_SHORT = [
-  'Jan',
-  'Fév',
-  'Mar',
-  'Avr',
-  'Mai',
-  'Juin',
-  'Juil',
-  'Août',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Déc',
-];
-
-function formatMonthLabelFull(key: string): string {
-  const [year, month] = key.split('-');
-  const idx = Number(month ?? 0) - 1;
-  return `${MONTH_LABELS_FULL[idx] ?? month} ${year}`;
-}
-
-// -----------------------------------------------------------------------------
-// Main query - one pass, returns everything needed by the page
-// -----------------------------------------------------------------------------
-
-export async function getProductionPageData(
-  year: number,
-): Promise<ProductionPageData> {
+export async function getProductionData(): Promise<ProductionRow[]> {
   const supabase = await createClient();
 
-  const { data: contrats, error } = await supabase
-    .from('contrats')
-    .select(
-      `
-      date_debut,
-      duree_mois,
-      montant_prise_en_charge,
-      projet:projets!contrats_projet_id_fkey (
-        id,
-        ref,
-        taux_commission,
-        client:clients!projets_client_id_fkey (
-          raison_sociale
-        )
+  const months = buildMonthRange();
+  const firstMonth = months[0]!;
+  const lastMonth = months[months.length - 1]!;
+
+  const [facturesRes, paiementsRes, contratsRes] = await Promise.all([
+    supabase
+      .from('factures')
+      .select('montant_ht, statut, mois_concerne')
+      .gte('mois_concerne', firstMonth)
+      .lte('mois_concerne', lastMonth)
+      .neq('statut', 'avoir'),
+
+    supabase
+      .from('paiements')
+      .select(
+        'montant, facture:factures!paiements_facture_id_fkey(mois_concerne)',
       )
-    `,
-    )
-    .eq('archive', false);
+      .gte('facture.mois_concerne', firstMonth)
+      .lte('facture.mois_concerne', lastMonth),
 
-  if (error) {
-    logger.error('queries.production', 'getProductionPageData failed', {
-      error,
+    supabase
+      .from('contrats')
+      .select(
+        'date_debut, duree_mois, montant_prise_en_charge, projet:projets!contrats_projet_id_fkey(taux_commission)',
+      )
+      .eq('archive', false),
+  ]);
+
+  if (facturesRes.error)
+    logger.error('queries.production', 'getProductionData failed (factures)', {
+      error: facturesRes.error,
     });
-    return emptyPageData(year);
-  }
+  if (paiementsRes.error)
+    logger.error('queries.production', 'getProductionData failed (paiements)', {
+      error: paiementsRes.error,
+    });
+  if (contratsRes.error)
+    logger.error('queries.production', 'getProductionData failed (contrats)', {
+      error: contratsRes.error,
+    });
 
-  // Aggregate by (projetId, monthKey)
-  const aggMap = new Map<
-    string,
-    {
-      projetId: string;
-      projetRef: string;
-      clientName: string;
-      monthKey: string;
-      opco: number;
-      soluvia: number;
-    }
-  >();
+  // ---------------------------------------------------------------------------
+  // 1. Theoretical production per month (OPCO + SOLUVIA) from the new schedule
+  // ---------------------------------------------------------------------------
+  const productionByMonth = new Map<string, number>();
+  const productionSoluviaByMonth = new Map<string, number>();
 
-  for (const c of contrats ?? []) {
-    if (!c.date_debut || !c.duree_mois) continue;
-    if (!c.montant_prise_en_charge) continue;
+  for (const c of contratsRes.data ?? []) {
+    if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
+    if (!c.montant_prise_en_charge || c.montant_prise_en_charge <= 0) continue;
 
-    const projet = c.projet as unknown as {
-      id: string;
-      ref: string | null;
-      taux_commission: number;
-      client: { raison_sociale: string } | null;
-    } | null;
+    const projet = c.projet as { taux_commission: number } | null;
     if (!projet) continue;
 
     const schedule = computeContractSchedule(
@@ -215,110 +172,68 @@ export async function getProductionPageData(
       projet.taux_commission ?? 10,
     );
 
-    const applyEntry = (e: ScheduleEntry, kind: 'opco' | 'soluvia') => {
-      if (Number(e.month.slice(0, 4)) !== year) return;
-      const key = `${projet.id}|${e.month}`;
-      const entry = aggMap.get(key) ?? {
-        projetId: projet.id,
-        projetRef: projet.ref ?? '',
-        clientName: projet.client?.raison_sociale ?? '',
-        monthKey: e.month,
-        opco: 0,
-        soluvia: 0,
-      };
-      if (kind === 'opco') entry.opco += e.amount;
-      else entry.soluvia += e.amount;
-      aggMap.set(key, entry);
+    for (const e of schedule.opco) {
+      productionByMonth.set(
+        e.month,
+        (productionByMonth.get(e.month) ?? 0) + e.amount,
+      );
+    }
+    for (const e of schedule.soluvia) {
+      productionSoluviaByMonth.set(
+        e.month,
+        (productionSoluviaByMonth.get(e.month) ?? 0) + e.amount,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 2. Real factures / encaissements / retard from DB
+  // ---------------------------------------------------------------------------
+  const factureByMonth = new Map<
+    string,
+    { facture: number; en_retard: number }
+  >();
+  const encaisseByMonth = new Map<string, number>();
+
+  for (const f of facturesRes.data ?? []) {
+    if (!f.mois_concerne) continue;
+    const key = f.mois_concerne.slice(0, 7);
+    const entry = factureByMonth.get(key) ?? { facture: 0, en_retard: 0 };
+    entry.facture += f.montant_ht;
+    if (f.statut === 'en_retard') entry.en_retard += f.montant_ht;
+    factureByMonth.set(key, entry);
+  }
+
+  for (const p of paiementsRes.data ?? []) {
+    const facture = p.facture as { mois_concerne: string | null } | null;
+    if (!facture?.mois_concerne) continue;
+    const key = facture.mois_concerne.slice(0, 7);
+    encaisseByMonth.set(key, (encaisseByMonth.get(key) ?? 0) + p.montant);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. Assemble 25 rows
+  // ---------------------------------------------------------------------------
+  return months.map((mois) => {
+    const key = mois.slice(0, 7);
+    const f = factureByMonth.get(key);
+    const facture = round2(f?.facture ?? 0);
+    const en_retard = round2(f?.en_retard ?? 0);
+    const encaisse = round2(encaisseByMonth.get(key) ?? 0);
+    const production = round2(productionByMonth.get(key) ?? 0);
+    const productionSoluvia = round2(productionSoluviaByMonth.get(key) ?? 0);
+
+    const d = new Date(mois + 'T00:00:00');
+    const label = capitalize(format(d, 'MMM yyyy', { locale: fr }));
+
+    return {
+      mois,
+      label,
+      production,
+      productionSoluvia,
+      facture,
+      encaisse,
+      en_retard,
     };
-
-    for (const e of schedule.opco) applyEntry(e, 'opco');
-    for (const e of schedule.soluvia) applyEntry(e, 'soluvia');
-  }
-
-  const rows: ProductionRow[] = Array.from(aggMap.values())
-    .map((a) => ({
-      projetId: a.projetId,
-      projetRef: a.projetRef,
-      clientName: a.clientName,
-      monthKey: a.monthKey,
-      monthLabel: formatMonthLabelFull(a.monthKey),
-      montantOpco: round2(a.opco),
-      montantSoluvia: round2(a.soluvia),
-    }))
-    .sort((a, b) => {
-      if (a.projetRef !== b.projetRef)
-        return a.projetRef.localeCompare(b.projetRef);
-      return a.monthKey.localeCompare(b.monthKey);
-    });
-
-  // KPIs
-  const currentMonthKey = monthKey(new Date());
-  let totalOpcoYear = 0;
-  let totalSoluviaYear = 0;
-  let totalOpcoCurrentMonth = 0;
-  let totalSoluviaCurrentMonth = 0;
-  for (const r of rows) {
-    totalOpcoYear += r.montantOpco;
-    totalSoluviaYear += r.montantSoluvia;
-    if (r.monthKey === currentMonthKey) {
-      totalOpcoCurrentMonth += r.montantOpco;
-      totalSoluviaCurrentMonth += r.montantSoluvia;
-    }
-  }
-
-  // Monthly totals for the chart (12 buckets, zero-filled)
-  const monthlyTotals: ProductionMonthlyTotal[] = [];
-  for (let m = 1; m <= 12; m++) {
-    const key = `${year}-${String(m).padStart(2, '0')}`;
-    monthlyTotals.push({
-      monthKey: key,
-      monthLabel: MONTH_LABELS_SHORT[m - 1] ?? '',
-      opco: 0,
-      soluvia: 0,
-    });
-  }
-  for (const r of rows) {
-    const idx = Number(r.monthKey.slice(5)) - 1;
-    const bucket = monthlyTotals[idx];
-    if (bucket) {
-      bucket.opco = round2(bucket.opco + r.montantOpco);
-      bucket.soluvia = round2(bucket.soluvia + r.montantSoluvia);
-    }
-  }
-
-  return {
-    year,
-    rows,
-    kpis: {
-      year,
-      currentMonthKey,
-      totalOpcoYear: round2(totalOpcoYear),
-      totalSoluviaYear: round2(totalSoluviaYear),
-      totalOpcoCurrentMonth: round2(totalOpcoCurrentMonth),
-      totalSoluviaCurrentMonth: round2(totalSoluviaCurrentMonth),
-    },
-    monthlyTotals,
-  };
-}
-
-function emptyPageData(year: number): ProductionPageData {
-  const currentMonthKey = monthKey(new Date());
-  return {
-    year,
-    rows: [],
-    kpis: {
-      year,
-      currentMonthKey,
-      totalOpcoYear: 0,
-      totalSoluviaYear: 0,
-      totalOpcoCurrentMonth: 0,
-      totalSoluviaCurrentMonth: 0,
-    },
-    monthlyTotals: Array.from({ length: 12 }, (_, i) => ({
-      monthKey: `${year}-${String(i + 1).padStart(2, '0')}`,
-      monthLabel: MONTH_LABELS_SHORT[i] ?? '',
-      opco: 0,
-      soluvia: 0,
-    })),
-  };
+  });
 }

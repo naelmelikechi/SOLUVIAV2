@@ -5,10 +5,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils/formatters';
 
 export interface ProductionChartRow {
-  /** Short label shown on the X axis */
-  monthLabel: string;
-  opco: number;
-  soluvia: number;
+  label: string;
+  production: number;
+  facture: number;
+  encaisse: number;
 }
 
 const RechartsBar = dynamic(
@@ -27,27 +27,23 @@ function ChartSkeleton() {
   );
 }
 
-export function ProductionChart({
-  data,
-  year,
-}: {
-  data: ProductionChartRow[];
-  year: number;
-}) {
-  const hasData = data.some((d) => d.opco > 0 || d.soluvia > 0);
+export function ProductionChart({ data }: { data: ProductionChartRow[] }) {
+  const hasData = data.some(
+    (d) => d.production > 0 || d.facture > 0 || d.encaisse > 0,
+  );
 
   if (!hasData) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">
-            Prévisionnel mensuel {year} - OPCO vs SOLUVIA
+            Production vs Facturé vs Encaissé
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex h-[320px] items-center justify-center">
             <p className="text-muted-foreground text-sm">
-              Aucune donnée à afficher pour {year}
+              Aucune donnée à afficher
             </p>
           </div>
         </CardContent>
@@ -59,7 +55,7 @@ export function ProductionChart({
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="text-sm font-medium">
-          Prévisionnel mensuel {year} - OPCO vs SOLUVIA
+          Production vs Facturé vs Encaissé
         </CardTitle>
       </CardHeader>
       <CardContent>

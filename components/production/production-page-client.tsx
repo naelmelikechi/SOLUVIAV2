@@ -1,269 +1,831 @@
 'use client';
 
-import { useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import type { ColumnDef } from '@tanstack/react-table';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useMemo, useRef, useTransition } from 'react';
+import { format } from 'date-fns';
+import {
+  TrendingUp,
+  FileText,
+  Check,
+  AlertTriangle,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import type { ProductionRow } from '@/lib/queries/production';
 import type {
-  ProductionPageData,
-  ProductionRow,
-} from '@/lib/queries/production';
+  ProductionByClientRow,
+  ProductionByProjetRow,
+} from '@/lib/actions/production';
+import {
+  fetchProductionByClient,
+  fetchProductionByProjet,
+} from '@/lib/actions/production';
 import { PageHeader } from '@/components/shared/page-header';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  DataTable,
-  DataTableColumnHeader,
-} from '@/components/shared/data-table';
-import type { FilterOption } from '@/components/shared/data-table';
-import { ProductionChart } from '@/components/production/production-chart';
-import { formatCurrency } from '@/lib/utils/formatters';
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/formatters';
+import {
+  ProductionChart,
+  type ProductionChartRow,
+} from '@/components/production/production-chart';
 
-// -----------------------------------------------------------------------------
-// KPI chip (displayed in the page header, aligned with the title)
-// -----------------------------------------------------------------------------
-
-interface KpiChipProps {
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+interface MonthRow {
+  mois: string;
+  date: Date;
   label: string;
-  value: number;
-  tone: 'opco' | 'soluvia';
-  subdued?: boolean;
+  production: number;
+  facture: number;
+  encaisse: number;
+  en_retard: number;
+  raf: number;
+  rae: number;
+  rolling12: number;
+  ytd: number;
+  isFuture: boolean;
+  isCurrent: boolean;
 }
 
-function KpiChip({ label, value, tone, subdued }: KpiChipProps) {
-  return (
-    <div
-      className={cn(
-        'flex flex-col rounded-md border px-3 py-1.5 text-xs',
-        tone === 'opco'
-          ? 'border-blue-200 bg-blue-50/60 dark:border-blue-900/60 dark:bg-blue-950/30'
-          : 'border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/60 dark:bg-emerald-950/30',
-        subdued && 'opacity-80',
-      )}
-    >
-      <span
-        className={cn(
-          'text-[10px] font-semibold tracking-wide uppercase',
-          tone === 'opco'
-            ? 'text-blue-700 dark:text-blue-300'
-            : 'text-emerald-700 dark:text-emerald-300',
-        )}
-      >
-        {label}
-      </span>
-      <span
-        className={cn(
-          'font-mono text-sm font-semibold tabular-nums',
-          tone === 'opco'
-            ? 'text-blue-900 dark:text-blue-100'
-            : 'text-emerald-900 dark:text-emerald-100',
-        )}
-      >
-        {formatCurrency(value)}
-      </span>
-    </div>
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function buildDisplayData(
+  data: ProductionRow[],
+  perspective: 'opco' | 'soluvia',
+): MonthRow[] {
+  const isSoluvia = perspective === 'soluvia';
+  const today = new Date();
+  const currentKey = format(today, 'yyyy-MM');
+
+  const rows: Omit<MonthRow, 'raf' | 'rae' | 'rolling12' | 'ytd'>[] = data.map(
+    (row) => {
+      const d = new Date(row.mois + 'T00:00:00');
+      const monthKey = row.mois.slice(0, 7);
+      const isFuture = monthKey > currentKey;
+      const isCurrent = monthKey === currentKey;
+
+      // For SOLUVIA perspective, scale facture/encaisse/retard by the average
+      // commission ratio derived from the schedule (productionSoluvia / production)
+      const ratio =
+        row.production > 0 ? row.productionSoluvia / row.production : 0;
+      const commission = isSoluvia ? ratio : 1;
+
+      return {
+        mois: row.mois,
+        date: d,
+        label: row.label,
+        production: isSoluvia
+          ? Math.round(row.productionSoluvia)
+          : Math.round(row.production),
+        facture: Math.round(row.facture * commission),
+        encaisse: Math.round(row.encaisse * commission),
+        en_retard: Math.round(row.en_retard * commission),
+        isFuture,
+        isCurrent,
+      };
+    },
   );
+
+  let cumulProduction = 0;
+  let cumulFacture = 0;
+  let cumulEncaisse = 0;
+
+  return rows.map((row, idx) => {
+    cumulProduction += row.production;
+    cumulFacture += row.facture;
+    cumulEncaisse += row.encaisse;
+
+    let rolling12 = 0;
+    for (let i = Math.max(0, idx - 11); i <= idx; i++) {
+      rolling12 += rows[i]!.production;
+    }
+
+    const rowYear = row.date.getFullYear();
+    let ytd = 0;
+    for (let i = 0; i <= idx; i++) {
+      if (rows[i]!.date.getFullYear() === rowYear) {
+        ytd += rows[i]!.production;
+      }
+    }
+
+    return {
+      ...row,
+      raf: cumulProduction - cumulFacture,
+      rae: cumulFacture - cumulEncaisse,
+      rolling12,
+      ytd,
+    };
+  });
 }
 
-// -----------------------------------------------------------------------------
-// Column factory
-// -----------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
-function createColumns(): ColumnDef<ProductionRow>[] {
-  return [
+export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
+  const [perspective, setPerspective] = useState<'opco' | 'soluvia'>('soluvia');
+  const [isPending, startTransition] = useTransition();
+
+  const [drillLevel, setDrillLevel] = useState<'global' | 'client' | 'projet'>(
+    'global',
+  );
+  const [selectedMois, setSelectedMois] = useState<string | null>(null);
+  const [selectedMoisLabel, setSelectedMoisLabel] = useState<string | null>(
+    null,
+  );
+  const [selectedClient, setSelectedClient] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [clientData, setClientData] = useState<ProductionByClientRow[]>([]);
+  const [projetData, setProjetData] = useState<ProductionByProjetRow[]>([]);
+
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const [showGroups, setShowGroups] = useState({
+    mois: true,
+    soldes: true,
+    rolling12: false,
+    annee: false,
+  });
+
+  const displayData = useMemo(
+    () => buildDisplayData(data, perspective),
+    [data, perspective],
+  );
+
+  const currentMonth = displayData.find((m) => m.isCurrent);
+
+  const handleMonthClick = (mois: string, label: string) => {
+    setSelectedMois(mois);
+    setSelectedMoisLabel(label);
+    startTransition(async () => {
+      try {
+        const result = await fetchProductionByClient(mois);
+        setClientData(result);
+        setDrillLevel('client');
+      } catch {
+        toast.error('Erreur lors du chargement des données client');
+      }
+    });
+  };
+
+  const handleClientClick = (clientId: string, clientName: string) => {
+    if (!selectedMois) return;
+    setSelectedClient({ id: clientId, name: clientName });
+    startTransition(async () => {
+      try {
+        const result = await fetchProductionByProjet(selectedMois, clientId);
+        setProjetData(result);
+        setDrillLevel('projet');
+      } catch {
+        toast.error('Erreur lors du chargement des données projet');
+      }
+    });
+  };
+
+  const handleBackToGlobal = () => {
+    setDrillLevel('global');
+    setSelectedMois(null);
+    setSelectedMoisLabel(null);
+    setSelectedClient(null);
+    setClientData([]);
+    setProjetData([]);
+  };
+
+  const handleBackToClient = () => {
+    setDrillLevel('client');
+    setSelectedClient(null);
+    setProjetData([]);
+  };
+
+  const kpis = [
     {
-      accessorKey: 'projetRef',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Projet" />
-      ),
-      cell: ({ row }) => (
-        <div className="flex flex-col">
-          <span className="text-primary font-mono text-sm font-bold">
-            {row.original.projetRef}
-          </span>
-          <span className="text-muted-foreground text-xs">
-            {row.original.clientName}
-          </span>
-        </div>
-      ),
+      label: 'Production du mois',
+      value: currentMonth?.production ?? 0,
+      icon: TrendingUp,
+      color: 'text-emerald-600',
     },
     {
-      accessorKey: 'monthLabel',
-      id: 'mois',
-      accessorFn: (row) => row.monthKey,
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Mois" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-sm">{row.original.monthLabel}</span>
-      ),
-      sortingFn: (a, b) =>
-        a.original.monthKey.localeCompare(b.original.monthKey),
+      label: 'Facturé du mois',
+      value: currentMonth?.facture ?? 0,
+      icon: FileText,
+      color: 'text-blue-600',
     },
     {
-      accessorKey: 'montantOpco',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="OPCO" />
-      ),
-      cell: ({ row }) => (
-        <div className="-mx-4 -my-2 bg-blue-50/60 px-4 py-2 dark:bg-blue-950/30">
-          <span className="font-mono text-sm font-semibold text-blue-900 tabular-nums dark:text-blue-100">
-            {formatCurrency(row.original.montantOpco)}
-          </span>
-        </div>
-      ),
+      label: 'Encaissé du mois',
+      value: currentMonth?.encaisse ?? 0,
+      icon: Check,
+      color: 'text-muted-foreground',
     },
     {
-      accessorKey: 'montantSoluvia',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="SOLUVIA" />
-      ),
-      cell: ({ row }) => (
-        <div className="-mx-4 -my-2 bg-emerald-50/60 px-4 py-2 dark:bg-emerald-950/30">
-          <span className="font-mono text-sm font-semibold text-emerald-900 tabular-nums dark:text-emerald-100">
-            {formatCurrency(row.original.montantSoluvia)}
-          </span>
-        </div>
-      ),
+      label: 'En retard',
+      value: currentMonth?.en_retard ?? 0,
+      icon: AlertTriangle,
+      color: 'text-red-600',
+      valueColor: 'text-red-600',
     },
   ];
-}
 
-// -----------------------------------------------------------------------------
-// Year selector
-// -----------------------------------------------------------------------------
+  const totalProd = data.reduce((s, r) => s + r.production, 0);
+  const totalSoluvia = data.reduce((s, r) => s + r.productionSoluvia, 0);
+  const avgCommission = totalProd > 0 ? totalSoluvia / totalProd : 0.1;
+  const commissionFactor = perspective === 'soluvia' ? avgCommission : 1;
 
-function YearSelector({
-  year,
-  currentYear,
-}: {
-  year: number;
-  currentYear: number;
-}) {
-  const router = useRouter();
-  const go = (nextYear: number) => {
-    const url =
-      nextYear === currentYear ? '/production' : `/production?year=${nextYear}`;
-    router.push(url);
-  };
-  return (
-    <div className="border-border bg-card inline-flex items-center rounded-md border">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => go(year - 1)}
-        aria-label="Année précédente"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </Button>
-      <span className="px-3 font-mono text-sm font-semibold tabular-nums">
-        {year}
-      </span>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => go(year + 1)}
-        aria-label="Année suivante"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </Button>
-      {year !== currentYear && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mr-1 ml-1"
-          onClick={() => go(currentYear)}
-        >
-          Aujourd&apos;hui
-        </Button>
-      )}
-    </div>
-  );
-}
+  const totalColumnCount =
+    1 +
+    (showGroups.mois ? 3 : 0) +
+    (showGroups.soldes ? 3 : 0) +
+    (showGroups.rolling12 ? 1 : 0) +
+    (showGroups.annee ? 1 : 0);
 
-// -----------------------------------------------------------------------------
-// Main component
-// -----------------------------------------------------------------------------
+  type YearGroupItem =
+    | { kind: 'banner'; year: number }
+    | { kind: 'row'; row: MonthRow };
 
-export function ProductionPageClient({ data }: { data: ProductionPageData }) {
-  const router = useRouter();
-  const columns = useMemo(() => createColumns(), []);
-  const { year, rows, kpis, monthlyTotals } = data;
-  const currentYear = new Date().getFullYear();
-
-  const clientFilter: FilterOption = useMemo(() => {
-    const uniqueClients = Array.from(
-      new Set(rows.map((r) => r.clientName).filter(Boolean)),
-    ).sort();
-    return {
-      column: 'projetRef',
-      label: 'Client',
-      options: uniqueClients.map((c) => ({ label: c, value: c })),
-    };
-  }, [rows]);
-
-  const filters = useMemo<FilterOption[]>(
-    () => (clientFilter.options.length > 0 ? [clientFilter] : []),
-    [clientFilter],
-  );
-
-  const handleRowClick = (row: ProductionRow) => {
-    if (row.projetRef) {
-      router.push(`/projets/${row.projetRef}`);
+  const rowsWithYearBreaks = useMemo<YearGroupItem[]>(() => {
+    const out: YearGroupItem[] = [];
+    let currentYear: number | null = null;
+    for (const row of displayData) {
+      const year = Number(row.mois.slice(0, 4));
+      if (year !== currentYear) {
+        out.push({ kind: 'banner', year });
+        currentYear = year;
+      }
+      out.push({ kind: 'row', row });
     }
-  };
+    return out;
+  }, [displayData]);
 
   return (
     <div>
-      <PageHeader
-        title="Production"
-        description="Prévisionnel théorique par projet et par mois"
-      >
-        <KpiChip
-          label={`OPCO ${year}`}
-          value={kpis.totalOpcoYear}
-          tone="opco"
-        />
-        <KpiChip
-          label={`SOLUVIA ${year}`}
-          value={kpis.totalSoluviaYear}
-          tone="soluvia"
-        />
-        <KpiChip
-          label="OPCO mois"
-          value={kpis.totalOpcoCurrentMonth}
-          tone="opco"
-          subdued
-        />
-        <KpiChip
-          label="SOLUVIA mois"
-          value={kpis.totalSoluviaCurrentMonth}
-          tone="soluvia"
-          subdued
-        />
-      </PageHeader>
+      <PageHeader title="Production" description="Vue financière mensuelle" />
 
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <YearSelector year={year} currentYear={currentYear} />
+      <div className="mb-6 flex items-center gap-2">
+        <div className="bg-muted inline-flex rounded-lg p-0.5">
+          <Button
+            variant={perspective === 'opco' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setPerspective('opco')}
+          >
+            OPCO
+          </Button>
+          <Button
+            variant={perspective === 'soluvia' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setPerspective('soluvia')}
+          >
+            SOLUVIA
+          </Button>
+        </div>
         <span className="text-muted-foreground text-xs">
-          {rows.length} lignes · projection théorique (OPCO 40/30/20/10, SOLUVIA
-          12 × 1/12 à partir de M+3)
+          {perspective === 'soluvia'
+            ? 'Commission SOLUVIA sur la production'
+            : 'Montants bruts OPCO'}
         </span>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={rows}
-        searchKey="projetRef"
-        searchPlaceholder="Rechercher un projet..."
-        onRowClick={handleRowClick}
-        defaultSort={{ id: 'projetRef', desc: false }}
-        filters={filters}
-      />
-
-      <div className="mt-6">
-        <ProductionChart data={monthlyTotals} year={year} />
+      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+        {kpis.map((kpi) => (
+          <Card
+            key={kpi.label}
+            className="p-3 transition-shadow hover:shadow-md"
+          >
+            <div className="text-muted-foreground mb-1 flex items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase">
+              <kpi.icon className={cn('h-3.5 w-3.5', kpi.color)} />
+              {kpi.label}
+            </div>
+            <div
+              className={cn(
+                'text-lg font-bold tabular-nums',
+                kpi.valueColor && kpi.value > 0 && kpi.valueColor,
+              )}
+            >
+              {formatCurrency(kpi.value)}
+            </div>
+          </Card>
+        ))}
       </div>
+
+      {drillLevel !== 'global' && (
+        <div className="mb-4 flex items-center gap-1.5 text-sm">
+          <button
+            onClick={handleBackToGlobal}
+            className="text-primary font-medium hover:underline"
+          >
+            Production
+          </button>
+          {selectedMoisLabel && (
+            <>
+              <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+              {drillLevel === 'projet' ? (
+                <button
+                  onClick={handleBackToClient}
+                  className="text-primary font-medium hover:underline"
+                >
+                  {selectedMoisLabel}
+                </button>
+              ) : (
+                <span className="font-medium">{selectedMoisLabel}</span>
+              )}
+            </>
+          )}
+          {drillLevel === 'projet' && selectedClient && (
+            <>
+              <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+              <span className="font-medium">{selectedClient.name}</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {drillLevel === 'global' && (
+        <div className="mb-4 flex justify-end gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                'bg-background border-input hover:bg-accent hover:text-accent-foreground inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-3 text-sm font-medium whitespace-nowrap transition-colors',
+              )}
+            >
+              Colonnes
+              <ChevronDown className="h-3.5 w-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Groupes de colonnes</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={showGroups.mois}
+                onCheckedChange={(v) =>
+                  setShowGroups((s) => ({ ...s, mois: !!v }))
+                }
+              >
+                Mois
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={showGroups.soldes}
+                onCheckedChange={(v) =>
+                  setShowGroups((s) => ({ ...s, soldes: !!v }))
+                }
+              >
+                Soldes
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={showGroups.rolling12}
+                onCheckedChange={(v) =>
+                  setShowGroups((s) => ({ ...s, rolling12: !!v }))
+                }
+              >
+                12 Mois
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={showGroups.annee}
+                onCheckedChange={(v) =>
+                  setShowGroups((s) => ({ ...s, annee: !!v }))
+                }
+              >
+                Année
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+
+      {isPending && (
+        <div className="text-muted-foreground mb-4 flex items-center gap-2 text-sm">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          Chargement...
+        </div>
+      )}
+
+      {drillLevel === 'global' && (
+        <Card className="overflow-x-auto" ref={tableRef}>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b-0">
+                <TableHead rowSpan={2} className="align-bottom" />
+                {showGroups.mois && (
+                  <TableHead
+                    colSpan={3}
+                    className="border-l-2 border-l-emerald-500 text-center text-xs font-semibold tracking-wider uppercase"
+                  >
+                    Mois
+                  </TableHead>
+                )}
+                {showGroups.soldes && (
+                  <TableHead
+                    colSpan={3}
+                    className="border-l-2 border-l-blue-500 text-center text-xs font-semibold tracking-wider uppercase"
+                  >
+                    Soldes
+                  </TableHead>
+                )}
+                {showGroups.rolling12 && (
+                  <TableHead
+                    colSpan={1}
+                    className="border-l-accent border-l-2 text-center text-xs font-semibold tracking-wider uppercase"
+                  >
+                    12 Mois
+                  </TableHead>
+                )}
+                {showGroups.annee && (
+                  <TableHead
+                    colSpan={1}
+                    className="border-l-2 border-l-purple-500 text-center text-xs font-semibold tracking-wider uppercase"
+                  >
+                    Année
+                  </TableHead>
+                )}
+              </TableRow>
+              <TableRow>
+                {showGroups.mois && (
+                  <>
+                    <TableHead className="border-l-2 border-l-emerald-500 text-right">
+                      Production
+                    </TableHead>
+                    <TableHead className="text-right">Facturé</TableHead>
+                    <TableHead className="text-right">Encaissé</TableHead>
+                  </>
+                )}
+                {showGroups.soldes && (
+                  <>
+                    <TableHead className="border-l-2 border-l-blue-500 text-right">
+                      En retard
+                    </TableHead>
+                    <TableHead className="text-right">RAF</TableHead>
+                    <TableHead className="text-right">RAE</TableHead>
+                  </>
+                )}
+                {showGroups.rolling12 && (
+                  <TableHead className="border-l-accent border-l-2 text-right">
+                    12M
+                  </TableHead>
+                )}
+                {showGroups.annee && (
+                  <TableHead className="border-l-2 border-l-purple-500 text-right">
+                    Année
+                  </TableHead>
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rowsWithYearBreaks.map((item) => {
+                if (item.kind === 'banner') {
+                  return (
+                    <TableRow
+                      key={'year-' + item.year}
+                      className="bg-muted/80 hover:bg-muted/80 sticky top-0 z-10"
+                    >
+                      <TableCell
+                        colSpan={totalColumnCount}
+                        className="text-muted-foreground py-2 text-xs font-semibold tracking-wider uppercase"
+                      >
+                        {item.year}
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+                const row = item.row;
+                return (
+                  <TableRow
+                    key={row.label}
+                    data-current-month={row.isCurrent ? 'true' : undefined}
+                    className={cn(
+                      'hover:bg-muted/50 cursor-pointer transition-colors',
+                      row.isCurrent && 'bg-primary/10 font-semibold',
+                      row.isFuture && 'text-muted-foreground italic',
+                    )}
+                    onClick={() => handleMonthClick(row.mois, row.label)}
+                  >
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-1.5">
+                        {row.isCurrent && (
+                          <span className="text-primary mr-1">&#9654;</span>
+                        )}
+                        {row.label}
+                        <ChevronRight className="text-muted-foreground h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+                      </span>
+                    </TableCell>
+                    {showGroups.mois && (
+                      <>
+                        <TableCell className="border-l-2 border-l-emerald-500 text-right tabular-nums">
+                          {formatCurrency(row.production)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.isFuture ? '-' : formatCurrency(row.facture)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.isFuture ? '-' : formatCurrency(row.encaisse)}
+                        </TableCell>
+                      </>
+                    )}
+                    {showGroups.soldes && (
+                      <>
+                        <TableCell
+                          className={cn(
+                            'border-l-2 border-l-blue-500 text-right tabular-nums',
+                            !row.isFuture &&
+                              row.en_retard > 0 &&
+                              'font-semibold text-red-600',
+                          )}
+                        >
+                          {row.isFuture ? '-' : formatCurrency(row.en_retard)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatCurrency(row.raf)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.isFuture ? '-' : formatCurrency(row.rae)}
+                        </TableCell>
+                      </>
+                    )}
+                    {showGroups.rolling12 && (
+                      <TableCell className="border-l-accent text-muted-foreground border-l-2 text-right tabular-nums">
+                        {formatCurrency(row.rolling12)}
+                      </TableCell>
+                    )}
+                    {showGroups.annee && (
+                      <TableCell className="text-muted-foreground border-l-2 border-l-purple-500 text-right tabular-nums">
+                        {formatCurrency(row.ytd)}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      {drillLevel === 'global' && (
+        <ProductionChart
+          data={displayData
+            .filter((m) => !m.isFuture)
+            .map(
+              (m): ProductionChartRow => ({
+                label: m.label,
+                production: m.production,
+                facture: m.facture,
+                encaisse: m.encaisse,
+              }),
+            )}
+        />
+      )}
+
+      {drillLevel === 'client' && (
+        <Card className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Client</TableHead>
+                <TableHead className="text-right">Projets</TableHead>
+                <TableHead className="text-right">Production</TableHead>
+                <TableHead className="text-right">Facturé</TableHead>
+                <TableHead className="text-right">Encaissé</TableHead>
+                <TableHead className="text-right">En retard</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {clientData.length === 0 && !isPending ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="text-muted-foreground py-8 text-center"
+                  >
+                    Aucune donnée pour ce mois
+                  </TableCell>
+                </TableRow>
+              ) : (
+                clientData.map((row) => (
+                  <TableRow
+                    key={row.clientId}
+                    className="hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() =>
+                      handleClientClick(row.clientId, row.clientName)
+                    }
+                  >
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-1.5">
+                        {row.clientName}
+                        <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                      {row.nbProjets}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(
+                        Math.round(row.production * commissionFactor),
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(
+                        Math.round(row.facture * commissionFactor),
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(
+                        Math.round(row.encaisse * commissionFactor),
+                      )}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right tabular-nums',
+                        row.enRetard > 0 && 'font-semibold text-red-600',
+                      )}
+                    >
+                      {formatCurrency(
+                        Math.round(row.enRetard * commissionFactor),
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+              {clientData.length > 0 && (
+                <TableRow className="border-t-2 font-semibold">
+                  <TableCell>Total</TableCell>
+                  <TableCell className="text-muted-foreground text-right tabular-nums">
+                    {clientData.reduce((s, r) => s + r.nbProjets, 0)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(
+                      Math.round(
+                        clientData.reduce((s, r) => s + r.production, 0) *
+                          commissionFactor,
+                      ),
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(
+                      Math.round(
+                        clientData.reduce((s, r) => s + r.facture, 0) *
+                          commissionFactor,
+                      ),
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(
+                      Math.round(
+                        clientData.reduce((s, r) => s + r.encaisse, 0) *
+                          commissionFactor,
+                      ),
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      'text-right tabular-nums',
+                      clientData.reduce((s, r) => s + r.enRetard, 0) > 0 &&
+                        'text-red-600',
+                    )}
+                  >
+                    {formatCurrency(
+                      Math.round(
+                        clientData.reduce((s, r) => s + r.enRetard, 0) *
+                          commissionFactor,
+                      ),
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      {drillLevel === 'projet' && (
+        <Card className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Projet</TableHead>
+                <TableHead className="text-right">Commission</TableHead>
+                <TableHead className="text-right">Contrats</TableHead>
+                <TableHead className="text-right">Production</TableHead>
+                <TableHead className="text-right">Facturé</TableHead>
+                <TableHead className="text-right">Encaissé</TableHead>
+                <TableHead className="text-right">En retard</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {projetData.length === 0 && !isPending ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="text-muted-foreground py-8 text-center"
+                  >
+                    Aucune donnée pour ce client
+                  </TableCell>
+                </TableRow>
+              ) : (
+                projetData.map((row) => (
+                  <TableRow key={row.projetId}>
+                    <TableCell className="font-medium">
+                      {row.projetRef}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                      {row.commission > 0 ? `${row.commission} %` : '-'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                      {row.nbContrats}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(
+                        Math.round(row.production * commissionFactor),
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(
+                        Math.round(row.facture * commissionFactor),
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(
+                        Math.round(row.encaisse * commissionFactor),
+                      )}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right tabular-nums',
+                        row.enRetard > 0 && 'font-semibold text-red-600',
+                      )}
+                    >
+                      {formatCurrency(
+                        Math.round(row.enRetard * commissionFactor),
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+              {projetData.length > 0 && (
+                <TableRow className="border-t-2 font-semibold">
+                  <TableCell>Total</TableCell>
+                  <TableCell />
+                  <TableCell className="text-muted-foreground text-right tabular-nums">
+                    {projetData.reduce((s, r) => s + r.nbContrats, 0)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(
+                      Math.round(
+                        projetData.reduce((s, r) => s + r.production, 0) *
+                          commissionFactor,
+                      ),
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(
+                      Math.round(
+                        projetData.reduce((s, r) => s + r.facture, 0) *
+                          commissionFactor,
+                      ),
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(
+                      Math.round(
+                        projetData.reduce((s, r) => s + r.encaisse, 0) *
+                          commissionFactor,
+                      ),
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      'text-right tabular-nums',
+                      projetData.reduce((s, r) => s + r.enRetard, 0) > 0 &&
+                        'text-red-600',
+                    )}
+                  >
+                    {formatCurrency(
+                      Math.round(
+                        projetData.reduce((s, r) => s + r.enRetard, 0) *
+                          commissionFactor,
+                      ),
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }

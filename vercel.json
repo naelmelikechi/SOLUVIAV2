@@ -48,6 +48,10 @@
     {
       "path": "/api/cron/progression-snapshot",
       "schedule": "0 4 * * 1"
+    },
+    {
+      "path": "/api/cron/intercontrat-alerte",
+      "schedule": "0 9 * * 1"
     }
   ]
 }

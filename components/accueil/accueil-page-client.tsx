@@ -9,6 +9,7 @@ import {
   User as UserIcon,
   UsersRound,
   ArrowRight,
+  BookOpen,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card } from '@/components/ui/card';
@@ -23,6 +24,7 @@ import {
 } from '@/lib/utils/projets-internes';
 
 const TEAM_VISITED_KEY = 'soluvia-accueil-team-visited';
+const WIKI_VISITED_KEY = 'soluvia-accueil-wiki-visited';
 
 interface AccueilPageClientProps {
   prenom: string;
@@ -30,6 +32,7 @@ interface AccueilPageClientProps {
   aSaisiTemps: boolean;
   heuresMoisTotal: number;
   heuresParCategorie: Record<string, number>;
+  wikiUrl: string | null;
 }
 
 export function AccueilPageClient({
@@ -38,13 +41,18 @@ export function AccueilPageClient({
   aSaisiTemps,
   heuresMoisTotal,
   heuresParCategorie,
+  wikiUrl,
 }: AccueilPageClientProps) {
   const [teamVisited, setTeamVisited] = useState(false);
+  const [wikiVisited, setWikiVisited] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem(TEAM_VISITED_KEY) === '1') {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTeamVisited(true);
+    }
+    if (localStorage.getItem(WIKI_VISITED_KEY) === '1') {
+      setWikiVisited(true);
     }
   }, []);
 
@@ -53,12 +61,18 @@ export function AccueilPageClient({
     setTeamVisited(true);
   };
 
+  const markWikiVisited = () => {
+    localStorage.setItem(WIKI_VISITED_KEY, '1');
+    setWikiVisited(true);
+  };
+
   const items: Array<{
     key: string;
     label: string;
     description: string;
     done: boolean;
     href: string;
+    external?: boolean;
     onClick?: () => void;
     icon: typeof UserIcon;
   }> = [
@@ -89,6 +103,21 @@ export function AccueilPageClient({
       onClick: markTeamVisited,
       icon: UsersRound,
     },
+    ...(wikiUrl
+      ? [
+          {
+            key: 'wiki',
+            label: 'Lire le wiki onboarding',
+            description:
+              'Procédures, outils, contacts utiles : tout ce qu il faut savoir pour démarrer.',
+            done: wikiVisited,
+            href: wikiUrl,
+            external: true,
+            onClick: markWikiVisited,
+            icon: BookOpen,
+          },
+        ]
+      : []),
   ];
 
   const doneCount = items.filter((it) => it.done).length;
@@ -141,17 +170,33 @@ export function AccueilPageClient({
                     {it.description}
                   </p>
                 </div>
-                <Link
-                  href={it.href}
-                  onClick={it.onClick}
-                  className={buttonVariants({
-                    size: 'sm',
-                    variant: it.done ? 'ghost' : 'default',
-                  })}
-                >
-                  {it.done ? 'Revoir' : 'Y aller'}
-                  <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                </Link>
+                {it.external ? (
+                  <a
+                    href={it.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={it.onClick}
+                    className={buttonVariants({
+                      size: 'sm',
+                      variant: it.done ? 'ghost' : 'default',
+                    })}
+                  >
+                    {it.done ? 'Revoir' : 'Y aller'}
+                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                  </a>
+                ) : (
+                  <Link
+                    href={it.href}
+                    onClick={it.onClick}
+                    className={buttonVariants({
+                      size: 'sm',
+                      variant: it.done ? 'ghost' : 'default',
+                    })}
+                  >
+                    {it.done ? 'Revoir' : 'Y aller'}
+                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                  </Link>
+                )}
               </li>
             );
           })}

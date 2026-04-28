@@ -113,6 +113,28 @@ export async function getEmetteurInfo(): Promise<EmetteurInfo> {
   }
 }
 
+/**
+ * Lit la valeur d un parametre par sa cle. Retourne null si absent ou en
+ * cas d erreur (fail-soft : la lecture d un parametre optionnel ne doit
+ * jamais bloquer le rendu).
+ */
+export async function getParametreValeur(cle: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('parametres')
+    .select('valeur')
+    .eq('cle', cle)
+    .maybeSingle();
+  if (error) {
+    logger.warn('queries.parametres', 'getParametreValeur failed', {
+      cle,
+      error,
+    });
+    return null;
+  }
+  return data?.valeur ?? null;
+}
+
 export async function getJoursFeries(annee: number) {
   const supabase = await createClient();
   const { data, error } = await supabase

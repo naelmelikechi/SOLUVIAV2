@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/queries/users';
 import { getCollabStatus } from '@/lib/queries/collab-status';
+import { getParametreValeur } from '@/lib/queries/parametres';
 import { createClient } from '@/lib/supabase/server';
 import { AccueilPageClient } from '@/components/accueil/accueil-page-client';
 
@@ -63,6 +64,7 @@ export default async function AccueilPage() {
 
   const profilComplet = !!user.telephone && user.telephone.trim().length > 0;
   const aSaisiTemps = (saisiesCount ?? 0) > 0;
+  const wikiUrl = await getParametreValeur('onboarding_wiki_url');
 
   return (
     <AccueilPageClient
@@ -71,6 +73,7 @@ export default async function AccueilPage() {
       aSaisiTemps={aSaisiTemps}
       heuresMoisTotal={heuresMoisTotal}
       heuresParCategorie={heuresParCategorie}
+      wikiUrl={wikiUrl}
     />
   );
 }

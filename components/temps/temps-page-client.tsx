@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useTransition, useMemo } from 'react';
 import Link from 'next/link';
-import { Copy, Download, Plus, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Copy, Download, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import {
@@ -16,8 +17,7 @@ import { Button } from '@/components/ui/button';
 import { TimeWeekNavigator } from '@/components/temps/time-week-navigator';
 import { TimeGrid } from '@/components/temps/time-grid';
 import { TimeAxisPanel } from '@/components/temps/time-axis-panel';
-import { AbsenceBanner } from '@/components/temps/absence-banner';
-import { AbsenceFormDialog } from '@/components/temps/absence-form-dialog';
+import { WeekStatusPanel } from '@/components/temps/week-status-panel';
 import { formatHeures } from '@/lib/utils/formatters';
 import {
   computeAbsenceHoursPerDay,
@@ -39,6 +39,7 @@ export function TempsPageClient({
   isAdmin,
   joursFeries = {},
 }: TempsPageClientProps) {
+  const router = useRouter();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekDates, setWeekDates] = useState(initialWeekDates);
   const [saisies, setSaisies] = useState<SaisieTemps[]>(initialSaisies);
@@ -53,15 +54,8 @@ export function TempsPageClient({
     ? saisies.find((s) => s.projet_id === selectedCell.projetId)
     : null;
 
-  // ---------------------------------------------------------------------------
-  // Absence state (nouvelle architecture - periodes)
-  // ---------------------------------------------------------------------------
-
-  const [absences] = useState<AbsencePeriod[]>(initialAbsences);
-  const [editingAbsence, setEditingAbsence] = useState<
-    AbsencePeriod | undefined
-  >();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  // Absences received from server (refreshed via router.refresh after mutations)
+  const absences = initialAbsences;
 
   const absencesPerDate = useMemo(
     () => computeAbsenceHoursPerDay(absences, weekDates),
@@ -87,16 +81,6 @@ export function TempsPageClient({
     }
     return map;
   }, [absencesPerDate]);
-
-  function handleAddAbsenceClick() {
-    setEditingAbsence(undefined);
-    setDialogOpen(true);
-  }
-
-  const handleEditAbsence = useCallback((absence: AbsencePeriod) => {
-    setEditingAbsence(absence);
-    setDialogOpen(true);
-  }, []);
 
   const changeWeek = useCallback((newOffset: number) => {
     setWeekOffset(newOffset);
@@ -181,17 +165,19 @@ export function TempsPageClient({
 
   const handleExport = async () => {
     const XLSX = await import('xlsx');
-    const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+    const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+    const weekdayDates = weekDates.slice(0, 5);
     const rows = saisies.map((s) => {
       const row: Record<string, string | number> = {
         Projet: s.projet_label,
       };
-      weekDates.forEach((date, i) => {
+      weekdayDates.forEach((date, i) => {
         row[dayLabels[i]!] = s.heures[date] || 0;
       });
-      const total = weekDates
-        .slice(0, 5)
-        .reduce((sum, d) => sum + (s.heures[d] || 0), 0);
+      const total = weekdayDates.reduce(
+        (sum, d) => sum + (s.heures[d] || 0),
+        0,
+      );
       row['Total'] = formatHeures(total);
       return row;
     });
@@ -230,7 +216,7 @@ export function TempsPageClient({
         </Button>
       </PageHeader>
 
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4">
         <TimeWeekNavigator
           weekDates={weekDates}
           onPrev={() => changeWeek(weekOffset - 1)}
@@ -238,21 +224,7 @@ export function TempsPageClient({
           onToday={() => changeWeek(0)}
           loading={isPending}
         />
-        <Button onClick={handleAddAbsenceClick} size="sm">
-          <Plus className="mr-1 h-4 w-4" />
-          Absence
-        </Button>
       </div>
-
-      {/* Absence banner */}
-      <AbsenceBanner
-        weekDates={weekDates}
-        absencesPerDate={absencesPerDate}
-        absences={absences}
-        saisiesHoursPerDate={saisiesHoursPerDate}
-        joursFeries={joursFeries}
-        onEditAbsence={handleEditAbsence}
-      />
 
       <div className="flex gap-4">
         {/* Main grid */}
@@ -267,8 +239,8 @@ export function TempsPageClient({
           />
         </div>
 
-        {/* Axis panel */}
-        {selectedCell && selectedSaisie && (
+        {/* Right side panel: axes form when a cell is selected, otherwise week status */}
+        {selectedCell && selectedSaisie ? (
           <TimeAxisPanel
             saisie={selectedSaisie}
             date={selectedCell.date}
@@ -314,14 +286,17 @@ export function TempsPageClient({
             onClose={handleClosePanel}
             onSave={handleSaveAxes}
           />
+        ) : (
+          <WeekStatusPanel
+            weekDates={weekDates}
+            absencesPerDate={absencesPerDate}
+            absences={absences}
+            saisiesHoursPerDate={saisiesHoursPerDate}
+            joursFeries={joursFeries}
+            onChanged={() => router.refresh()}
+          />
         )}
       </div>
-
-      <AbsenceFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        absence={editingAbsence}
-      />
     </div>
   );
 }

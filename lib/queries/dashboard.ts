@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
+import { ACTIVE_CONTRACT_STATES } from '@/lib/utils/contrat-states';
 import {
   format,
   startOfMonth,
@@ -9,6 +10,8 @@ import {
   isWeekend,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
+
+const ACTIVE_STATES_ARRAY = Array.from(ACTIVE_CONTRACT_STATES);
 
 export async function getDashboardData() {
   const supabase = await createClient();
@@ -37,14 +40,14 @@ export async function getDashboardData() {
     supabase
       .from('contrats')
       .select('id')
-      .eq('contract_state', 'actif')
+      .in('contract_state', ACTIVE_STATES_ARRAY)
       .eq('archive', false),
     // Contrats actifs started > 30 days ago - candidates for "sans progression"
     supabase
       .from('contrats')
       .select('id, projet_id')
       .eq('archive', false)
-      .in('contract_state', ['actif', 'en_cours', 'signe'])
+      .in('contract_state', ACTIVE_STATES_ARRAY)
       .lt('date_debut', thirtyDaysAgoStr),
   ]);
 
@@ -159,11 +162,14 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
       .select('montant_ht, statut')
       .in('statut', ['emise', 'payee', 'en_retard']),
     supabase.from('paiements').select('montant'),
+    // Distinct learners (eduvia_employee_id) actually in formation. We dedup
+    // in JS rather than via SQL DISTINCT - works consistently across the
+    // mix of internal `actif` and Eduvia-driven states.
     supabase
       .from('contrats')
-      .select('id')
+      .select('eduvia_employee_id')
       .eq('archive', false)
-      .in('contract_state', ['actif', 'en_cours', 'signe']),
+      .in('contract_state', ACTIVE_STATES_ARRAY),
     supabase
       .from('saisies_temps')
       .select('date')
@@ -241,7 +247,18 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
   // For totalProduction we use the same as totalFacture (proxy)
   const totalProduction = totalFacture;
 
-  const nbApprenantsActifs = contratsRes.data?.length ?? 0;
+  // Dedup by eduvia_employee_id : un apprenant avec N contrats compte 1.
+  // Les contrats hors Eduvia (employee_id null) sont comptes 1 chacun.
+  const apprenantKeys = new Set<string>();
+  let sansEmployeeId = 0;
+  for (const c of contratsRes.data ?? []) {
+    if (c.eduvia_employee_id != null) {
+      apprenantKeys.add(String(c.eduvia_employee_id));
+    } else {
+      sansEmployeeId += 1;
+    }
+  }
+  const nbApprenantsActifs = apprenantKeys.size + sansEmployeeId;
 
   // Count business days (Mon-Fri) from Monday to today
   let businessDays = 0;

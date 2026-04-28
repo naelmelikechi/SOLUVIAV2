@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { isAdmin, canAccessPipeline } from '@/lib/utils/roles';
+import { ACTIVE_CONTRACT_STATES } from '@/lib/utils/contrat-states';
 import {
   startOfWeek,
   endOfWeek,
@@ -285,7 +286,10 @@ async function computeProgressionRatios(
       const delta = cur - prev;
       const entry = perClient.get(clientId) ?? { realise: 0, total: 0 };
       entry.total += 1;
-      if (delta >= 2.5) entry.realise += 1;
+      // "Realise" = un contrat qui a effectivement progresse cette semaine
+      // (delta strict > 0). Le seuil >= 2.5 historique etait trop strict :
+      // un apprenant qui avance d'1 % par semaine etait classe "non realise".
+      if (delta > 0) entry.realise += 1;
       perClient.set(clientId, entry);
     }
     for (const [clientId, ratio] of perClient) {
@@ -587,7 +591,7 @@ export async function getCommercialCounters(
     const apportesQuery = supabase
       .from('contrats')
       .select(
-        'id, created_at, projet:projets!contrats_projet_id_fkey(client:clients!projets_client_id_fkey(apporteur_commercial_id))',
+        'id, eduvia_employee_id, created_at, projet:projets!contrats_projet_id_fkey(client:clients!projets_client_id_fkey(apporteur_commercial_id))',
       )
       .gte('created_at', isoTimestamp(monthRange.start))
       .lte('created_at', isoTimestamp(monthRange.end));
@@ -595,10 +599,10 @@ export async function getCommercialCounters(
     const volumeQuery = supabase
       .from('contrats')
       .select(
-        'id, projet:projets!contrats_projet_id_fkey(client:clients!projets_client_id_fkey(apporteur_commercial_id))',
+        'id, eduvia_employee_id, projet:projets!contrats_projet_id_fkey(client:clients!projets_client_id_fkey(apporteur_commercial_id))',
       )
       .eq('archive', false)
-      .in('contract_state', ['actif', 'en_cours', 'signe']);
+      .in('contract_state', Array.from(ACTIVE_CONTRACT_STATES));
 
     const [rdvRes, signesRes, apportesRes, volumeRes] = await Promise.all([
       rdvQuery,
@@ -626,6 +630,7 @@ export async function getCommercialCounters(
 
     type ContratWithClient = {
       id: string;
+      eduvia_employee_id?: string | null;
       projet: {
         client: { apporteur_commercial_id: string | null } | null;
       } | null;
@@ -636,6 +641,15 @@ export async function getCommercialCounters(
       return rows.filter(
         (c) => c.projet?.client?.apporteur_commercial_id === commercialId,
       );
+    };
+
+    // Apprenants distincts : un apprenant qui signe N contrats compte 1.
+    // Tombe sur l'id du contrat quand eduvia_employee_id est null (pas tres
+    // frequent, contrats hors-Eduvia).
+    const distinctLearners = (rows: ContratWithClient[]) => {
+      const keys = new Set<string>();
+      for (const r of rows) keys.add(r.eduvia_employee_id ?? `c:${r.id}`);
+      return keys.size;
     };
 
     const signes = filterByApporteur(
@@ -651,8 +665,8 @@ export async function getCommercialCounters(
     return {
       rdvRealises: rdvRes.count ?? 0,
       contratsSignes: signes.length,
-      apprenantsApportes: apportes.length,
-      volumeAlternants: volume.length,
+      apprenantsApportes: distinctLearners(apportes),
+      volumeAlternants: distinctLearners(volume),
     };
   } catch (error) {
     logger.error('queries.indicateurs', 'getCommercialCounters failed', {

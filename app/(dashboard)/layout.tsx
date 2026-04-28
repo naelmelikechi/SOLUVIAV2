@@ -100,7 +100,7 @@ export default function DashboardLayout({
     collabStatus !== null && isUnassignedCollab(collabStatus);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen">
       {/* Desktop sidebar - hidden on mobile */}
       <div className="hidden md:block">
         <Sidebar

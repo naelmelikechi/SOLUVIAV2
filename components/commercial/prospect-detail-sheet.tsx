@@ -260,12 +260,24 @@ export function ProspectDetailSheet({
               disabled={isPending}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Non assigné" />
+                <SelectValue placeholder="Non assigné">
+                  {(v) => {
+                    if (v === 'none' || !v) return 'Non assigné';
+                    const c = commerciaux.find((x) => x.id === v);
+                    return c ? `${c.prenom} ${c.nom}` : 'Non assigné';
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Non assigné</SelectItem>
+                <SelectItem value="none" label="Non assigné">
+                  Non assigné
+                </SelectItem>
                 {commerciaux.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
+                  <SelectItem
+                    key={c.id}
+                    value={c.id}
+                    label={`${c.prenom} ${c.nom}`}
+                  >
                     {c.prenom} {c.nom}
                   </SelectItem>
                 ))}

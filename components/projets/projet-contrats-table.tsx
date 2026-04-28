@@ -1,6 +1,13 @@
+'use client';
+
+import { useMemo, useState } from 'react';
 import type { ContratRow } from '@/lib/queries/projets';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
+import {
+  TableSearchInput,
+  filterBySearch,
+} from '@/components/shared/table-search-input';
 import { Card } from '@/components/ui/card';
 import {
   Table,
@@ -16,6 +23,11 @@ const CONTRACT_STATE_LABELS: Record<string, string> = {
   suspendu: 'Suspendu',
   resilie: 'Résilié',
   termine: 'Terminé',
+  NOTSENT: 'Pas envoyé',
+  TRANSMIS: 'Transmis',
+  EN_COURS_INSTRUCTION: "En cours d'instruction",
+  ENGAGE: 'Engagé',
+  ANNULE: 'Annulé',
 };
 
 const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
@@ -23,6 +35,11 @@ const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
   suspendu: 'orange',
   resilie: 'red',
   termine: 'gray',
+  NOTSENT: 'gray',
+  TRANSMIS: 'blue',
+  EN_COURS_INSTRUCTION: 'orange',
+  ENGAGE: 'green',
+  ANNULE: 'red',
 };
 
 function computeProgressionTheorique(
@@ -70,6 +87,7 @@ function ProgressBar({
 }
 
 export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
+  const [search, setSearch] = useState('');
   const actifs = contrats.filter((c) => c.contract_state === 'actif').length;
 
   const progressions = contrats.map((c) =>
@@ -81,6 +99,22 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
           progressions.reduce((sum, p) => sum + p, 0) / progressions.length,
         )
       : 0;
+
+  const filteredContrats = useMemo(
+    () =>
+      filterBySearch(contrats, search, (c) =>
+        [
+          c.ref,
+          c.apprenant_prenom,
+          c.apprenant_nom,
+          c.formation_titre,
+          CONTRACT_STATE_LABELS[c.contract_state] ?? c.contract_state,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      ),
+    [contrats, search],
+  );
 
   return (
     <Card className="p-6">
@@ -111,76 +145,95 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
           Aucun contrat synchronisé
         </p>
       ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Réf</TableHead>
-                <TableHead>Apprenant</TableHead>
-                <TableHead>Formation</TableHead>
-                <TableHead>Début</TableHead>
-                <TableHead>Fin</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Prise en charge</TableHead>
-                <TableHead>Progression</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {contrats.map((c) => {
-                const progression = computeProgressionTheorique(
-                  c.date_debut,
-                  c.date_fin,
-                );
-                return (
-                  <TableRow key={c.id}>
-                    <TableCell>
-                      <span className="inline-block rounded bg-[var(--orange-bg)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--warning)]">
-                        {c.ref}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {c.apprenant_prenom} {c.apprenant_nom}
-                    </TableCell>
+        <>
+          <div className="mb-3">
+            <TableSearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Rechercher un contrat..."
+            />
+          </div>
+          <div className="border-border overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Réf</TableHead>
+                  <TableHead>Apprenant</TableHead>
+                  <TableHead>Formation</TableHead>
+                  <TableHead>Début</TableHead>
+                  <TableHead>Fin</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Prise en charge</TableHead>
+                  <TableHead>Progression</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredContrats.length === 0 && (
+                  <TableRow>
                     <TableCell
-                      className="max-w-[200px] truncate text-sm"
-                      title={c.formation_titre ?? ''}
+                      colSpan={8}
+                      className="text-muted-foreground h-16 text-center text-sm"
                     >
-                      {c.formation_titre}
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums">
-                      {c.date_debut ? formatDate(c.date_debut) : '\u2014'}
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums">
-                      {c.date_fin ? formatDate(c.date_fin) : '\u2014'}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={
-                          CONTRACT_STATE_LABELS[c.contract_state] ??
-                          c.contract_state
-                        }
-                        color={
-                          CONTRACT_STATE_COLORS[c.contract_state] ?? 'gray'
-                        }
-                      />
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm tabular-nums">
-                      {c.montant_prise_en_charge
-                        ? formatCurrency(c.montant_prise_en_charge)
-                        : '\u2014'}
-                    </TableCell>
-                    <TableCell>
-                      <ProgressBar
-                        value={progression}
-                        color="bg-[var(--gray)]"
-                      />
+                      Aucun résultat.
                     </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                )}
+                {filteredContrats.map((c) => {
+                  const progression = computeProgressionTheorique(
+                    c.date_debut,
+                    c.date_fin,
+                  );
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell>
+                        <span className="inline-block rounded bg-[var(--orange-bg)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--warning)]">
+                          {c.ref}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {c.apprenant_prenom} {c.apprenant_nom}
+                      </TableCell>
+                      <TableCell
+                        className="max-w-[200px] truncate text-sm"
+                        title={c.formation_titre ?? ''}
+                      >
+                        {c.formation_titre}
+                      </TableCell>
+                      <TableCell className="text-sm tabular-nums">
+                        {c.date_debut ? formatDate(c.date_debut) : '\u2014'}
+                      </TableCell>
+                      <TableCell className="text-sm tabular-nums">
+                        {c.date_fin ? formatDate(c.date_fin) : '\u2014'}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          label={
+                            CONTRACT_STATE_LABELS[c.contract_state] ??
+                            c.contract_state
+                          }
+                          color={
+                            CONTRACT_STATE_COLORS[c.contract_state] ?? 'gray'
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm tabular-nums">
+                        {c.montant_prise_en_charge
+                          ? formatCurrency(c.montant_prise_en_charge)
+                          : '\u2014'}
+                      </TableCell>
+                      <TableCell>
+                        <ProgressBar
+                          value={progression}
+                          color="bg-[var(--gray)]"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </Card>
   );

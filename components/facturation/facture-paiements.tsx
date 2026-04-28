@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import {
   Table,
   TableBody,
@@ -11,6 +11,10 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  TableSearchInput,
+  filterBySearch,
+} from '@/components/shared/table-search-input';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { differenceInDays, parseISO } from 'date-fns';
 import { toast } from 'sonner';
@@ -58,6 +62,19 @@ export function FacturePaiements({
     String(remaining > 0 ? remaining : ''),
   );
   const [dateReception, setDateReception] = useState(today);
+  const [search, setSearch] = useState('');
+
+  const filteredPaiements = useMemo(
+    () =>
+      filterBySearch(paiements, search, (p) =>
+        [
+          formatDate(p.date_reception),
+          formatCurrency(p.montant),
+          p.saisie_manuelle ? 'Saisie manuelle' : 'Odoo',
+        ].join(' '),
+      ),
+    [paiements, search],
+  );
 
   // Don't render anything if no payments and not overdue and can't add payment
   if (!hasPaiements && !isEnRetard && !canAddPayment) {
@@ -104,30 +121,50 @@ export function FacturePaiements({
       </div>
 
       {hasPaiements ? (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date réception</TableHead>
-                <TableHead>Montant</TableHead>
-                <TableHead>Source</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paiements.map((paiement) => (
-                <TableRow key={paiement.id}>
-                  <TableCell>{formatDate(paiement.date_reception)}</TableCell>
-                  <TableCell className="font-mono">
-                    {formatCurrency(paiement.montant)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {paiement.saisie_manuelle ? 'Saisie manuelle' : 'Odoo'}
-                  </TableCell>
+        <>
+          <TableSearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Rechercher un paiement..."
+          />
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date réception</TableHead>
+                  <TableHead>Montant</TableHead>
+                  <TableHead>Source</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {filteredPaiements.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={3}
+                      className="text-muted-foreground h-12 text-center text-sm"
+                    >
+                      Aucun résultat.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredPaiements.map((paiement) => (
+                    <TableRow key={paiement.id}>
+                      <TableCell>
+                        {formatDate(paiement.date_reception)}
+                      </TableCell>
+                      <TableCell className="font-mono">
+                        {formatCurrency(paiement.montant)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {paiement.saisie_manuelle ? 'Saisie manuelle' : 'Odoo'}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       ) : (
         <p className="text-muted-foreground text-sm">Aucun paiement reçu</p>
       )}

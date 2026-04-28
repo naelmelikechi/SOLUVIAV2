@@ -120,7 +120,12 @@ export function DataTable<TData, TValue>({
         filters={filters}
       />
       <div className="border-border overflow-x-auto rounded-lg border">
-        <Table style={{ width: table.getCenterTotalSize() }}>
+        <Table
+          style={{
+            width: '100%',
+            minWidth: table.getCenterTotalSize(),
+          }}
+        >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

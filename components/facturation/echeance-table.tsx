@@ -13,6 +13,10 @@ import {
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import {
+  TableSearchInput,
+  filterBySearch,
+} from '@/components/shared/table-search-input';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
 import { createFactures } from '@/lib/actions/factures';
@@ -25,18 +29,35 @@ interface EcheanceTableProps {
 export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const [search, setSearch] = useState('');
+
+  const filteredEcheances = useMemo(
+    () =>
+      filterBySearch(echeances, search, (e) =>
+        [
+          e.projet?.ref,
+          e.projet?.client?.raison_sociale,
+          e.mois_concerne,
+          formatCurrency(e.montant_prevu_ht),
+        ]
+          .filter(Boolean)
+          .join(' '),
+      ),
+    [echeances, search],
+  );
 
   const allSelected =
-    echeances.length > 0 && selectedIds.size === echeances.length;
+    filteredEcheances.length > 0 &&
+    filteredEcheances.every((e) => selectedIds.has(e.id));
   const someSelected = selectedIds.size > 0 && !allSelected;
 
   const toggleAll = useCallback(() => {
     if (allSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(echeances.map((e) => e.id)));
+      setSelectedIds(new Set(filteredEcheances.map((e) => e.id)));
     }
-  }, [allSelected, echeances]);
+  }, [allSelected, filteredEcheances]);
 
   const toggleOne = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -73,7 +94,12 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col gap-3">
+      <TableSearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Rechercher une échéance..."
+      />
       <div className="border-border overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
@@ -94,8 +120,8 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {echeances.length > 0 ? (
-              echeances.map((echeance) => {
+            {filteredEcheances.length > 0 ? (
+              filteredEcheances.map((echeance) => {
                 const projetRef = echeance.projet?.ref ?? '';
                 const clientName =
                   echeance.projet?.client?.raison_sociale ?? '';

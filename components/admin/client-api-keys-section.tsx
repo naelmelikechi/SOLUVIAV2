@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { Key, Plus, Trash2, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,10 @@ import {
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import {
+  TableSearchInput,
+  filterBySearch,
+} from '@/components/shared/table-search-input';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils/formatters';
 import {
@@ -44,6 +48,22 @@ export function ClientApiKeysSection({
     id: string;
     label: string | null;
   } | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(
+    () =>
+      filterBySearch(apiKeys, search, (k) =>
+        [
+          k.label,
+          k.instance_url,
+          k.api_key_masked,
+          k.is_active ? 'Actif' : 'Inactif',
+        ]
+          .filter(Boolean)
+          .join(' '),
+      ),
+    [apiKeys, search],
+  );
 
   function resetForm() {
     setInstanceUrl('');
@@ -182,84 +202,101 @@ export function ClientApiKeysSection({
           Aucune clé API configurée
         </p>
       ) : apiKeys.length > 0 ? (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Libellé</TableHead>
-                <TableHead>Instance</TableHead>
-                <TableHead>Clé</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Dernière sync</TableHead>
-                <TableHead className="w-28" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {apiKeys.map((k) => (
-                <TableRow key={k.id}>
-                  <TableCell className="text-sm font-medium">
-                    {k.label || '\u2014'}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {k.instance_url || '\u2014'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground font-mono text-xs">
-                    {k.api_key_masked}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      label={k.is_active ? 'Actif' : 'Inactif'}
-                      color={k.is_active ? 'green' : 'gray'}
-                    />
-                  </TableCell>
-                  <TableCell className="text-sm tabular-nums">
-                    {k.last_sync_at ? formatDate(k.last_sync_at) : '\u2014'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleTestConnection(k.id)}
-                        disabled={isPending || testingKeyId === k.id}
-                        title="Tester la connexion"
-                        className="text-muted-foreground hover:text-primary"
-                      >
-                        {testingKeyId === k.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Wifi className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleToggleActive(k.id, k.is_active)}
-                        disabled={isPending}
-                        title={k.is_active ? 'Désactiver' : 'Activer'}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        {k.is_active ? (
-                          <WifiOff className="h-3.5 w-3.5" />
-                        ) : (
-                          <Wifi className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleDelete(k.id, k.label)}
-                        disabled={isPending}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
+        <div className="space-y-3">
+          <TableSearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Rechercher une clé API..."
+          />
+          <div className="border-border overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Libellé</TableHead>
+                  <TableHead>Instance</TableHead>
+                  <TableHead>Clé</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Dernière sync</TableHead>
+                  <TableHead className="w-28" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="text-muted-foreground h-12 text-center text-sm"
+                    >
+                      Aucun résultat.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {filtered.map((k) => (
+                  <TableRow key={k.id}>
+                    <TableCell className="text-sm font-medium">
+                      {k.label || '\u2014'}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {k.instance_url || '\u2014'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground font-mono text-xs">
+                      {k.api_key_masked}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        label={k.is_active ? 'Actif' : 'Inactif'}
+                        color={k.is_active ? 'green' : 'gray'}
+                      />
+                    </TableCell>
+                    <TableCell className="text-sm tabular-nums">
+                      {k.last_sync_at ? formatDate(k.last_sync_at) : '\u2014'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleTestConnection(k.id)}
+                          disabled={isPending || testingKeyId === k.id}
+                          title="Tester la connexion"
+                          className="text-muted-foreground hover:text-primary"
+                        >
+                          {testingKeyId === k.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Wifi className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleToggleActive(k.id, k.is_active)}
+                          disabled={isPending}
+                          title={k.is_active ? 'Désactiver' : 'Activer'}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          {k.is_active ? (
+                            <WifiOff className="h-3.5 w-3.5" />
+                          ) : (
+                            <Wifi className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleDelete(k.id, k.label)}
+                          disabled={isPending}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       ) : null}
 

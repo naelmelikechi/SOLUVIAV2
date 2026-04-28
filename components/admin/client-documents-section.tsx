@@ -8,7 +8,6 @@ import {
   TableSearchInput,
   filterBySearch,
 } from '@/components/shared/table-search-input';
-import { formatDate } from '@/lib/utils/formatters';
 import {
   Table,
   TableBody,
@@ -17,21 +16,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ProjetUploadButton } from './projet-upload-button';
-import { ProjetDocumentActions } from './projet-document-actions';
-import type { ProjetDocument } from '@/lib/queries/projets';
+import { ClientUploadButton } from '@/components/admin/client-upload-button';
+import { ClientDocumentActions } from '@/components/admin/client-document-actions';
+import { formatDate } from '@/lib/utils/formatters';
+import type { ClientDocument } from '@/lib/queries/clients';
 
-interface ProjetDocumentsSectionProps {
-  projetId: string;
-  projetRef: string;
-  documents: ProjetDocument[];
+interface ClientDocumentsSectionProps {
+  clientId: string;
+  documents: ClientDocument[];
 }
 
-export function ProjetDocumentsSection({
-  projetId,
-  projetRef,
+export function ClientDocumentsSection({
+  clientId,
   documents,
-}: ProjetDocumentsSectionProps) {
+}: ClientDocumentsSectionProps) {
   const [search, setSearch] = useState('');
   const filtered = useMemo(
     () =>
@@ -49,19 +47,17 @@ export function ProjetDocumentsSection({
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <FileText className="h-4 w-4" /> Documents
         </h3>
-        <ProjetUploadButton projetId={projetId} projetRef={projetRef} />
+        <ClientUploadButton clientId={clientId} />
       </div>
       {documents.length === 0 ? (
         <p className="text-muted-foreground text-sm">Aucun document</p>
       ) : (
-        <>
-          <div className="mb-3">
-            <TableSearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Rechercher un document..."
-            />
-          </div>
+        <div className="space-y-3">
+          <TableSearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Rechercher un document..."
+          />
           <div className="border-border overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
@@ -102,9 +98,9 @@ export function ProjetDocumentsSection({
                         {doc.user ? `${doc.user.prenom} ${doc.user.nom}` : '-'}
                       </TableCell>
                       <TableCell>
-                        <ProjetDocumentActions
+                        <ClientDocumentActions
                           documentId={doc.id}
-                          projetRef={projetRef}
+                          clientId={clientId}
                           storagePath={doc.storage_path}
                           fileName={doc.nom_fichier}
                           typeDocument={doc.type_document}
@@ -116,7 +112,7 @@ export function ProjetDocumentsSection({
               </TableBody>
             </Table>
           </div>
-        </>
+        </div>
       )}
     </Card>
   );

@@ -34,8 +34,8 @@ function getColumnLabel<TData>(col: Column<TData, unknown>): string {
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
   /**
-   * Legacy prop - kept only as a flag to show/hide the search input.
-   * The actual search is now global across all visible columns.
+   * Toujours affiche desormais. Conserve par compatibilite mais n'a plus
+   * d'effet sur la visibilite du champ de recherche.
    */
   searchKey?: string;
   searchPlaceholder?: string;
@@ -44,7 +44,6 @@ interface DataTableToolbarProps<TData> {
 
 export function DataTableToolbar<TData>({
   table,
-  searchKey,
   searchPlaceholder = 'Rechercher...',
   filters = [],
 }: DataTableToolbarProps<TData>) {
@@ -53,24 +52,21 @@ export function DataTableToolbar<TData>({
     return count + (Array.isArray(value) ? value.length : 0);
   }, 0);
 
-  const showSearch = searchKey !== undefined;
   const globalFilter =
     (table.getState().globalFilter as string | undefined) ?? '';
 
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 flex-wrap items-center gap-2">
-        {showSearch && (
-          <div className="relative max-w-sm">
-            <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-            <Input
-              placeholder={searchPlaceholder}
-              value={globalFilter}
-              onChange={(event) => table.setGlobalFilter(event.target.value)}
-              className="pl-9"
-            />
-          </div>
-        )}
+        <div className="relative max-w-sm flex-1">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+          <Input
+            placeholder={searchPlaceholder}
+            value={globalFilter}
+            onChange={(event) => table.setGlobalFilter(event.target.value)}
+            className="pl-9"
+          />
+        </div>
         {filters.map((filter) => {
           const column = table.getColumn(filter.column);
           const rawValue = column?.getFilterValue();

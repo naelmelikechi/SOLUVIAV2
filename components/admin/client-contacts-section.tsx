@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { Users, Plus, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,10 @@ import {
 import { toast } from 'sonner';
 import { addClientContact, deleteClientContact } from '@/lib/actions/clients';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import {
+  TableSearchInput,
+  filterBySearch,
+} from '@/components/shared/table-search-input';
 import type { ClientContact } from '@/lib/queries/clients';
 
 interface ClientContactsSectionProps {
@@ -37,6 +41,15 @@ export function ClientContactsSection({
     id: string;
     nom: string;
   } | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(
+    () =>
+      filterBySearch(contacts, search, (c) =>
+        [c.nom, c.poste, c.email, c.telephone].filter(Boolean).join(' '),
+      ),
+    [contacts, search],
+  );
 
   function resetForm() {
     setNom('');
@@ -139,45 +152,64 @@ export function ClientContactsSection({
       {contacts.length === 0 && !showForm ? (
         <p className="text-muted-foreground text-sm">Aucun contact</p>
       ) : contacts.length > 0 ? (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Poste</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Téléphone</TableHead>
-                <TableHead className="w-10" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {contacts.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="text-sm font-medium">{c.nom}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {c.poste || '\u2014'}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {c.email || '\u2014'}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {c.telephone || '\u2014'}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => handleDelete(c.id, c.nom)}
-                      disabled={isPending}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
+        <div className="space-y-3">
+          <TableSearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Rechercher un contact..."
+          />
+          <div className="border-border overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Poste</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Téléphone</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-muted-foreground h-12 text-center text-sm"
+                    >
+                      Aucun résultat.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {filtered.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="text-sm font-medium">
+                      {c.nom}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {c.poste || '\u2014'}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {c.email || '\u2014'}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {c.telephone || '\u2014'}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleDelete(c.id, c.nom)}
+                        disabled={isPending}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       ) : null}
 

@@ -10,30 +10,16 @@ import {
 } from '@/lib/queries/clients';
 import { getCurrentUser, getActiveUsersMinimal } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
+import { ArrowLeft, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { StatusBadge } from '@/components/shared/status-badge';
-import { ProjectRef } from '@/components/shared/project-ref';
 import { formatDate } from '@/lib/utils/formatters';
-import {
-  STATUT_PROJET_LABELS,
-  STATUT_PROJET_COLORS,
-} from '@/lib/utils/constants';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { ArrowLeft, FileText, FolderOpen } from 'lucide-react';
 import { ClientDetailActions } from '@/components/admin/client-detail-actions';
 import { ClientContactsSection } from '@/components/admin/client-contacts-section';
 import { ClientNotesSection } from '@/components/admin/client-notes-section';
 import { ClientApiKeysSection } from '@/components/admin/client-api-keys-section';
 import { ClientApporteurSection } from '@/components/admin/client-apporteur-section';
-import { ClientUploadButton } from '@/components/admin/client-upload-button';
-import { ClientDocumentActions } from '@/components/admin/client-document-actions';
+import { ClientProjetsSection } from '@/components/admin/client-projets-section';
+import { ClientDocumentsSection } from '@/components/admin/client-documents-section';
 
 export default async function ClientDetailPage({
   params,
@@ -154,115 +140,13 @@ export default async function ClientDetailPage({
       <ClientApiKeysSection clientId={id} apiKeys={apiKeys} />
 
       {/* Projets associes */}
-      <Card className="mb-6 p-6">
-        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-          <FolderOpen className="h-4 w-4" /> Projets associés
-          <span className="text-muted-foreground text-xs font-normal">
-            ({projets.length})
-          </span>
-        </h3>
-        {projets.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Aucun projet</p>
-        ) : (
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ref</TableHead>
-                  <TableHead>Typologie</TableHead>
-                  <TableHead>CDP</TableHead>
-                  <TableHead>Commission</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {projets.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>
-                      <ProjectRef ref_={p.ref ?? ''} />
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {p.typologie?.libelle ?? '-'}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {p.cdp ? `${p.cdp.prenom} ${p.cdp.nom}` : '-'}
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums">
-                      {p.taux_commission}%
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={STATUT_PROJET_LABELS[p.statut] || p.statut}
-                        color={STATUT_PROJET_COLORS[p.statut] || 'gray'}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </Card>
+      <ClientProjetsSection projets={projets} />
 
       {/* Notes */}
       <ClientNotesSection clientId={id} notes={notes} />
 
       {/* Documents */}
-      <Card className="p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <FileText className="h-4 w-4" /> Documents
-          </h3>
-          <ClientUploadButton clientId={id} />
-        </div>
-        {documents.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Aucun document</p>
-        ) : (
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom du fichier</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Par</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {documents.map((doc) => (
-                  <TableRow key={doc.id}>
-                    <TableCell className="text-primary text-sm font-medium">
-                      {doc.nom_fichier}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={doc.type_document ?? '-'}
-                        color="gray"
-                      />
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums">
-                      {formatDate(doc.created_at)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {doc.user ? `${doc.user.prenom} ${doc.user.nom}` : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <ClientDocumentActions
-                        documentId={doc.id}
-                        clientId={id}
-                        storagePath={doc.storage_path}
-                        fileName={doc.nom_fichier}
-                        typeDocument={doc.type_document}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </Card>
+      <ClientDocumentsSection clientId={id} documents={documents} />
     </div>
   );
 }

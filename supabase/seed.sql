@@ -57,7 +57,7 @@ INSERT INTO parametres (cle, valeur, categorie, description) VALUES
   ('facturation.fenetre_debut', '25', 'facturation', 'Jour debut fenetre facturation'),
   ('facturation.fenetre_fin', '3', 'facturation', 'Jour fin fenetre facturation'),
   ('facturation.delai_echeance_jours', '30', 'facturation', 'Delai echeance en jours'),
-  ('facturation.mentions_legales', 'Conditions de paiement : 30 jours fin de mois. En cas de retard de paiement, une penalite de 3 fois le taux d''interet legal sera appliquee, ainsi qu''une indemnite forfaitaire de 40 EUR pour frais de recouvrement. Pas d''escompte pour paiement anticipe.', 'facturation', 'Mentions legales facture');
+  ('facturation.mentions_legales', 'Conditions de paiement : 30 jours fin de mois. En cas de retard de paiement, une pénalité de 3 fois le taux d''intérêt légal sera appliquée, ainsi qu''une indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d''escompte pour paiement anticipé.', 'facturation', 'Mentions légales facture');
 
 
 -- ============================================================

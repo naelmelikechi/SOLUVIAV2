@@ -27,6 +27,7 @@ interface LogRecord {
     message: string;
     stack?: string;
     cause?: unknown;
+    code?: string;
   };
 }
 
@@ -34,11 +35,16 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 function serializeError(err: unknown): LogRecord['error'] {
   if (err instanceof Error) {
+    const code =
+      'code' in err && typeof (err as { code?: unknown }).code === 'string'
+        ? (err as { code: string }).code
+        : undefined;
     return {
       name: err.name,
       message: err.message,
       stack: err.stack,
       cause: err.cause,
+      code,
     };
   }
   return { name: 'Unknown', message: String(err) };
@@ -49,19 +55,21 @@ function forwardToSentry(record: LogRecord): void {
   if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
   // Dynamic import evite de tirer Sentry dans le bundle si non configure.
   void import('@sentry/nextjs').then((Sentry) => {
+    const tags: Record<string, string> = { scope: record.scope };
+    if (record.error?.code) tags.code = record.error.code;
     if (record.error) {
       const err = new Error(record.error.message);
       err.name = record.error.name;
       if (record.error.stack) err.stack = record.error.stack;
       Sentry.captureException(err, {
         level: record.level === 'warn' ? 'warning' : 'error',
-        tags: { scope: record.scope },
+        tags,
         extra: record.context,
       });
     } else {
       Sentry.captureMessage(record.message, {
         level: record.level === 'warn' ? 'warning' : 'error',
-        tags: { scope: record.scope },
+        tags,
         extra: record.context,
       });
     }

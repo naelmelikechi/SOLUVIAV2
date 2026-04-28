@@ -3,8 +3,10 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getCurrentUser } from '@/lib/queries/users';
+import { getMyPasskeys } from '@/lib/queries/passkeys';
 import { PageHeader } from '@/components/shared/page-header';
 import { SettingsPageClient } from '@/components/settings/settings-page-client';
+import { PasskeysSection } from '@/components/settings/passkeys-section';
 
 export const metadata: Metadata = { title: 'Mon compte - SOLUVIA' };
 
@@ -13,6 +15,8 @@ export default async function ParametresComptePage() {
   if (!user) {
     redirect('/login');
   }
+
+  const passkeys = await getMyPasskeys();
 
   return (
     <div>
@@ -27,7 +31,10 @@ export default async function ParametresComptePage() {
         title="Mon compte"
         description="Gérez votre profil, mot de passe et préférences"
       />
-      <SettingsPageClient user={user} />
+      <SettingsPageClient
+        user={user}
+        passkeysSection={<PasskeysSection passkeys={passkeys} />}
+      />
     </div>
   );
 }

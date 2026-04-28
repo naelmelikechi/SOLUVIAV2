@@ -16,6 +16,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@react-pdf/renderer": "^4.5.1",
     "@sentry/nextjs": "^10.50.0",
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.104.0",
     "@tailwindcss/postcss": "^4.2.3",

@@ -54,9 +54,13 @@ interface SettingsPageClientProps {
     avatar_seed: string | null;
     avatar_regen_date: string | null;
   };
+  passkeysSection?: React.ReactNode;
 }
 
-export function SettingsPageClient({ user }: SettingsPageClientProps) {
+export function SettingsPageClient({
+  user,
+  passkeysSection,
+}: SettingsPageClientProps) {
   const router = useRouter();
 
   // Profile state
@@ -423,6 +427,9 @@ export function SettingsPageClient({ user }: SettingsPageClientProps) {
           </form>
         </CardContent>
       </Card>
+
+      {/* ── Passkeys ── */}
+      {passkeysSection}
 
       {/* ── Preferences ── */}
       <Card>

@@ -119,14 +119,14 @@ export function IntercontratList({
     <div>
       <PageHeader
         title="Intercontrat"
-        description="Collaborateurs actifs sans projet client affecte. Triés par anciennete d attente decroissante."
+        description="Collaborateurs actifs sans projet client affecté. Triés par ancienneté d'attente décroissante."
       />
 
       {tauxBillable.length > 0 && (
         <Card className="mb-6 p-4">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h3 className="text-sm font-semibold">
-              Taux billable equipe (30 derniers jours)
+              Taux billable équipe (30 derniers jours)
             </h3>
             {moyenneBillable !== null && (
               <span className="text-muted-foreground text-xs">

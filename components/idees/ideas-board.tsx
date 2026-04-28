@@ -283,7 +283,13 @@ export function IdeasBoard({
           onValueChange={(v) => setCibleFilter(v ?? 'all')}
         >
           <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Cible" />
+            <SelectValue>
+              {(v: string | null) =>
+                v === 'all' || v == null
+                  ? 'Toutes cibles'
+                  : (CIBLE_IDEE_LABELS[v as CibleIdee] ?? v)
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes cibles</SelectItem>
@@ -300,7 +306,11 @@ export function IdeasBoard({
           onValueChange={(v) => setAuthorFilter(v ?? 'all')}
         >
           <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="Auteur" />
+            <SelectValue>
+              {(v: string | null) =>
+                v === 'me' ? 'Mes idées' : 'Tous auteurs'
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous auteurs</SelectItem>

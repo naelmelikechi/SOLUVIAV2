@@ -7,19 +7,26 @@ import { Button } from '@/components/ui/button';
 import type { BadgeCounts } from '@/hooks/use-badge-counts';
 
 const routeLabels: Record<string, string> = {
+  accueil: 'Accueil',
   projets: 'Projets',
   qualite: 'Qualité',
   temps: 'Temps',
   production: 'Production',
   facturation: 'Facturation',
   dashboard: 'Dashboard',
+  indicateurs: 'Indicateurs',
+  equipe: 'Équipe',
+  idees: 'Idées',
+  commercial: 'Commercial',
+  pipeline: 'Pipeline',
   admin: 'Administration',
   clients: 'Clients',
   utilisateurs: 'Utilisateurs',
+  intercontrat: 'Intercontrat',
+  audit: 'Audit',
   parametres: 'Paramètres',
   'parametres-compte': 'Mon compte',
   notifications: 'Notifications',
-  equipe: 'Équipe',
 };
 
 export function Topbar({

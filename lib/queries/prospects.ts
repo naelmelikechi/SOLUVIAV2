@@ -164,3 +164,48 @@ export async function getCommerciaux() {
   if (error) return [];
   return data ?? [];
 }
+
+export interface StageMedian {
+  fromStage: StageProspect;
+  medianDays: number;
+  sampleSize: number;
+}
+
+export async function getProspectTimeInStageMedian(): Promise<StageMedian[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(
+    // RPC not yet typed in Database; cast and validate at runtime
+    'get_prospect_time_in_stage_median' as never,
+  );
+  if (error) {
+    logger.error('queries.prospects', 'time-in-stage RPC failed', { error });
+    return [];
+  }
+  const rows =
+    (data as
+      | {
+          from_stage: StageProspect;
+          median_days: number;
+          sample_size: number;
+        }[]
+      | null) ?? [];
+  return rows.map((r) => ({
+    fromStage: r.from_stage,
+    medianDays: Number(r.median_days),
+    sampleSize: Number(r.sample_size),
+  }));
+}
+
+export async function getProspectActiveStageEntry(
+  prospectId: string,
+): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('prospect_stage_history' as never)
+    .select('changed_at')
+    .eq('prospect_id', prospectId)
+    .order('changed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as { changed_at: string } | null)?.changed_at ?? null;
+}

@@ -4,6 +4,7 @@ import {
   getProspectsGroupedByStage,
   getProspectRegions,
   getCommerciaux,
+  getProspectTimeInStageMedian,
 } from '@/lib/queries/prospects';
 import { createClient } from '@/lib/supabase/server';
 import { canAccessPipeline, isAdmin } from '@/lib/utils/roles';
@@ -31,10 +32,11 @@ export default async function PipelinePage() {
     redirect('/projets');
   }
 
-  const [grouped, regions, commerciaux] = await Promise.all([
+  const [grouped, regions, commerciaux, stageMedians] = await Promise.all([
     getProspectsGroupedByStage(),
     getProspectRegions(),
     getCommerciaux(),
+    getProspectTimeInStageMedian(),
   ]);
 
   return (
@@ -51,6 +53,7 @@ export default async function PipelinePage() {
         regions={regions}
         currentUserId={user.id}
         isAdmin={isAdmin(currentUser?.role)}
+        stageMedians={stageMedians}
       />
     </div>
   );

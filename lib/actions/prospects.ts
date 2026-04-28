@@ -160,6 +160,57 @@ export async function updateProspectAssignment(
 }
 
 // ---------------------------------------------------------------------------
+// Bulk update (assignment + stage)
+// ---------------------------------------------------------------------------
+
+export async function bulkUpdateProspects(
+  ids: string[],
+  patch: { commercialId?: string | null; stage?: StageProspect },
+): Promise<{ success: boolean; updated?: number; error?: string }> {
+  if (!ids?.length) {
+    return { success: false, error: 'Aucun prospect sélectionné' };
+  }
+  if (patch.stage && !STAGE_VALUES.includes(patch.stage)) {
+    return { success: false, error: 'Stage invalide' };
+  }
+
+  const update: Database['public']['Tables']['prospects']['Update'] = {};
+  if (patch.commercialId !== undefined)
+    update.commercial_id = patch.commercialId;
+  if (patch.stage !== undefined) update.stage = patch.stage;
+  if (Object.keys(update).length === 0) {
+    return { success: false, error: 'Aucune modification fournie' };
+  }
+
+  const { supabase, user, role, pipelineAccess } = await getCaller();
+  if (!user) return { success: false, error: 'Non authentifié' };
+  if (!canAccessPipeline(role, pipelineAccess)) {
+    return { success: false, error: 'Accès refusé' };
+  }
+
+  const { error } = await supabase
+    .from('prospects')
+    .update(update)
+    .in('id', ids);
+
+  if (error) {
+    logger.error('actions.prospects', 'bulkUpdateProspects failed', {
+      count: ids.length,
+      patch,
+      error,
+    });
+    return { success: false, error: error.message };
+  }
+
+  logAudit('prospects_bulk_updated', 'prospect', undefined, {
+    count: ids.length,
+    patch,
+  });
+  revalidatePath('/commercial/pipeline');
+  return { success: true, updated: ids.length };
+}
+
+// ---------------------------------------------------------------------------
 // Add note
 // ---------------------------------------------------------------------------
 

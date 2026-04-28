@@ -245,12 +245,12 @@ export async function getProjetFinance(projetId: string) {
 
   const { data: contrats } = await supabase
     .from('contrats')
-    .select('id, montant_prise_en_charge')
+    .select('id, npec_amount')
     .eq('projet_id', projetId)
     .eq('archive', false);
 
   const production_opco = (contrats ?? []).reduce(
-    (sum, c) => sum + (c.montant_prise_en_charge ?? 0),
+    (sum, c) => sum + (c.npec_amount ?? 0),
     0,
   );
 

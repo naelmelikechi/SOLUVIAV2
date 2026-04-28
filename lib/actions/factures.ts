@@ -84,7 +84,7 @@ export async function createFactures(
     const { data: contrats } = await supabase
       .from('contrats')
       .select(
-        'id, montant_prise_en_charge, formation_titre, apprenant_prenom, apprenant_nom',
+        'id, npec_amount, formation_titre, apprenant_prenom, apprenant_nom',
       )
       .eq('projet_id', group.projetId)
       .eq('archive', false);
@@ -103,10 +103,7 @@ export async function createFactures(
     const lignes = contrats.map((c) => {
       const montantHt =
         Math.round(
-          (((c.montant_prise_en_charge ?? 0) * group.tauxCommission) /
-            100 /
-            12) *
-            100,
+          (((c.npec_amount ?? 0) * group.tauxCommission) / 100 / 12) * 100,
         ) / 100;
       return {
         contrat_id: c.id,

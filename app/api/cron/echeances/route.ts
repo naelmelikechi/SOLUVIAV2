@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     .select(
       `
       id, taux_commission,
-      contrats(id, montant_prise_en_charge, date_debut, duree_mois)
+      contrats(id, npec_amount, date_debut, duree_mois)
     `,
     )
     .eq('statut', 'actif')
@@ -46,10 +46,7 @@ export async function GET(request: Request) {
       const dureeMois = contrat.duree_mois;
       const montantMensuel =
         Math.round(
-          (((contrat.montant_prise_en_charge ?? 0) * tauxCommission) /
-            100 /
-            12) *
-            100,
+          (((contrat.npec_amount ?? 0) * tauxCommission) / 100 / 12) * 100,
         ) / 100;
 
       // Generate echeances: M+2 through M+10, then M12 (covers M10-M12)

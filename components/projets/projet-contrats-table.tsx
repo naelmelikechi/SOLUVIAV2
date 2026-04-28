@@ -220,8 +220,8 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                         />
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm tabular-nums">
-                        {c.montant_prise_en_charge
-                          ? formatCurrency(c.montant_prise_en_charge)
+                        {c.npec_amount
+                          ? formatCurrency(c.npec_amount)
                           : '\u2014'}
                       </TableCell>
                       <TableCell>

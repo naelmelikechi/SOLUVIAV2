@@ -134,7 +134,7 @@ export async function getProductionData(): Promise<ProductionRow[]> {
     supabase
       .from('contrats')
       .select(
-        'date_debut, duree_mois, montant_prise_en_charge, projet:projets!contrats_projet_id_fkey(taux_commission)',
+        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey(taux_commission)',
       )
       .eq('archive', false),
   ]);
@@ -160,7 +160,7 @@ export async function getProductionData(): Promise<ProductionRow[]> {
 
   for (const c of contratsRes.data ?? []) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
-    if (!c.montant_prise_en_charge || c.montant_prise_en_charge <= 0) continue;
+    if (!c.npec_amount || c.npec_amount <= 0) continue;
 
     const projet = c.projet as { taux_commission: number } | null;
     if (!projet) continue;
@@ -168,7 +168,7 @@ export async function getProductionData(): Promise<ProductionRow[]> {
     const schedule = computeContractSchedule(
       c.date_debut,
       c.duree_mois,
-      c.montant_prise_en_charge,
+      c.npec_amount,
       projet.taux_commission ?? 10,
     );
 

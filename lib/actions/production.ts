@@ -122,7 +122,7 @@ export async function fetchProductionByClient(
       `
       date_debut,
       duree_mois,
-      montant_prise_en_charge,
+      npec_amount,
       projet:projets!contrats_projet_id_fkey (
         id,
         client_id,
@@ -158,7 +158,7 @@ export async function fetchProductionByClient(
   // Production from contrats - new schedule (40/30/20/10)
   for (const c of contrats ?? []) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
-    if (!c.montant_prise_en_charge || c.montant_prise_en_charge <= 0) continue;
+    if (!c.npec_amount || c.npec_amount <= 0) continue;
 
     const projet = c.projet as {
       id: string;
@@ -170,7 +170,7 @@ export async function fetchProductionByClient(
     const monthlyOpco = opcoForMonth(
       c.date_debut,
       c.duree_mois,
-      c.montant_prise_en_charge,
+      c.npec_amount,
       monthKey,
     );
     if (monthlyOpco <= 0) continue;
@@ -302,7 +302,7 @@ export async function fetchProductionByProjet(
       `
       date_debut,
       duree_mois,
-      montant_prise_en_charge,
+      npec_amount,
       projet:projets!contrats_projet_id_fkey (
         id,
         ref,
@@ -336,7 +336,7 @@ export async function fetchProductionByProjet(
 
   for (const c of contrats ?? []) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
-    if (!c.montant_prise_en_charge || c.montant_prise_en_charge <= 0) continue;
+    if (!c.npec_amount || c.npec_amount <= 0) continue;
 
     const projet = c.projet as {
       id: string;
@@ -349,7 +349,7 @@ export async function fetchProductionByProjet(
     const monthlyOpco = opcoForMonth(
       c.date_debut,
       c.duree_mois,
-      c.montant_prise_en_charge,
+      c.npec_amount,
       monthKey,
     );
     if (monthlyOpco <= 0) continue;

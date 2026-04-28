@@ -358,7 +358,7 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
     supabase
       .from('contrats')
       .select(
-        'date_debut, duree_mois, montant_prise_en_charge, projet:projets!contrats_projet_id_fkey(taux_commission)',
+        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey(taux_commission)',
       )
       .eq('archive', false),
   ]);
@@ -380,11 +380,11 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
   const productionByMonth = new Map<string, number>();
   for (const c of contratsRes.data ?? []) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
-    if (!c.montant_prise_en_charge || c.montant_prise_en_charge <= 0) continue;
+    if (!c.npec_amount || c.npec_amount <= 0) continue;
     const projet = c.projet as { taux_commission: number } | null;
     if (!projet) continue;
     const monthlyProduction =
-      Math.round((c.montant_prise_en_charge / c.duree_mois) * 100) / 100;
+      Math.round((c.npec_amount / c.duree_mois) * 100) / 100;
     const start = startOfMonth(new Date(c.date_debut + 'T00:00:00'));
     for (let i = 0; i < c.duree_mois; i++) {
       const m = addMonths(start, i);

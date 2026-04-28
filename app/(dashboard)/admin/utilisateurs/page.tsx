@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getUsersList, getCurrentUser } from '@/lib/queries/users';
+import { getEmployeeCostDefaults } from '@/lib/queries/employee-cost';
 import { isAdmin } from '@/lib/utils/roles';
 import { UsersDataTable } from '@/components/admin/users-data-table';
 
@@ -12,7 +13,16 @@ export default async function UtilisateursPage() {
     redirect('/projets');
   }
 
-  const users = await getUsersList();
+  const [users, costDefaults] = await Promise.all([
+    getUsersList(),
+    getEmployeeCostDefaults(),
+  ]);
 
-  return <UsersDataTable data={users} callerRole={user?.role} />;
+  return (
+    <UsersDataTable
+      data={users}
+      callerRole={user?.role}
+      costDefaults={costDefaults}
+    />
+  );
 }

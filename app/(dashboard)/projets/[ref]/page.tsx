@@ -26,7 +26,8 @@ import { ProjetQualiteSection } from '@/components/projets/projet-qualite-sectio
 import { ProjetContratsTable } from '@/components/projets/projet-contrats-table';
 import { ProjetStatCards } from '@/components/projets/projet-stat-cards';
 import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
-import { ProjetPerformancePlaceholders } from '@/components/projets/projet-performance-placeholders';
+import { ProjetPerformanceVolets } from '@/components/projets/projet-performance-volets';
+import { getProjetPerformance } from '@/lib/queries/projet-performance';
 import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
 import { ProjetDocumentsSection } from '@/components/projets/projet-documents-section';
 import { ProjetRdvSection } from '@/components/projets/projet-rdv-section';
@@ -54,15 +55,23 @@ export default async function ProjetDetailPage({
     : { data: null };
   const userIsAdmin = isAdmin(currentUser?.role);
 
-  const [contrats, finance, temps, qualite, documents, rdvsFormateurs] =
-    await Promise.all([
-      getContratsByProjetId(projet.id),
-      getProjetFinance(projet.id),
-      getProjetTempsStats(projet.id),
-      getProjetQualiteStats(projet.id),
-      getDocumentsByProjetId(projet.id),
-      getRdvFormateursByProjetId(projet.id),
-    ]);
+  const [
+    contrats,
+    finance,
+    temps,
+    qualite,
+    documents,
+    rdvsFormateurs,
+    performance,
+  ] = await Promise.all([
+    getContratsByProjetId(projet.id),
+    getProjetFinance(projet.id),
+    getProjetTempsStats(projet.id),
+    getProjetQualiteStats(projet.id),
+    getDocumentsByProjetId(projet.id),
+    getRdvFormateursByProjetId(projet.id),
+    getProjetPerformance(projet.id),
+  ]);
 
   const apprentisActifs = contrats.filter(
     (c) => c.contract_state === 'actif',
@@ -103,7 +112,7 @@ export default async function ProjetDetailPage({
         <h3 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
           Volets de performance
         </h3>
-        <ProjetPerformancePlaceholders />
+        <ProjetPerformanceVolets data={performance} />
       </div>
 
       <div className="mt-6">

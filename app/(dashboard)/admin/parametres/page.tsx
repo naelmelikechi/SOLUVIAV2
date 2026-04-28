@@ -9,10 +9,12 @@ import {
   getJoursFeries,
   getLastEduviaSyncDate,
 } from '@/lib/queries/parametres';
+import { getEmployeeCostDefaults } from '@/lib/queries/employee-cost';
 import { getCurrentUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { ParametresForm } from '@/components/admin/parametres-form';
+import { EmployeeCostDefaultsForm } from '@/components/admin/employee-cost-defaults-form';
 
 export const metadata: Metadata = { title: 'Paramètres - SOLUVIA' };
 
@@ -29,6 +31,7 @@ export default async function ParametresPage() {
     axes,
     joursFeries,
     lastEduviaSyncDate,
+    costDefaults,
   ] = await Promise.all([
     getParametresByCategorie('entreprise'),
     getParametresByCategorie('facturation'),
@@ -36,6 +39,7 @@ export default async function ParametresPage() {
     getAxesTemps(),
     getJoursFeries(2026),
     getLastEduviaSyncDate(),
+    getEmployeeCostDefaults(),
   ]);
 
   // Convert params arrays to key-value maps
@@ -60,14 +64,17 @@ export default async function ParametresPage() {
           Historique
         </Link>
       </PageHeader>
-      <ParametresForm
-        entreprise={entreprise}
-        facturation={facturation}
-        typologies={typologies}
-        axes={axes}
-        joursFeries={joursFeries}
-        lastEduviaSyncDate={lastEduviaSyncDate}
-      />
+      <div className="space-y-6">
+        <ParametresForm
+          entreprise={entreprise}
+          facturation={facturation}
+          typologies={typologies}
+          axes={axes}
+          joursFeries={joursFeries}
+          lastEduviaSyncDate={lastEduviaSyncDate}
+        />
+        <EmployeeCostDefaultsForm initial={costDefaults} />
+      </div>
     </div>
   );
 }

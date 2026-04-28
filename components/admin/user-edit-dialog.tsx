@@ -32,11 +32,14 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { isAdmin } from '@/lib/utils/roles';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { UserCostSection } from '@/components/admin/user-cost-section';
 import type { UserListItem } from '@/lib/queries/users';
+import type { EmployeeCostDefaults } from '@/lib/utils/employee-cost';
 
 interface UserEditDialogProps {
   user: UserListItem | null;
   callerRole?: string;
+  costDefaults?: EmployeeCostDefaults;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -44,6 +47,7 @@ interface UserEditDialogProps {
 export function UserEditDialog({
   user,
   callerRole,
+  costDefaults,
   open,
   onOpenChange,
 }: UserEditDialogProps) {
@@ -233,6 +237,10 @@ export function UserEditDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {costDefaults && isAdmin(callerRole) && (
+            <UserCostSection userId={user.id} defaults={costDefaults} />
+          )}
 
           <div className="space-y-2">
             <Label>Permissions</Label>

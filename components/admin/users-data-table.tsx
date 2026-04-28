@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { UserPlus } from 'lucide-react';
 import type { UserListItem } from '@/lib/queries/users';
+import type { EmployeeCostDefaults } from '@/lib/utils/employee-cost';
 import { DataTable } from '@/components/shared/data-table';
 import { getUserListColumns } from '@/components/admin/user-list-columns';
 import { InviteUserDialog } from '@/components/admin/invite-user-dialog';
@@ -13,9 +14,11 @@ import { Button } from '@/components/ui/button';
 export function UsersDataTable({
   data,
   callerRole,
+  costDefaults,
 }: {
   data: UserListItem[];
   callerRole?: string;
+  costDefaults: EmployeeCostDefaults;
 }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserListItem | null>(null);
@@ -46,6 +49,7 @@ export function UsersDataTable({
       <UserEditDialog
         user={editUser}
         callerRole={callerRole}
+        costDefaults={costDefaults}
         open={!!editUser}
         onOpenChange={(open) => {
           if (!open) setEditUser(null);

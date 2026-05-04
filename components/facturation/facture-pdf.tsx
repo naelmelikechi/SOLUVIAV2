@@ -278,10 +278,7 @@ export function FacturePdf({
             <Text style={[styles.colDescription, styles.muted]}>
               {ligne.description}
             </Text>
-            <Text style={styles.colMontant}>
-              {isAvoir ? '- ' : ''}
-              {formatEur(ligne.montant_ht)}
-            </Text>
+            <Text style={styles.colMontant}>{formatEur(ligne.montant_ht)}</Text>
           </View>
         ))}
 
@@ -289,22 +286,15 @@ export function FacturePdf({
         <View style={styles.totalsContainer}>
           <View style={styles.totalsRow}>
             <Text style={styles.muted}>Sous-total HT</Text>
-            <Text>
-              {isAvoir ? '- ' : ''}
-              {formatEur(facture.montant_ht)}
-            </Text>
+            <Text>{formatEur(facture.montant_ht)}</Text>
           </View>
           <View style={styles.totalsRow}>
             <Text style={styles.muted}>TVA {facture.taux_tva}%</Text>
-            <Text>
-              {isAvoir ? '- ' : ''}
-              {formatEur(facture.montant_tva)}
-            </Text>
+            <Text>{formatEur(facture.montant_tva)}</Text>
           </View>
           <View style={styles.totalsTtc}>
             <Text style={styles.totalsTtcLabel}>Total TTC</Text>
             <Text style={styles.totalsTtcValue}>
-              {isAvoir ? '- ' : ''}
               {formatEur(facture.montant_ttc)}
             </Text>
           </View>

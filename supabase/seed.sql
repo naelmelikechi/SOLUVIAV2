@@ -73,6 +73,12 @@ INSERT INTO clients (id, trigramme, raison_sociale, siret, adresse, localisation
   ('c1000000-0000-0000-0000-000000000003', 'FOR', 'FormaSud', '11223344556677', '12 Boulevard Victor Hugo, 13001 Marseille', 'PACA', '2024-06-10'),
   ('c1000000-0000-0000-0000-000000000004', 'NOR', 'NordFormation', '99887766554433', '8 Rue de la Gare, 59000 Lille', 'Hauts-de-France', '2025-01-20');
 
+-- Marquer NordFormation comme client demo : permet de tester le pipeline
+-- facturation bout-en-bout sans polluer Odoo prod (factures pushees en draft).
+UPDATE clients
+SET is_demo = true
+WHERE id = 'c1000000-0000-0000-0000-000000000004';
+
 -- Client contacts (one per client)
 INSERT INTO client_contacts (id, client_id, nom, poste, email, telephone) VALUES
   ('cc100000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-000000000001', 'Marie Le Gall', 'Directrice', 'marie.legall@heol.fr', '02 98 01 02 03'),

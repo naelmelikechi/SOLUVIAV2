@@ -32,7 +32,11 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge';
 import { createClient } from '@/lib/supabase/client';
 import { formatDate } from '@/lib/utils/formatters';
-import { triggerOdooSync, triggerEduviaSync } from '@/lib/actions/sync';
+import {
+  triggerOdooSync,
+  triggerEduviaSync,
+  pingOdoo,
+} from '@/lib/actions/sync';
 
 interface ParametresFormProps {
   entreprise: Record<string, string>;
@@ -102,6 +106,7 @@ export function ParametresForm({
     pulled: number;
     errors: string[];
   } | null>(null);
+  const [pingPending, startPingTransition] = useTransition();
   const [eduviaSyncPending, startEduviaSyncTransition] = useTransition();
   const [eduviaSyncResult, setEduviaSyncResult] = useState<{
     syncedClients: number;
@@ -486,10 +491,45 @@ export function ParametresForm({
             Synchronisation Odoo : pousse les factures vers Odoo et tire les
             paiements. Client JSON-RPC en production.
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="outline"
-              disabled={syncPending}
+              disabled={pingPending || syncPending}
+              onClick={() => {
+                startPingTransition(async () => {
+                  const res = await pingOdoo();
+                  if (res.success && res.result?.ok) {
+                    if (res.result.isStub) {
+                      toast.warning(
+                        'Mode stub actif (vars Odoo manquantes en local)',
+                      );
+                    } else {
+                      toast.success(
+                        `Connecté Odoo - UID ${res.result.uid} - ${res.result.version ?? 'version inconnue'} - db: ${res.result.db ?? '?'}`,
+                      );
+                    }
+                  } else {
+                    toast.error(
+                      res.result?.error ??
+                        res.error ??
+                        'Connexion Odoo échouée',
+                    );
+                  }
+                });
+              }}
+            >
+              {pingPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Test...
+                </>
+              ) : (
+                'Tester la connexion'
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={syncPending || pingPending}
               onClick={() => {
                 startSyncTransition(async () => {
                   setSyncResult(null);

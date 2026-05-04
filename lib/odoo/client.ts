@@ -31,7 +31,19 @@ export interface OdooPayment {
   date: string;
 }
 
+export interface OdooPingResult {
+  ok: boolean;
+  uid?: number;
+  version?: string;
+  serverInfo?: string;
+  db?: string;
+  username?: string;
+  isStub: boolean;
+  error?: string;
+}
+
 export interface OdooClient {
+  ping(): Promise<OdooPingResult>;
   pushInvoice(payload: OdooInvoicePayload): Promise<{ odoo_id: string }>;
   pushCreditNote(payload: OdooInvoicePayload): Promise<{ odoo_id: string }>;
   pullPayments(since: string): Promise<OdooPayment[]>;
@@ -144,6 +156,36 @@ class OdooJsonRpcClient implements OdooClient {
       args,
       kwargs,
     ]);
+  }
+
+  // -------- Connectivity check --------
+
+  async ping(): Promise<OdooPingResult> {
+    try {
+      const uid = await this.authenticate();
+      const versionInfo = await this.rpc<{
+        server_version?: string;
+        server_serie?: string;
+      }>('common', 'version', []);
+      return {
+        ok: true,
+        uid,
+        version: versionInfo.server_version ?? versionInfo.server_serie,
+        serverInfo: versionInfo.server_serie,
+        db: this.config.db,
+        username: this.config.username,
+        isStub: false,
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        ok: false,
+        db: this.config.db,
+        username: this.config.username,
+        isStub: false,
+        error: msg,
+      };
+    }
   }
 
   // -------- Domain helpers --------
@@ -313,6 +355,14 @@ class OdooJsonRpcClient implements OdooClient {
 
 function createStubOdooClient(): OdooClient {
   return {
+    async ping() {
+      return {
+        ok: true,
+        uid: 0,
+        version: 'stub',
+        isStub: true,
+      };
+    },
     async pushInvoice(payload) {
       const odoo_id = `ODOO-STUB-${Date.now()}`;
       logger.info(SCOPE, 'pushInvoice (stub)', {

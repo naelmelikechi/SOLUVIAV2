@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       .from('users')
       .select('id, email, prenom, role')
       .eq('actif', true)
-      .in('role', ['admin', 'cdp']);
+      .in('role', ['admin', 'superadmin', 'cdp']);
 
     if (!users || users.length === 0) {
       return NextResponse.json({ success: true, sent: 0 });
@@ -85,7 +85,9 @@ export async function GET(request: Request) {
 
     for (const user of users) {
       const nb =
-        user.role === 'admin' ? totalPending : (countByCdp.get(user.id) ?? 0);
+        user.role === 'admin' || user.role === 'superadmin'
+          ? totalPending
+          : (countByCdp.get(user.id) ?? 0);
 
       // CDP with no pending echeances: skip; admin always gets the digest
       if (user.role === 'cdp' && nb === 0) continue;

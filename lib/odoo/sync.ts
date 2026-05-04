@@ -197,6 +197,10 @@ async function pushAvoirs(
         is_demo: boolean | null;
       } | null;
 
+      // Sur un out_refund Odoo, les price_unit doivent etre POSITIFS.
+      // Le moveType 'out_refund' inverse deja le sens comptable (debit/credit),
+      // donc envoyer des prix negatifs cree un avoir negatif que Odoo refuse
+      // de valider via action_post.
       const lines = (
         (a.lignes as unknown as Array<{
           description: string;
@@ -205,7 +209,7 @@ async function pushAvoirs(
       ).map((l) => ({
         description: l.description,
         quantity: 1,
-        price_unit: Number(l.montant_ht),
+        price_unit: Math.abs(Number(l.montant_ht)),
       }));
 
       const payload: OdooInvoicePayload = {

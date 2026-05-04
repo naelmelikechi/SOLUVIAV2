@@ -91,11 +91,11 @@ export async function GET(request: Request) {
       nbFacturesRetard,
     };
 
-    // Recipients: active admins
+    // Recipients: active admins (admin + superadmin)
     const { data: admins } = await supabase
       .from('users')
       .select('email, prenom')
-      .eq('role', 'admin')
+      .in('role', ['admin', 'superadmin'])
       .eq('actif', true);
 
     if (!admins || admins.length === 0) {

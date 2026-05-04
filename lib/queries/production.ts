@@ -115,28 +115,39 @@ export async function getProductionData(): Promise<ProductionRow[]> {
   const firstMonth = months[0]!;
   const lastMonth = months[months.length - 1]!;
 
+  // Exclude clients demo (is_demo=true) et archives : leurs factures gonflent
+  // les KPIs sans correspondre a de la production reelle. !inner force la
+  // jointure cote SQL pour que le filtre s'applique reellement.
   const [facturesRes, paiementsRes, contratsRes] = await Promise.all([
     supabase
       .from('factures')
-      .select('montant_ht, statut, mois_concerne')
+      .select(
+        'montant_ht, statut, mois_concerne, client:clients!inner(is_demo, archive)',
+      )
       .gte('mois_concerne', firstMonth)
       .lte('mois_concerne', lastMonth)
-      .neq('statut', 'avoir'),
+      .neq('statut', 'avoir')
+      .eq('client.is_demo', false)
+      .eq('client.archive', false),
 
     supabase
       .from('paiements')
       .select(
-        'montant, facture:factures!paiements_facture_id_fkey(mois_concerne)',
+        'montant, facture:factures!inner(mois_concerne, client:clients!inner(is_demo, archive))',
       )
       .gte('facture.mois_concerne', firstMonth)
-      .lte('facture.mois_concerne', lastMonth),
+      .lte('facture.mois_concerne', lastMonth)
+      .eq('facture.client.is_demo', false)
+      .eq('facture.client.archive', false),
 
     supabase
       .from('contrats')
       .select(
-        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey(taux_commission)',
+        'date_debut, duree_mois, npec_amount, projet:projets!inner(taux_commission, client:clients!inner(is_demo, archive))',
       )
-      .eq('archive', false),
+      .eq('archive', false)
+      .eq('projet.client.is_demo', false)
+      .eq('projet.client.archive', false),
   ]);
 
   if (facturesRes.error)

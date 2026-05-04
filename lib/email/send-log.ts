@@ -46,6 +46,67 @@ export async function tryAcquireEmailLock(
 }
 
 /**
+ * Libere un verrou email_send_log pour permettre un retry au prochain cron.
+ * A appeler quand un cron a acquis le verrou mais n'a finalement envoye aucun
+ * email (ex: tous les envois Resend ont echoue). Sans release, l'idempotence
+ * bloquerait le retry sur la meme periode meme apres correction du probleme.
+ */
+export async function releaseEmailLock(
+  supabase: SupabaseClient<Database>,
+  job: string,
+  periodeKey: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('email_send_log')
+    .delete()
+    .eq('job', job)
+    .eq('periode_key', periodeKey);
+  if (error) {
+    logger.warn(SCOPE, 'failed to release email lock', {
+      job,
+      periode_key: periodeKey,
+      error,
+    });
+  }
+}
+
+/**
+ * Wrapper qui pose un verrou avant la fonction et le libere si elle renvoie
+ * `sent: 0` (aucun email envoye). Permet aux crons de retry au prochain run
+ * sans toucher manuellement le verrou. Sur exception, le verrou est aussi
+ * libere pour ne pas bloquer la prochaine execution.
+ *
+ * Retourne `null` si le verrou est deja pris (le job a deja tourne pour cette
+ * periode), sinon le resultat de fn().
+ */
+export async function withEmailLock<T extends { sent: number }>(
+  supabase: SupabaseClient<Database>,
+  job: string,
+  periodeKey: string,
+  fn: () => Promise<T>,
+  metadata?: Record<string, Json>,
+): Promise<T | null> {
+  const acquired = await tryAcquireEmailLock(
+    supabase,
+    job,
+    periodeKey,
+    metadata,
+  );
+  if (!acquired) return null;
+
+  try {
+    const result = await fn();
+    if (result.sent === 0) {
+      await releaseEmailLock(supabase, job, periodeKey);
+    }
+    return result;
+  } catch (err) {
+    await releaseEmailLock(supabase, job, periodeKey);
+    throw err;
+  }
+}
+
+/**
  * Cle ISO week : "2026-W17". `date` doit deja etre en timezone voulue.
  */
 export function isoWeekKey(date: Date): string {

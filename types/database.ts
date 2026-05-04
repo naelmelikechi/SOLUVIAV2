@@ -1648,6 +1648,48 @@ export type Database = {
           },
         ];
       };
+      prospect_stage_history: {
+        Row: {
+          changed_at: string;
+          changed_by: string | null;
+          from_stage: Database['public']['Enums']['stage_prospect'] | null;
+          id: string;
+          prospect_id: string;
+          to_stage: Database['public']['Enums']['stage_prospect'];
+        };
+        Insert: {
+          changed_at?: string;
+          changed_by?: string | null;
+          from_stage?: Database['public']['Enums']['stage_prospect'] | null;
+          id?: string;
+          prospect_id: string;
+          to_stage: Database['public']['Enums']['stage_prospect'];
+        };
+        Update: {
+          changed_at?: string;
+          changed_by?: string | null;
+          from_stage?: Database['public']['Enums']['stage_prospect'] | null;
+          id?: string;
+          prospect_id?: string;
+          to_stage?: Database['public']['Enums']['stage_prospect'];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'prospect_stage_history_changed_by_fkey';
+            columns: ['changed_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prospect_stage_history_prospect_id_fkey';
+            columns: ['prospect_id'];
+            isOneToOne: false;
+            referencedRelation: 'prospects';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       prospects: {
         Row: {
           archive: boolean;
@@ -2167,6 +2209,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      get_prospect_time_in_stage_median: {
+        Args: never;
+        Returns: {
+          from_stage: Database['public']['Enums']['stage_prospect'];
+          median_days: number;
+          sample_size: number;
+        }[];
+      };
       get_user_role: { Args: never; Returns: string };
       has_pipeline_access: { Args: never; Returns: boolean };
       has_ship_ideas_access: { Args: never; Returns: boolean };

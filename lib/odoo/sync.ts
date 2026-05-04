@@ -21,7 +21,7 @@ async function logSync(
     direction: 'push' | 'pull';
     entity_type: string;
     entity_id?: string;
-    statut: 'success' | 'error' | 'retry';
+    statut: 'success' | 'error' | 'retry' | 'partial';
     payload?: unknown;
     erreur?: string;
   },
@@ -283,12 +283,14 @@ async function pullPayments(
   odoo: ReturnType<typeof createOdooClient>,
   errors: string[],
 ): Promise<number> {
-  // Determine "since" from last successful pull
+  // Determine "since" from last successful pull. Accepte 'success' ET
+  // 'partial' : un partial signifie qu'au moins certains paiements ont ete
+  // importes, donc le prochain run peut repartir de cette date.
   const { data: lastLog } = await supabase
     .from('odoo_sync_logs')
     .select('created_at')
     .eq('direction', 'pull')
-    .eq('statut', 'success')
+    .in('statut', ['success', 'partial'])
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -379,11 +381,16 @@ async function pullPayments(
     }
   }
 
-  // Log the pull operation
+  // Log the pull operation. 'partial' = au moins 1 paiement OK + au moins 1
+  // erreur. Le calcul de `since` au prochain run accepte success ET partial
+  // pour eviter de re-puller indefiniment ces paiements (l'upsert sur odoo_id
+  // les deduplique de toute facon, mais le re-pull est gaspillage).
+  const statut: 'success' | 'partial' | 'error' =
+    errors.length === 0 ? 'success' : pulled > 0 ? 'partial' : 'error';
   await logSync(supabase, {
     direction: 'pull',
     entity_type: 'paiement',
-    statut: errors.length === 0 ? 'success' : 'error',
+    statut,
     payload: { since, count: pulled },
     erreur: errors.length > 0 ? errors.join('; ') : undefined,
   });

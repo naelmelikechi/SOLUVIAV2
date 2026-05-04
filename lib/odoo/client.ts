@@ -198,14 +198,15 @@ class OdooJsonRpcClient implements OdooClient {
     const cleanSiret = siret.replace(/\s/g, '');
     const cleanVat = vat?.replace(/\s/g, '') ?? null;
 
-    // Try VAT first (most specific), then SIRET, then name
+    // Match strictly by VAT or SIRET. Fallback name ilike removed: deux clients
+    // SOLUVIA avec meme raison_sociale et SIRET differents finiraient lies au
+    // meme partner Odoo, ce qui mele les comptabilites client.
     const domains: Array<unknown[][]> = [];
     if (cleanVat) domains.push([['vat', '=', cleanVat]]);
     if (cleanSiret) {
       domains.push([['vat', '=', cleanSiret]]);
       domains.push([['company_registry', '=', cleanSiret]]);
     }
-    domains.push([['name', '=ilike', name]]);
 
     for (const domain of domains) {
       const ids = await this.executeKw<number[]>(
@@ -260,6 +261,11 @@ class OdooJsonRpcClient implements OdooClient {
     );
 
     const taxId = await this.findSaleTax(payload.taux_tva);
+    if (payload.taux_tva > 0 && taxId === null) {
+      throw new OdooRpcError(
+        `Aucune taxe de vente "${payload.taux_tva}%" trouvee dans Odoo. Configurez le taux dans Comptabilite > Configuration > Taxes avant de re-pousser la facture ${payload.ref}.`,
+      );
+    }
     const taxIdsCmd: unknown[] = taxId ? [[6, 0, [taxId]]] : [[5]];
 
     const moveType = payload.is_credit_note ? 'out_refund' : 'out_invoice';

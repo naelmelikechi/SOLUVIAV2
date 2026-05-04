@@ -77,16 +77,46 @@ export async function GET(request: Request) {
     }
   }
 
-  // Single batch upsert instead of N+1 individual calls
-  let created = 0;
+  // Pass 1 : INSERT les echeances qui n'existent pas encore (ignoreDuplicates).
+  // Pass 2 : UPDATE le montant_prevu_ht et date_emission_prevue des echeances
+  // existantes NON FACTUREES (facture_id IS NULL). Necessaire car npec_amount
+  // peut etre rempli apres coup (ex: migration data Eduvia) - sans cela, les
+  // echeances generees a 0 € restent figees a 0 indefiniment.
+  let inserted = 0;
+  let updated = 0;
   if (allEcheances.length > 0) {
-    const { error } = await supabase.from('echeances').upsert(allEcheances, {
-      onConflict: 'projet_id,mois_concerne',
-      ignoreDuplicates: true,
-    });
+    const { error: insertErr, count } = await supabase
+      .from('echeances')
+      .upsert(allEcheances, {
+        onConflict: 'projet_id,mois_concerne',
+        ignoreDuplicates: true,
+        count: 'exact',
+      });
+    if (!insertErr) inserted = count ?? 0;
 
-    if (!error) created = allEcheances.length;
+    // Refresh montants on existing non-billed echeances. Une echeance liee a
+    // une facture (facture_id NOT NULL) est figee : on ne touche pas son
+    // montant car la facture a ete emise sur cette base.
+    for (const ech of allEcheances) {
+      const { error: updErr, count: updCount } = await supabase
+        .from('echeances')
+        .update(
+          {
+            montant_prevu_ht: ech.montant_prevu_ht,
+            date_emission_prevue: ech.date_emission_prevue,
+          },
+          { count: 'exact' },
+        )
+        .eq('projet_id', ech.projet_id)
+        .eq('mois_concerne', ech.mois_concerne)
+        .is('facture_id', null);
+      if (!updErr && updCount) updated += updCount;
+    }
   }
 
-  return NextResponse.json({ success: true, echeances_created: created });
+  return NextResponse.json({
+    success: true,
+    echeances_created: inserted,
+    echeances_refreshed: updated,
+  });
 }

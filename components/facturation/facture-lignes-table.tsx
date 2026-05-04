@@ -88,7 +88,6 @@ export function FactureLignesTable({
                     est_avoir ? 'text-red-600 dark:text-red-400' : ''
                   }`}
                 >
-                  {est_avoir ? '- ' : ''}
                   {formatCurrency(ligne.montant_ht)}
                 </TableCell>
               </TableRow>

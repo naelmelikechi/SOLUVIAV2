@@ -23,14 +23,12 @@ export function FactureTotaux({
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">Sous-total HT</span>
           <span className={`font-mono ${amountClass}`}>
-            {est_avoir ? '- ' : ''}
             {formatCurrency(montant_ht)}
           </span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">TVA {taux_tva}%</span>
           <span className={`font-mono ${amountClass}`}>
-            {est_avoir ? '- ' : ''}
             {formatCurrency(montant_tva)}
           </span>
         </div>
@@ -38,7 +36,6 @@ export function FactureTotaux({
           <div className="flex items-center justify-between">
             <span className="font-semibold">Total TTC</span>
             <span className={`font-mono text-base font-bold ${amountClass}`}>
-              {est_avoir ? '- ' : ''}
               {formatCurrency(montant_ttc)}
             </span>
           </div>

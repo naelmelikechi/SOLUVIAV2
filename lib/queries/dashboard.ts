@@ -160,7 +160,7 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
     supabase
       .from('factures')
       .select('montant_ht, statut')
-      .in('statut', ['emise', 'payee', 'en_retard']),
+      .in('statut', ['emise', 'payee', 'en_retard', 'avoir']),
     supabase.from('paiements').select('montant'),
     // Distinct learners (eduvia_employee_id) actually in formation. We dedup
     // in JS rather than via SQL DISTINCT - works consistently across the

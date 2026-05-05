@@ -241,6 +241,70 @@ export interface TeamMemberSummary {
   weekTotal: number;
 }
 
+/**
+ * Totaux d'heures travaillees pour l'utilisateur courant : semaine en cours,
+ * mois en cours, annee en cours. Sert au header de /temps pour donner un
+ * sens global a la fiche.
+ */
+export async function getCurrentUserTempsTotals(): Promise<{
+  weekTotal: number;
+  monthTotal: number;
+  yearTotal: number;
+  annee: number;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user)
+    return {
+      weekTotal: 0,
+      monthTotal: 0,
+      yearTotal: 0,
+      annee: new Date().getFullYear(),
+    };
+
+  const now = new Date();
+  const annee = now.getFullYear();
+  const startOfYear = new Date(annee, 0, 1).toISOString().split('T')[0]!;
+  const endOfYear = new Date(annee, 11, 31).toISOString().split('T')[0]!;
+
+  // 1 query annuelle, on slice cote app pour mois/semaine
+  const { data: saisies } = await supabase
+    .from('saisies_temps')
+    .select('date, heures')
+    .eq('user_id', user.id)
+    .gte('date', startOfYear)
+    .lte('date', endOfYear);
+
+  const all = saisies ?? [];
+  const yearTotal = all.reduce((s, r) => s + (r.heures ?? 0), 0);
+
+  const monthStart = new Date(annee, now.getMonth(), 1)
+    .toISOString()
+    .split('T')[0]!;
+  const monthEnd = new Date(annee, now.getMonth() + 1, 0)
+    .toISOString()
+    .split('T')[0]!;
+  const monthTotal = all
+    .filter((r) => r.date >= monthStart && r.date <= monthEnd)
+    .reduce((s, r) => s + (r.heures ?? 0), 0);
+
+  // Semaine = lundi -> dimanche autour de today
+  const day = now.getDay() || 7; // 1=Mon..7=Sun
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day - 1));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const weekStart = monday.toISOString().split('T')[0]!;
+  const weekEnd = sunday.toISOString().split('T')[0]!;
+  const weekTotal = all
+    .filter((r) => r.date >= weekStart && r.date <= weekEnd)
+    .reduce((s, r) => s + (r.heures ?? 0), 0);
+
+  return { weekTotal, monthTotal, yearTotal, annee };
+}
+
 export async function getTeamWeekSummary(
   weekDates: string[],
 ): Promise<TeamMemberSummary[]> {

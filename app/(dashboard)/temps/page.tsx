@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
-import { getWeekDates, getSaisiesForWeek } from '@/lib/queries/temps';
+import {
+  getWeekDates,
+  getSaisiesForWeek,
+  getCurrentUserTempsTotals,
+} from '@/lib/queries/temps';
 import { getCurrentUser } from '@/lib/queries/users';
 import { getJoursFeries } from '@/lib/queries/parametres';
 import { getAbsencesForUserAndPeriod } from '@/lib/queries/absences';
@@ -11,7 +15,7 @@ export const revalidate = 120;
 
 export default async function TempsPage() {
   const weekDates = getWeekDates(0);
-  const [saisies, user, joursFeries, absences] = await Promise.all([
+  const [saisies, user, joursFeries, absences, totals] = await Promise.all([
     getSaisiesForWeek(weekDates),
     getCurrentUser(),
     getJoursFeries(new Date().getFullYear()),
@@ -19,6 +23,7 @@ export default async function TempsPage() {
       weekDates[0]!,
       weekDates[weekDates.length - 1]!,
     ),
+    getCurrentUserTempsTotals(),
   ]);
   const adminUser = isAdmin(user?.role);
   const joursFeriesMap = Object.fromEntries(
@@ -32,6 +37,7 @@ export default async function TempsPage() {
       initialAbsences={absences}
       isAdmin={adminUser}
       joursFeries={joursFeriesMap}
+      totals={totals}
     />
   );
 }

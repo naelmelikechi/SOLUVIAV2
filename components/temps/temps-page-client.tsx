@@ -30,6 +30,12 @@ interface TempsPageClientProps {
   initialAbsences: AbsencePeriod[];
   isAdmin?: boolean;
   joursFeries?: Record<string, string>;
+  totals?: {
+    weekTotal: number;
+    monthTotal: number;
+    yearTotal: number;
+    annee: number;
+  };
 }
 
 export function TempsPageClient({
@@ -38,6 +44,7 @@ export function TempsPageClient({
   initialAbsences,
   isAdmin,
   joursFeries = {},
+  totals,
 }: TempsPageClientProps) {
   const router = useRouter();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -216,6 +223,24 @@ export function TempsPageClient({
         </Button>
       </PageHeader>
 
+      {totals && (
+        <div className="mb-4 grid gap-3 sm:grid-cols-3">
+          <TempsStatTile
+            label="Cette semaine"
+            value={formatHeures(totals.weekTotal)}
+            sub="35h theorique"
+          />
+          <TempsStatTile
+            label="Cumul mois"
+            value={formatHeures(totals.monthTotal)}
+          />
+          <TempsStatTile
+            label={`Cumul ${totals.annee}`}
+            value={formatHeures(totals.yearTotal)}
+          />
+        </div>
+      )}
+
       <div className="mb-4">
         <TimeWeekNavigator
           weekDates={weekDates}
@@ -297,6 +322,26 @@ export function TempsPageClient({
           />
         )}
       </div>
+    </div>
+  );
+}
+
+function TempsStatTile({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <div className="border-border rounded-[10px] border bg-white px-4 py-3 shadow-sm">
+      <div className="text-muted-foreground text-xs tracking-wide uppercase">
+        {label}
+      </div>
+      <div className="mt-0.5 text-2xl font-semibold tabular-nums">{value}</div>
+      {sub ? <div className="text-muted-foreground text-xs">{sub}</div> : null}
     </div>
   );
 }

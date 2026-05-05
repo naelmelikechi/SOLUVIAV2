@@ -8,6 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   ClipboardList,
   CheckCircle,
+  ShieldCheck,
   Clock,
   TrendingUp,
   FileText,
@@ -51,6 +52,7 @@ const mainNavItems: MainNavItem[] = [
   },
   { href: '/projets', label: 'Projets', icon: ClipboardList },
   { href: '/qualite', label: 'Qualité', icon: CheckCircle },
+  { href: '/qualiopi', label: 'Qualiopi', icon: ShieldCheck },
   { href: '/temps', label: 'Temps', icon: Clock },
   { href: '/production', label: 'Production', icon: TrendingUp },
   { href: '/facturation', label: 'Facturation', icon: FileText },

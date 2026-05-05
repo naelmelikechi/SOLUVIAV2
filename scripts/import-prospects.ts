@@ -198,19 +198,28 @@ async function processBatch(batch: ProspectRow[]): Promise<number> {
 }
 
 async function main() {
-  // Fetch existing SIRETs to avoid duplicate inserts on re-run
-  console.log('\nFetching existing SIRETs from DB...');
-  const { data: existing, error: fetchErr } = await supabase
-    .from('prospects')
-    .select('siret')
-    .not('siret', 'is', null);
-  if (fetchErr) {
-    console.error('Failed to fetch existing SIRETs:', fetchErr.message);
-    process.exit(1);
+  // Fetch existing SIRETs (paginated : Supabase limite a 1000 par defaut, donc
+  // une SELECT simple coupe silencieusement les bases > 1000 lignes et le batch
+  // INSERT subsequent enchaine les unique violations sur les rows 1001+).
+  console.log('\nFetching existing SIRETs from DB (paginated)...');
+  const existingSirets = new Set<string>();
+  const PAGE = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error: fetchErr } = await supabase
+      .from('prospects')
+      .select('siret')
+      .not('siret', 'is', null)
+      .range(from, from + PAGE - 1);
+    if (fetchErr) {
+      console.error('Failed to fetch existing SIRETs:', fetchErr.message);
+      process.exit(1);
+    }
+    const rows = (data ?? []) as Array<{ siret: string }>;
+    for (const r of rows) existingSirets.add(r.siret);
+    if (rows.length < PAGE) break;
+    from += PAGE;
   }
-  const existingSirets = new Set(
-    (existing ?? []).map((r: { siret: string }) => r.siret),
-  );
   console.log(`  ${existingSirets.size} existing SIRETs found in DB`);
 
   const toInsertWithSiret = withSiret.filter(

@@ -322,13 +322,13 @@ export async function markIdeaImplemented(
 }
 
 // ---------------------------------------------------------------------------
-// Re-open a rejected idea as-is
+// Re-open an idea (rejetee, validee or implementee) and put it back to proposee
 // ---------------------------------------------------------------------------
 
 export async function reopenIdea(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const { supabase, user, role } = await getCaller();
+  const { supabase, user, role, canValidate, canShip } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
 
   const { data: existing, error: fetchError } = await supabase
@@ -339,25 +339,74 @@ export async function reopenIdea(
   if (fetchError || !existing) {
     return { success: false, error: 'Idée introuvable' };
   }
-  if (existing.statut !== 'rejetee') {
-    return {
-      success: false,
-      error: 'Seules les idées rejetées peuvent être rouvertes',
-    };
+  if (existing.statut === 'proposee') {
+    return { success: false, error: "L'idée est déjà en attente" };
   }
+
+  // Permissions : auteur peut rouvrir une rejetee. Pour rouvrir une validee
+  // ou implementee, il faut canValidate (validee) ou canShip (implementee)
+  // ou admin. Empeche un auteur de retirer le verdict d'un valideur.
   const isAuthor = existing.auteur_id === user.id;
   const isAdminRole = isAdmin(role);
-  if (!isAuthor && !isAdminRole) {
+  let allowed = isAdminRole;
+  if (!allowed && existing.statut === 'rejetee') allowed = isAuthor;
+  if (!allowed && existing.statut === 'validee') allowed = canValidate;
+  if (!allowed && existing.statut === 'implementee') allowed = canShip;
+  if (!allowed) return { success: false, error: 'Accès refusé' };
+
+  const { error } = await supabase
+    .from('idees')
+    .update({
+      statut: 'proposee',
+      rejet_motif: null,
+      validee_par: null,
+      validee_at: null,
+      implementee_par: null,
+      implementee_at: null,
+    })
+    .eq('id', id);
+  if (error) return { success: false, error: error.message };
+
+  logAudit('idea_reopened', 'idee', id, { from: existing.statut });
+  revalidatePath('/idees');
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// Revert an implemented idea back to validated (oubli de sous-cas / regression)
+// ---------------------------------------------------------------------------
+
+export async function revertImplementedIdea(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  const { supabase, user, role, canShip } = await getCaller();
+  if (!user) return { success: false, error: 'Non authentifié' };
+  if (!canShipIdeas(role, canShip)) {
     return { success: false, error: 'Accès refusé' };
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('idees')
+    .select('statut')
+    .eq('id', id)
+    .single();
+  if (fetchError || !existing) {
+    return { success: false, error: 'Idée introuvable' };
+  }
+  if (existing.statut !== 'implementee') {
+    return {
+      success: false,
+      error: 'Seules les idées implémentées peuvent être marquées non finies',
+    };
   }
 
   const { error } = await supabase
     .from('idees')
-    .update({ statut: 'proposee', rejet_motif: null })
+    .update({ statut: 'validee', implementee_par: null, implementee_at: null })
     .eq('id', id);
   if (error) return { success: false, error: error.message };
 
-  logAudit('idea_reopened', 'idee', id);
+  logAudit('idea_reverted_to_validated', 'idee', id);
   revalidatePath('/idees');
   return { success: true };
 }

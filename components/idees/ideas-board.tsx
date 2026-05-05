@@ -32,6 +32,7 @@ import {
   rejectIdea,
   markIdeaImplemented,
   reopenIdea,
+  revertImplementedIdea,
 } from '@/lib/actions/idees';
 import { IdeaColumn } from './idea-column';
 import { IdeaSubmitDialog } from './idea-submit-dialog';
@@ -51,10 +52,14 @@ type PendingReject = {
   titre: string;
 };
 
+// Toute idee peut revenir a 'proposee' (cas erreur de classement, evolution
+// de besoin). Les transitions naturelles restent : proposee -> validee/rejetee,
+// validee -> implementee. La marche arriere depuis implementee permet de
+// rouvrir une idee livree quand on a oublie un sous-cas.
 const ALLOWED_TRANSITIONS: Record<StatutIdee, StatutIdee[]> = {
   proposee: ['validee', 'rejetee'],
-  validee: ['implementee'],
-  implementee: [],
+  validee: ['implementee', 'proposee'],
+  implementee: ['validee', 'proposee'],
   rejetee: ['proposee'],
 };
 
@@ -204,12 +209,26 @@ export function IdeasBoard({
       return;
     }
 
-    if (to === 'proposee' && from === 'rejetee') {
+    if (to === 'proposee') {
       setOverride(id, 'proposee');
       startTransition(async () => {
         const r = await reopenIdea(id);
         if (r.success) {
           toast.success('Idée remise en proposée');
+        } else {
+          clearOverride(id);
+          toast.error(r.error ?? 'Erreur');
+        }
+      });
+      return;
+    }
+
+    if (to === 'validee' && from === 'implementee') {
+      setOverride(id, 'validee');
+      startTransition(async () => {
+        const r = await revertImplementedIdea(id);
+        if (r.success) {
+          toast.success('Idée remise en validée');
         } else {
           clearOverride(id);
           toast.error(r.error ?? 'Erreur');

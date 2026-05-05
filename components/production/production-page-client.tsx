@@ -267,10 +267,21 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
     },
   ];
 
-  const totalProd = data.reduce((s, r) => s + r.production, 0);
-  const totalSoluvia = data.reduce((s, r) => s + r.productionSoluvia, 0);
-  const avgCommission = totalProd > 0 ? totalSoluvia / totalProd : 0.1;
-  const commissionFactor = perspective === 'soluvia' ? avgCommission : 1;
+  // Ratio commission par mois (productionSoluvia / production OPCO).
+  // Utilise dans le breakdown pour rester coherent avec la ligne parent
+  // qui utilise deja le ratio mensuel (et pas une moyenne globale).
+  const commissionByMois = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of data) {
+      const ratio = r.production > 0 ? r.productionSoluvia / r.production : 0;
+      map.set(r.mois, ratio);
+    }
+    return map;
+  }, [data]);
+  const factorForMois = (mois: string): number => {
+    if (perspective === 'opco') return 1;
+    return commissionByMois.get(mois) ?? 0;
+  };
 
   const totalColumnCount =
     1 +
@@ -495,7 +506,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                   isLoading={isLoading}
                   clients={clients}
                   totalColumnCount={totalColumnCount}
-                  commissionFactor={commissionFactor}
+                  commissionFactor={factorForMois(row.mois)}
                   expandedClients={expandedClients}
                   loadingClients={loadingClients}
                   projetDataByClient={projetDataByClient}

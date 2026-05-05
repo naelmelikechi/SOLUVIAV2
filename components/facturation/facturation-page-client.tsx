@@ -17,8 +17,10 @@ import { BillingPeriodBanner } from '@/components/facturation/billing-period-ban
 import { EcheanceTable } from '@/components/facturation/echeance-table';
 import { EcheanceCalendar } from '@/components/facturation/echeance-calendar';
 import { createFactureListColumns } from '@/components/facturation/facture-list-columns';
+import { AjustementsList } from '@/components/facturation/ajustements-list';
 import { EmptyState } from '@/components/shared/empty-state';
 import type { FactureListItem, EcheancePending } from '@/lib/queries/factures';
+import type { AjustementPending } from '@/lib/queries/ajustements';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_FACTURE_LABELS } from '@/lib/utils/constants';
 import { cn } from '@/lib/utils';
@@ -39,11 +41,13 @@ const FACTURE_FILTERS: FilterOption[] = [
 interface FacturationPageClientProps {
   factures: FactureListItem[];
   echeances: EcheancePending[];
+  ajustements: AjustementPending[];
 }
 
 export function FacturationPageClient({
   factures,
   echeances,
+  ajustements,
 }: FacturationPageClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
@@ -100,7 +104,11 @@ export function FacturationPageClient({
     );
   };
 
-  if (factures.length === 0 && echeances.length === 0) {
+  if (
+    factures.length === 0 &&
+    echeances.length === 0 &&
+    ajustements.length === 0
+  ) {
     return (
       <EmptyState
         icon={FileText}
@@ -126,6 +134,14 @@ export function FacturationPageClient({
           <span className="text-muted-foreground ml-1.5 text-xs">
             ({factures.length})
           </span>
+        </TabsTrigger>
+        <TabsTrigger value={2}>
+          Ajustements
+          {ajustements.length > 0 && (
+            <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[10px] font-bold text-white">
+              {ajustements.length}
+            </span>
+          )}
         </TabsTrigger>
       </TabsList>
 
@@ -192,6 +208,12 @@ export function FacturationPageClient({
             defaultSort={{ id: 'ref', desc: true }}
             filters={FACTURE_FILTERS}
           />
+        </div>
+      </TabsContent>
+
+      <TabsContent value={2}>
+        <div className="mt-4">
+          <AjustementsList ajustements={ajustements} />
         </div>
       </TabsContent>
 

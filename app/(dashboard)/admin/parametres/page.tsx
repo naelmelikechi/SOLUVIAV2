@@ -10,11 +10,14 @@ import {
   getLastEduviaSyncDate,
 } from '@/lib/queries/parametres';
 import { getEmployeeCostDefaults } from '@/lib/queries/employee-cost';
+import { listEcheancierTemplates } from '@/lib/queries/echeanciers';
 import { getCurrentUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { ParametresForm } from '@/components/admin/parametres-form';
 import { EmployeeCostDefaultsForm } from '@/components/admin/employee-cost-defaults-form';
+import { EcheanciersTemplatesSection } from '@/components/admin/echeanciers-templates-section';
+import { Card } from '@/components/ui/card';
 
 export const metadata: Metadata = { title: 'Paramètres - SOLUVIA' };
 
@@ -32,6 +35,7 @@ export default async function ParametresPage() {
     joursFeries,
     lastEduviaSyncDate,
     costDefaults,
+    echeancierTemplates,
   ] = await Promise.all([
     getParametresByCategorie('entreprise'),
     getParametresByCategorie('facturation'),
@@ -40,6 +44,7 @@ export default async function ParametresPage() {
     getJoursFeries(2026),
     getLastEduviaSyncDate(),
     getEmployeeCostDefaults(),
+    listEcheancierTemplates(),
   ]);
 
   // Convert params arrays to key-value maps
@@ -74,6 +79,12 @@ export default async function ParametresPage() {
           lastEduviaSyncDate={lastEduviaSyncDate}
         />
         <EmployeeCostDefaultsForm initial={costDefaults} />
+        <Card className="p-6">
+          <h2 className="mb-4 text-lg font-semibold">
+            Échéanciers de facturation
+          </h2>
+          <EcheanciersTemplatesSection templates={echeancierTemplates} />
+        </Card>
       </div>
     </div>
   );

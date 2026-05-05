@@ -52,6 +52,151 @@ export async function setProjetEcheancierTemplate(params: {
   return { success: true };
 }
 
+// ---------------------------------------------------------------------------
+// CRUD templates (admin only)
+// ---------------------------------------------------------------------------
+
+export async function createEcheancierTemplate(params: {
+  nom: string;
+  description: string | null;
+  jalons: Array<{ mois_relatif: number; quote_part: number; label?: string }>;
+}): Promise<{ success: boolean; error?: string; id?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const validation = validateJalons(parseJalons(params.jalons));
+  if (!validation.ok) {
+    return { success: false, error: validation.errors.join(', ') };
+  }
+
+  const { data, error } = await auth.supabase
+    .from('echeanciers_templates')
+    .insert({
+      nom: params.nom.trim(),
+      description: params.description?.trim() || null,
+      jalons: params.jalons as unknown as Json,
+      is_default: false,
+    })
+    .select('id')
+    .single();
+  if (error) {
+    logger.error(SCOPE, 'createTemplate failed', { error });
+    return { success: false, error: error.message };
+  }
+  logAudit('echeancier_template_created', 'echeanciers_templates', data.id, {
+    nom: params.nom,
+  });
+  revalidatePath('/admin/parametres');
+  return { success: true, id: data.id };
+}
+
+export async function updateEcheancierTemplate(params: {
+  id: string;
+  nom: string;
+  description: string | null;
+  jalons: Array<{ mois_relatif: number; quote_part: number; label?: string }>;
+}): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const validation = validateJalons(parseJalons(params.jalons));
+  if (!validation.ok) {
+    return { success: false, error: validation.errors.join(', ') };
+  }
+
+  const { error } = await auth.supabase
+    .from('echeanciers_templates')
+    .update({
+      nom: params.nom.trim(),
+      description: params.description?.trim() || null,
+      jalons: params.jalons as unknown as Json,
+    })
+    .eq('id', params.id);
+  if (error) return { success: false, error: error.message };
+  logAudit('echeancier_template_updated', 'echeanciers_templates', params.id);
+  revalidatePath('/admin/parametres');
+  return { success: true };
+}
+
+/** Marque un template comme defaut (et retire le flag des autres) */
+export async function setEcheancierTemplateDefault(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  // Retire le flag de tous, puis le pose sur le bon (transaction implicite
+  // - si la 1ere update echoue, on annule)
+  const { error: clearErr } = await auth.supabase
+    .from('echeanciers_templates')
+    .update({ is_default: false })
+    .eq('is_default', true);
+  if (clearErr) return { success: false, error: clearErr.message };
+
+  const { error: setErr } = await auth.supabase
+    .from('echeanciers_templates')
+    .update({ is_default: true })
+    .eq('id', id);
+  if (setErr) return { success: false, error: setErr.message };
+
+  logAudit('echeancier_template_set_default', 'echeanciers_templates', id);
+  revalidatePath('/admin/parametres');
+  revalidatePath('/projets');
+  return { success: true };
+}
+
+export async function archiveEcheancierTemplate(
+  id: string,
+  archive: boolean,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { error } = await auth.supabase
+    .from('echeanciers_templates')
+    .update({ archive })
+    .eq('id', id);
+  if (error) return { success: false, error: error.message };
+  logAudit(
+    archive ? 'echeancier_template_archived' : 'echeancier_template_restored',
+    'echeanciers_templates',
+    id,
+  );
+  revalidatePath('/admin/parametres');
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// Ajustements pending : resolution manuelle
+// ---------------------------------------------------------------------------
+
+export async function resolveAjustement(params: {
+  id: string;
+  action: 'emitted' | 'ignored';
+  factureId?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const { error } = await auth.supabase
+    .from('facturation_ajustements_pending')
+    .update({
+      resolved_at: new Date().toISOString(),
+      resolved_action: params.action,
+      resolved_by: auth.userId,
+      resolved_facture_id: params.factureId ?? null,
+    })
+    .eq('id', params.id);
+  if (error) return { success: false, error: error.message };
+  logAudit(
+    params.action === 'emitted' ? 'ajustement_emitted' : 'ajustement_ignored',
+    'facturation_ajustements_pending',
+    params.id,
+  );
+  revalidatePath('/facturation');
+  return { success: true };
+}
+
 /** Override JSONB sur un projet (jalons custom) */
 export async function setProjetEcheancierOverride(params: {
   projetId: string;

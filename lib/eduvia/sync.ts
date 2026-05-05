@@ -20,6 +20,10 @@ import type {
 } from '@/lib/eduvia/client';
 import { logger } from '@/lib/utils/logger';
 import { decryptApiKey } from '@/lib/utils/encryption';
+import {
+  detectNpecChangeAjustement,
+  detectRuptureAjustement,
+} from '@/lib/echeancier/ajustements';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -226,6 +230,33 @@ export async function syncEduviaForClient(
       'contracts',
     );
 
+    // Snapshot etat actuel pour detecter changements (NPEC, rupture)
+    const eduviaIds = contracts.map((c) => c.id);
+    const { data: existingContrats } = eduviaIds.length
+      ? await supabase
+          .from('contrats')
+          .select(
+            'id, eduvia_id, npec_amount, contract_state, archive, date_fin',
+          )
+          .in('eduvia_id', eduviaIds)
+      : {
+          data: [] as Array<{
+            id: string;
+            eduvia_id: string;
+            npec_amount: number | null;
+            contract_state: string | null;
+            archive: boolean | null;
+            date_fin: string | null;
+          }>,
+        };
+    const existingByEduviaId = new Map(
+      (existingContrats ?? []).map((c) => [c.eduvia_id, c] as const),
+    );
+
+    // Detection a faire apres les upserts
+    const npecChanges: Array<{ contratId: string; npecActuel: number }> = [];
+    const ruptures: Array<{ contratId: string; dateRupture: string }> = [];
+
     for (const contract of contracts) {
       try {
         const learner = learnerById.get(contract.employee_id);
@@ -279,11 +310,62 @@ export async function syncEduviaForClient(
           );
         } else {
           result.contrats++;
+          // Detection : NPEC change ou rupture
+          const previous = existingByEduviaId.get(contract.id);
+          if (previous?.id) {
+            const oldNpec = Number(previous.npec_amount ?? 0);
+            const newNpec = Number(contract.npec_amount ?? 0);
+            if (
+              oldNpec > 0 &&
+              newNpec > 0 &&
+              Math.abs(oldNpec - newNpec) >= 1
+            ) {
+              npecChanges.push({
+                contratId: previous.id,
+                npecActuel: newNpec,
+              });
+            }
+            const wasActive =
+              !previous.archive &&
+              previous.contract_state !== 'resilie' &&
+              previous.contract_state !== 'ANNULE';
+            const isInactive =
+              contract.contract_state === 'resilie' ||
+              contract.contract_state === 'ANNULE';
+            if (wasActive && isInactive) {
+              const dateRupture =
+                contract.contract_end_date ??
+                new Date().toISOString().slice(0, 10);
+              ruptures.push({ contratId: previous.id, dateRupture });
+            }
+          }
         }
       } catch (err) {
         result.errors.push(
           `Contrat eduvia_id=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
         );
+      }
+    }
+
+    // ── Detection ajustements (NPEC / rupture) post-upsert ─────────────
+    for (const { contratId, npecActuel } of npecChanges) {
+      try {
+        await detectNpecChangeAjustement(supabase, contratId, npecActuel);
+      } catch (err) {
+        logger.error('eduvia.sync', 'detect npec ajustement failed', {
+          err,
+          contratId,
+        });
+      }
+    }
+    for (const { contratId, dateRupture } of ruptures) {
+      try {
+        await detectRuptureAjustement(supabase, contratId, dateRupture);
+      } catch (err) {
+        logger.error('eduvia.sync', 'detect rupture ajustement failed', {
+          err,
+          contratId,
+        });
       }
     }
 

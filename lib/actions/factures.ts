@@ -5,6 +5,12 @@ import { createClient } from '@/lib/supabase/server';
 import { sendEmailForFacture } from '@/lib/email/client';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
+import {
+  aggregateProjetEcheances,
+  parseJalons,
+  resolveProjetEcheancier,
+  type ContratEcheancierContext,
+} from '@/lib/echeancier/calc';
 
 export async function createFactures(
   echeanceIds: string[],
@@ -20,14 +26,14 @@ export async function createFactures(
   } = await supabase.auth.getUser();
   if (!user) return { success: false, refs: [], error: 'Non authentifié' };
 
-  // 1. Fetch selected echeances with projet + client
+  // 1. Fetch selected echeances with projet + client + echeancier config
   const { data: echeances, error: fetchError } = await supabase
     .from('echeances')
     .select(
       `
       id, mois_concerne, montant_prevu_ht,
       projet:projets!echeances_projet_id_fkey(
-        id, ref, taux_commission,
+        id, ref, taux_commission, echeancier_template_id, echeancier_override,
         client:clients!projets_client_id_fkey(id, trigramme)
       )
     `,
@@ -45,6 +51,12 @@ export async function createFactures(
     };
   }
 
+  // Templates partages : 1 fetch
+  const { data: templates } = await supabase
+    .from('echeanciers_templates')
+    .select('id, nom, jalons, is_default')
+    .eq('archive', false);
+
   // 2. Group echeances by projet_id
   const groups = new Map<
     string,
@@ -52,6 +64,8 @@ export async function createFactures(
       projetId: string;
       clientId: string;
       tauxCommission: number;
+      echeancierTemplateId: string | null;
+      echeancierOverride: unknown;
       moisConcernes: string[];
       echeanceIds: string[];
     }
@@ -70,6 +84,8 @@ export async function createFactures(
         projetId,
         clientId: projet.client?.id ?? '',
         tauxCommission: projet.taux_commission ?? 10,
+        echeancierTemplateId: projet.echeancier_template_id ?? null,
+        echeancierOverride: projet.echeancier_override,
         moisConcernes: [ech.mois_concerne],
         echeanceIds: [ech.id],
       });
@@ -80,37 +96,103 @@ export async function createFactures(
   const createdRefs: string[] = [];
 
   for (const group of groups.values()) {
-    // Fetch active contrats for this projet
-    const { data: contrats } = await supabase
+    // Fetch active contrats for this projet (avec champs necessaires au calcul)
+    const { data: contratsRaw } = await supabase
       .from('contrats')
       .select(
-        'id, npec_amount, formation_titre, apprenant_prenom, apprenant_nom',
+        'id, npec_amount, date_debut, duree_mois, archive, formation_titre, apprenant_prenom, apprenant_nom',
       )
       .eq('projet_id', group.projetId)
       .eq('archive', false);
 
-    if (!contrats || contrats.length === 0) continue;
+    if (!contratsRaw || contratsRaw.length === 0) continue;
 
-    // Build mois_concerne label. Sort first so the range is chronological
-    // regardless of DB fetch order (otherwise you get "2024-04-01 - 2024-03-01").
+    const contratsCtx: ContratEcheancierContext[] = contratsRaw
+      .filter((c) => c.date_debut && c.duree_mois)
+      .map((c) => ({
+        contrat_id: c.id,
+        npec_amount: c.npec_amount ?? 0,
+        date_debut: c.date_debut!,
+        duree_mois: c.duree_mois!,
+        archive: c.archive ?? false,
+      }));
+
+    // Resout l'echeancier du projet et calcule les contributions par
+    // contrat × mois. Filtre ensuite sur les mois selectionnes.
+    const resolved = resolveProjetEcheancier(
+      {
+        echeancier_template_id: group.echeancierTemplateId,
+        echeancier_override: group.echeancierOverride,
+      },
+      (templates ?? []).map((t) => ({
+        id: t.id,
+        nom: t.nom,
+        jalons: t.jalons,
+        is_default: t.is_default,
+      })),
+    );
+    const jalons = parseJalons(resolved.jalons);
+    const aggregated = aggregateProjetEcheances(
+      group.projetId,
+      contratsCtx,
+      jalons,
+      group.tauxCommission,
+    );
+
+    // Filtre sur les mois selectionnes par l'utilisateur
+    const moisSet = new Set(group.moisConcernes);
+    const selectedAggregated = aggregated.filter((a) =>
+      moisSet.has(a.mois_concerne),
+    );
+    if (selectedAggregated.length === 0) continue;
+
+    // Index contrat -> infos pour la description
+    const contratInfo = new Map(
+      contratsRaw.map((c) => [
+        c.id,
+        {
+          formation: c.formation_titre ?? '',
+          prenom: c.apprenant_prenom ?? '',
+          nom: c.apprenant_nom ?? '',
+        },
+      ]),
+    );
+
+    // Construit les lignes : 1 ligne par contrat × jalon dans la facture.
+    // Stocke les snapshots pour audit / recompute ulterieur.
+    const lignes: Array<{
+      contrat_id: string;
+      description: string;
+      montant_ht: number;
+      mois_relatif: number;
+      quote_part: number;
+      npec_snapshot: number;
+      taux_commission_snapshot: number;
+    }> = [];
+    for (const agg of selectedAggregated) {
+      for (const c of agg.contributions) {
+        const info = contratInfo.get(c.contrat_id);
+        const moisLabel = c.mois_absolu;
+        lignes.push({
+          contrat_id: c.contrat_id,
+          description: `Commission ${group.tauxCommission}% - ${info?.formation ?? ''} - ${info?.prenom ?? ''} ${info?.nom ?? ''} - ${moisLabel}`,
+          montant_ht: c.montant_ht,
+          mois_relatif: c.mois_relatif,
+          quote_part: c.quote_part,
+          npec_snapshot: c.npec_snapshot,
+          taux_commission_snapshot: group.tauxCommission,
+        });
+      }
+    }
+
+    if (lignes.length === 0) continue;
+
+    // Label mois_concerne facture
     const sortedMois = [...group.moisConcernes].sort();
     const moisLabel =
       sortedMois.length === 1
         ? sortedMois[0]!
         : `${sortedMois[0]} - ${sortedMois[sortedMois.length - 1]}`;
-
-    // Calculate line items
-    const lignes = contrats.map((c) => {
-      const montantHt =
-        Math.round(
-          (((c.npec_amount ?? 0) * group.tauxCommission) / 100 / 12) * 100,
-        ) / 100;
-      return {
-        contrat_id: c.id,
-        description: `Commission ${group.tauxCommission}% - ${c.formation_titre ?? ''} - ${c.apprenant_prenom ?? ''} ${c.apprenant_nom ?? ''} - ${moisLabel}`,
-        montant_ht: montantHt,
-      };
-    });
 
     const totalHt =
       Math.round(lignes.reduce((s, l) => s + l.montant_ht, 0) * 100) / 100;
@@ -145,13 +227,17 @@ export async function createFactures(
 
     if (insertError || !facture) continue;
 
-    // INSERT facture_lignes
+    // INSERT facture_lignes avec snapshots
     await supabase.from('facture_lignes').insert(
       lignes.map((l) => ({
         facture_id: facture.id,
         contrat_id: l.contrat_id,
         description: l.description,
         montant_ht: l.montant_ht,
+        mois_relatif: l.mois_relatif,
+        quote_part: l.quote_part,
+        npec_snapshot: l.npec_snapshot,
+        taux_commission_snapshot: l.taux_commission_snapshot,
       })),
     );
 
@@ -163,10 +249,8 @@ export async function createFactures(
 
     createdRefs.push(facture.ref ?? '');
 
-    // Audit log
     logAudit('facture_created', 'facture', facture.id, { ref: facture.ref });
 
-    // Send email (fire-and-forget, don't block facture creation)
     sendEmailForFacture(facture.id, supabase).catch((err) => {
       logger.error('actions.factures', 'Email fire-and-forget failed', {
         factureId: facture.id,

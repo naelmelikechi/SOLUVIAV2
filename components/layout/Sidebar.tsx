@@ -186,7 +186,7 @@ export function Sidebar({
       {/* Logo */}
       <div
         className={cn(
-          'border-sidebar-border flex h-14 items-center border-b',
+          'border-sidebar-border flex h-14 shrink-0 items-center border-b',
           collapsed && !mobile ? 'justify-center px-2' : 'justify-between px-4',
         )}
       >

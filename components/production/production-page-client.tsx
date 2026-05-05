@@ -512,7 +512,9 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                     className={cn(
                       'hover:bg-muted/50 cursor-pointer transition-colors',
                       row.isCurrent && 'bg-primary/10 font-semibold',
-                      row.isFuture && 'text-muted-foreground italic',
+                      // pas de "grise" sur les mois futurs : seul le placeholder
+                      // "-" sur les colonnes inconnues (facture/encaisse/...)
+                      // distingue le previsionnel du realise.
                     )}
                     onClick={() => handleMonthClick(row.mois, row.label)}
                   >

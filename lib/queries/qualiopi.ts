@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createEduviaQualityClient } from '@/lib/eduvia/quality-client';
+import { baseUrlFrom } from '@/lib/eduvia/client';
 import { decryptApiKey } from '@/lib/utils/encryption';
 import { logger } from '@/lib/utils/logger';
 import type {
@@ -22,17 +23,22 @@ const SCOPE = 'queries.qualiopi';
  * Recupere la cle API Eduvia active pour un client (CFA).
  * Decryptee a la volee. Retourne null si pas de cle ou cle inactive.
  */
-async function getClientApiKey(clientId: string): Promise<string | null> {
+async function getClientApiCreds(
+  clientId: string,
+): Promise<{ apiKey: string; instanceUrl: string } | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('client_api_keys')
-    .select('api_key_encrypted')
+    .select('api_key_encrypted, instance_url')
     .eq('client_id', clientId)
     .eq('is_active', true)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error || !data || !data.instance_url) return null;
   try {
-    return decryptApiKey(data.api_key_encrypted);
+    return {
+      apiKey: decryptApiKey(data.api_key_encrypted),
+      instanceUrl: data.instance_url,
+    };
   } catch (err) {
     logger.error(SCOPE, 'decryptApiKey failed', { clientId, error: err });
     return null;
@@ -42,13 +48,18 @@ async function getClientApiKey(clientId: string): Promise<string | null> {
 async function getQualityClient(
   clientId: string,
 ): Promise<EduviaQualityClient | null> {
-  const apiKey = await getClientApiKey(clientId);
-  // Mode mock : on retourne le client meme sans cle (referentiel mocke)
-  if (process.env.EDUVIA_QUALITY_API_MODE !== 'real') {
-    return createEduviaQualityClient({ apiKey: apiKey ?? undefined });
+  const creds = await getClientApiCreds(clientId);
+  // Mode 'mock' explicite (dev / tests) : referentiel factice meme sans cle
+  if (process.env.EDUVIA_QUALITY_API_MODE === 'mock') {
+    return createEduviaQualityClient({ apiKey: creds?.apiKey });
   }
-  if (!apiKey) return null;
-  return createEduviaQualityClient({ apiKey, mode: 'real' });
+  // Sinon : real des qu'on a une cle + instance_url. Pas de cle = pas de client.
+  if (!creds) return null;
+  return createEduviaQualityClient({
+    apiKey: creds.apiKey,
+    baseUrl: baseUrlFrom(creds.instanceUrl),
+    mode: 'real',
+  });
 }
 
 // ---------------------------------------------------------------------------

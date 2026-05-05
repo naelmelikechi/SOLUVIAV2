@@ -344,6 +344,21 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
   // above) synchronously before paint so there is no visible jump.
   useLayoutEffect(() => {
     wrapperRef.current?.scrollIntoView({ block: 'end', behavior: 'instant' });
+    // Force-stick au bottom apres un frame : sur l'arrivee de page, le
+    // useLayoutEffect([messages.length]) ci-dessus calcule scrollHeight avant
+    // que les avatars/Dicebear/giphy ne soient peints. Le ResizeObserver
+    // recupere le coup mais il y a une fenetre ou le user voit le haut. Un
+    // double-RAF garantit qu'on re-scroll apres le 1er paint.
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        if (scrollRef.current && isAtBottomRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      });
+      // Cleanup nested raf if unmount happens between frames.
+      return () => cancelAnimationFrame(raf2);
+    });
+    return () => cancelAnimationFrame(raf1);
   }, []);
 
   // ----- Re-stick on async layout shifts (GIF/avatar loads, font swap) -----

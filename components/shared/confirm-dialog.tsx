@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useCmdEnter } from '@/lib/hooks/use-cmd-enter';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -31,6 +32,10 @@ export function ConfirmDialog({
   onConfirm,
   isPending = false,
 }: ConfirmDialogProps) {
+  useCmdEnter(() => {
+    if (open && !isPending) onConfirm();
+  }, open);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false}>

@@ -34,6 +34,7 @@ import {
   reopenIdea,
   revertImplementedIdea,
 } from '@/lib/actions/idees';
+import { useCmdEnter } from '@/lib/hooks/use-cmd-enter';
 import { IdeaColumn } from './idea-column';
 import { IdeaSubmitDialog } from './idea-submit-dialog';
 import { IdeaDetailSheet } from './idea-detail-sheet';
@@ -264,6 +265,10 @@ export function IdeasBoard({
     setPendingReject(null);
     setRejectMotif('');
   }
+
+  useCmdEnter(() => {
+    if (pendingReject && rejectMotif.trim()) handleConfirmReject();
+  }, pendingReject !== null);
 
   const validDropTargets = useMemo(() => {
     if (!draggedIdee) return new Set<StatutIdee>();

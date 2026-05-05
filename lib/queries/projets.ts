@@ -311,25 +311,65 @@ export async function getProjetTempsStats(projetId: string) {
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
     .toISOString()
     .split('T')[0];
+  const startOfYear = new Date(now.getFullYear(), 0, 1)
+    .toISOString()
+    .split('T')[0]!;
+  const endOfYear = new Date(now.getFullYear(), 11, 31)
+    .toISOString()
+    .split('T')[0]!;
+  const annee = now.getFullYear();
 
-  const { data: saisies } = await supabase
+  // Recupere TOUTES les saisies de l'annee en une seule query : on derive
+  // ensuite le mois courant + le breakdown 12 mois cote app, evite un 2e
+  // round-trip.
+  const { data: saisiesAnnee } = await supabase
     .from('saisies_temps')
-    .select('id, heures')
+    .select('id, heures, date')
     .eq('projet_id', projetId)
-    .gte('date', startOfMonth!)
-    .lte('date', endOfMonth!);
+    .gte('date', startOfYear)
+    .lte('date', endOfYear);
 
-  if (!saisies || saisies.length === 0) {
-    return { total: 0, mois_label, axes: [] };
+  const allSaisies = saisiesAnnee ?? [];
+  const totalAnnee = allSaisies.reduce((sum, s) => sum + (s.heures ?? 0), 0);
+
+  // Total mois courant (subset de l'annee)
+  const saisiesMois = allSaisies.filter(
+    (s) => s.date >= startOfMonth! && s.date <= endOfMonth!,
+  );
+  const total = saisiesMois.reduce((sum, s) => sum + (s.heures ?? 0), 0);
+
+  // Breakdown 12 mois pour le sparkline
+  const parMois = new Map<number, number>();
+  for (let m = 0; m < 12; m++) parMois.set(m, 0);
+  for (const s of allSaisies) {
+    const monthIdx = new Date(s.date).getMonth();
+    parMois.set(monthIdx, (parMois.get(monthIdx) ?? 0) + (s.heures ?? 0));
+  }
+  const sparkline = Array.from({ length: 12 }, (_, m) => ({
+    mois: m,
+    heures: parMois.get(m) ?? 0,
+  }));
+
+  if (allSaisies.length === 0) {
+    return {
+      total: 0,
+      mois_label,
+      axes: [],
+      totalAnnee: 0,
+      annee,
+      sparkline,
+    };
   }
 
-  const total = saisies.reduce((sum, s) => sum + (s.heures ?? 0), 0);
-
-  const saisieIds = saisies.map((s) => s.id);
-  const { data: axeRows } = await supabase
-    .from('saisies_temps_axes')
-    .select('axe, heures')
-    .in('saisie_id', saisieIds);
+  // Breakdown par axe (mois courant uniquement, comme avant)
+  const saisieIdsMois = saisiesMois.map((s) => s.id);
+  const { data: axeRows } =
+    saisieIdsMois.length > 0
+      ? await supabase
+          .from('saisies_temps_axes')
+          .select('axe, heures')
+          .in('saisie_id', saisieIdsMois)
+      : { data: [] as Array<{ axe: string; heures: number }> };
 
   const { data: axesDefs } = await supabase
     .from('axes_temps')
@@ -350,7 +390,7 @@ export async function getProjetTempsStats(projetId: string) {
       color: a.couleur ?? '#6b7280',
     }));
 
-  return { total, mois_label, axes };
+  return { total, mois_label, axes, totalAnnee, annee, sparkline };
 }
 
 export type ProjetTempsStats = Awaited<ReturnType<typeof getProjetTempsStats>>;

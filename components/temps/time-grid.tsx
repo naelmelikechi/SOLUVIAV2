@@ -234,14 +234,23 @@ export function TimeGrid({
                       >
                         {saisie.projet_ref}
                       </span>
-                      <span
-                        className={cn(
-                          'text-muted-foreground truncate text-xs',
-                          saisie.est_interne && 'italic',
-                        )}
-                      >
-                        {saisie.projet_label}
-                      </span>
+                      {(() => {
+                        const prefix = `${saisie.projet_ref} - `;
+                        const desc = saisie.projet_label.startsWith(prefix)
+                          ? saisie.projet_label.slice(prefix.length)
+                          : saisie.projet_label;
+                        if (!desc || desc === saisie.projet_ref) return null;
+                        return (
+                          <span
+                            className={cn(
+                              'text-muted-foreground truncate text-xs',
+                              saisie.est_interne && 'italic',
+                            )}
+                          >
+                            {desc}
+                          </span>
+                        );
+                      })()}
                       {saisie.est_interne && (
                         <span className="text-muted-foreground ml-auto rounded bg-[var(--card-alt)] px-1.5 py-0.5 text-[9px] font-semibold tracking-wider uppercase">
                           Interne

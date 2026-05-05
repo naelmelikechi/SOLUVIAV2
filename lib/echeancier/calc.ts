@@ -134,9 +134,12 @@ export function validateJalons(jalons: Jalon[]): JalonsValidation {
   const total = jalons.reduce((sum, j) => sum + (j.quote_part ?? 0), 0);
   // Tolerance d'arrondi 0.01 = 1%
   if (Math.abs(total - 1.0) > 0.01) {
-    warnings.push(
-      `Somme des quote_part = ${(total * 100).toFixed(2)}% (attendu 100%)`,
-    );
+    const twelfths = total * 12;
+    const totalLabel =
+      Math.abs(twelfths - Math.round(twelfths)) < 0.05
+        ? `${Math.round(twelfths)}/12`
+        : `${twelfths.toFixed(1)}/12`;
+    warnings.push(`Total = ${totalLabel} (attendu 12/12)`);
   }
 
   return { ok: errors.length === 0, total, errors, warnings };

@@ -412,7 +412,7 @@ export function Sidebar({
       </nav>
 
       {/* Profile */}
-      <div className="border-sidebar-border border-t px-3 py-3">
+      <div className="border-sidebar-border shrink-0 border-t px-3 py-3">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <Link

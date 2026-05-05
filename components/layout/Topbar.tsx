@@ -9,7 +9,7 @@ import type { BadgeCounts } from '@/hooks/use-badge-counts';
 const routeLabels: Record<string, string> = {
   accueil: 'Accueil',
   projets: 'Projets',
-  qualiopi: 'Qualiopi',
+  qualiopi: 'Qualité',
   temps: 'Temps',
   production: 'Production',
   facturation: 'Facturation',

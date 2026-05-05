@@ -50,7 +50,7 @@ const mainNavItems: MainNavItem[] = [
     unassignedOnly: true,
   },
   { href: '/projets', label: 'Projets', icon: ClipboardList },
-  { href: '/qualiopi', label: 'Qualiopi', icon: ShieldCheck },
+  { href: '/qualiopi', label: 'Qualité', icon: ShieldCheck },
   { href: '/temps', label: 'Temps', icon: Clock },
   { href: '/production', label: 'Production', icon: TrendingUp },
   { href: '/facturation', label: 'Facturation', icon: FileText },

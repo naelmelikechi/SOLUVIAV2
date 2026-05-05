@@ -7,7 +7,6 @@ export interface BadgeCounts {
   facturesEnRetard: number;
   tempsNonSaisi: number;
   notifications: number;
-  tachesEnAttente: number;
   intercontrat: number;
 }
 
@@ -15,7 +14,6 @@ const INITIAL_COUNTS: BadgeCounts = {
   facturesEnRetard: 0,
   tempsNonSaisi: 0,
   notifications: 0,
-  tachesEnAttente: 0,
   intercontrat: 0,
 };
 
@@ -86,14 +84,6 @@ async function fetchNotificationsCount(): Promise<number> {
   return res.count ?? 0;
 }
 
-async function fetchQualiteCount(): Promise<number> {
-  const res = await supabaseClient()
-    .from('taches_qualite')
-    .select('id', { count: 'exact', head: true })
-    .eq('fait', false);
-  return res.count ?? 0;
-}
-
 /**
  * Compte les collaborateurs en intercontrat (CDP actifs sans pipeline_access
  * ni projet client). RLS limite l acces a admin/superadmin (qui sont admin
@@ -128,25 +118,18 @@ async function fetchIntercontratCount(): Promise<number> {
 
 /** Fetch all badge counts at once (used for initial load). */
 async function fetchAllBadgeCounts(): Promise<BadgeCounts> {
-  const [
-    facturesEnRetard,
-    tempsNonSaisi,
-    notifications,
-    tachesEnAttente,
-    intercontrat,
-  ] = await Promise.all([
-    fetchFacturesCount(),
-    fetchTempsCount(),
-    fetchNotificationsCount(),
-    fetchQualiteCount(),
-    fetchIntercontratCount(),
-  ]);
+  const [facturesEnRetard, tempsNonSaisi, notifications, intercontrat] =
+    await Promise.all([
+      fetchFacturesCount(),
+      fetchTempsCount(),
+      fetchNotificationsCount(),
+      fetchIntercontratCount(),
+    ]);
 
   return {
     facturesEnRetard,
     tempsNonSaisi,
     notifications,
-    tachesEnAttente,
     intercontrat,
   };
 }
@@ -190,13 +173,6 @@ export function useBadgeCounts(): BadgeCounts {
     });
   }, []);
 
-  const refreshQualite = useCallback(() => {
-    fetchQualiteCount().then((v) => {
-      if (mountedRef.current)
-        setCounts((prev) => ({ ...prev, tachesEnAttente: v }));
-    });
-  }, []);
-
   const refreshIntercontrat = useCallback(() => {
     fetchIntercontratCount().then((v) => {
       if (mountedRef.current)
@@ -237,11 +213,6 @@ export function useBadgeCounts(): BadgeCounts {
         )
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'taches_qualite' },
-          () => refreshQualite(),
-        )
-        .on(
-          'postgres_changes',
           { event: '*', schema: 'public', table: 'projets' },
           () => refreshIntercontrat(),
         )
@@ -266,7 +237,6 @@ export function useBadgeCounts(): BadgeCounts {
     refreshFactures,
     refreshNotifications,
     refreshTemps,
-    refreshQualite,
     refreshIntercontrat,
   ]);
 

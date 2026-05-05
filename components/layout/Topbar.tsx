@@ -9,7 +9,7 @@ import type { BadgeCounts } from '@/hooks/use-badge-counts';
 const routeLabels: Record<string, string> = {
   accueil: 'Accueil',
   projets: 'Projets',
-  qualite: 'Qualité',
+  qualiopi: 'Qualiopi',
   temps: 'Temps',
   production: 'Production',
   facturation: 'Facturation',
@@ -35,7 +35,6 @@ export function Topbar({
     facturesEnRetard: 0,
     tempsNonSaisi: 0,
     notifications: 0,
-    tachesEnAttente: 0,
     intercontrat: 0,
   },
 }: { onHamburgerClick?: () => void; badgeCounts?: BadgeCounts } = {}) {

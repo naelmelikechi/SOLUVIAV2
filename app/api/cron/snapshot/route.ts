@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   try {
     // Run all KPI queries in parallel
-    const [projetsRes, facturesRes, paiementsRes, contratsRes, tachesRes] =
+    const [projetsRes, facturesRes, paiementsRes, contratsRes] =
       await Promise.all([
         // projets_actifs
         supabase
@@ -36,11 +36,6 @@ export async function GET(request: Request) {
           .from('contrats')
           .select('id', { count: 'exact', head: true })
           .eq('archive', false),
-        // taches_en_attente
-        supabase
-          .from('taches_qualite')
-          .select('id', { count: 'exact', head: true })
-          .eq('fait', false),
       ]);
 
     const factures = facturesRes.data ?? [];
@@ -96,13 +91,6 @@ export async function GET(request: Request) {
         mois,
         type_kpi: 'contrats_actifs',
         valeur: contratsRes.count ?? 0,
-        scope: 'global' as const,
-        scope_id: null,
-      },
-      {
-        mois,
-        type_kpi: 'taches_en_attente',
-        valeur: tachesRes.count ?? 0,
         scope: 'global' as const,
         scope_id: null,
       },

@@ -21,35 +21,28 @@ export async function getDashboardData() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const thirtyDaysAgoStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
 
-  const [
-    projetsRes,
-    facturesRes,
-    tachesRes,
-    echeancesRes,
-    contratsRes,
-    staleContratsRes,
-  ] = await Promise.all([
-    supabase.from('projets').select('id').eq('statut', 'actif'),
-    supabase.from('factures').select('id, statut'),
-    supabase.from('taches_qualite').select('id').eq('fait', false),
-    supabase
-      .from('echeances')
-      .select('id')
-      .is('facture_id', null)
-      .eq('validee', false),
-    supabase
-      .from('contrats')
-      .select('id')
-      .in('contract_state', ACTIVE_STATES_ARRAY)
-      .eq('archive', false),
-    // Contrats actifs started > 30 days ago - candidates for "sans progression"
-    supabase
-      .from('contrats')
-      .select('id, projet_id')
-      .eq('archive', false)
-      .in('contract_state', ACTIVE_STATES_ARRAY)
-      .lt('date_debut', thirtyDaysAgoStr),
-  ]);
+  const [projetsRes, facturesRes, echeancesRes, contratsRes, staleContratsRes] =
+    await Promise.all([
+      supabase.from('projets').select('id').eq('statut', 'actif'),
+      supabase.from('factures').select('id, statut'),
+      supabase
+        .from('echeances')
+        .select('id')
+        .is('facture_id', null)
+        .eq('validee', false),
+      supabase
+        .from('contrats')
+        .select('id')
+        .in('contract_state', ACTIVE_STATES_ARRAY)
+        .eq('archive', false),
+      // Contrats actifs started > 30 days ago - candidates for "sans progression"
+      supabase
+        .from('contrats')
+        .select('id, projet_id')
+        .eq('archive', false)
+        .in('contract_state', ACTIVE_STATES_ARRAY)
+        .lt('date_debut', thirtyDaysAgoStr),
+    ]);
 
   // Log any individual query errors but don't throw - dashboard is best-effort
   if (projetsRes.error)
@@ -59,10 +52,6 @@ export async function getDashboardData() {
   if (facturesRes.error)
     logger.error('queries.dashboard', 'getDashboardData failed (factures)', {
       error: facturesRes.error,
-    });
-  if (tachesRes.error)
-    logger.error('queries.dashboard', 'getDashboardData failed (taches)', {
-      error: tachesRes.error,
     });
   if (echeancesRes.error)
     logger.error('queries.dashboard', 'getDashboardData failed (echeances)', {
@@ -106,7 +95,6 @@ export async function getDashboardData() {
       facturesRes.data?.filter((f) => f.statut === 'en_retard').length ?? 0,
     facturesEmises:
       facturesRes.data?.filter((f) => f.statut === 'emise').length ?? 0,
-    tachesEnAttente: tachesRes.data?.length ?? 0,
     echeancesAFacturer: echeancesRes.data?.length ?? 0,
     contratsActifs: contratsRes.data?.length ?? 0,
     contratsSansProgression,

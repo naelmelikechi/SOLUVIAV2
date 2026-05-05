@@ -170,38 +170,6 @@ INSERT INTO contrats (id, eduvia_id, projet_id, apprenant_nom, apprenant_prenom,
    'Thomas', 'Maxime', 'Charge(e) de Communication', '2025-01-20', '2025-07-19', 'actif', 8000.00, 6);
 
 -- ----------------------------------------------------------
--- Taches qualite (3-5 par projet, mix fait=true/false)
--- ----------------------------------------------------------
-INSERT INTO taches_qualite (id, projet_id, famille_code, famille_libelle, indicateur, livrable, fait, date_echeance) VALUES
-  -- Projet 1
-  ('00100000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'C1', 'Conditions d''information', 'Information prealable', 'Fiche formation publiee', true, '2025-02-15'),
-  ('00100000-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 'C2', 'Objectifs de formation', 'Competences visees definies', 'Referentiel competences', true, '2025-02-28'),
-  ('00100000-0000-0000-0000-000000000003', 'b1000000-0000-0000-0000-000000000001', 'ADM', 'Administratif', 'Dossier administratif complet', 'Cerfa signe', false, '2025-04-30'),
-  ('00100000-0000-0000-0000-000000000004', 'b1000000-0000-0000-0000-000000000001', 'HQ', 'Hors Qualiopi', 'Suivi mensuel', 'Rapport mensuel', false, '2025-05-31'),
-  -- Projet 2
-  ('00100000-0000-0000-0000-000000000005', 'b1000000-0000-0000-0000-000000000002', 'C1', 'Conditions d''information', 'Information prealable', 'Programme de formation', true, '2025-03-15'),
-  ('00100000-0000-0000-0000-000000000006', 'b1000000-0000-0000-0000-000000000002', 'ADM', 'Administratif', 'Convention signee', 'Convention tripartite', false, '2025-04-15'),
-  ('00100000-0000-0000-0000-000000000007', 'b1000000-0000-0000-0000-000000000002', 'C2', 'Objectifs de formation', 'Evaluation initiale', 'Test de positionnement', true, '2025-03-31'),
-  -- Projet 3
-  ('00100000-0000-0000-0000-000000000008', 'b1000000-0000-0000-0000-000000000003', 'C1', 'Conditions d''information', 'Information prealable', 'Plaquette formation', true, '2025-02-20'),
-  ('00100000-0000-0000-0000-000000000009', 'b1000000-0000-0000-0000-000000000003', 'C2', 'Objectifs de formation', 'Competences visees', 'Referentiel RNCP', true, '2025-03-15'),
-  ('00100000-0000-0000-0000-000000000010', 'b1000000-0000-0000-0000-000000000003', 'ADM', 'Administratif', 'Contrat signe', 'Contrat apprentissage', false, '2025-04-30'),
-  ('00100000-0000-0000-0000-000000000011', 'b1000000-0000-0000-0000-000000000003', 'HQ', 'Hors Qualiopi', 'Bilan intermediaire', 'Compte-rendu bilan', false, '2025-06-30'),
-  ('00100000-0000-0000-0000-000000000012', 'b1000000-0000-0000-0000-000000000003', 'C1', 'Conditions d''information', 'Reglement interieur', 'RI signe', true, '2025-03-01'),
-  -- Projet 4
-  ('00100000-0000-0000-0000-000000000013', 'b1000000-0000-0000-0000-000000000004', 'C1', 'Conditions d''information', 'Programme detaille', 'Syllabus', true, '2025-04-15'),
-  ('00100000-0000-0000-0000-000000000014', 'b1000000-0000-0000-0000-000000000004', 'ADM', 'Administratif', 'Convention formation', 'Convention signee', false, '2025-05-01'),
-  ('00100000-0000-0000-0000-000000000015', 'b1000000-0000-0000-0000-000000000004', 'C2', 'Objectifs de formation', 'Modalites evaluation', 'Grille evaluation', false, '2025-05-15'),
-  -- Projet 5
-  ('00100000-0000-0000-0000-000000000016', 'b1000000-0000-0000-0000-000000000005', 'C1', 'Conditions d''information', 'Information prealable', 'Fiche formation', true, '2025-06-15'),
-  ('00100000-0000-0000-0000-000000000017', 'b1000000-0000-0000-0000-000000000005', 'C2', 'Objectifs de formation', 'Positionnement initial', 'Test entree', false, '2025-07-01'),
-  ('00100000-0000-0000-0000-000000000018', 'b1000000-0000-0000-0000-000000000005', 'ADM', 'Administratif', 'Dossier inscription', 'Dossier complet', false, '2025-07-15'),
-  -- Projet 6
-  ('00100000-0000-0000-0000-000000000019', 'b1000000-0000-0000-0000-000000000006', 'C1', 'Conditions d''information', 'Programme formation', 'Programme detaille', true, '2025-02-01'),
-  ('00100000-0000-0000-0000-000000000020', 'b1000000-0000-0000-0000-000000000006', 'ADM', 'Administratif', 'Convention POEI', 'Convention signee', true, '2025-02-15'),
-  ('00100000-0000-0000-0000-000000000021', 'b1000000-0000-0000-0000-000000000006', 'HQ', 'Hors Qualiopi', 'Suivi entreprise', 'CR visite entreprise', false, '2025-04-30');
-
--- ----------------------------------------------------------
 -- Saisies temps (current month - avril 2026)
 -- ----------------------------------------------------------
 INSERT INTO saisies_temps (id, user_id, projet_id, date, heures) VALUES

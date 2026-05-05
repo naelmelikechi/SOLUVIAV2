@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { isAdmin, canAccessPipeline } from '@/lib/utils/roles';
 import { ACTIVE_CONTRACT_STATES } from '@/lib/utils/contrat-states';
+import { computeQualiopiCompletionForClients } from '@/lib/queries/qualiopi-stats';
 import {
   startOfWeek,
   endOfWeek,
@@ -383,58 +384,16 @@ async function computeRdvFormateurs(
 }
 
 async function computeQualite(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  _supabase: Awaited<ReturnType<typeof createClient>>,
   projetToClient: Map<string, string>,
-  range: DateRange,
+  _range: DateRange,
 ): Promise<Map<string, CdpRatio>> {
-  const ratios = new Map<string, CdpRatio>();
-  if (projetToClient.size === 0) return ratios;
-  const projetIds = Array.from(projetToClient.keys());
-
-  const [realiseesRes, totauxRes] = await Promise.all([
-    supabase
-      .from('taches_qualite')
-      .select('projet_id')
-      .eq('fait', true)
-      .gte('date_realisation', isoDate(range.start))
-      .lte('date_realisation', isoDate(range.end))
-      .in('projet_id', projetIds),
-    supabase
-      .from('taches_qualite')
-      .select('projet_id')
-      .gte('date_echeance', isoDate(range.start))
-      .lte('date_echeance', isoDate(range.end))
-      .in('projet_id', projetIds),
-  ]);
-
-  if (realiseesRes.error)
-    logger.error('queries.indicateurs', 'taches_qualite realisees failed', {
-      error: realiseesRes.error,
-    });
-  if (totauxRes.error)
-    logger.error('queries.indicateurs', 'taches_qualite total failed', {
-      error: totauxRes.error,
-    });
-
-  const realisees = (realiseesRes.data ?? []) as { projet_id: string }[];
-  const totaux = (totauxRes.data ?? []) as { projet_id: string }[];
-
-  for (const r of realisees) {
-    const clientId = projetToClient.get(r.projet_id);
-    if (!clientId) continue;
-    const entry = ratios.get(clientId) ?? { realise: 0, total: 0 };
-    entry.realise += 1;
-    ratios.set(clientId, entry);
-  }
-  for (const t of totaux) {
-    const clientId = projetToClient.get(t.projet_id);
-    if (!clientId) continue;
-    const entry = ratios.get(clientId) ?? { realise: 0, total: 0 };
-    entry.total += 1;
-    ratios.set(clientId, entry);
-  }
-
-  return ratios;
+  // Snapshot Qualiopi via Eduvia : ratio (deliverables conform) /
+  // (deliverables total) agrege par CFA (clientId).
+  // Le range temporel n'a pas d'equivalent natif Eduvia (les statuts sont
+  // un etat present), on retourne donc un instantane.
+  const clientIds = Array.from(new Set(projetToClient.values()));
+  return computeQualiopiCompletionForClients(clientIds);
 }
 
 async function computeFacturation(

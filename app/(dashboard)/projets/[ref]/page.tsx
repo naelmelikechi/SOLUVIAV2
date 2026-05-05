@@ -5,7 +5,6 @@ import {
   getContratsByProjetId,
   getProjetFinance,
   getProjetTempsStats,
-  getProjetQualiteStats,
   getDocumentsByProjetId,
 } from '@/lib/queries/projets';
 import { getRdvFormateursByProjetId } from '@/lib/queries/rdv';
@@ -65,7 +64,6 @@ export default async function ProjetDetailPage({
     contrats,
     finance,
     temps,
-    qualite,
     documents,
     rdvsFormateurs,
     performance,
@@ -75,7 +73,6 @@ export default async function ProjetDetailPage({
     getContratsByProjetId(projet.id),
     getProjetFinance(projet.id),
     getProjetTempsStats(projet.id),
-    getProjetQualiteStats(projet.id),
     getDocumentsByProjetId(projet.id),
     getRdvFormateursByProjetId(projet.id),
     getProjetPerformance(projet.id),
@@ -112,7 +109,9 @@ export default async function ProjetDetailPage({
         <ProjetFinanceSection finance={finance} />
         <div className="space-y-6">
           <ProjetTempsSection temps={temps} />
-          <ProjetQualiteSection qualite={qualite} projetRef={ref} />
+          <ProjetQualiteSection
+            clientTrigramme={projet.client?.trigramme ?? null}
+          />
         </div>
       </div>
 

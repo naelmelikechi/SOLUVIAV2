@@ -114,22 +114,6 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
     ),
   },
   {
-    accessorKey: 'tachesARealiser',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Tâches" />
-    ),
-    cell: ({ row }) => {
-      const count = row.original.tachesARealiser;
-      return (
-        <span
-          className={`text-sm tabular-nums ${count > 0 ? 'font-medium text-[var(--warning)]' : ''}`}
-        >
-          {count}
-        </span>
-      );
-    },
-  },
-  {
     accessorKey: 'facturesEnRetard',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Fact. retard" />

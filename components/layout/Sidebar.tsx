@@ -7,7 +7,6 @@ import { getAvatarUrl } from '@/components/shared/user-avatar';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   ClipboardList,
-  CheckCircle,
   ShieldCheck,
   Clock,
   TrendingUp,
@@ -51,7 +50,6 @@ const mainNavItems: MainNavItem[] = [
     unassignedOnly: true,
   },
   { href: '/projets', label: 'Projets', icon: ClipboardList },
-  { href: '/qualite', label: 'Qualité', icon: CheckCircle },
   { href: '/qualiopi', label: 'Qualiopi', icon: ShieldCheck },
   { href: '/temps', label: 'Temps', icon: Clock },
   { href: '/production', label: 'Production', icon: TrendingUp },
@@ -134,16 +132,11 @@ interface SidebarProps {
 const badgeConfig: Record<
   string,
   {
-    key:
-      | 'facturesEnRetard'
-      | 'tempsNonSaisi'
-      | 'tachesEnAttente'
-      | 'intercontrat';
+    key: 'facturesEnRetard' | 'tempsNonSaisi' | 'intercontrat';
     color: string;
   }
 > = {
   '/facturation': { key: 'facturesEnRetard', color: 'bg-red-500' },
-  '/qualite': { key: 'tachesEnAttente', color: 'bg-orange-500' },
   '/temps': { key: 'tempsNonSaisi', color: 'bg-orange-500' },
   '/admin/intercontrat': { key: 'intercontrat', color: 'bg-amber-500' },
 };
@@ -152,7 +145,6 @@ const INITIAL_BADGE_COUNTS: BadgeCounts = {
   facturesEnRetard: 0,
   tempsNonSaisi: 0,
   notifications: 0,
-  tachesEnAttente: 0,
   intercontrat: 0,
 };
 

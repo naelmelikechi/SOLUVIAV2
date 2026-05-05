@@ -46,7 +46,6 @@ export interface DashboardData {
   projetsActifs: number;
   facturesEnRetard: number;
   facturesEmises: number;
-  tachesEnAttente: number;
   echeancesAFacturer: number;
   contratsActifs: number;
   contratsSansProgression: number;
@@ -252,15 +251,6 @@ export function DashboardPageClient({
           description: 'Échéances prêtes à émettre',
           href: '/facturation',
           color: 'blue' as const,
-        }
-      : null,
-    data.tachesEnAttente > 0
-      ? {
-          count: data.tachesEnAttente,
-          title: 'Tâches qualité en attente',
-          description: 'Actions à réaliser sur les projets actifs',
-          href: '/qualite',
-          color: 'orange' as const,
         }
       : null,
     tempsNonSaisi > 0

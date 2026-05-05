@@ -2204,65 +2204,6 @@ export type Database = {
           },
         ];
       };
-      taches_qualite: {
-        Row: {
-          created_at: string;
-          date_echeance: string | null;
-          date_realisation: string | null;
-          eduvia_id: number | null;
-          eduvia_url: string | null;
-          fait: boolean;
-          famille_code: string;
-          famille_libelle: string | null;
-          id: string;
-          indicateur: string | null;
-          last_synced_at: string | null;
-          livrable: string | null;
-          projet_id: string;
-          updated_at: string;
-        };
-        Insert: {
-          created_at?: string;
-          date_echeance?: string | null;
-          date_realisation?: string | null;
-          eduvia_id?: number | null;
-          eduvia_url?: string | null;
-          fait?: boolean;
-          famille_code: string;
-          famille_libelle?: string | null;
-          id?: string;
-          indicateur?: string | null;
-          last_synced_at?: string | null;
-          livrable?: string | null;
-          projet_id: string;
-          updated_at?: string;
-        };
-        Update: {
-          created_at?: string;
-          date_echeance?: string | null;
-          date_realisation?: string | null;
-          eduvia_id?: number | null;
-          eduvia_url?: string | null;
-          fait?: boolean;
-          famille_code?: string;
-          famille_libelle?: string | null;
-          id?: string;
-          indicateur?: string | null;
-          last_synced_at?: string | null;
-          livrable?: string | null;
-          projet_id?: string;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'taches_qualite_projet_id_fkey';
-            columns: ['projet_id'];
-            isOneToOne: false;
-            referencedRelation: 'projets';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
       team_messages: {
         Row: {
           contenu: string | null;

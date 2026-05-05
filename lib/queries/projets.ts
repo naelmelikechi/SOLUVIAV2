@@ -55,7 +55,6 @@ export type ProjetListItem = Awaited<ReturnType<typeof getProjetsList>>[number];
 
 export interface ProjetListEnriched extends ProjetListItem {
   apprentisActifs: number;
-  tachesARealiser: number;
   facturesEnRetard: number;
   encaissementsEnRetard: number;
   tempsMois: number;
@@ -78,7 +77,7 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
     .split('T')[0];
 
   // Run all aggregate queries in parallel
-  const [contratsRes, tachesRes, facturesRes, tempsRes] = await Promise.all([
+  const [contratsRes, facturesRes, tempsRes] = await Promise.all([
     // 1. Contrats actifs par projet
     supabase
       .from('contrats')
@@ -86,21 +85,14 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
       .in('projet_id', projetIds)
       .eq('archive', false),
 
-    // 2. Tâches qualité non faites par projet
-    supabase
-      .from('taches_qualite')
-      .select('projet_id')
-      .in('projet_id', projetIds)
-      .eq('fait', false),
-
-    // 3. Factures en retard par projet (with paiements for net calculation)
+    // 2. Factures en retard par projet (with paiements for net calculation)
     supabase
       .from('factures')
       .select('id, projet_id, montant_ttc, paiements(montant)')
       .in('projet_id', projetIds)
       .eq('statut', 'en_retard'),
 
-    // 4. Temps du mois courant par projet
+    // 3. Temps du mois courant par projet
     supabase
       .from('saisies_temps')
       .select('projet_id, heures')
@@ -113,11 +105,6 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
   const apprentisMap = new Map<string, number>();
   for (const c of contratsRes.data ?? []) {
     apprentisMap.set(c.projet_id, (apprentisMap.get(c.projet_id) ?? 0) + 1);
-  }
-
-  const tachesMap = new Map<string, number>();
-  for (const t of tachesRes.data ?? []) {
-    tachesMap.set(t.projet_id, (tachesMap.get(t.projet_id) ?? 0) + 1);
   }
 
   const facturesRetardMap = new Map<string, number>();
@@ -153,7 +140,6 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
   return projets.map((p) => ({
     ...p,
     apprentisActifs: apprentisMap.get(p.id) ?? 0,
-    tachesARealiser: tachesMap.get(p.id) ?? 0,
     facturesEnRetard: facturesRetardMap.get(p.id) ?? 0,
     encaissementsEnRetard: encaissementsRetardMap.get(p.id) ?? 0,
     tempsMois: tempsMap.get(p.id) ?? 0,
@@ -394,28 +380,6 @@ export async function getProjetTempsStats(projetId: string) {
 }
 
 export type ProjetTempsStats = Awaited<ReturnType<typeof getProjetTempsStats>>;
-
-export async function getProjetQualiteStats(projetId: string) {
-  const supabase = await createClient();
-
-  const { data: taches } = await supabase
-    .from('taches_qualite')
-    .select('fait')
-    .eq('projet_id', projetId);
-
-  if (!taches || taches.length === 0) {
-    return null;
-  }
-
-  const terminees = taches.filter((t) => t.fait).length;
-  const a_realiser = taches.filter((t) => !t.fait).length;
-
-  return { terminees, a_realiser };
-}
-
-export type ProjetQualiteStats = NonNullable<
-  Awaited<ReturnType<typeof getProjetQualiteStats>>
->;
 
 export async function getDocumentsByProjetId(projetId: string) {
   const supabase = await createClient();

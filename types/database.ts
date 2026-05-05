@@ -1765,6 +1765,109 @@ export type Database = {
           },
         ];
       };
+      qualite_assignments: {
+        Row: {
+          campus_id: number;
+          client_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          indicator_id: number;
+          updated_at: string;
+          user_id: string | null;
+        };
+        Insert: {
+          campus_id: number;
+          client_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          indicator_id: number;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Update: {
+          campus_id?: number;
+          client_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          indicator_id?: number;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'qualite_assignments_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'qualite_assignments_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'qualite_assignments_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      qualite_evidence_notes: {
+        Row: {
+          author_id: string | null;
+          campus_id: number;
+          client_id: string;
+          created_at: string;
+          evidence_id: number;
+          id: string;
+          kind: string;
+          message: string;
+        };
+        Insert: {
+          author_id?: string | null;
+          campus_id: number;
+          client_id: string;
+          created_at?: string;
+          evidence_id: number;
+          id?: string;
+          kind: string;
+          message: string;
+        };
+        Update: {
+          author_id?: string | null;
+          campus_id?: number;
+          client_id?: string;
+          created_at?: string;
+          evidence_id?: number;
+          id?: string;
+          kind?: string;
+          message?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'qualite_evidence_notes_author_id_fkey';
+            columns: ['author_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'qualite_evidence_notes_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       rdv_commerciaux: {
         Row: {
           commercial_id: string;

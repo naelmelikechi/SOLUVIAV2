@@ -26,6 +26,11 @@ import { ProjetQualiteSection } from '@/components/projets/projet-qualite-sectio
 import { ProjetContratsTable } from '@/components/projets/projet-contrats-table';
 import { ProjetStatCards } from '@/components/projets/projet-stat-cards';
 import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
+import { ProjetEcheancierSection } from '@/components/projets/projet-echeancier-section';
+import {
+  listEcheancierTemplates,
+  getProjetEcheancierConfig,
+} from '@/lib/queries/echeanciers';
 import { ProjetPerformanceVolets } from '@/components/projets/projet-performance-volets';
 import { getProjetPerformance } from '@/lib/queries/projet-performance';
 import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
@@ -64,6 +69,8 @@ export default async function ProjetDetailPage({
     documents,
     rdvsFormateurs,
     performance,
+    echeancierTemplates,
+    echeancierConfig,
   ] = await Promise.all([
     getContratsByProjetId(projet.id),
     getProjetFinance(projet.id),
@@ -72,6 +79,8 @@ export default async function ProjetDetailPage({
     getDocumentsByProjetId(projet.id),
     getRdvFormateursByProjetId(projet.id),
     getProjetPerformance(projet.id),
+    listEcheancierTemplates(),
+    getProjetEcheancierConfig(projet.id),
   ]);
 
   const apprentisActifs = contrats.filter((c) =>
@@ -105,6 +114,16 @@ export default async function ProjetDetailPage({
           <ProjetTempsSection temps={temps} />
           <ProjetQualiteSection qualite={qualite} projetRef={ref} />
         </div>
+      </div>
+
+      <div className="mb-6">
+        <ProjetEcheancierSection
+          projetId={projet.id}
+          templates={echeancierTemplates}
+          currentTemplateId={echeancierConfig?.echeancier_template_id ?? null}
+          currentOverride={echeancierConfig?.echeancier_override}
+          isAdmin={userIsAdmin}
+        />
       </div>
 
       <ProjetContratsTable contrats={contrats} />

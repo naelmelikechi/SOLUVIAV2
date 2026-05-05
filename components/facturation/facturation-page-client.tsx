@@ -18,6 +18,7 @@ import { EcheanceTable } from '@/components/facturation/echeance-table';
 import { EcheanceCalendar } from '@/components/facturation/echeance-calendar';
 import { createFactureListColumns } from '@/components/facturation/facture-list-columns';
 import { AjustementsList } from '@/components/facturation/ajustements-list';
+import { EcheanceApercuHtml } from '@/components/facturation/echeance-apercu-html';
 import { EmptyState } from '@/components/shared/empty-state';
 import type { FactureListItem, EcheancePending } from '@/lib/queries/factures';
 import type { AjustementPending } from '@/lib/queries/ajustements';
@@ -76,12 +77,14 @@ export function FacturationPageClient({
   const previewInlineUrl =
     preview?.kind === 'facture'
       ? `/api/factures/${preview.ref}/pdf?inline=true`
-      : preview?.kind === 'echeance'
-        ? `/api/echeances/${preview.id}/pdf-preview`
-        : '';
+      : '';
 
   const previewDownloadUrl =
-    preview?.kind === 'facture' ? `/api/factures/${preview.ref}/pdf` : null;
+    preview?.kind === 'facture'
+      ? `/api/factures/${preview.ref}/pdf`
+      : preview?.kind === 'echeance'
+        ? `/api/echeances/${preview.id}/pdf-preview`
+        : null;
 
   const handleRowClick = (row: FactureListItem) => {
     router.push(`/facturation/${row.ref}`);
@@ -251,20 +254,21 @@ export function FacturationPageClient({
               </a>
             )}
           </SheetHeader>
-          {preview && (
+          {preview?.kind === 'echeance' && (
+            <EcheanceApercuHtml key={preview.id} echeanceId={preview.id} />
+          )}
+          {preview?.kind === 'facture' && (
             <div className="relative flex-1">
               {!previewLoaded && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
                   <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
                   <p className="text-muted-foreground text-sm">
-                    {preview.kind === 'echeance'
-                      ? 'Génération de l’aperçu PDF...'
-                      : 'Chargement de la facture...'}
+                    Chargement de la facture...
                   </p>
                 </div>
               )}
               <iframe
-                key={preview.kind === 'facture' ? preview.ref : preview.id}
+                key={preview.ref}
                 src={previewInlineUrl}
                 title={previewTitle}
                 onLoad={() => setPreviewLoaded(true)}

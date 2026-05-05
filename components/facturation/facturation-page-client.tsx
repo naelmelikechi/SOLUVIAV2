@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Download, FileText, List } from 'lucide-react';
+import { Calendar, Download, FileText, List, Loader2 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DataTable } from '@/components/shared/data-table';
@@ -55,10 +55,14 @@ export function FacturationPageClient({
   const [preview, setPreview] = useState<
     { kind: 'facture'; ref: string } | { kind: 'echeance'; id: string } | null
   >(null);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
 
   const factureColumns = useMemo(
     () =>
-      createFactureListColumns((ref) => setPreview({ kind: 'facture', ref })),
+      createFactureListColumns((ref) => {
+        setPreviewLoaded(false);
+        setPreview({ kind: 'facture', ref });
+      }),
     [],
   );
 
@@ -183,7 +187,10 @@ export function FacturationPageClient({
           {echeanceView === 'list' ? (
             <EcheanceTable
               echeances={echeances}
-              onPreview={(id) => setPreview({ kind: 'echeance', id })}
+              onPreview={(id) => {
+                setPreviewLoaded(false);
+                setPreview({ kind: 'echeance', id });
+              }}
             />
           ) : (
             <EcheanceCalendar echeances={echeances} />
@@ -220,7 +227,10 @@ export function FacturationPageClient({
       <Sheet
         open={preview !== null}
         onOpenChange={(open) => {
-          if (!open) setPreview(null);
+          if (!open) {
+            setPreview(null);
+            setPreviewLoaded(false);
+          }
         }}
       >
         <SheetContent
@@ -242,12 +252,25 @@ export function FacturationPageClient({
             )}
           </SheetHeader>
           {preview && (
-            <iframe
-              key={preview.kind === 'facture' ? preview.ref : preview.id}
-              src={previewInlineUrl}
-              title={previewTitle}
-              className="h-full w-full flex-1 border-0 bg-white"
-            />
+            <div className="relative flex-1">
+              {!previewLoaded && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
+                  <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                  <p className="text-muted-foreground text-sm">
+                    {preview.kind === 'echeance'
+                      ? 'Génération de l’aperçu PDF...'
+                      : 'Chargement de la facture...'}
+                  </p>
+                </div>
+              )}
+              <iframe
+                key={preview.kind === 'facture' ? preview.ref : preview.id}
+                src={previewInlineUrl}
+                title={previewTitle}
+                onLoad={() => setPreviewLoaded(true)}
+                className="absolute inset-0 h-full w-full border-0 bg-white"
+              />
+            </div>
           )}
         </SheetContent>
       </Sheet>

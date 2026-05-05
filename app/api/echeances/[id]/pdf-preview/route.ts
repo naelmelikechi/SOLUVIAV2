@@ -144,8 +144,10 @@ export async function GET(
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="apercu-echeance-${echeance.id}.pdf"`,
-      // Short-lived: draft data can change as contracts evolve
-      'Cache-Control': 'private, max-age=60',
+      // CDN cache 1h + SWR : second clic sur la meme echeance = instant
+      // Si les contrats du projet changent, l'apercu peut etre stale jusqu'a
+      // expiration (acceptable, c'est un brouillon).
+      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
     },
   });
 }

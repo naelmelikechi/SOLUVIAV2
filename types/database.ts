@@ -640,8 +640,11 @@ export type Database = {
           facture_id: string | null;
           id: string;
           mois_concerne: string;
+          mois_relatif: number | null;
           montant_prevu_ht: number;
+          npec_snapshot: number | null;
           projet_id: string;
+          quote_part: number | null;
           updated_at: string;
           validee: boolean;
         };
@@ -651,8 +654,11 @@ export type Database = {
           facture_id?: string | null;
           id?: string;
           mois_concerne: string;
+          mois_relatif?: number | null;
           montant_prevu_ht: number;
+          npec_snapshot?: number | null;
           projet_id: string;
+          quote_part?: number | null;
           updated_at?: string;
           validee?: boolean;
         };
@@ -662,8 +668,11 @@ export type Database = {
           facture_id?: string | null;
           id?: string;
           mois_concerne?: string;
+          mois_relatif?: number | null;
           montant_prevu_ht?: number;
+          npec_snapshot?: number | null;
           projet_id?: string;
+          quote_part?: number | null;
           updated_at?: string;
           validee?: boolean;
         };
@@ -683,6 +692,39 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      echeanciers_templates: {
+        Row: {
+          archive: boolean;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_default: boolean;
+          jalons: Json;
+          nom: string;
+          updated_at: string;
+        };
+        Insert: {
+          archive?: boolean;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_default?: boolean;
+          jalons: Json;
+          nom: string;
+          updated_at?: string;
+        };
+        Update: {
+          archive?: boolean;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_default?: boolean;
+          jalons?: Json;
+          nom?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       eduvia_companies: {
         Row: {
@@ -900,6 +942,80 @@ export type Database = {
         };
         Relationships: [];
       };
+      facturation_ajustements_pending: {
+        Row: {
+          contrat_id: string | null;
+          created_at: string;
+          delta_ht: number;
+          detail: Json | null;
+          id: string;
+          motif: string | null;
+          projet_id: string | null;
+          resolved_action: string | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          resolved_facture_id: string | null;
+          type: string;
+        };
+        Insert: {
+          contrat_id?: string | null;
+          created_at?: string;
+          delta_ht: number;
+          detail?: Json | null;
+          id?: string;
+          motif?: string | null;
+          projet_id?: string | null;
+          resolved_action?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          resolved_facture_id?: string | null;
+          type: string;
+        };
+        Update: {
+          contrat_id?: string | null;
+          created_at?: string;
+          delta_ht?: number;
+          detail?: Json | null;
+          id?: string;
+          motif?: string | null;
+          projet_id?: string | null;
+          resolved_action?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          resolved_facture_id?: string | null;
+          type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'facturation_ajustements_pending_contrat_id_fkey';
+            columns: ['contrat_id'];
+            isOneToOne: false;
+            referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'facturation_ajustements_pending_projet_id_fkey';
+            columns: ['projet_id'];
+            isOneToOne: false;
+            referencedRelation: 'projets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'facturation_ajustements_pending_resolved_by_fkey';
+            columns: ['resolved_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'facturation_ajustements_pending_resolved_facture_id_fkey';
+            columns: ['resolved_facture_id'];
+            isOneToOne: false;
+            referencedRelation: 'factures';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       facture_lignes: {
         Row: {
           contrat_id: string;
@@ -907,7 +1023,11 @@ export type Database = {
           description: string;
           facture_id: string;
           id: string;
+          mois_relatif: number | null;
           montant_ht: number;
+          npec_snapshot: number | null;
+          quote_part: number | null;
+          taux_commission_snapshot: number | null;
         };
         Insert: {
           contrat_id: string;
@@ -915,7 +1035,11 @@ export type Database = {
           description: string;
           facture_id: string;
           id?: string;
+          mois_relatif?: number | null;
           montant_ht: number;
+          npec_snapshot?: number | null;
+          quote_part?: number | null;
+          taux_commission_snapshot?: number | null;
         };
         Update: {
           contrat_id?: string;
@@ -923,7 +1047,11 @@ export type Database = {
           description?: string;
           facture_id?: string;
           id?: string;
+          mois_relatif?: number | null;
           montant_ht?: number;
+          npec_snapshot?: number | null;
+          quote_part?: number | null;
+          taux_commission_snapshot?: number | null;
         };
         Relationships: [
           {
@@ -1526,6 +1654,8 @@ export type Database = {
           client_id: string;
           created_at: string;
           date_debut: string | null;
+          echeancier_override: Json | null;
+          echeancier_template_id: string | null;
           est_absence: boolean;
           est_interne: boolean;
           id: string;
@@ -1543,6 +1673,8 @@ export type Database = {
           client_id: string;
           created_at?: string;
           date_debut?: string | null;
+          echeancier_override?: Json | null;
+          echeancier_template_id?: string | null;
           est_absence?: boolean;
           est_interne?: boolean;
           id?: string;
@@ -1560,6 +1692,8 @@ export type Database = {
           client_id?: string;
           created_at?: string;
           date_debut?: string | null;
+          echeancier_override?: Json | null;
+          echeancier_template_id?: string | null;
           est_absence?: boolean;
           est_interne?: boolean;
           id?: string;
@@ -1589,6 +1723,13 @@ export type Database = {
             columns: ['client_id'];
             isOneToOne: false;
             referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'projets_echeancier_template_id_fkey';
+            columns: ['echeancier_template_id'];
+            isOneToOne: false;
+            referencedRelation: 'echeanciers_templates';
             referencedColumns: ['id'];
           },
           {

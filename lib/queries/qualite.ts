@@ -5,13 +5,16 @@ import { logger } from '@/lib/utils/logger';
 export async function getQualiteSummaries() {
   const supabase = await createClient();
 
-  // Get active/paused projects with client info
+  // Get active/paused EXTERNAL projects with client info. Les projets internes
+  // (est_interne=true) n'ont pas de taches Qualiopi : les inclure ferait
+  // apparaitre des "0/0 livrables - Non conforme" qui n'a aucun sens.
   const { data: projets, error: pError } = await supabase
     .from('projets')
     .select(
       'id, ref, statut, client:clients!projets_client_id_fkey(raison_sociale), cdp:users!projets_cdp_id_fkey(prenom, nom)',
     )
     .in('statut', ['actif', 'en_pause'])
+    .eq('est_interne', false)
     .order('ref');
   if (pError) {
     logger.error('queries.qualite', 'getQualiteSummaries failed (projets)', {
@@ -71,10 +74,15 @@ export async function getQualiteSummaries() {
       pct: total > 0 ? Math.round((terminees / total) * 100) : 0,
       famillesConformes,
       totalFamilles,
+      // 'sans_taches' : projet sans aucune tache qualite (cas edge ou un
+      // projet externe n'a pas encore eu de seed). Affiche neutre dans
+      // l'UI au lieu d'un faux "Non conforme".
       statutGlobal:
-        totalFamilles > 0 && famillesConformes === totalFamilles
-          ? ('conforme' as const)
-          : ('non_conforme' as const),
+        totalFamilles === 0
+          ? ('sans_taches' as const)
+          : famillesConformes === totalFamilles
+            ? ('conforme' as const)
+            : ('non_conforme' as const),
     };
   });
 }

@@ -43,13 +43,16 @@ export function QualiteDataTable({ data }: { data: QualiteSummary[] }) {
     const projetsConformes = data.filter(
       (q) => q.statutGlobal === 'conforme',
     ).length;
+    const projetsAvecTaches = data.filter(
+      (q) => q.statutGlobal !== 'sans_taches',
+    ).length;
     return {
       totalLivrables,
       terminees,
       pctGlobal:
         totalLivrables > 0 ? Math.round((terminees / totalLivrables) * 100) : 0,
       projetsConformes,
-      totalProjets: data.length,
+      totalProjets: projetsAvecTaches,
     };
   }, [data]);
 

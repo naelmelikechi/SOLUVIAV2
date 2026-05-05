@@ -97,7 +97,11 @@ export const qualiteListColumns: ColumnDef<QualiteSummary>[] = [
       <DataTableColumnHeader column={column} title="Statut" />
     ),
     cell: ({ row }) => {
-      const isConforme = row.original.statutGlobal === 'conforme';
+      const s = row.original.statutGlobal;
+      if (s === 'sans_taches') {
+        return <StatusBadge label="Sans tâches" color="gray" />;
+      }
+      const isConforme = s === 'conforme';
       return (
         <StatusBadge
           label={isConforme ? 'Conforme' : 'Non conforme'}

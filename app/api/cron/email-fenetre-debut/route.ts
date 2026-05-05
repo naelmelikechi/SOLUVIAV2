@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import { sendFenetreDebutEmail } from '@/lib/email/notifications';
 import { FENETRE_FACTURATION_FIN } from '@/lib/utils/constants';
-import { tryAcquireEmailLock } from '@/lib/email/send-log';
+import { withEmailLock } from '@/lib/email/send-log';
 
 export const maxDuration = 60;
 
@@ -29,90 +29,85 @@ export async function GET(request: Request) {
   // sur la date courante: si Vercel rejoue le cron apres minuit ou deborde
   // sur le jour suivant, la cle reste identique et l'email ne part pas deux
   // fois. `dateFinFenetre` porte le mois metier, donc c'est le bon ancrage.
-  const lockAcquired = await tryAcquireEmailLock(
-    supabase,
-    'email-fenetre-debut',
-    format(dateFinFenetre, 'yyyy-MM'),
-  );
-  if (!lockAcquired) {
-    return NextResponse.json({
-      success: true,
-      sent: 0,
-      skipped: 'already_sent',
-    });
-  }
-
   try {
-    // Fetch pending echeances grouped by CDP
-    const { data: echeances, error: echError } = await supabase
-      .from('echeances')
-      .select(
-        `
+    const result = await withEmailLock(
+      supabase,
+      'email-fenetre-debut',
+      format(dateFinFenetre, 'yyyy-MM'),
+      async () => {
+        // Fetch pending echeances grouped by CDP
+        const { data: echeances, error: echError } = await supabase
+          .from('echeances')
+          .select(
+            `
         id,
         projet:projets!echeances_projet_id_fkey(cdp_id, backup_cdp_id)
       `,
-      )
-      .is('facture_id', null)
-      .eq('validee', false);
+          )
+          .is('facture_id', null)
+          .eq('validee', false);
 
-    if (echError) {
-      logger.error('cron.email-fenetre-debut', echError);
-      return NextResponse.json({ error: echError.message }, { status: 500 });
-    }
+        if (echError) throw new Error(echError.message);
 
-    const countByCdp = new Map<string, number>();
-    for (const ech of echeances ?? []) {
-      const cdpId = ech.projet?.cdp_id;
-      if (!cdpId) continue;
-      countByCdp.set(cdpId, (countByCdp.get(cdpId) ?? 0) + 1);
-    }
+        const countByCdp = new Map<string, number>();
+        for (const ech of echeances ?? []) {
+          const cdpId = ech.projet?.cdp_id;
+          if (!cdpId) continue;
+          countByCdp.set(cdpId, (countByCdp.get(cdpId) ?? 0) + 1);
+        }
 
-    // Fetch all active users (admins + CDPs)
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, email, prenom, role')
-      .eq('actif', true)
-      .in('role', ['admin', 'superadmin', 'cdp']);
+        // Fetch all active users (admins + CDPs)
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, email, prenom, role')
+          .eq('actif', true)
+          .in('role', ['admin', 'superadmin', 'cdp']);
 
-    if (!users || users.length === 0) {
-      return NextResponse.json({ success: true, sent: 0 });
-    }
+        if (!users || users.length === 0) {
+          return { sent: 0 };
+        }
 
-    const totalPending = echeances?.length ?? 0;
+        const totalPending = echeances?.length ?? 0;
 
-    let sent = 0;
-    let failed = 0;
+        let sent = 0;
+        let failed = 0;
 
-    for (const user of users) {
-      const nb =
-        user.role === 'admin' || user.role === 'superadmin'
-          ? totalPending
-          : (countByCdp.get(user.id) ?? 0);
+        for (const user of users) {
+          const nb =
+            user.role === 'admin' || user.role === 'superadmin'
+              ? totalPending
+              : (countByCdp.get(user.id) ?? 0);
 
-      // CDP with no pending echeances: skip; admin always gets the digest
-      if (user.role === 'cdp' && nb === 0) continue;
+          // CDP with no pending echeances: skip; admin always gets the digest
+          if (user.role === 'cdp' && nb === 0) continue;
 
-      const result = await sendFenetreDebutEmail({
-        to: user.email,
-        prenom: user.prenom,
-        nbEcheances: nb,
-        dateFinFenetre: dateFinStr,
+          const r = await sendFenetreDebutEmail({
+            to: user.email,
+            prenom: user.prenom,
+            nbEcheances: nb,
+            dateFinFenetre: dateFinStr,
+          });
+          if (r.success) sent++;
+          else failed++;
+        }
+
+        logger.info('cron.email-fenetre-debut', 'Ouverture envoyée', {
+          sent,
+          failed,
+          totalPending,
+        });
+        return { sent, failed, totalPending };
+      },
+    );
+
+    if (result === null) {
+      return NextResponse.json({
+        success: true,
+        sent: 0,
+        skipped: 'already_sent',
       });
-      if (result.success) sent++;
-      else failed++;
     }
-
-    logger.info('cron.email-fenetre-debut', 'Ouverture envoyée', {
-      sent,
-      failed,
-      totalPending,
-    });
-    return NextResponse.json({
-      success: true,
-      sent,
-      failed,
-      totalPending,
-    });
+    return NextResponse.json({ success: true, ...result });
   } catch (err) {
     logger.error('cron.email-fenetre-debut', err);
     return NextResponse.json(

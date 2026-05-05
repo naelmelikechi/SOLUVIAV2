@@ -436,7 +436,6 @@ export type Database = {
           id: string;
           internal_number: string | null;
           last_synced_at: string | null;
-          montant_prise_en_charge: number | null;
           npec_amount: number | null;
           practical_training_start_date: string | null;
           projet_id: string;
@@ -471,7 +470,6 @@ export type Database = {
           id?: string;
           internal_number?: string | null;
           last_synced_at?: string | null;
-          montant_prise_en_charge?: number | null;
           npec_amount?: number | null;
           practical_training_start_date?: string | null;
           projet_id: string;
@@ -506,7 +504,6 @@ export type Database = {
           id?: string;
           internal_number?: string | null;
           last_synced_at?: string | null;
-          montant_prise_en_charge?: number | null;
           npec_amount?: number | null;
           practical_training_start_date?: string | null;
           projet_id?: string;
@@ -703,7 +700,6 @@ export type Database = {
           idcc_code: string | null;
           last_synced_at: string | null;
           naf: string | null;
-          name: string | null;
           postcode: string | null;
           siret: string | null;
         };
@@ -722,7 +718,6 @@ export type Database = {
           idcc_code?: string | null;
           last_synced_at?: string | null;
           naf?: string | null;
-          name?: string | null;
           postcode?: string | null;
           siret?: string | null;
         };
@@ -741,7 +736,6 @@ export type Database = {
           idcc_code?: string | null;
           last_synced_at?: string | null;
           naf?: string | null;
-          name?: string | null;
           postcode?: string | null;
           siret?: string | null;
         };
@@ -1064,7 +1058,6 @@ export type Database = {
           qualification_title: string | null;
           rncp: string | null;
           sequence_count: number | null;
-          titre: string | null;
         };
         Insert: {
           code_diploma?: string | null;
@@ -1077,7 +1070,6 @@ export type Database = {
           qualification_title?: string | null;
           rncp?: string | null;
           sequence_count?: number | null;
-          titre?: string | null;
         };
         Update: {
           code_diploma?: string | null;
@@ -1090,7 +1082,6 @@ export type Database = {
           qualification_title?: string | null;
           rncp?: string | null;
           sequence_count?: number | null;
-          titre?: string | null;
         };
         Relationships: [];
       };

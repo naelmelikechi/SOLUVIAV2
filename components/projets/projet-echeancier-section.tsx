@@ -104,10 +104,9 @@ export function ProjetEcheancierSection({
             {effectiveJalons.length} jalon
             {effectiveJalons.length > 1 ? 's' : ''}, total{' '}
             <span className="text-foreground tabular-nums">
-              {Math.round(
-                effectiveJalons.reduce((s, j) => s + j.quote_part, 0) * 100,
+              {formatTotalAsFraction(
+                effectiveJalons.reduce((s, j) => s + j.quote_part, 0),
               )}
-              %
             </span>{' '}
             du NPEC × taux commission.
           </p>
@@ -121,7 +120,7 @@ export function ProjetEcheancierSection({
                   M+{j.mois_relatif}
                 </div>
                 <div className="text-foreground font-semibold tabular-nums">
-                  {(j.quote_part * 100).toFixed(2).replace(/\.?0+$/, '')}%
+                  {formatQuotePartAsFraction(j.quote_part)}
                 </div>
                 {j.label ? (
                   <div className="text-muted-foreground mt-0.5 truncate text-[10px]">
@@ -186,7 +185,6 @@ function EcheancierDialog({
   const [pending, startTransition] = useTransition();
 
   const validation = validateJalons(customJalons);
-  const totalPct = Math.round(validation.total * 10000) / 100;
 
   function addJalon() {
     const maxMois = customJalons.reduce(
@@ -351,18 +349,18 @@ function EcheancierDialog({
                     />
                     <Input
                       type="number"
-                      step={0.01}
-                      min={0.01}
-                      max={100}
-                      value={(j.quote_part * 100).toFixed(2)}
+                      step={0.5}
+                      min={0.5}
+                      max={48}
+                      value={Number((j.quote_part * 12).toFixed(2))}
                       onChange={(e) =>
                         updateJalon(idx, {
-                          quote_part: Number(e.target.value) / 100,
+                          quote_part: Number(e.target.value) / 12,
                         })
                       }
-                      className="w-24"
+                      className="w-20"
                     />
-                    <span className="text-muted-foreground text-xs">%</span>
+                    <span className="text-muted-foreground text-xs">/12</span>
                     <Input
                       type="text"
                       placeholder="Label (optionnel)"
@@ -389,7 +387,7 @@ function EcheancierDialog({
               <div className="text-muted-foreground border-border mt-3 rounded border p-2 text-xs">
                 Total :{' '}
                 <span className="text-foreground font-semibold tabular-nums">
-                  {totalPct}%
+                  {formatTotalAsFraction(validation.total)}
                 </span>
                 {validation.warnings.length > 0 && (
                   <div className="mt-1 text-[var(--warning)]">
@@ -424,4 +422,31 @@ function EcheancierDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers d'affichage : convertit quote_part decimal -> fraction sur 12
+// ---------------------------------------------------------------------------
+
+/**
+ * Affiche une quote_part en fraction /12 :
+ * - 0.25     -> "3/12"
+ * - 0.0833   -> "1/12" (arrondi a l'entier le plus proche si tolerance 0.05)
+ * - 0.1      -> "1.2/12" (1 decimale sinon)
+ */
+function formatQuotePartAsFraction(qp: number): string {
+  const twelfths = qp * 12;
+  if (Math.abs(twelfths - Math.round(twelfths)) < 0.05) {
+    return `${Math.round(twelfths)}/12`;
+  }
+  return `${twelfths.toFixed(1)}/12`;
+}
+
+/** Pareil pour le total (peut depasser 12/12 si jalons custom) */
+function formatTotalAsFraction(total: number): string {
+  const twelfths = total * 12;
+  if (Math.abs(twelfths - Math.round(twelfths)) < 0.05) {
+    return `${Math.round(twelfths)}/12`;
+  }
+  return `${twelfths.toFixed(1)}/12`;
 }

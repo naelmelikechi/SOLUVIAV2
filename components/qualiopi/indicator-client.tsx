@@ -2,12 +2,19 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Upload, X } from 'lucide-react';
+import { ExternalLink, Upload, User as UserIcon, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
 import {
   DELIVERABLE_STATUS_LABELS,
@@ -18,7 +25,12 @@ import {
   type QualityEvidence,
 } from '@/lib/eduvia/quality-types';
 import type { EvidenceNote, QualiopiAssignment } from '@/lib/queries/qualiopi';
-import { uploadEvidence, validateEvidence } from '@/lib/actions/qualiopi';
+import type { ActiveUserMinimal } from '@/lib/queries/users';
+import {
+  assignIndicatorResponsible,
+  uploadEvidence,
+  validateEvidence,
+} from '@/lib/actions/qualiopi';
 
 interface IndicatorClientProps {
   clientId: string;
@@ -35,6 +47,7 @@ interface IndicatorClientProps {
   selectedEvidences: QualityEvidence[];
   evidenceNotes: Map<number, EvidenceNote[]>;
   currentAssignment: QualiopiAssignment | null;
+  availableUsers: ActiveUserMinimal[];
 }
 
 const STATUS_COLOR: Record<
@@ -60,17 +73,17 @@ export function IndicatorClient({
   selectedEvidences,
   evidenceNotes,
   currentAssignment,
+  availableUsers,
 }: IndicatorClientProps) {
   const router = useRouter();
+  const [assignOpen, setAssignOpen] = useState(false);
 
   function selectDeliverable(deliverableId: number | null) {
     const base = `/qualiopi/${clientRef}/${campusId}/${criterionId}/${indicatorId}`;
     router.push(deliverableId ? `${base}?d=${deliverableId}` : base);
   }
 
-  void clientId;
   void indicatorCode;
-  void currentAssignment;
 
   const selectedDeliverable = deliverables.find(
     (d) => d.deliverable.id === selectedDeliverableId,
@@ -80,9 +93,21 @@ export function IndicatorClient({
     <div className="grid gap-4 lg:grid-cols-[1fr_400px]">
       {/* Liste livrables */}
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold">
-          Livrables ({deliverables.length})
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">
+            Livrables ({deliverables.length})
+          </h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAssignOpen(true)}
+          >
+            <UserIcon className="mr-1.5 h-3.5 w-3.5" />
+            {currentAssignment?.user
+              ? `Resp. ${currentAssignment.user.prenom} ${currentAssignment.user.nom}`
+              : 'Assigner un responsable'}
+          </Button>
+        </div>
         {deliverables.map(({ deliverable, status }) => {
           const statusValue = status?.status ?? 'missing';
           const isSelected = deliverable.id === selectedDeliverableId;
@@ -126,6 +151,16 @@ export function IndicatorClient({
           );
         })}
       </div>
+
+      <AssignResponsibleDialog
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        clientId={clientId}
+        campusId={campusId}
+        indicatorId={indicatorId}
+        currentUserId={currentAssignment?.user?.id ?? null}
+        users={availableUsers}
+      />
 
       {/* Panneau evidences a droite */}
       <aside className="lg:sticky lg:top-4 lg:self-start">
@@ -386,4 +421,107 @@ function formatDate(iso: string): string {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+// ---------------------------------------------------------------------------
+// Sub: dialog assigner un responsable
+// ---------------------------------------------------------------------------
+
+function AssignResponsibleDialog({
+  open,
+  onOpenChange,
+  clientId,
+  campusId,
+  indicatorId,
+  currentUserId,
+  users,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  clientId: string;
+  campusId: number;
+  indicatorId: number;
+  currentUserId: string | null;
+  users: ActiveUserMinimal[];
+}) {
+  const router = useRouter();
+  const [selectedId, setSelectedId] = useState<string | null>(currentUserId);
+  const [pending, startTransition] = useTransition();
+
+  function handleSave() {
+    startTransition(async () => {
+      const r = await assignIndicatorResponsible({
+        clientId,
+        campusId,
+        indicatorId,
+        userId: selectedId,
+      });
+      if (r.success) {
+        toast.success(
+          selectedId ? 'Responsable assigné' : 'Responsable retiré',
+        );
+        onOpenChange(false);
+        router.refresh();
+      } else {
+        toast.error(r.error ?? 'Erreur');
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Assigner un responsable</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[50vh] overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => setSelectedId(null)}
+            className={cn(
+              'flex w-full cursor-pointer items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors',
+              selectedId === null
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'hover:bg-muted',
+            )}
+          >
+            <span className="text-muted-foreground italic">
+              Aucun responsable
+            </span>
+          </button>
+          <div className="my-1 border-t border-[var(--border-light)]" />
+          {users.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              onClick={() => setSelectedId(u.id)}
+              className={cn(
+                'flex w-full cursor-pointer items-center gap-2 rounded px-3 py-2 text-left text-sm transition-colors',
+                selectedId === u.id
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'hover:bg-muted',
+              )}
+            >
+              <UserIcon className="text-muted-foreground h-4 w-4" />
+              <span>
+                {u.prenom} {u.nom}
+              </span>
+            </button>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={pending}
+          >
+            Annuler
+          </Button>
+          <Button onClick={handleSave} disabled={pending}>
+            {pending ? 'Enregistrement...' : 'Enregistrer'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }

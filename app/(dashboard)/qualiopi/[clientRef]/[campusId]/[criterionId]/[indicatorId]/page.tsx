@@ -10,10 +10,12 @@ import {
   getReferentiel,
   listCampusesForClient,
 } from '@/lib/queries/qualiopi';
+import { getActiveUsersMinimal } from '@/lib/queries/users';
 import { computeCompletion } from '@/lib/eduvia/quality-types';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { IndicatorClient } from '@/components/qualiopi/indicator-client';
+import { NoticeIframe } from '@/components/qualiopi/notice-iframe';
 
 export const revalidate = 30;
 
@@ -44,12 +46,14 @@ export default async function IndicatorPage({
   const client = await getClientByRef(p.clientRef);
   if (!client) notFound();
 
-  const [campuses, referentiel, statuses, assignments] = await Promise.all([
-    listCampusesForClient(client.id),
-    getReferentiel(client.id),
-    getDeliverableStatuses(client.id, campusId),
-    getAssignments(client.id, campusId),
-  ]);
+  const [campuses, referentiel, statuses, assignments, users] =
+    await Promise.all([
+      listCampusesForClient(client.id),
+      getReferentiel(client.id),
+      getDeliverableStatuses(client.id, campusId),
+      getAssignments(client.id, campusId),
+      getActiveUsersMinimal(),
+    ]);
   const campus = campuses.find((c) => c.id === campusId);
   const criterion = referentiel.criteria.find((c) => c.id === criterionId);
   const indicator = (
@@ -140,6 +144,8 @@ export default async function IndicatorPage({
         </div>
       </div>
 
+      <NoticeIframe kind="indicateur" code={indicator.code} />
+
       <IndicatorClient
         clientId={client.id}
         clientRef={p.clientRef}
@@ -152,6 +158,7 @@ export default async function IndicatorPage({
         selectedEvidences={selectedEvidences}
         evidenceNotes={evidenceNotes}
         currentAssignment={assignment ?? null}
+        availableUsers={users}
       />
     </div>
   );

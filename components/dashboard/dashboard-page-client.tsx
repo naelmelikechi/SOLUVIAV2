@@ -335,6 +335,7 @@ export function DashboardPageClient({
     totalProduction,
     totalFacture,
     totalEncaisse,
+    totalEnRetard,
     nbApprenantsActifs,
     nbFormationsEnCours,
     nbAbandons,
@@ -343,7 +344,6 @@ export function DashboardPageClient({
     rqthPct,
     tauxSaisieTemps,
   } = financials;
-  const totalEnRetard = Math.max(0, totalFacture - totalEncaisse);
 
   // ---- M-1 evolution helpers ----
   const hasPrevious = Object.keys(previousKpis).length > 0;

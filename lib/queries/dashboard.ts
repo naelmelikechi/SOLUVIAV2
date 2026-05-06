@@ -144,6 +144,8 @@ export interface DashboardFinancials {
   nbFormationsEnCours: number; // count distinct formations sur contrats actifs
   nbAbandons: number; // count contrats resilie ou ANNULE (synced)
   pedagogieAvgPct: number; // avg progression_percentage des contrats actifs (0-100)
+  nbApprenantsRqth: number; // apprenants RQTH actifs (disabled_worker=true)
+  rqthPct: number; // % RQTH parmi apprenants actifs (Qualiopi indicateur 14)
   tempsNonSaisi: number; // days without time entries this week
   tauxSaisieTemps: number; // % of time entries filled this month
 }
@@ -214,10 +216,11 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
 
   // Separate query : KPIs operationnels (formations, abandons, pedagogie).
   // On charge tous les contrats Eduvia non archives une fois et on derive.
+  // join apprenants pour le KPI Qualiopi handicap (RQTH).
   const operationalRes = await supabase
     .from('contrats')
     .select(
-      'eduvia_formation_id, contract_state, contrats_progressions(progression_percentage)',
+      'eduvia_formation_id, contract_state, eduvia_employee_id, source_client_id, contrats_progressions(progression_percentage)',
     )
     .eq('archive', false);
   if (operationalRes.error) {
@@ -252,6 +255,43 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
   }
   const pedagogieAvgPct = progCount > 0 ? Math.round(progSum / progCount) : 0;
   const nbFormationsEnCours = formationsActives.size;
+
+  // KPI Qualiopi handicap : % apprenants RQTH parmi apprenants actifs.
+  // On charge en une fois les eduvia_employee_id distincts des contrats actifs,
+  // puis on look up disabled_worker dans apprenants.
+  const activeEmployeePairs = new Set<string>();
+  for (const c of opContrats) {
+    if (
+      ACTIVE_STATES_ARRAY.includes(c.contract_state ?? '') &&
+      c.eduvia_employee_id != null &&
+      c.source_client_id
+    ) {
+      activeEmployeePairs.add(`${c.source_client_id}:${c.eduvia_employee_id}`);
+    }
+  }
+  let nbApprenantsRqth = 0;
+  let nbApprenantsActifsTotal = 0;
+  if (activeEmployeePairs.size > 0) {
+    const activeIds = Array.from(activeEmployeePairs).map((p) =>
+      Number(p.split(':')[1]),
+    );
+    const { data: appRes } = await supabase
+      .from('apprenants')
+      .select('eduvia_id, source_client_id, disabled_worker')
+      .in('eduvia_id', activeIds);
+    const seen = new Set<string>();
+    for (const a of appRes ?? []) {
+      const k = `${a.source_client_id}:${a.eduvia_id}`;
+      if (!activeEmployeePairs.has(k) || seen.has(k)) continue;
+      seen.add(k);
+      nbApprenantsActifsTotal += 1;
+      if (a.disabled_worker === true) nbApprenantsRqth += 1;
+    }
+  }
+  const rqthPct =
+    nbApprenantsActifsTotal > 0
+      ? Math.round((nbApprenantsRqth / nbApprenantsActifsTotal) * 100)
+      : 0;
 
   // Log any individual query errors but don't throw - dashboard is best-effort
   if (facturesRes.error)
@@ -365,6 +405,8 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
     nbFormationsEnCours,
     nbAbandons,
     pedagogieAvgPct,
+    nbApprenantsRqth,
+    rqthPct,
     tempsNonSaisi,
     tauxSaisieTemps,
   };

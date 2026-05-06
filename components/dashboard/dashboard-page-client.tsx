@@ -339,6 +339,8 @@ export function DashboardPageClient({
     nbFormationsEnCours,
     nbAbandons,
     pedagogieAvgPct,
+    nbApprenantsRqth,
+    rqthPct,
     tauxSaisieTemps,
   } = financials;
   const totalEnRetard = Math.max(0, totalFacture - totalEncaisse);
@@ -696,7 +698,7 @@ export function DashboardPageClient({
             Voir Qualiopi
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           {wrapKpi(
             'pedagogie',
             <KpiCard
@@ -716,6 +718,16 @@ export function DashboardPageClient({
               icon={XCircle}
               color={nbAbandons > 0 ? 'red' : 'green'}
               isNegativeMetric
+            />,
+          )}
+          {wrapKpi(
+            'rqth',
+            <KpiCard
+              label="Apprenants RQTH"
+              value={`${rqthPct}%`}
+              subtitle={`${nbApprenantsRqth} apprenant(s) en situation de handicap`}
+              icon={Activity}
+              color="purple"
             />,
           )}
         </div>

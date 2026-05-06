@@ -10,6 +10,10 @@ import { saveSaisieTemps } from '@/lib/actions/temps';
 import { cn } from '@/lib/utils';
 import { formatHeures } from '@/lib/utils/formatters';
 import { MAX_HEURES_JOUR, DEBOUNCE_MS } from '@/lib/utils/constants';
+import {
+  useColumnWidths,
+  ResizeHandle,
+} from '@/components/temps/use-column-widths';
 
 interface TimeGridProps {
   weekDates: string[];
@@ -35,6 +39,8 @@ export function TimeGrid({
   const saisies = initialSaisies;
   // Only display weekdays (Mon-Fri) in the grid
   const displayDates = weekDates.slice(0, 5);
+  const { widths, startDrag } = useColumnWidths();
+  const tableMinWidth = widths.projet + widths.day * 5 + widths.total;
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
     'idle',
   );
@@ -163,21 +169,33 @@ export function TimeGrid({
         )}
       </div>
       <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[820px] table-fixed border-collapse text-[13px]">
+        <table
+          className="table-fixed border-collapse text-[13px]"
+          style={{ width: tableMinWidth }}
+        >
+          <colgroup>
+            <col style={{ width: widths.projet }} />
+            {displayDates.map((d) => (
+              <col key={d} style={{ width: widths.day }} />
+            ))}
+            <col style={{ width: widths.total }} />
+          </colgroup>
           <thead>
             <tr className="bg-[var(--card-alt)]">
-              <th className="text-muted-foreground min-w-[220px] px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase">
+              <th className="text-muted-foreground relative px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase">
                 Projet
+                <ResizeHandle onMouseDown={(e) => startDrag('projet', e)} />
               </th>
               {displayDates.map((date, i) => {
                 const d = parseISO(date);
                 const ferie = joursFeries[date];
                 const today = isToday(d);
+                const isLastDay = i === displayDates.length - 1;
                 return (
                   <th
                     key={date}
                     className={cn(
-                      'text-muted-foreground w-[104px] px-1 py-2.5 text-center text-xs font-semibold tracking-wider uppercase',
+                      'text-muted-foreground relative px-1 py-2.5 text-center text-xs font-semibold tracking-wider uppercase',
                       ferie && 'bg-[var(--card-alt)]',
                       today && !ferie && 'bg-[var(--primary-bg)]',
                     )}
@@ -189,11 +207,17 @@ export function TimeGrid({
                         {ferie}
                       </div>
                     )}
+                    {/* On ne met une poignee que sur le dernier jour, qui sert
+                        de proxy pour redimensionner les 5 colonnes (uniformes) */}
+                    {isLastDay && (
+                      <ResizeHandle onMouseDown={(e) => startDrag('day', e)} />
+                    )}
                   </th>
                 );
               })}
-              <th className="text-muted-foreground w-[72px] px-2 py-2.5 text-center text-xs font-semibold tracking-wider uppercase">
+              <th className="text-muted-foreground relative px-2 py-2.5 text-center text-xs font-semibold tracking-wider uppercase">
                 Total
+                <ResizeHandle onMouseDown={(e) => startDrag('total', e)} />
               </th>
             </tr>
           </thead>

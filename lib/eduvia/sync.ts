@@ -147,13 +147,14 @@ export async function syncEduviaForClient(
       const { error: upsertError } = await supabase.from('apprenants').upsert(
         {
           eduvia_id: learner.id,
+          source_client_id: clientId,
           nom: learner.last_name,
           prenom: learner.first_name,
           gender: learner.gender,
           phone_number: learner.phone_number,
           last_synced_at: now,
         },
-        { onConflict: 'eduvia_id' },
+        { onConflict: 'eduvia_id,source_client_id' },
       );
       if (upsertError) {
         result.errors.push(
@@ -168,6 +169,7 @@ export async function syncEduviaForClient(
       const { error: upsertError } = await supabase.from('formations').upsert(
         {
           eduvia_id: formation.id,
+          source_client_id: clientId,
           qualification_title: formation.qualification_title,
           duree: formation.duration?.toString() ?? null,
           rncp: formation.rncp,
@@ -176,7 +178,7 @@ export async function syncEduviaForClient(
           sequence_count: formation.sequence_count,
           last_synced_at: now,
         },
-        { onConflict: 'eduvia_id' },
+        { onConflict: 'eduvia_id,source_client_id' },
       );
       if (upsertError) {
         result.errors.push(
@@ -207,7 +209,7 @@ export async function syncEduviaForClient(
             client_id: clientId,
             last_synced_at: now,
           },
-          { onConflict: 'eduvia_id' },
+          { onConflict: 'eduvia_id,client_id' },
         );
       if (upsertError) {
         result.errors.push(
@@ -272,6 +274,7 @@ export async function syncEduviaForClient(
         const { error: upsertError } = await supabase.from('contrats').upsert(
           {
             eduvia_id: contract.id,
+            source_client_id: clientId,
             projet_id: fallbackProjetId,
             eduvia_employee_id: contract.employee_id,
             eduvia_formation_id: contract.formation_id,
@@ -301,7 +304,7 @@ export async function syncEduviaForClient(
             last_synced_at: now,
             archive: false,
           },
-          { onConflict: 'eduvia_id' },
+          { onConflict: 'eduvia_id,source_client_id' },
         );
 
         if (upsertError) {
@@ -459,6 +462,7 @@ export async function syncEduviaForClient(
             .upsert(
               {
                 eduvia_id: step.id,
+                source_client_id: clientId,
                 contrat_id: contratId,
                 eduvia_contract_id: step.contract_id,
                 eduvia_invoice_id: step.invoice_id,
@@ -476,7 +480,7 @@ export async function syncEduviaForClient(
                 paid_at: step.paid_at,
                 last_synced_at: now,
               },
-              { onConflict: 'eduvia_id' },
+              { onConflict: 'eduvia_id,source_client_id' },
             );
           if (upsertError) {
             result.errors.push(
@@ -507,6 +511,7 @@ export async function syncEduviaForClient(
             .upsert(
               {
                 eduvia_id: forecast.id,
+                source_client_id: clientId,
                 contrat_id: contratId,
                 eduvia_contract_id: forecast.contract_id,
                 step_number: forecast.step_number,
@@ -516,7 +521,7 @@ export async function syncEduviaForClient(
                 npec_amount: forecast.npec_amount,
                 last_synced_at: now,
               },
-              { onConflict: 'eduvia_id' },
+              { onConflict: 'eduvia_id,source_client_id' },
             );
           if (upsertError) {
             result.errors.push(

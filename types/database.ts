@@ -74,6 +74,7 @@ export type Database = {
           nom: string | null;
           phone_number: string | null;
           prenom: string | null;
+          source_client_id: string | null;
         };
         Insert: {
           contrat_id?: string | null;
@@ -90,6 +91,7 @@ export type Database = {
           nom?: string | null;
           phone_number?: string | null;
           prenom?: string | null;
+          source_client_id?: string | null;
         };
         Update: {
           contrat_id?: string | null;
@@ -106,6 +108,7 @@ export type Database = {
           nom?: string | null;
           phone_number?: string | null;
           prenom?: string | null;
+          source_client_id?: string | null;
         };
         Relationships: [
           {
@@ -113,6 +116,13 @@ export type Database = {
             columns: ['contrat_id'];
             isOneToOne: false;
             referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'apprenants_source_client_id_fkey';
+            columns: ['source_client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
             referencedColumns: ['id'];
           },
         ];
@@ -443,6 +453,7 @@ export type Database = {
           referrer_amount: number | null;
           referrer_name: string | null;
           referrer_type: string | null;
+          source_client_id: string | null;
           updated_at: string;
         };
         Insert: {
@@ -477,6 +488,7 @@ export type Database = {
           referrer_amount?: number | null;
           referrer_name?: string | null;
           referrer_type?: string | null;
+          source_client_id?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -511,6 +523,7 @@ export type Database = {
           referrer_amount?: number | null;
           referrer_name?: string | null;
           referrer_type?: string | null;
+          source_client_id?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -519,6 +532,13 @@ export type Database = {
             columns: ['projet_id'];
             isOneToOne: false;
             referencedRelation: 'projets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'contrats_source_client_id_fkey';
+            columns: ['source_client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
             referencedColumns: ['id'];
           },
         ];
@@ -802,6 +822,7 @@ export type Database = {
           npec_amount: number | null;
           opening_date: string | null;
           percentage: number | null;
+          source_client_id: string | null;
           step_number: number;
           total_amount: number | null;
         };
@@ -815,6 +836,7 @@ export type Database = {
           npec_amount?: number | null;
           opening_date?: string | null;
           percentage?: number | null;
+          source_client_id?: string | null;
           step_number: number;
           total_amount?: number | null;
         };
@@ -828,6 +850,7 @@ export type Database = {
           npec_amount?: number | null;
           opening_date?: string | null;
           percentage?: number | null;
+          source_client_id?: string | null;
           step_number?: number;
           total_amount?: number | null;
         };
@@ -837,6 +860,13 @@ export type Database = {
             columns: ['contrat_id'];
             isOneToOne: false;
             referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'eduvia_invoice_forecast_steps_source_client_id_fkey';
+            columns: ['source_client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
             referencedColumns: ['id'];
           },
         ];
@@ -860,6 +890,7 @@ export type Database = {
           paid_amount: number | null;
           paid_at: string | null;
           siret_cfa: string | null;
+          source_client_id: string | null;
           step_number: number;
           total_amount: number | null;
         };
@@ -881,6 +912,7 @@ export type Database = {
           paid_amount?: number | null;
           paid_at?: string | null;
           siret_cfa?: string | null;
+          source_client_id?: string | null;
           step_number: number;
           total_amount?: number | null;
         };
@@ -902,6 +934,7 @@ export type Database = {
           paid_amount?: number | null;
           paid_at?: string | null;
           siret_cfa?: string | null;
+          source_client_id?: string | null;
           step_number?: number;
           total_amount?: number | null;
         };
@@ -911,6 +944,13 @@ export type Database = {
             columns: ['contrat_id'];
             isOneToOne: false;
             referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'eduvia_invoice_steps_source_client_id_fkey';
+            columns: ['source_client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
             referencedColumns: ['id'];
           },
         ];
@@ -1186,6 +1226,7 @@ export type Database = {
           qualification_title: string | null;
           rncp: string | null;
           sequence_count: number | null;
+          source_client_id: string | null;
         };
         Insert: {
           code_diploma?: string | null;
@@ -1198,6 +1239,7 @@ export type Database = {
           qualification_title?: string | null;
           rncp?: string | null;
           sequence_count?: number | null;
+          source_client_id?: string | null;
         };
         Update: {
           code_diploma?: string | null;
@@ -1210,8 +1252,17 @@ export type Database = {
           qualification_title?: string | null;
           rncp?: string | null;
           sequence_count?: number | null;
+          source_client_id?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'formations_source_client_id_fkey';
+            columns: ['source_client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       idees: {
         Row: {

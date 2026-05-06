@@ -68,13 +68,16 @@ export function InvoiceStatusChartInner({ data, total }: Props) {
     percent: data[d.key] / total,
   }));
 
+  // La Legend en bas decale le centre visuel du Pie vers le haut.
+  // On aligne manuellement Pie.cy et les <text> sur le meme y.
+  const PIE_CY_PCT = 44;
   return (
     <ResponsiveContainer width="100%" height={280}>
       <PieChart>
         <Pie
           data={chartData}
           cx="50%"
-          cy="50%"
+          cy={`${PIE_CY_PCT}%`}
           innerRadius={60}
           outerRadius={100}
           paddingAngle={2}
@@ -92,10 +95,10 @@ export function InvoiceStatusChartInner({ data, total }: Props) {
           wrapperStyle={{ fontSize: 12 }}
           formatter={renderLegendText}
         />
-        {/* Center label */}
+        {/* Center label - aligne sur cy du Pie */}
         <text
           x="50%"
-          y="48%"
+          y={`${PIE_CY_PCT - 3}%`}
           textAnchor="middle"
           dominantBaseline="central"
           className="fill-foreground text-2xl font-bold"
@@ -104,7 +107,7 @@ export function InvoiceStatusChartInner({ data, total }: Props) {
         </text>
         <text
           x="50%"
-          y="57%"
+          y={`${PIE_CY_PCT + 6}%`}
           textAnchor="middle"
           dominantBaseline="central"
           className="fill-muted-foreground text-xs"

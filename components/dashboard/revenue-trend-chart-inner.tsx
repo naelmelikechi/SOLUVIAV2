@@ -17,6 +17,12 @@ interface Props {
   formatCurrency: (v: number) => string;
 }
 
+const LEGEND_LABELS: Record<string, string> = {
+  production: 'Production',
+  facture: 'Facturé',
+  encaisse: 'Encaissé',
+};
+
 function CustomTooltip({
   active,
   payload,
@@ -39,7 +45,9 @@ function CustomTooltip({
             className="h-2 w-2 rounded-full"
             style={{ backgroundColor: entry.color }}
           />
-          <span className="text-muted-foreground">{entry.name}</span>
+          <span className="text-muted-foreground">
+            {LEGEND_LABELS[entry.name] ?? entry.name}
+          </span>
           <span className="ml-auto font-medium tabular-nums">
             {formatCurrency(entry.value)}
           </span>
@@ -48,12 +56,6 @@ function CustomTooltip({
     </div>
   );
 }
-
-const LEGEND_LABELS: Record<string, string> = {
-  production: 'Production',
-  facture: 'Facturé',
-  encaisse: 'Encaissé',
-};
 
 function renderLegendText(value: string) {
   return LEGEND_LABELS[value] ?? value;

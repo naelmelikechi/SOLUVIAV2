@@ -19,7 +19,7 @@
     },
     {
       "path": "/api/sync/odoo",
-      "schedule": "0 8,14 * * 1-5"
+      "schedule": "0 8-19 * * 1-5"
     },
     {
       "path": "/api/cron/chat-cleanup",

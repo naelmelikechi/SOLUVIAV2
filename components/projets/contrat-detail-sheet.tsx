@@ -367,10 +367,21 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
                             : ''}
                         </span>
                         <span className="font-mono text-sm tabular-nums">
-                          {formatCurrency(Number(s.npec_amount ?? 0))}
+                          {formatCurrency(Number(s.total_amount ?? 0))}
                         </span>
                       </div>
                     ))}
+                    <div className="text-muted-foreground flex items-center justify-between pt-1 text-xs">
+                      <span>Total échéancier</span>
+                      <span className="font-mono tabular-nums">
+                        {formatCurrency(
+                          data.forecastSteps.reduce(
+                            (sum, s) => sum + Number(s.total_amount ?? 0),
+                            0,
+                          ),
+                        )}
+                      </span>
+                    </div>
                   </div>
                 </Section>
               )}

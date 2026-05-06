@@ -1,8 +1,26 @@
 import { logger } from '@/lib/utils/logger';
 
 // ---------------------------------------------------------------------------
-// Eduvia API types - mirror the OpenAPI spec at
-// https://demo.eduvia.app/api/docs/openapi.yaml (saved as /tmp/eduvia_openapi.yaml).
+// Eduvia API types - mirror the OpenAPI spec
+// (https://heol.eduvia.app/api/docs/openapi.yaml, v1.0.0 verifie 2026-05-06).
+//
+// Sections de l'API consommees :
+//   - Status, Campuses, Companies, Contracts, Employees, EmployeeLearners
+//     (legacy fallback), Formations, Quality (lecture seule), Invoices
+//     via contracts/{id}/invoice_steps + invoice_forecast_steps
+//
+// Sections volontairement NON consommees (out-of-scope V1) :
+//   - GET /api/v1/contracts/{id}/training_times : detail des sessions de
+//     formation, pas necessaire pour l'instant (KPI temps via saisies_temps).
+//   - POST /api/v1/employee_learners + batch/progressions : creation cote
+//     SOLUVIA non envisagee, on est en lecture pure.
+//   - Surveys + GradedSurveys : enquetes de satisfaction Eduvia, pas exposees
+//     dans l'UI SOLUVIA aujourd'hui.
+//   - Teachers : formateurs Eduvia, l'assignation responsable cote SOLUVIA
+//     se fait sur les users SOLUVIA via qualite_assignments.
+//
+// L'API Quality est en lecture seule cote SOLUVIA : aucun upload/validation
+// d'evidence. Le depot des preuves Qualiopi se fait dans Eduvia.
 // ---------------------------------------------------------------------------
 
 export interface EduviaApiResponse<T> {
@@ -29,16 +47,19 @@ export interface EduviaContract {
   campus_id: number;
   contract_number: string | null;
   internal_number: string | null;
-  contract_type: string | null;
-  contract_mode: string | null;
+  // contract_type / contract_mode : codes nomenclature CFA (entiers) - stocke
+  // en TEXT cote DB, postgres coerce a la volee.
+  contract_type: number | null;
+  contract_mode: number | null;
   contract_state: string;
-  contract_start_date: string;
-  contract_end_date: string;
+  // start/end peuvent etre null sur des contrats en preparation (NOTSENT)
+  contract_start_date: string | null;
+  contract_end_date: string | null;
   contract_conclusion_date: string | null;
   practical_training_start_date: string | null;
   creation_mode: string;
   support: string | null;
-  support_first_equipment: string | null;
+  support_first_equipment: number | null;
   npec_amount: number | null;
   referrer_name: string | null;
   referrer_amount: number | null;

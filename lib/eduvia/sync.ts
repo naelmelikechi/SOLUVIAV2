@@ -152,6 +152,13 @@ export async function syncEduviaForClient(
           prenom: learner.first_name,
           gender: learner.gender,
           phone_number: learner.phone_number,
+          birth_date: learner.birth_date,
+          address: learner.address,
+          postcode: learner.postcode,
+          city: learner.city,
+          nationality_code: learner.nationality_code,
+          disabled_worker: learner.disabled_worker,
+          status: learner.status,
           last_synced_at: now,
         },
         { onConflict: 'eduvia_id,source_client_id' },
@@ -289,8 +296,17 @@ export async function syncEduviaForClient(
             contract_state: contract.contract_state,
             contract_number: contract.contract_number,
             internal_number: contract.internal_number,
-            contract_type: contract.contract_type,
-            contract_mode: contract.contract_mode,
+            // Codes numeriques cote API (ex 11, 23) stockes en TEXT cote DB,
+            // on les normalise en string ici plutot que de laisser Postgres
+            // coercer implicitement.
+            contract_type:
+              contract.contract_type != null
+                ? String(contract.contract_type)
+                : null,
+            contract_mode:
+              contract.contract_mode != null
+                ? String(contract.contract_mode)
+                : null,
             contract_conclusion_date: contract.contract_conclusion_date,
             practical_training_start_date:
               contract.practical_training_start_date,

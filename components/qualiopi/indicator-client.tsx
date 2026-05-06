@@ -213,15 +213,21 @@ function EvidencesPanel({
           evidences.map((e) => (
             <div key={e.id} className="space-y-2 p-3">
               <div className="flex items-start justify-between gap-2">
-                <a
-                  href={e.file_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary inline-flex items-center gap-1 text-sm font-medium hover:underline"
-                >
-                  {e.file_name}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                {e.file_url ? (
+                  <a
+                    href={e.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary inline-flex items-center gap-1 text-sm font-medium hover:underline"
+                  >
+                    {e.file_name ?? 'Pièce sans nom'}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground text-sm font-medium italic">
+                    {e.file_name ?? 'Pièce en cours de dépôt'}
+                  </span>
+                )}
                 <StatusBadge
                   label={EVIDENCE_STATUS_LABELS[e.status]}
                   color={STATUS_COLOR[e.status] ?? 'gray'}

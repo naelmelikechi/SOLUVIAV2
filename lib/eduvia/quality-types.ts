@@ -76,8 +76,10 @@ export interface QualityEvidence {
   status: EvidenceStatus;
   expires_at: string | null;
   uploaded_by_id: number | null;
-  file_name: string;
-  file_url: string;
+  // file_name / file_url peuvent etre null tant que la preuve n'a pas
+  // termine son upload cote Eduvia (cf spec OpenAPI).
+  file_name: string | null;
+  file_url: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -60,8 +60,12 @@ export type Database = {
       };
       apprenants: {
         Row: {
+          address: string | null;
+          birth_date: string | null;
+          city: string | null;
           contrat_id: string | null;
           created_at: string;
+          disabled_worker: boolean | null;
           eduvia_formation_id: number | null;
           eduvia_id: number;
           email: string | null;
@@ -71,14 +75,21 @@ export type Database = {
           last_synced_at: string | null;
           learning_end_date: string | null;
           learning_start_date: string | null;
+          nationality_code: number | null;
           nom: string | null;
           phone_number: string | null;
+          postcode: string | null;
           prenom: string | null;
           source_client_id: string | null;
+          status: string | null;
         };
         Insert: {
+          address?: string | null;
+          birth_date?: string | null;
+          city?: string | null;
           contrat_id?: string | null;
           created_at?: string;
+          disabled_worker?: boolean | null;
           eduvia_formation_id?: number | null;
           eduvia_id: number;
           email?: string | null;
@@ -88,14 +99,21 @@ export type Database = {
           last_synced_at?: string | null;
           learning_end_date?: string | null;
           learning_start_date?: string | null;
+          nationality_code?: number | null;
           nom?: string | null;
           phone_number?: string | null;
+          postcode?: string | null;
           prenom?: string | null;
           source_client_id?: string | null;
+          status?: string | null;
         };
         Update: {
+          address?: string | null;
+          birth_date?: string | null;
+          city?: string | null;
           contrat_id?: string | null;
           created_at?: string;
+          disabled_worker?: boolean | null;
           eduvia_formation_id?: number | null;
           eduvia_id?: number;
           email?: string | null;
@@ -105,10 +123,13 @@ export type Database = {
           last_synced_at?: string | null;
           learning_end_date?: string | null;
           learning_start_date?: string | null;
+          nationality_code?: number | null;
           nom?: string | null;
           phone_number?: string | null;
+          postcode?: string | null;
           prenom?: string | null;
           source_client_id?: string | null;
+          status?: string | null;
         };
         Relationships: [
           {

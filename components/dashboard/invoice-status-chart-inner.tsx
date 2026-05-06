@@ -85,21 +85,33 @@ export function InvoiceStatusChartInner({ data, total }: Props) {
           ))}
           <Label
             position="center"
-            content={({ viewBox }) => {
-              if (
-                !viewBox ||
-                typeof viewBox !== 'object' ||
-                !('cx' in viewBox) ||
-                !('cy' in viewBox)
-              ) {
-                return null;
-              }
-              const { cx, cy } = viewBox as { cx: number; cy: number };
+            offset={0}
+            content={(props: {
+              viewBox?: {
+                cx?: number;
+                cy?: number;
+                x?: number;
+                y?: number;
+                width?: number;
+                height?: number;
+              };
+            }) => {
+              const vb = props.viewBox ?? {};
+              const cx =
+                vb.cx ??
+                (vb.x !== undefined && vb.width !== undefined
+                  ? vb.x + vb.width / 2
+                  : 0);
+              const cy =
+                vb.cy ??
+                (vb.y !== undefined && vb.height !== undefined
+                  ? vb.y + vb.height / 2
+                  : 0);
               return (
                 <g>
                   <text
                     x={cx}
-                    y={(cy ?? 0) - 6}
+                    y={cy - 6}
                     textAnchor="middle"
                     dominantBaseline="central"
                     className="fill-foreground text-2xl font-bold"
@@ -108,7 +120,7 @@ export function InvoiceStatusChartInner({ data, total }: Props) {
                   </text>
                   <text
                     x={cx}
-                    y={(cy ?? 0) + 14}
+                    y={cy + 14}
                     textAnchor="middle"
                     dominantBaseline="central"
                     className="fill-muted-foreground text-xs"

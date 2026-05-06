@@ -12,11 +12,9 @@ export async function getFacturesList() {
       montant_ht, taux_tva, montant_tva, montant_ttc,
       statut, est_avoir, avoir_motif, facture_origine_id,
       projet:projets!factures_projet_id_fkey(id, ref),
-      client:clients!factures_client_id_fkey!inner(id, trigramme, raison_sociale, is_demo, archive)
+      client:clients!factures_client_id_fkey(id, trigramme, raison_sociale)
     `,
     )
-    .eq('client.is_demo', false)
-    .eq('client.archive', false)
     .order('numero_seq', { ascending: false });
   if (error) {
     logger.error('queries.factures', 'getFacturesList failed', { error });

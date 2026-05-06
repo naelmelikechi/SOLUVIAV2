@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { ACTIVE_CONTRACT_STATES } from '@/lib/utils/contrat-states';
-import { computeContractSchedule } from './production';
 import {
   format,
   startOfMonth,
@@ -24,53 +23,27 @@ export async function getDashboardData() {
 
   const [projetsRes, facturesRes, echeancesRes, contratsRes, staleContratsRes] =
     await Promise.all([
-      supabase
-        .from('projets')
-        .select(
-          'id, client:clients!projets_client_id_fkey!inner(is_demo, archive)',
-        )
-        .eq('statut', 'actif')
-        .eq('archive', false)
-        .eq('client.is_demo', false)
-        .eq('client.archive', false),
-      supabase
-        .from('factures')
-        .select(
-          'id, statut, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-        )
-        .eq('projet.client.is_demo', false)
-        .eq('projet.client.archive', false),
+      supabase.from('projets').select('id').eq('statut', 'actif'),
+      supabase.from('factures').select('id, statut'),
       supabase
         .from('echeances')
-        .select(
-          'id, projet:projets!echeances_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-        )
+        .select('id')
         .is('facture_id', null)
-        .eq('validee', false)
-        .eq('projet.client.is_demo', false)
-        .eq('projet.client.archive', false),
+        .eq('validee', false),
       supabase
         .from('contrats')
-        .select(
-          'id, projet:projets!contrats_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-        )
+        .select('id')
         .in('contract_state', ACTIVE_STATES_ARRAY)
-        .eq('archive', false)
-        .eq('projet.client.is_demo', false)
-        .eq('projet.client.archive', false),
+        .eq('archive', false),
       // Contrats actifs depuis +30j candidats au "sans progression".
       // On joint contrats_progressions pour avoir last_activity_at (source
       // Eduvia) en plus du fallback saisies_temps.
       supabase
         .from('contrats')
-        .select(
-          'id, projet_id, contrats_progressions(last_activity_at), projet:projets!contrats_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-        )
+        .select('id, projet_id, contrats_progressions(last_activity_at)')
         .eq('archive', false)
         .in('contract_state', ACTIVE_STATES_ARRAY)
-        .lt('date_debut', thirtyDaysAgoStr)
-        .eq('projet.client.is_demo', false)
-        .eq('projet.client.archive', false),
+        .lt('date_debut', thirtyDaysAgoStr),
     ]);
 
   // Log any individual query errors but don't throw - dashboard is best-effort
@@ -164,10 +137,9 @@ function capitalize(s: string): string {
 // ---------------------------------------------------------------------------
 
 export interface DashboardFinancials {
-  totalProduction: number; // production OPCO theorique du mois courant (schedule 40/30/20/10)
-  totalFacture: number; // sum of factures.montant_ht (clients reels uniquement)
-  totalEncaisse: number; // sum of paiements.montant (clients reels uniquement)
-  totalEnRetard: number; // sum factures.montant_ht en retard moins paiements partiels recus
+  totalProduction: number; // sum of factures.montant_ht for emise/payee/en_retard
+  totalFacture: number; // same scope
+  totalEncaisse: number; // sum of paiements.montant
   nbApprenantsActifs: number; // count of active contrats
   nbFormationsEnCours: number; // count distinct formations sur contrats actifs
   nbAbandons: number; // count contrats resilie ou ANNULE (synced)
@@ -195,54 +167,20 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
   const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
   const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
 
-  const monthKey = format(now, 'yyyy-MM');
-
   const [
     facturesRes,
     paiementsRes,
-    facturesRetardRes,
-    contratsProdRes,
     contratsRes,
     tempsRes,
     tempsMonthRes,
     usersRes,
     feriesRes,
   ] = await Promise.all([
-    // Factures pour totalFacture (exclut clients demo/archives)
     supabase
       .from('factures')
-      .select(
-        'montant_ht, statut, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-      )
-      .in('statut', ['emise', 'payee', 'en_retard', 'avoir'])
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
-    // Paiements pour totalEncaisse (exclut clients demo/archives via facture)
-    supabase
-      .from('paiements')
-      .select(
-        'montant, facture:factures!paiements_facture_id_fkey!inner(projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive)))',
-      )
-      .eq('facture.projet.client.is_demo', false)
-      .eq('facture.projet.client.archive', false),
-    // Factures en retard avec leurs paiements pour calculer le vrai net non encaisse
-    supabase
-      .from('factures')
-      .select(
-        'id, montant_ht, paiements(montant), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-      )
-      .eq('statut', 'en_retard')
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
-    // Contrats pour calcul Production OPCO du mois (schedule 40/30/20/10)
-    supabase
-      .from('contrats')
-      .select(
-        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-      )
-      .eq('archive', false)
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
+      .select('montant_ht, statut')
+      .in('statut', ['emise', 'payee', 'en_retard', 'avoir']),
+    supabase.from('paiements').select('montant'),
     // Distinct learners (eduvia_employee_id) actually in formation. We dedup
     // in JS rather than via SQL DISTINCT - works consistently across the
     // mix of internal `actif` and Eduvia-driven states.
@@ -404,36 +342,8 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
     0,
   );
 
-  // totalProduction = somme des versements OPCO (schedule 40/30/20/10)
-  // qui tombent sur le mois courant. Meme logique que /production en mode OPCO.
-  let totalProduction = 0;
-  for (const c of contratsProdRes.data ?? []) {
-    if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
-    if (!c.npec_amount || c.npec_amount <= 0) continue;
-    const schedule = computeContractSchedule(
-      c.date_debut,
-      c.duree_mois,
-      c.npec_amount,
-      0,
-    );
-    for (const e of schedule.opco) {
-      if (e.month === monthKey) totalProduction += e.amount;
-    }
-  }
-  totalProduction = Math.round(totalProduction * 100) / 100;
-
-  // totalEnRetard = somme des factures statut=en_retard moins les paiements
-  // partiels deja recus sur ces factures (le solde reellement en retard).
-  let totalEnRetard = 0;
-  for (const f of facturesRetardRes.data ?? []) {
-    const paiements = Array.isArray(f.paiements) ? f.paiements : [];
-    const encaisse = paiements.reduce(
-      (s: number, p: { montant: number }) => s + p.montant,
-      0,
-    );
-    totalEnRetard += Math.max(0, f.montant_ht - encaisse);
-  }
-  totalEnRetard = Math.round(totalEnRetard * 100) / 100;
+  // For totalProduction we use the same as totalFacture (proxy)
+  const totalProduction = totalFacture;
 
   // Dedup by eduvia_employee_id : un apprenant avec N contrats compte 1.
   // Les contrats hors Eduvia (employee_id null) sont comptes 1 chacun.
@@ -491,7 +401,6 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
     totalProduction,
     totalFacture,
     totalEncaisse,
-    totalEnRetard,
     nbApprenantsActifs,
     nbFormationsEnCours,
     nbAbandons,

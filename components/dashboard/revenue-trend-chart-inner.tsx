@@ -2,8 +2,8 @@
 
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -62,21 +62,7 @@ function renderLegendText(value: string) {
 export function RevenueTrendChartInner({ data, formatCurrency }: Props) {
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
-        <defs>
-          <linearGradient id="colorProduction" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="colorFacture" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="colorEncaisse" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#f97316" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-          </linearGradient>
-        </defs>
+      <LineChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
         <XAxis
           dataKey="mois"
@@ -94,44 +80,44 @@ export function RevenueTrendChartInner({ data, formatCurrency }: Props) {
             v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)
           }
         />
-        <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />
+        <Tooltip
+          content={<CustomTooltip formatCurrency={formatCurrency} />}
+          cursor={false}
+        />
         <Legend
           iconType="circle"
           iconSize={8}
           wrapperStyle={{ fontSize: 12 }}
           formatter={renderLegendText}
         />
-        <Area
+        <Line
           type="monotone"
           dataKey="production"
           name="production"
           stroke="#22c55e"
           strokeWidth={2}
-          fill="url(#colorProduction)"
           dot={{ r: 3, fill: '#22c55e' }}
           activeDot={{ r: 5 }}
         />
-        <Area
+        <Line
           type="monotone"
           dataKey="facture"
           name="facture"
           stroke="#3b82f6"
           strokeWidth={2}
-          fill="url(#colorFacture)"
           dot={{ r: 3, fill: '#3b82f6' }}
           activeDot={{ r: 5 }}
         />
-        <Area
+        <Line
           type="monotone"
           dataKey="encaisse"
           name="encaisse"
           stroke="#f97316"
           strokeWidth={2}
-          fill="url(#colorEncaisse)"
           dot={{ r: 3, fill: '#f97316' }}
           activeDot={{ r: 5 }}
         />
-      </AreaChart>
+      </LineChart>
     </ResponsiveContainer>
   );
 }

@@ -43,16 +43,20 @@ export async function GET(request: Request) {
   }
 
   // 2. Charge les projets actifs avec contrats + config echeancier
+  // Filtre clients reels uniquement (pas demo, pas archive)
   const { data: projets, error: projetsError } = await supabase
     .from('projets')
     .select(
       `
       id, taux_commission, echeancier_template_id, echeancier_override,
-      contrats(id, npec_amount, date_debut, duree_mois, archive)
+      contrats(id, npec_amount, date_debut, duree_mois, archive),
+      client:clients!projets_client_id_fkey!inner(is_demo, archive)
     `,
     )
     .eq('statut', 'actif')
-    .eq('archive', false);
+    .eq('archive', false)
+    .eq('client.is_demo', false)
+    .eq('client.archive', false);
 
   if (projetsError) {
     logger.error(SCOPE, 'fetch projets failed', { error: projetsError });

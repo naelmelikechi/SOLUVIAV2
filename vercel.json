@@ -47,7 +47,7 @@
     },
     {
       "path": "/api/cron/progression-snapshot",
-      "schedule": "0 4 * * 1"
+      "schedule": "0 7 * * 1"
     },
     {
       "path": "/api/cron/intercontrat-alerte",

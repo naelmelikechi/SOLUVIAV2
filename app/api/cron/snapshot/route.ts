@@ -16,26 +16,48 @@ export async function GET(request: Request) {
 
   try {
     // Run all KPI queries in parallel
+    // Filtres clients reels (is_demo=false, archive=false) sur toutes les
+    // queries pour rester coherent avec /production et /dashboard.
     const [projetsRes, facturesRes, paiementsRes, contratsRes] =
       await Promise.all([
         // projets_actifs
         supabase
           .from('projets')
-          .select('id', { count: 'exact', head: true })
+          .select(
+            'id, client:clients!projets_client_id_fkey!inner(is_demo, archive)',
+            { count: 'exact', head: false },
+          )
           .eq('statut', 'actif')
-          .eq('archive', false),
+          .eq('archive', false)
+          .eq('client.is_demo', false)
+          .eq('client.archive', false),
         // factures (multiple KPIs derived from this)
         supabase
           .from('factures')
-          .select('montant_ht, statut, est_avoir')
-          .in('statut', ['emise', 'payee', 'en_retard']),
+          .select(
+            'montant_ht, statut, est_avoir, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+          )
+          .in('statut', ['emise', 'payee', 'en_retard'])
+          .eq('projet.client.is_demo', false)
+          .eq('projet.client.archive', false),
         // total_encaisse
-        supabase.from('paiements').select('montant'),
+        supabase
+          .from('paiements')
+          .select(
+            'montant, facture:factures!paiements_facture_id_fkey!inner(projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive)))',
+          )
+          .eq('facture.projet.client.is_demo', false)
+          .eq('facture.projet.client.archive', false),
         // contrats_actifs
         supabase
           .from('contrats')
-          .select('id', { count: 'exact', head: true })
-          .eq('archive', false),
+          .select(
+            'id, projet:projets!contrats_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+            { count: 'exact', head: false },
+          )
+          .eq('archive', false)
+          .eq('projet.client.is_demo', false)
+          .eq('projet.client.archive', false),
       ]);
 
     const factures = facturesRes.data ?? [];

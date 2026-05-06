@@ -7,6 +7,7 @@ import {
   Cell,
   Tooltip,
   Legend,
+  Label,
 } from 'recharts';
 import type { InvoiceStatusBreakdown } from '@/lib/queries/dashboard';
 
@@ -68,16 +69,11 @@ export function InvoiceStatusChartInner({ data, total }: Props) {
     percent: data[d.key] / total,
   }));
 
-  // La Legend en bas decale le centre visuel du Pie vers le haut.
-  // On aligne manuellement Pie.cy et les <text> sur le meme y.
-  const PIE_CY_PCT = 44;
   return (
     <ResponsiveContainer width="100%" height={280}>
       <PieChart>
         <Pie
           data={chartData}
-          cx="50%"
-          cy={`${PIE_CY_PCT}%`}
           innerRadius={60}
           outerRadius={100}
           paddingAngle={2}
@@ -87,6 +83,42 @@ export function InvoiceStatusChartInner({ data, total }: Props) {
           {chartData.map((entry) => (
             <Cell key={entry.name} fill={entry.fill} />
           ))}
+          <Label
+            position="center"
+            content={({ viewBox }) => {
+              if (
+                !viewBox ||
+                typeof viewBox !== 'object' ||
+                !('cx' in viewBox) ||
+                !('cy' in viewBox)
+              ) {
+                return null;
+              }
+              const { cx, cy } = viewBox as { cx: number; cy: number };
+              return (
+                <g>
+                  <text
+                    x={cx}
+                    y={(cy ?? 0) - 6}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="fill-foreground text-2xl font-bold"
+                  >
+                    {total}
+                  </text>
+                  <text
+                    x={cx}
+                    y={(cy ?? 0) + 14}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="fill-muted-foreground text-xs"
+                  >
+                    factures
+                  </text>
+                </g>
+              );
+            }}
+          />
         </Pie>
         <Tooltip content={<CustomTooltip />} />
         <Legend
@@ -95,25 +127,6 @@ export function InvoiceStatusChartInner({ data, total }: Props) {
           wrapperStyle={{ fontSize: 12 }}
           formatter={renderLegendText}
         />
-        {/* Center label - aligne sur cy du Pie */}
-        <text
-          x="50%"
-          y={`${PIE_CY_PCT - 3}%`}
-          textAnchor="middle"
-          dominantBaseline="central"
-          className="fill-foreground text-2xl font-bold"
-        >
-          {total}
-        </text>
-        <text
-          x="50%"
-          y={`${PIE_CY_PCT + 6}%`}
-          textAnchor="middle"
-          dominantBaseline="central"
-          className="fill-muted-foreground text-xs"
-        >
-          factures
-        </text>
       </PieChart>
     </ResponsiveContainer>
   );

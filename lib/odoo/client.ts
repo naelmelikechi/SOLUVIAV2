@@ -31,6 +31,13 @@ export interface OdooPayment {
   date: string;
 }
 
+export interface OdooCancelledMove {
+  odoo_id: string;
+  ref: string | null;
+  state: 'cancel';
+  write_date: string;
+}
+
 export interface OdooPingResult {
   ok: boolean;
   uid?: number;
@@ -47,6 +54,7 @@ export interface OdooClient {
   pushInvoice(payload: OdooInvoicePayload): Promise<{ odoo_id: string }>;
   pushCreditNote(payload: OdooInvoicePayload): Promise<{ odoo_id: string }>;
   pullPayments(since: string): Promise<OdooPayment[]>;
+  pullCancellations(since: string): Promise<OdooCancelledMove[]>;
 }
 
 const SCOPE = 'odoo.client';
@@ -353,6 +361,38 @@ class OdooJsonRpcClient implements OdooClient {
     }
     return result;
   }
+
+  // -------- Pull cancellations --------
+
+  async pullCancellations(since: string): Promise<OdooCancelledMove[]> {
+    type CancelRecord = {
+      id: number;
+      name: string | false;
+      ref: string | false;
+      state: string;
+      write_date: string;
+    };
+
+    const moves = await this.executeKw<CancelRecord[]>(
+      'account.move',
+      'search_read',
+      [
+        [
+          ['state', '=', 'cancel'],
+          ['move_type', 'in', ['out_invoice', 'out_refund']],
+          ['write_date', '>=', since],
+        ],
+      ],
+      { fields: ['id', 'name', 'ref', 'state', 'write_date'] },
+    );
+
+    return moves.map((m) => ({
+      odoo_id: String(m.id),
+      ref: typeof m.ref === 'string' && m.ref.length > 0 ? m.ref : null,
+      state: 'cancel',
+      write_date: m.write_date,
+    }));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -389,6 +429,10 @@ function createStubOdooClient(): OdooClient {
     },
     async pullPayments(since) {
       logger.info(SCOPE, 'pullPayments (stub)', { since });
+      return [];
+    },
+    async pullCancellations(since) {
+      logger.info(SCOPE, 'pullCancellations (stub)', { since });
       return [];
     },
   };

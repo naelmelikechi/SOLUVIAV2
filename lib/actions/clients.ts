@@ -7,6 +7,67 @@ import { baseUrlFrom } from '@/lib/eduvia/client';
 import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
+import {
+  isValidSiretFormat,
+  isValidSiretLuhn,
+  normalizeSiret,
+} from '@/lib/utils/siret';
+
+const SOLUVIA_INTERNAL_CLIENT_ID = '00000000-0000-0000-0000-0000000000ff';
+
+interface SiretCheckResult {
+  ok: boolean;
+  error?: string;
+  cleaned: string;
+}
+
+function checkSiretServer(
+  rawSiret: string | null | undefined,
+  options: { isDemo: boolean; isInternal: boolean; clientId?: string },
+): SiretCheckResult {
+  const cleaned = normalizeSiret(rawSiret);
+
+  // Exception client interne SOLUVIA
+  if (options.isInternal) {
+    if (!cleaned) return { ok: true, cleaned };
+    if (!isValidSiretFormat(cleaned)) {
+      return {
+        ok: false,
+        cleaned,
+        error: 'SIRET de 14 chiffres requis pour un client externe.',
+      };
+    }
+    if (!isValidSiretLuhn(cleaned)) {
+      logger.warn('actions.clients', 'SIRET Luhn invalide (non bloquant)', {
+        clientId: options.clientId,
+        siret: cleaned,
+      });
+    }
+    return { ok: true, cleaned };
+  }
+
+  // Client demo : SIRET optionnel
+  if (options.isDemo && !cleaned) {
+    return { ok: true, cleaned };
+  }
+
+  if (!cleaned || !isValidSiretFormat(cleaned)) {
+    return {
+      ok: false,
+      cleaned,
+      error: 'SIRET de 14 chiffres requis pour un client externe.',
+    };
+  }
+
+  if (!isValidSiretLuhn(cleaned)) {
+    logger.warn('actions.clients', 'SIRET Luhn invalide (non bloquant)', {
+      clientId: options.clientId,
+      siret: cleaned,
+    });
+  }
+
+  return { ok: true, cleaned };
+}
 
 // ---------------------------------------------------------------------------
 // createClient - insert a new client
@@ -31,6 +92,14 @@ export async function createClientAction(
     return { success: false, error: 'La raison sociale est requise' };
   }
 
+  const siretCheck = checkSiretServer(data.siret, {
+    isDemo: data.is_demo ?? false,
+    isInternal: false,
+  });
+  if (!siretCheck.ok) {
+    return { success: false, error: siretCheck.error };
+  }
+
   const supabase = await createClient();
 
   const {
@@ -53,7 +122,7 @@ export async function createClientAction(
     .insert({
       raison_sociale: data.raison_sociale.trim(),
       trigramme: '',
-      siret: data.siret?.trim() || null,
+      siret: siretCheck.cleaned || null,
       adresse: data.adresse?.trim() || null,
       localisation: data.localisation?.trim() || null,
       tva_intracommunautaire: data.tva_intracommunautaire?.trim() || null,
@@ -86,6 +155,15 @@ export async function updateClientAction(
     return { success: false, error: 'La raison sociale est requise' };
   }
 
+  const siretCheck = checkSiretServer(data.siret, {
+    isDemo: data.is_demo ?? false,
+    isInternal: id === SOLUVIA_INTERNAL_CLIENT_ID,
+    clientId: id,
+  });
+  if (!siretCheck.ok) {
+    return { success: false, error: siretCheck.error };
+  }
+
   const supabase = await createClient();
 
   const {
@@ -106,7 +184,7 @@ export async function updateClientAction(
     .from('clients')
     .update({
       raison_sociale: data.raison_sociale.trim(),
-      siret: data.siret?.trim() || null,
+      siret: siretCheck.cleaned || null,
       adresse: data.adresse?.trim() || null,
       localisation: data.localisation?.trim() || null,
       tva_intracommunautaire: data.tva_intracommunautaire?.trim() || null,

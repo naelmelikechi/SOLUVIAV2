@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Eye, FileText, Loader2, Send, Trash2, Inbox } from 'lucide-react';
+import { Download, Eye, Loader2, Send, Trash2, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Table,
@@ -14,11 +14,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
@@ -53,6 +52,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
   const [search, setSearch] = useState('');
   const [previewBrouillon, setPreviewBrouillon] =
     useState<BrouillonItem | null>(null);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<BrouillonItem | null>(
     null,
   );
@@ -349,7 +349,10 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                                   variant="ghost"
                                   size="icon-sm"
                                   aria-label="Aperçu"
-                                  onClick={() => setPreviewBrouillon(b)}
+                                  onClick={() => {
+                                    setPreviewLoaded(false);
+                                    setPreviewBrouillon(b);
+                                  }}
                                   disabled={bulkPending}
                                 />
                               }
@@ -413,19 +416,57 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
         </div>
       </div>
 
-      {/* Preview Sheet (TODO: PDF preview une fois l'API /api/factures/brouillons/{id}/pdf-preview dispo) */}
+      {/* Preview Sheet : PDF brouillon rendu via /api/factures/brouillon/[id]/pdf */}
       <Sheet
         open={previewBrouillon !== null}
         onOpenChange={(open) => {
-          if (!open) setPreviewBrouillon(null);
+          if (!open) {
+            setPreviewBrouillon(null);
+            setPreviewLoaded(false);
+          }
         }}
       >
         <SheetContent
           side="right"
-          className="w-full overflow-y-auto sm:max-w-xl"
+          className="flex !w-[min(800px,95vw)] flex-col gap-0 p-0 data-[side=right]:sm:max-w-[min(800px,95vw)]"
         >
+          <SheetHeader className="border-border flex flex-row items-center justify-between border-b p-4">
+            <SheetTitle>
+              {previewBrouillon?.est_avoir
+                ? 'Aperçu brouillon - Avoir'
+                : 'Aperçu brouillon - Facture'}
+            </SheetTitle>
+            {previewBrouillon ? (
+              <a
+                href={`/api/factures/brouillon/${previewBrouillon.id}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                <Download className="mr-1.5 h-4 w-4" />
+                {'Télécharger'}
+              </a>
+            ) : null}
+          </SheetHeader>
           {previewBrouillon ? (
-            <BrouillonPreview brouillon={previewBrouillon} />
+            <div className="relative flex-1">
+              {!previewLoaded && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
+                  <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                  <p className="text-muted-foreground text-sm">
+                    {'Chargement du brouillon...'}
+                  </p>
+                </div>
+              )}
+              {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+              <iframe
+                key={previewBrouillon.id}
+                src={`/api/factures/brouillon/${previewBrouillon.id}/pdf?inline=true`}
+                title={'Aperçu brouillon'}
+                onLoad={() => setPreviewLoaded(true)}
+                className="absolute inset-0 h-full w-full border-0 bg-white"
+              />
+            </div>
           ) : null}
         </SheetContent>
       </Sheet>
@@ -452,140 +493,5 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
         }}
       />
     </TooltipProvider>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// BrouillonPreview - Sheet d'apercu listant les lignes du brouillon.
-// ---------------------------------------------------------------------------
-// TODO: remplacer par une vraie preview PDF (composant FacturePdf rendu
-// cote client) des qu'un endpoint /api/factures/brouillons/{id}/pdf-preview
-// est disponible.
-function BrouillonPreview({ brouillon }: { brouillon: BrouillonItem }) {
-  const lignes = brouillon.lignes ?? [];
-  const totalLignesHt = lignes.reduce((s, l) => s + (l.montant_ht ?? 0), 0);
-
-  return (
-    <div className="flex flex-col gap-4 p-6">
-      <SheetHeader className="p-0">
-        <SheetTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          {brouillon.est_avoir
-            ? 'Aperçu brouillon - Avoir'
-            : 'Aperçu brouillon - Facture'}
-        </SheetTitle>
-        <SheetDescription>
-          {'Brouillon non envoyé. Les numéros sont attribués à l’envoi.'}
-        </SheetDescription>
-      </SheetHeader>
-
-      <div className="border-border grid grid-cols-2 gap-2 rounded-lg border p-3 text-sm">
-        <div className="text-muted-foreground">Client</div>
-        <div className="text-right font-medium">
-          {brouillon.client?.raison_sociale ?? '-'}
-        </div>
-        <div className="text-muted-foreground">Projet</div>
-        <div className="text-right font-mono text-xs">
-          {brouillon.projet?.ref ?? '-'}
-        </div>
-        <div className="text-muted-foreground">{'Mois concerné'}</div>
-        <div className="text-right">{brouillon.mois_concerne}</div>
-        <div className="text-muted-foreground">{'Date d’émission'}</div>
-        <div className="text-right tabular-nums">
-          {brouillon.date_emission ? formatDate(brouillon.date_emission) : '—'}
-        </div>
-        <div className="text-muted-foreground">Montant HT</div>
-        <div className="text-right font-mono tabular-nums">
-          {formatCurrency(brouillon.montant_ht)}
-        </div>
-        <div className="text-muted-foreground">
-          {'TVA ('}
-          {brouillon.taux_tva}
-          {' %)'}
-        </div>
-        <div className="text-right font-mono tabular-nums">
-          {formatCurrency(brouillon.montant_tva)}
-        </div>
-        <div className="text-foreground font-semibold">Total TTC</div>
-        <div className="text-right font-mono font-semibold tabular-nums">
-          {formatCurrency(brouillon.montant_ttc)}
-        </div>
-      </div>
-
-      {brouillon.est_avoir && brouillon.avoir_motif ? (
-        <div className="border-border rounded-lg border p-3 text-sm">
-          <div className="text-muted-foreground mb-1 text-xs">
-            {'Motif de l’avoir'}
-          </div>
-          <div>{brouillon.avoir_motif}</div>
-        </div>
-      ) : null}
-
-      <div>
-        <h4 className="mb-2 text-sm font-semibold">
-          {`Lignes (${lignes.length})`}
-        </h4>
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Montant HT</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lignes.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={2}
-                    className="text-muted-foreground h-16 text-center text-sm"
-                  >
-                    {'Aucune ligne.'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                lignes.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell className="text-sm">
-                      <div>{l.description}</div>
-                      {l.contrat ? (
-                        <div className="text-muted-foreground mt-0.5 text-xs">
-                          {[
-                            l.contrat.contract_number ?? l.contrat.ref,
-                            [
-                              l.contrat.apprenant_prenom,
-                              l.contrat.apprenant_nom,
-                            ]
-                              .filter(Boolean)
-                              .join(' '),
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm tabular-nums">
-                      {formatCurrency(l.montant_ht ?? 0)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-            {lignes.length > 0 ? (
-              <tfoot>
-                <tr className="border-border border-t">
-                  <td className="p-2 text-right text-sm font-medium">
-                    Total HT
-                  </td>
-                  <td className="p-2 text-right font-mono text-sm font-semibold tabular-nums">
-                    {formatCurrency(totalLignesHt)}
-                  </td>
-                </tr>
-              </tfoot>
-            ) : null}
-          </Table>
-        </div>
-      </div>
-    </div>
   );
 }

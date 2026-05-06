@@ -216,6 +216,34 @@ export type FactureDetail = NonNullable<
   Awaited<ReturnType<typeof getFactureByRef>>
 >;
 
+// ---------------------------------------------------------------------------
+// getFactureById : meme structure que getFactureByRef mais filtre par id UUID.
+// Necessaire pour les brouillons (statut 'a_emettre') qui n'ont pas encore
+// de ref/numero_seq attribues (gapless legal -> attribue seulement a l'envoi).
+// ---------------------------------------------------------------------------
+export async function getFactureById(id: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('factures')
+    .select(
+      `
+      id, ref, numero_seq, date_emission, date_echeance, mois_concerne,
+      montant_ht, taux_tva, montant_tva, montant_ttc,
+      statut, est_avoir, avoir_motif, facture_origine_id, email_envoye, created_by,
+      projet:projets!factures_projet_id_fkey(id, ref),
+      client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, siret, adresse),
+      lignes:facture_lignes(id, contrat_id, description, montant_ht, contrat:contrats!facture_lignes_contrat_id_fkey(ref, apprenant_nom, apprenant_prenom))
+    `,
+    )
+    .eq('id', id)
+    .single();
+  if (error) {
+    logger.error('queries.factures', 'getFactureById failed', { id, error });
+    return null;
+  }
+  return data;
+}
+
 export async function getPaiementsByFactureId(factureId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase

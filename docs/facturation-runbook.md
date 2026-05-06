@@ -60,16 +60,71 @@ Verifier dans Vercel Dashboard > Cron :
 | `/api/cron/email-fenetre-debut`   | `0 8 25 * *`     | Rappel ouverture fenetre facturation           |
 | `/api/cron/email-fenetre-fin`     | `0 8 2 * *`      | Rappel fermeture fenetre facturation           |
 
+> **Sync Odoo en horaire** depuis 2026-05-06 (commit 5ee1391) : `0 8-19 * * 1-5`. Latence max 1h en journee semaine.
+
+## 1.5 Modes de facturation par projet (depuis 2026-05-06)
+
+Chaque projet a un champ `billing_mode` :
+
+- **`auto`** (defaut) : echeancier mensuel auto-genere par le cron, l'utilisateur coche dans `/facturation` onglet **Echeances** et clique **Preparer brouillons**
+- **`manual`** (cas HEOL ou similaire) : pas d'echeancier auto, le cron skip ce projet. L'utilisateur facture event-based via `/facturation` onglet **Manuel** : selection d'engagements (contrat ENGAGE) ou de reglements OPCO (invoice_state REGLE) du contrat. Regle d'exclusion : un contrat est facturable soit par engagement, soit par steps OPCO, jamais les deux.
+
+Toggle Auto/Manuel : badge cliquable sur `/projets/[ref]` (admin only).
+
+## 1.6 Statut brouillon `a_emettre` + bouton Envoyer (depuis 2026-05-06)
+
+Toutes les factures sont creees en statut **`a_emettre` (brouillon)** :
+
+- Pas de `ref` ni `numero_seq` attribues a ce stade (preserve gapless legal si l'utilisateur supprime le brouillon avant envoi)
+- Pas d'email envoye, pas de push Odoo
+- Editable : ajout/edition/suppression de lignes (boutons sur la page detail)
+- Suppression : bouton "Supprimer" sur le brouillon (autorise SEULEMENT en brouillon, pas pour les factures envoyees)
+
+L'envoi (`a_emettre` -> `emise` ou `avoir`) :
+
+- Bouton **Envoyer** sur la fiche brouillon, ou **Tout envoyer** dans l'onglet **Brouillons**
+- Trigger SQL `assign_facture_ref_on_send` attribue `ref` (FAC-XXX-NNNN) + `numero_seq` (gapless) dans la transaction
+- Email Resend declenche fire-and-forget
+- Push Odoo au prochain cron `/api/sync/odoo` (horaire L-V)
+
+## 1.7 Edition de lignes brouillon (depuis 2026-05-06)
+
+Sur la fiche d'un brouillon :
+
+- Bouton **+ Ajouter une ligne** : modal avec select contrat + mois + description + montant. Suggestion auto (`NPEC × commission% / 12 × mois`). Warning jaune non-bloquant si le contrat × mois est deja sur une autre facture envoyee
+- Crayon : modifier description + montant
+- Poubelle : supprimer la ligne. Si la ligne portait un event Eduvia (engagement/opco_step), il est libere et redevient facturable
+
+## 1.8 Nouvelle facture from-scratch (depuis 2026-05-06)
+
+Bouton **+ Nouvelle facture** sur `/facturation` ouvre un dialog 2 etapes :
+
+1. Choix projet (Auto ou Manuel)
+2. Cocher les contrats actifs, ajuster mois + montant + description par contrat, preparer le brouillon
+
+Utile pour cas particuliers (rattrapage, montant ad-hoc, facture mixte hors echeancier standard).
+
 ## 2. Premier cycle reel (1 client pilote)
 
 Recommandation : choisir **1 seul client** pour le premier mois, valider tout le cycle, puis ouvrir aux autres.
 
+### 2A. Mode auto (cas standard)
+
 1. **J-3** (avant le 25) : verifier echeances generees (`SELECT count(*) FROM echeances WHERE projet_id IN (SELECT id FROM projets WHERE client_id = '...') AND facture_id IS NULL`)
-2. **J0** (25-3) : depuis `/facturation` onglet Echeances, cocher les echeances atteintes du client pilote, **Emettre les factures**
-3. **J0+1h** : cron `/api/sync/odoo` 14h pousse vers Odoo. Verifier dans Odoo : facture en **posted** (non draft, car `is_demo=false`), partner correctement matche par SIRET
-4. **J0+jour** : verifier email recu cote client (Resend dashboard)
-5. **J+30** : suivre encaissement. Quand client paie via virement, le paiement est cree dans Odoo, le cron suivant `pullPayments` le ramene -> facture passe `payee` automatiquement
-6. **J+31 a J+60** : si non paye, le cron `factures-retard` passe le statut, les admins recoivent le digest hebdo
+2. **J0** (25-3) : depuis `/facturation` onglet Echeances, cocher les echeances atteintes du client pilote, **Preparer brouillons**
+3. **J0+5min** : aller dans onglet **Brouillons**, ouvrir chaque brouillon, verifier les lignes, ajuster si besoin (Add/Edit/Delete), **Envoyer** un par un ou bouton "Tout envoyer"
+4. **J0+1h** : prochain cron `/api/sync/odoo` pousse vers Odoo. Verifier dans Odoo : facture en **posted** (non draft, car `is_demo=false`), partner correctement matche par SIRET
+5. **J0+jour** : verifier email recu cote client (Resend dashboard)
+6. **J+30** : suivre encaissement. Quand client paie via virement, le paiement est cree dans Odoo, le cron suivant `pullPayments` le ramene -> facture passe `payee` automatiquement
+7. **J+31 a J+60** : si non paye, le cron `factures-retard` passe le statut, les admins recoivent le digest hebdo
+
+### 2B. Mode manuel (cas HEOL)
+
+1. Ouvrir `/facturation` onglet **Manuel**, selecteur projet
+2. Filtres "Engagements" / "Reglements OPCO" / "Inclure factures"
+3. Cocher les events disponibles (les locked sont ceux pour lesquels l'autre type a deja ete facture - regle d'exclusion par contrat)
+4. **Preparer le brouillon** -> redirige vers onglet Brouillons
+5. Memes etapes que 2A a partir du point 3
 
 ## 3. Monitoring quotidien
 

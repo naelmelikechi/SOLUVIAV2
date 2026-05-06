@@ -16,11 +16,69 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { createClientAction, updateClientAction } from '@/lib/actions/clients';
 import type { ClientDetail } from '@/lib/queries/clients';
+import {
+  isValidSiretFormat,
+  isValidSiretLuhn,
+  normalizeSiret,
+} from '@/lib/utils/siret';
+
+const SOLUVIA_INTERNAL_CLIENT_ID = '00000000-0000-0000-0000-0000000000ff';
 
 interface ClientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client?: ClientDetail;
+}
+
+interface SiretValidationResult {
+  ok: boolean;
+  error?: string;
+  warning?: string;
+}
+
+function validateSiret(
+  siret: string,
+  options: { isDemo: boolean; isInternal: boolean },
+): SiretValidationResult {
+  const cleaned = normalizeSiret(siret);
+
+  // Exception client interne SOLUVIA : SIRET non requis
+  if (options.isInternal) {
+    if (!cleaned) return { ok: true };
+    if (!isValidSiretFormat(cleaned)) {
+      return { ok: false, error: 'SIRET doit contenir 14 chiffres exactement' };
+    }
+    if (!isValidSiretLuhn(cleaned)) {
+      return {
+        ok: true,
+        warning:
+          '⚠️ SIRET invalide selon l’algorithme Luhn (verifie la saisie)',
+      };
+    }
+    return { ok: true };
+  }
+
+  // Client demo : SIRET optionnel
+  if (options.isDemo && !cleaned) {
+    return { ok: true };
+  }
+
+  if (!cleaned) {
+    return { ok: false, error: 'SIRET requis (14 chiffres)' };
+  }
+
+  if (!isValidSiretFormat(cleaned)) {
+    return { ok: false, error: 'SIRET doit contenir 14 chiffres exactement' };
+  }
+
+  if (!isValidSiretLuhn(cleaned)) {
+    return {
+      ok: true,
+      warning: '⚠️ SIRET invalide selon l’algorithme Luhn (verifie la saisie)',
+    };
+  }
+
+  return { ok: true };
 }
 
 export function ClientFormDialog({
@@ -64,6 +122,12 @@ function ClientFormContent({
   const [numeroUai, setNumeroUai] = useState(client?.numero_uai ?? '');
   const [isDemo, setIsDemo] = useState(client?.is_demo ?? false);
 
+  const isInternalClient = client?.id === SOLUVIA_INTERNAL_CLIENT_ID;
+  const siretValidation = validateSiret(siret, {
+    isDemo,
+    isInternal: isInternalClient,
+  });
+
   const handleSubmit = useCallback(
     function handleSubmit() {
       if (!raisonSociale.trim()) {
@@ -71,17 +135,20 @@ function ClientFormContent({
         return;
       }
 
-      if (siret) {
-        const cleaned = siret.replace(/\s/g, '');
-        if (!/^\d{14}$/.test(cleaned)) {
-          toast.error('Le SIRET doit comporter 14 chiffres');
-          return;
-        }
+      const validation = validateSiret(siret, {
+        isDemo,
+        isInternal: isInternalClient,
+      });
+      if (!validation.ok) {
+        toast.error(validation.error ?? 'SIRET invalide');
+        return;
       }
+
+      const cleanedSiret = normalizeSiret(siret);
 
       const data = {
         raison_sociale: raisonSociale,
-        siret: siret || null,
+        siret: cleanedSiret || null,
         adresse: adresse || null,
         localisation: localisation || null,
         tva_intracommunautaire: tvaIntra || null,
@@ -122,6 +189,7 @@ function ClientFormContent({
       numeroUai,
       isDemo,
       isEdit,
+      isInternalClient,
       client,
       onOpenChange,
     ],
@@ -153,13 +221,29 @@ function ClientFormContent({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="siret">SIRET</Label>
+            <Label htmlFor="siret">
+              SIRET
+              {!isDemo && !isInternalClient && (
+                <span className="text-destructive">{' *'}</span>
+              )}
+            </Label>
             <Input
               id="siret"
               placeholder="123 456 789 00012"
               value={siret}
               onChange={(e) => setSiret(e.target.value)}
+              aria-invalid={!siretValidation.ok}
             />
+            {siretValidation.error && (
+              <p className="text-destructive text-xs">
+                {siretValidation.error}
+              </p>
+            )}
+            {siretValidation.ok && siretValidation.warning && (
+              <p className="text-xs text-amber-600 dark:text-amber-500">
+                {siretValidation.warning}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="tva_intra">TVA intracommunautaire</Label>
@@ -246,7 +330,10 @@ function ClientFormContent({
         <Button variant="ghost" onClick={() => onOpenChange(false)}>
           Annuler
         </Button>
-        <Button onClick={handleSubmit} disabled={isPending}>
+        <Button
+          onClick={handleSubmit}
+          disabled={isPending || !siretValidation.ok}
+        >
           {isPending
             ? isEdit
               ? 'Mise à jour...'

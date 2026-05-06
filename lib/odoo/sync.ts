@@ -399,6 +399,166 @@ async function pullPayments(
 }
 
 // ---------------------------------------------------------------------------
+// Pull cancellations from Odoo
+// ---------------------------------------------------------------------------
+
+async function pullCancellations(
+  supabase: SupabaseClient,
+  odoo: ReturnType<typeof createOdooClient>,
+  errors: string[],
+): Promise<number> {
+  // Determine "since" from last cancellation pull (success ou partial).
+  const { data: lastLog } = await supabase
+    .from('odoo_sync_logs')
+    .select('created_at')
+    .eq('direction', 'pull')
+    .eq('entity_type', 'cancellation')
+    .in('statut', ['success', 'partial'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const since = lastLog?.created_at ?? '2020-01-01T00:00:00Z';
+
+  let cancellations;
+  try {
+    cancellations = await odoo.pullCancellations(since);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(SCOPE, 'pullCancellations call failed', { error: err });
+    errors.push(`pullCancellations: ${msg}`);
+    await logSync(supabase, {
+      direction: 'pull',
+      entity_type: 'cancellation',
+      statut: 'error',
+      erreur: msg,
+    });
+    return 0;
+  }
+
+  // Pre-fetch admin user ids (admin + superadmin) une fois pour la boucle.
+  const { data: admins, error: adminsErr } = await supabase
+    .from('users')
+    .select('id')
+    .in('role', ['admin', 'superadmin'])
+    .eq('actif', true);
+
+  if (adminsErr) {
+    const msg = adminsErr.message;
+    logger.error(SCOPE, 'Failed to load admins for cancellation notifs', {
+      error: adminsErr,
+    });
+    errors.push(`pullCancellations admins: ${msg}`);
+    await logSync(supabase, {
+      direction: 'pull',
+      entity_type: 'cancellation',
+      statut: 'error',
+      erreur: msg,
+    });
+    return 0;
+  }
+
+  const adminIds = (admins ?? []).map((a) => a.id);
+
+  let processed = 0;
+  const errorsBefore = errors.length;
+
+  for (const move of cancellations) {
+    try {
+      const { data: facture } = await supabase
+        .from('factures')
+        .select('id, ref, statut, est_avoir')
+        .eq('odoo_id', move.odoo_id)
+        .maybeSingle();
+
+      if (!facture) {
+        logger.warn(SCOPE, 'Facture not found for cancelled Odoo move', {
+          odoo_id: move.odoo_id,
+          ref: move.ref,
+        });
+        continue;
+      }
+
+      // Skip si la facture est deja un avoir (pas de notif utile).
+      if (facture.est_avoir === true) {
+        continue;
+      }
+
+      // Skip si un avoir Soluvia existe deja sur cette facture.
+      const { count: avoirCount } = await supabase
+        .from('factures')
+        .select('id', { count: 'exact', head: true })
+        .eq('facture_origine_id', facture.id)
+        .eq('est_avoir', true);
+
+      if (avoirCount && avoirCount > 0) {
+        continue;
+      }
+
+      // Pas de changement de statut: aucune valeur 'annulee' dans l'enum.
+      // On notifie les admins pour traitement manuel.
+      const writeDate = move.write_date.slice(0, 10);
+      const message = `⚠️ Facture ${facture.ref ?? '(sans ref)'} annulee cote Odoo le ${writeDate}. A reviser : creer un avoir Soluvia ou suivre selon contexte.`;
+
+      for (const adminId of adminIds) {
+        const { error: notifErr } = await supabase
+          .from('notifications')
+          .insert({
+            type: 'erreur_sync',
+            user_id: adminId,
+            titre: 'Facture annulee cote Odoo',
+            message,
+            lien: facture.ref ? `/facturation/${facture.ref}` : null,
+          });
+
+        if (notifErr) {
+          logger.warn(SCOPE, 'Failed to create cancellation notification', {
+            adminId,
+            facture_id: facture.id,
+            error: notifErr,
+          });
+        }
+      }
+
+      await logSync(supabase, {
+        direction: 'pull',
+        entity_type: 'cancellation',
+        entity_id: facture.id,
+        statut: 'success',
+        payload: {
+          odoo_id: move.odoo_id,
+          soluvia_ref: facture.ref,
+          write_date: move.write_date,
+        },
+      });
+
+      processed++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(SCOPE, 'Process cancellation failed', {
+        odoo_id: move.odoo_id,
+        error: err,
+      });
+      errors.push(`Cancellation ${move.odoo_id}: ${msg}`);
+    }
+  }
+
+  // Toujours logguer une ligne globale pour faire avancer "since" au prochain run.
+  const localErrors = errors.slice(errorsBefore);
+  const statut: 'success' | 'partial' | 'error' =
+    localErrors.length === 0 ? 'success' : processed > 0 ? 'partial' : 'error';
+  await logSync(supabase, {
+    direction: 'pull',
+    entity_type: 'cancellation',
+    statut,
+    payload: { since, count: processed },
+    erreur: localErrors.length > 0 ? localErrors.join('; ') : undefined,
+  });
+
+  return processed;
+}
+
+// ---------------------------------------------------------------------------
 // Main sync entry point
 // ---------------------------------------------------------------------------
 
@@ -412,17 +572,20 @@ export async function syncOdoo(
 
   const pushedFactures = await pushFactures(supabase, odoo, errors);
   const pushedAvoirs = await pushAvoirs(supabase, odoo, errors);
-  const pulled = await pullPayments(supabase, odoo, errors);
+  const pulledPayments = await pullPayments(supabase, odoo, errors);
+  const pulledCancellations = await pullCancellations(supabase, odoo, errors);
 
   const result: OdooSyncResult = {
     pushed: pushedFactures + pushedAvoirs,
-    pulled,
+    pulled: pulledPayments + pulledCancellations,
     errors,
   };
 
   logger.info(SCOPE, 'Odoo sync completed', {
     pushed: result.pushed,
     pulled: result.pulled,
+    pulledPayments,
+    pulledCancellations,
     errorCount: errors.length,
   });
 

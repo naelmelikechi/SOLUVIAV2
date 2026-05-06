@@ -2,9 +2,17 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Download, FileText, List, Loader2 } from 'lucide-react';
+import {
+  Calendar,
+  Download,
+  FileText,
+  List,
+  Loader2,
+  Plus,
+} from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { NewFactureDialog } from '@/components/facturation/new-facture-dialog';
 import { DataTable } from '@/components/shared/data-table';
 import type { FilterOption } from '@/components/shared/data-table';
 import {
@@ -26,6 +34,7 @@ import type {
   FactureListItem,
   EcheancePending,
   BrouillonItem,
+  listProjetsForFacturation,
 } from '@/lib/queries/factures';
 import type { AjustementPending } from '@/lib/queries/ajustements';
 import type { ProjetBillableEvents } from '@/lib/queries/billable-events';
@@ -52,6 +61,7 @@ interface FacturationPageClientProps {
   ajustements: AjustementPending[];
   brouillons: BrouillonItem[];
   manualProjets: ProjetBillableEvents[];
+  projetsForFacturation: Awaited<ReturnType<typeof listProjetsForFacturation>>;
 }
 
 export function FacturationPageClient({
@@ -60,12 +70,14 @@ export function FacturationPageClient({
   ajustements,
   brouillons,
   manualProjets,
+  projetsForFacturation,
 }: FacturationPageClientProps) {
   const router = useRouter();
   // Onglet par defaut : Brouillons s'il y en a (priorite revue), sinon
   // Echeances. Le user peut toujours basculer manuellement.
   const [activeTab, setActiveTab] = useState(brouillons.length > 0 ? 0 : 1);
   const [echeanceView, setEcheanceView] = useState<'list' | 'calendar'>('list');
+  const [newFactureOpen, setNewFactureOpen] = useState(false);
   const [preview, setPreview] = useState<
     { kind: 'facture'; ref: string } | { kind: 'echeance'; id: string } | null
   >(null);
@@ -132,16 +144,43 @@ export function FacturationPageClient({
     manualProjets.length === 0
   ) {
     return (
-      <EmptyState
-        icon={FileText}
-        title="Aucune facture"
-        description="Les échéances sont générées automatiquement depuis les contrats actifs. Les factures apparaîtront ici une fois émises depuis ces échéances."
-      />
+      <>
+        <div className="mb-3 flex justify-end">
+          <Button
+            size="sm"
+            onClick={() => setNewFactureOpen(true)}
+            disabled={projetsForFacturation.length === 0}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            {'Nouvelle facture'}
+          </Button>
+        </div>
+        <EmptyState
+          icon={FileText}
+          title="Aucune facture"
+          description="Les échéances sont générées automatiquement depuis les contrats actifs. Les factures apparaîtront ici une fois émises depuis ces échéances."
+        />
+        <NewFactureDialog
+          open={newFactureOpen}
+          onOpenChange={setNewFactureOpen}
+          initialProjets={projetsForFacturation}
+        />
+      </>
     );
   }
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <div className="mb-3 flex justify-end">
+        <Button
+          size="sm"
+          onClick={() => setNewFactureOpen(true)}
+          disabled={projetsForFacturation.length === 0}
+        >
+          <Plus className="mr-1.5 h-4 w-4" />
+          {'Nouvelle facture'}
+        </Button>
+      </div>
       <TabsList variant="line">
         <TabsTrigger value={0}>
           {'Brouillons'}
@@ -324,6 +363,12 @@ export function FacturationPageClient({
           )}
         </SheetContent>
       </Sheet>
+
+      <NewFactureDialog
+        open={newFactureOpen}
+        onOpenChange={setNewFactureOpen}
+        initialProjets={projetsForFacturation}
+      />
     </Tabs>
   );
 }

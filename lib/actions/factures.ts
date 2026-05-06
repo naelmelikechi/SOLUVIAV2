@@ -985,3 +985,132 @@ export async function createFactureFromEvents(params: {
 
   return { success: true, id: facture.id };
 }
+
+// ---------------------------------------------------------------------------
+// createBlankBrouillon - cree un brouillon "from scratch" : l'utilisateur
+// choisit un projet et N contrats (avec montant + description par contrat).
+// Aucun lien echeance ni event - facture purement libre, editable ensuite.
+// ---------------------------------------------------------------------------
+export interface BlankBrouillonLigne {
+  contratId: string;
+  description: string;
+  montantHt: number;
+  moisRelatif?: number;
+  quotePart?: number;
+  npecSnapshot?: number;
+  tauxCommissionSnapshot?: number;
+}
+
+export async function createBlankBrouillon(params: {
+  projetId: string;
+  lignes: BlankBrouillonLigne[];
+}): Promise<{ success: boolean; id?: string; error?: string }> {
+  const { projetId, lignes } = params;
+
+  if (!projetId) return { success: false, error: 'Projet requis' };
+  if (!lignes || lignes.length === 0) {
+    return { success: false, error: 'Au moins une ligne requise' };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: projet } = await supabase
+    .from('projets')
+    .select('id, ref, client_id, taux_commission')
+    .eq('id', projetId)
+    .single();
+  if (!projet) return { success: false, error: 'Projet introuvable' };
+
+  // Verifie les contrats : tous doivent appartenir au projet
+  const contratIds = Array.from(new Set(lignes.map((l) => l.contratId)));
+  const { data: contrats } = await supabase
+    .from('contrats')
+    .select('id, projet_id')
+    .in('id', contratIds);
+  const invalid = (contrats ?? []).filter((c) => c.projet_id !== projetId);
+  if (invalid.length > 0 || (contrats ?? []).length !== contratIds.length) {
+    return {
+      success: false,
+      error: 'Certains contrats ne correspondent pas au projet sélectionné.',
+    };
+  }
+
+  const totalHt =
+    Math.round(lignes.reduce((s, l) => s + Number(l.montantHt ?? 0), 0) * 100) /
+    100;
+  if (totalHt <= 0) {
+    return { success: false, error: 'Montant total nul ou négatif' };
+  }
+
+  const tauxTva = 20;
+  const montantTva = Math.round(totalHt * tauxTva) / 100;
+  const montantTtc = Math.round((totalHt + montantTva) * 100) / 100;
+
+  const today = new Date();
+  const dateEcheance = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+
+  const { data: facture, error: insertError } = await supabase
+    .from('factures')
+    .insert({
+      projet_id: projetId,
+      client_id: projet.client_id,
+      date_emission: today.toISOString().split('T')[0]!,
+      date_echeance: dateEcheance.toISOString().split('T')[0]!,
+      mois_concerne: today.toISOString().slice(0, 7),
+      montant_ht: totalHt,
+      taux_tva: tauxTva,
+      montant_tva: montantTva,
+      montant_ttc: montantTtc,
+      statut: 'a_emettre',
+      est_avoir: false,
+      created_by: user.id,
+    })
+    .select('id')
+    .single();
+
+  if (insertError || !facture) {
+    return {
+      success: false,
+      error: insertError?.message ?? 'Échec de la création du brouillon',
+    };
+  }
+
+  const tauxProjet = Number(projet.taux_commission ?? 10);
+  const { error: lignesError } = await supabase.from('facture_lignes').insert(
+    lignes.map((l) => ({
+      facture_id: facture.id,
+      contrat_id: l.contratId,
+      description: l.description,
+      montant_ht: l.montantHt,
+      mois_relatif: l.moisRelatif ?? 0,
+      quote_part: l.quotePart ?? 0,
+      npec_snapshot: l.npecSnapshot ?? 0,
+      taux_commission_snapshot: l.tauxCommissionSnapshot ?? tauxProjet,
+    })),
+  );
+
+  if (lignesError) {
+    await supabase.from('factures').delete().eq('id', facture.id);
+    logger.error('actions.factures', 'createBlankBrouillon lignes failed', {
+      factureId: facture.id,
+      error: lignesError,
+    });
+    return { success: false, error: lignesError.message };
+  }
+
+  logAudit('blank_brouillon_created', 'facture', facture.id, {
+    projetId,
+    lignesCount: lignes.length,
+    montantHt: totalHt,
+  });
+
+  revalidatePath('/facturation');
+  revalidatePath(`/projets/${projet.ref}`);
+
+  return { success: true, id: facture.id };
+}

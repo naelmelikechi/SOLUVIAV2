@@ -3,6 +3,7 @@ import {
   getFacturesList,
   getEcheancesPending,
   getBrouillons,
+  listProjetsForFacturation,
 } from '@/lib/queries/factures';
 import { listAjustementsPending } from '@/lib/queries/ajustements';
 import {
@@ -17,14 +18,21 @@ export const metadata: Metadata = { title: 'Facturation - SOLUVIA' };
 export const revalidate = 30;
 
 export default async function FacturationPage() {
-  const [factures, echeances, ajustements, brouillons, manualProjetsList] =
-    await Promise.all([
-      getFacturesList(),
-      getEcheancesPending(),
-      listAjustementsPending(),
-      getBrouillons(),
-      listManualProjets(),
-    ]);
+  const [
+    factures,
+    echeances,
+    ajustements,
+    brouillons,
+    manualProjetsList,
+    projetsForFacturation,
+  ] = await Promise.all([
+    getFacturesList(),
+    getEcheancesPending(),
+    listAjustementsPending(),
+    getBrouillons(),
+    listManualProjets(),
+    listProjetsForFacturation(),
+  ]);
 
   // Charge les events facturables pour chaque projet manuel (en parallele).
   // Si pas de projet manuel, on passe un tableau vide a l'onglet Manuel.
@@ -41,6 +49,7 @@ export default async function FacturationPage() {
         ajustements={ajustements}
         brouillons={brouillons}
         manualProjets={manualProjetsEvents}
+        projetsForFacturation={projetsForFacturation}
       />
     </div>
   );

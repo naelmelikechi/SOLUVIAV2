@@ -5,6 +5,7 @@ import {
   getPaiementsByFactureId,
   getAvoirForFacture,
   getFactureRefById,
+  getProjetActiveContratsForFacturation,
 } from '@/lib/queries/factures';
 import { getEmetteurInfo } from '@/lib/queries/parametres';
 
@@ -38,8 +39,10 @@ export default async function FactureDetailPage({
     notFound();
   }
 
-  // Fetch paiements, avoir-on-this-facture, origin ref, and emetteur in parallel
-  const [paiements, avoirSurCetteFacture, origineRef, EMETTEUR] =
+  // Fetch paiements, avoir-on-this-facture, origin ref, emetteur, and projet
+  // (pour edition des lignes en mode brouillon) in parallel
+  const projetId = facture.projet?.id ?? '';
+  const [paiements, avoirSurCetteFacture, origineRef, EMETTEUR, projetData] =
     await Promise.all([
       getPaiementsByFactureId(facture.id),
       facture.est_avoir
@@ -49,7 +52,13 @@ export default async function FactureDetailPage({
         ? getFactureRefById(facture.facture_origine_id)
         : Promise.resolve(null),
       getEmetteurInfo(),
+      projetId
+        ? getProjetActiveContratsForFacturation(projetId)
+        : Promise.resolve(null),
     ]);
+
+  const isBrouillon = facture.statut === 'a_emettre';
+  const tauxCommission = projetData?.tauxCommission ?? 10;
 
   return (
     <div>
@@ -113,6 +122,10 @@ export default async function FactureDetailPage({
         <FactureLignesTable
           lignes={facture.lignes}
           est_avoir={facture.est_avoir}
+          factureId={facture.id}
+          projetId={projetId}
+          isBrouillon={isBrouillon}
+          tauxCommission={tauxCommission}
         />
       </Card>
 

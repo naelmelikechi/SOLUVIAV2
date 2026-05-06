@@ -65,6 +65,130 @@ export async function getBrouillons() {
 
 export type BrouillonItem = Awaited<ReturnType<typeof getBrouillons>>[number];
 
+// ---------------------------------------------------------------------------
+// checkDuplicateBilling : verifie si un contrat est deja sur une autre
+// facture (live, pas avoir) pour le meme mois_relatif. Retourne un warning
+// non-bloquant pour l'UI (l'utilisateur peut quand meme facturer s'il sait
+// ce qu'il fait). Sert a alerter sur la double-facturation accidentelle.
+// ---------------------------------------------------------------------------
+export async function checkDuplicateBilling(params: {
+  contratId: string;
+  moisRelatif: number;
+  excludeFactureId?: string;
+}): Promise<
+  | { duplicate: false }
+  | {
+      duplicate: true;
+      onFactureRef: string | null;
+      onFactureStatut: string;
+      moisRelatif: number;
+    }
+> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('facture_lignes')
+    .select(
+      'id, mois_relatif, facture:factures!facture_lignes_facture_id_fkey(id, ref, statut, est_avoir)',
+    )
+    .eq('contrat_id', params.contratId)
+    .eq('mois_relatif', params.moisRelatif)
+    .eq('est_avoir', false);
+  if (error || !data) return { duplicate: false };
+
+  const hit = data.find(
+    (l) =>
+      l.facture &&
+      !l.facture.est_avoir &&
+      l.facture.id !== params.excludeFactureId &&
+      // On ne previent que sur des factures actives (pas brouillon : un
+      // brouillon non envoye ne consomme pas encore de facturation legale)
+      ['emise', 'en_retard', 'payee'].includes(l.facture.statut),
+  );
+
+  if (!hit) return { duplicate: false };
+
+  return {
+    duplicate: true,
+    onFactureRef: hit.facture?.ref ?? null,
+    onFactureStatut: hit.facture?.statut ?? 'emise',
+    moisRelatif: hit.mois_relatif ?? params.moisRelatif,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// getProjetActiveContratsForFacturation : liste les contrats actifs d'un
+// projet, avec snapshot npec + commission projet pour suggestion automatique
+// dans les modales d'edition de ligne / nouvelle facture.
+// ---------------------------------------------------------------------------
+export async function getProjetActiveContratsForFacturation(projetId: string) {
+  const supabase = await createClient();
+  const { data: projet } = await supabase
+    .from('projets')
+    .select(
+      'id, ref, taux_commission, billing_mode, client_id, client:clients!projets_client_id_fkey(id, raison_sociale)',
+    )
+    .eq('id', projetId)
+    .maybeSingle();
+  if (!projet) return null;
+
+  const { data: contrats } = await supabase
+    .from('contrats')
+    .select(
+      `id, ref, contract_number, internal_number,
+       apprenant_nom, apprenant_prenom, formation_titre,
+       contract_state, npec_amount, date_debut, duree_mois`,
+    )
+    .eq('projet_id', projetId)
+    .eq('archive', false)
+    .order('apprenant_nom');
+
+  return {
+    projetId: projet.id,
+    projetRef: projet.ref ?? '',
+    clientId: projet.client_id,
+    clientRaisonSociale: projet.client?.raison_sociale ?? '',
+    tauxCommission: Number(projet.taux_commission ?? 10),
+    billingMode: projet.billing_mode as 'auto' | 'manual',
+    contrats: contrats ?? [],
+  };
+}
+
+export type ProjetForFacturation = NonNullable<
+  Awaited<ReturnType<typeof getProjetActiveContratsForFacturation>>
+>;
+
+// ---------------------------------------------------------------------------
+// listProjetsForFacturation : liste tous les projets actifs (auto + manual)
+// pour le selecteur de la modale "Nouvelle facture" from-scratch.
+// ---------------------------------------------------------------------------
+export async function listProjetsForFacturation() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('projets')
+    .select(
+      `id, ref, billing_mode, taux_commission,
+       client:clients!projets_client_id_fkey!inner(id, raison_sociale, is_demo, archive)`,
+    )
+    .eq('client.archive', false)
+    .eq('archive', false)
+    .order('ref');
+  if (error) {
+    logger.error('queries.factures', 'listProjetsForFacturation failed', {
+      error,
+    });
+    return [];
+  }
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    ref: p.ref ?? '',
+    billing_mode: p.billing_mode as 'auto' | 'manual',
+    taux_commission: Number(p.taux_commission ?? 10),
+    client_id: p.client?.id ?? '',
+    client_raison_sociale: p.client?.raison_sociale ?? '',
+    is_demo: p.client?.is_demo ?? false,
+  }));
+}
+
 export async function getFactureByRef(ref: string) {
   const supabase = await createClient();
   const { data, error } = await supabase

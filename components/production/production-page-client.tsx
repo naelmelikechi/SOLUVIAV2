@@ -267,21 +267,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
     },
   ];
 
-  // Ratio commission par mois (productionSoluvia / production OPCO).
-  // Utilise dans le breakdown pour rester coherent avec la ligne parent
-  // qui utilise deja le ratio mensuel (et pas une moyenne globale).
-  const commissionByMois = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of data) {
-      const ratio = r.production > 0 ? r.productionSoluvia / r.production : 0;
-      map.set(r.mois, ratio);
-    }
-    return map;
-  }, [data]);
-  const factorForMois = (mois: string): number => {
-    if (perspective === 'opco') return 1;
-    return commissionByMois.get(mois) ?? 0;
-  };
+  const isSoluvia = perspective === 'soluvia';
 
   const totalColumnCount =
     1 +
@@ -506,7 +492,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                   isLoading={isLoading}
                   clients={clients}
                   totalColumnCount={totalColumnCount}
-                  commissionFactor={factorForMois(row.mois)}
+                  isSoluvia={isSoluvia}
                   expandedClients={expandedClients}
                   loadingClients={loadingClients}
                   projetDataByClient={projetDataByClient}
@@ -522,16 +508,14 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
       </Card>
 
       <ProductionChart
-        data={displayData
-          .filter((m) => !m.isFuture)
-          .map(
-            (m): ProductionChartRow => ({
-              label: m.label,
-              production: m.production,
-              facture: m.facture,
-              encaisse: m.encaisse,
-            }),
-          )}
+        data={displayData.map(
+          (m): ProductionChartRow => ({
+            label: m.label,
+            production: m.production,
+            facture: m.facture,
+            encaisse: m.encaisse,
+          }),
+        )}
       />
     </div>
   );
@@ -553,7 +537,7 @@ interface ExpandableMonthRowsProps {
   isLoading: boolean;
   clients: ProductionByClientRow[] | undefined;
   totalColumnCount: number;
-  commissionFactor: number;
+  isSoluvia: boolean;
   expandedClients: Set<string>;
   loadingClients: Set<string>;
   projetDataByClient: Map<string, ProductionByProjetRow[]>;
@@ -568,7 +552,7 @@ function ExpandableMonthRows({
   isLoading,
   clients,
   totalColumnCount,
-  commissionFactor,
+  isSoluvia,
   expandedClients,
   loadingClients,
   projetDataByClient,
@@ -658,7 +642,7 @@ function ExpandableMonthRows({
               {!isLoading && clients && clients.length > 0 && (
                 <ClientBreakdownTable
                   clients={clients}
-                  commissionFactor={commissionFactor}
+                  isSoluvia={isSoluvia}
                   expandedClients={expandedClients}
                   loadingClients={loadingClients}
                   projetDataByClient={projetDataByClient}
@@ -676,7 +660,7 @@ function ExpandableMonthRows({
 
 interface ClientBreakdownTableProps {
   clients: ProductionByClientRow[];
-  commissionFactor: number;
+  isSoluvia: boolean;
   expandedClients: Set<string>;
   loadingClients: Set<string>;
   projetDataByClient: Map<string, ProductionByProjetRow[]>;
@@ -684,9 +668,41 @@ interface ClientBreakdownTableProps {
   onToggleClient: (clientId: string) => void;
 }
 
+function pickClient(c: ProductionByClientRow, isSoluvia: boolean) {
+  return isSoluvia
+    ? {
+        production: c.productionSoluvia,
+        facture: c.factureSoluvia,
+        encaisse: c.encaisseSoluvia,
+        enRetard: c.enRetardSoluvia,
+      }
+    : {
+        production: c.production,
+        facture: c.facture,
+        encaisse: c.encaisse,
+        enRetard: c.enRetard,
+      };
+}
+
+function pickProjet(p: ProductionByProjetRow, isSoluvia: boolean) {
+  return isSoluvia
+    ? {
+        production: p.productionSoluvia,
+        facture: p.factureSoluvia,
+        encaisse: p.encaisseSoluvia,
+        enRetard: p.enRetardSoluvia,
+      }
+    : {
+        production: p.production,
+        facture: p.facture,
+        encaisse: p.encaisse,
+        enRetard: p.enRetard,
+      };
+}
+
 function ClientBreakdownTable({
   clients,
-  commissionFactor,
+  isSoluvia,
   expandedClients,
   loadingClients,
   projetDataByClient,
@@ -719,7 +735,7 @@ function ClientBreakdownTable({
                 isExpanded={isExpanded}
                 isLoading={isLoading}
                 projets={projets}
-                commissionFactor={commissionFactor}
+                isSoluvia={isSoluvia}
                 onToggle={() => onToggleClient(c.clientId)}
               />
             );
@@ -732,37 +748,48 @@ function ClientBreakdownTable({
             <TableCell className="text-right tabular-nums">
               {formatCurrency(
                 Math.round(
-                  clients.reduce((s, r) => s + r.production, 0) *
-                    commissionFactor,
+                  clients.reduce(
+                    (s, r) => s + pickClient(r, isSoluvia).production,
+                    0,
+                  ),
                 ),
               )}
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {formatCurrency(
                 Math.round(
-                  clients.reduce((s, r) => s + r.facture, 0) * commissionFactor,
+                  clients.reduce(
+                    (s, r) => s + pickClient(r, isSoluvia).facture,
+                    0,
+                  ),
                 ),
               )}
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {formatCurrency(
                 Math.round(
-                  clients.reduce((s, r) => s + r.encaisse, 0) *
-                    commissionFactor,
+                  clients.reduce(
+                    (s, r) => s + pickClient(r, isSoluvia).encaisse,
+                    0,
+                  ),
                 ),
               )}
             </TableCell>
             <TableCell
               className={cn(
                 'text-right tabular-nums',
-                clients.reduce((s, r) => s + r.enRetard, 0) > 0 &&
-                  'text-red-600',
+                clients.reduce(
+                  (s, r) => s + pickClient(r, isSoluvia).enRetard,
+                  0,
+                ) > 0 && 'text-red-600',
               )}
             >
               {formatCurrency(
                 Math.round(
-                  clients.reduce((s, r) => s + r.enRetard, 0) *
-                    commissionFactor,
+                  clients.reduce(
+                    (s, r) => s + pickClient(r, isSoluvia).enRetard,
+                    0,
+                  ),
                 ),
               )}
             </TableCell>
@@ -778,7 +805,7 @@ interface ExpandableClientRowsProps {
   isExpanded: boolean;
   isLoading: boolean;
   projets: ProductionByProjetRow[] | undefined;
-  commissionFactor: number;
+  isSoluvia: boolean;
   onToggle: () => void;
 }
 
@@ -787,9 +814,10 @@ function ExpandableClientRows({
   isExpanded,
   isLoading,
   projets,
-  commissionFactor,
+  isSoluvia,
   onToggle,
 }: ExpandableClientRowsProps) {
+  const view = pickClient(client, isSoluvia);
   return (
     <>
       <TableRow
@@ -810,21 +838,21 @@ function ExpandableClientRows({
           {client.nbProjets}
         </TableCell>
         <TableCell className="text-right tabular-nums">
-          {formatCurrency(Math.round(client.production * commissionFactor))}
+          {formatCurrency(Math.round(view.production))}
         </TableCell>
         <TableCell className="text-right tabular-nums">
-          {formatCurrency(Math.round(client.facture * commissionFactor))}
+          {formatCurrency(Math.round(view.facture))}
         </TableCell>
         <TableCell className="text-right tabular-nums">
-          {formatCurrency(Math.round(client.encaisse * commissionFactor))}
+          {formatCurrency(Math.round(view.encaisse))}
         </TableCell>
         <TableCell
           className={cn(
             'text-right tabular-nums',
-            client.enRetard > 0 && 'font-semibold text-red-600',
+            view.enRetard > 0 && 'font-semibold text-red-600',
           )}
         >
-          {formatCurrency(Math.round(client.enRetard * commissionFactor))}
+          {formatCurrency(Math.round(view.enRetard))}
         </TableCell>
       </TableRow>
       {isExpanded && (
@@ -843,10 +871,7 @@ function ExpandableClientRows({
                 </div>
               )}
               {!isLoading && projets && projets.length > 0 && (
-                <ProjetBreakdownTable
-                  projets={projets}
-                  commissionFactor={commissionFactor}
-                />
+                <ProjetBreakdownTable projets={projets} isSoluvia={isSoluvia} />
               )}
             </div>
           </TableCell>
@@ -858,10 +883,10 @@ function ExpandableClientRows({
 
 function ProjetBreakdownTable({
   projets,
-  commissionFactor,
+  isSoluvia,
 }: {
   projets: ProductionByProjetRow[];
-  commissionFactor: number;
+  isSoluvia: boolean;
 }) {
   return (
     <div className="border-border bg-background overflow-hidden rounded-md border">
@@ -878,34 +903,37 @@ function ProjetBreakdownTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {projets.map((p) => (
-            <TableRow key={p.projetId}>
-              <TableCell className="font-medium">{p.projetRef}</TableCell>
-              <TableCell className="text-muted-foreground text-right tabular-nums">
-                {p.commission > 0 ? `${p.commission} %` : '-'}
-              </TableCell>
-              <TableCell className="text-muted-foreground text-right tabular-nums">
-                {p.nbContrats}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatCurrency(Math.round(p.production * commissionFactor))}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatCurrency(Math.round(p.facture * commissionFactor))}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatCurrency(Math.round(p.encaisse * commissionFactor))}
-              </TableCell>
-              <TableCell
-                className={cn(
-                  'text-right tabular-nums',
-                  p.enRetard > 0 && 'font-semibold text-red-600',
-                )}
-              >
-                {formatCurrency(Math.round(p.enRetard * commissionFactor))}
-              </TableCell>
-            </TableRow>
-          ))}
+          {projets.map((p) => {
+            const view = pickProjet(p, isSoluvia);
+            return (
+              <TableRow key={p.projetId}>
+                <TableCell className="font-medium">{p.projetRef}</TableCell>
+                <TableCell className="text-muted-foreground text-right tabular-nums">
+                  {p.commission > 0 ? `${p.commission} %` : '-'}
+                </TableCell>
+                <TableCell className="text-muted-foreground text-right tabular-nums">
+                  {p.nbContrats}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(Math.round(view.production))}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(Math.round(view.facture))}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(Math.round(view.encaisse))}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    'text-right tabular-nums',
+                    view.enRetard > 0 && 'font-semibold text-red-600',
+                  )}
+                >
+                  {formatCurrency(Math.round(view.enRetard))}
+                </TableCell>
+              </TableRow>
+            );
+          })}
           <TableRow className="border-t-2 font-semibold">
             <TableCell>Total</TableCell>
             <TableCell />
@@ -915,37 +943,48 @@ function ProjetBreakdownTable({
             <TableCell className="text-right tabular-nums">
               {formatCurrency(
                 Math.round(
-                  projets.reduce((s, r) => s + r.production, 0) *
-                    commissionFactor,
+                  projets.reduce(
+                    (s, r) => s + pickProjet(r, isSoluvia).production,
+                    0,
+                  ),
                 ),
               )}
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {formatCurrency(
                 Math.round(
-                  projets.reduce((s, r) => s + r.facture, 0) * commissionFactor,
+                  projets.reduce(
+                    (s, r) => s + pickProjet(r, isSoluvia).facture,
+                    0,
+                  ),
                 ),
               )}
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {formatCurrency(
                 Math.round(
-                  projets.reduce((s, r) => s + r.encaisse, 0) *
-                    commissionFactor,
+                  projets.reduce(
+                    (s, r) => s + pickProjet(r, isSoluvia).encaisse,
+                    0,
+                  ),
                 ),
               )}
             </TableCell>
             <TableCell
               className={cn(
                 'text-right tabular-nums',
-                projets.reduce((s, r) => s + r.enRetard, 0) > 0 &&
-                  'text-red-600',
+                projets.reduce(
+                  (s, r) => s + pickProjet(r, isSoluvia).enRetard,
+                  0,
+                ) > 0 && 'text-red-600',
               )}
             >
               {formatCurrency(
                 Math.round(
-                  projets.reduce((s, r) => s + r.enRetard, 0) *
-                    commissionFactor,
+                  projets.reduce(
+                    (s, r) => s + pickProjet(r, isSoluvia).enRetard,
+                    0,
+                  ),
                 ),
               )}
             </TableCell>

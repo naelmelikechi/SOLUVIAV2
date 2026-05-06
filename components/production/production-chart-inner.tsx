@@ -77,7 +77,11 @@ export function ProductionChartInner({ data, formatCurrency }: Props) {
           tickLine={false}
           axisLine={false}
           tickFormatter={(v: number) =>
-            v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)
+            v >= 10000
+              ? `${Math.round(v / 1000)}k`
+              : v >= 1000
+                ? `${(v / 1000).toFixed(1)}k`
+                : String(v)
           }
         />
         <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />

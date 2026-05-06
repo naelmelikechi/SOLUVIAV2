@@ -11,7 +11,7 @@ export interface ProductionChartRow {
   encaisse: number;
 }
 
-const RechartsBar = dynamic(
+const RechartsLine = dynamic(
   () =>
     import('./production-chart-inner').then((mod) => ({
       default: mod.ProductionChartInner,
@@ -59,7 +59,7 @@ export function ProductionChart({ data }: { data: ProductionChartRow[] }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <RechartsBar data={data} formatCurrency={formatCurrency} />
+        <RechartsLine data={data} formatCurrency={formatCurrency} />
       </CardContent>
     </Card>
   );

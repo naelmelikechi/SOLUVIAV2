@@ -2,8 +2,8 @@
 
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -62,7 +62,7 @@ function renderLegendText(value: string) {
 export function ProductionChartInner({ data, formatCurrency }: Props) {
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <BarChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+      <LineChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
         <XAxis
           dataKey="label"
@@ -84,35 +84,42 @@ export function ProductionChartInner({ data, formatCurrency }: Props) {
                 : String(v)
           }
         />
-        <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />
+        <Tooltip
+          content={<CustomTooltip formatCurrency={formatCurrency} />}
+          // Pas de zone grisee au survol, juste le popover
+          cursor={false}
+        />
         <Legend
           iconType="circle"
           iconSize={8}
           wrapperStyle={{ fontSize: 12 }}
           formatter={renderLegendText}
         />
-        <Bar
+        <Line
           dataKey="production"
           name="production"
-          fill="#22c55e"
-          radius={[4, 4, 0, 0]}
-          barSize={20}
+          stroke="#22c55e"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          activeDot={{ r: 5 }}
         />
-        <Bar
+        <Line
           dataKey="facture"
           name="facture"
-          fill="#3b82f6"
-          radius={[4, 4, 0, 0]}
-          barSize={20}
+          stroke="#3b82f6"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          activeDot={{ r: 5 }}
         />
-        <Bar
+        <Line
           dataKey="encaisse"
           name="encaisse"
-          fill="#f97316"
-          radius={[4, 4, 0, 0]}
-          barSize={20}
+          stroke="#f97316"
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          activeDot={{ r: 5 }}
         />
-      </BarChart>
+      </LineChart>
     </ResponsiveContainer>
   );
 }

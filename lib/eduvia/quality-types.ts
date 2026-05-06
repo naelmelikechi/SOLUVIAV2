@@ -134,17 +134,8 @@ export interface EduviaQualityClient {
     deliverableId: number,
   ): Promise<QualityEvidence[]>;
 
-  // --- Mutations ---
-  uploadEvidence(
-    campusId: number,
-    deliverableId: number,
-    file: { name: string; type: string; bytes: ArrayBuffer | Uint8Array },
-  ): Promise<QualityEvidence>;
-
-  updateEvidenceStatus(
-    evidenceId: number,
-    status: 'conform' | 'rejected',
-  ): Promise<QualityEvidence>;
+  // L'API Eduvia est en lecture seule cote SOLUVIA : aucune ecriture/upload
+  // /validation possible (le depot des preuves se fait dans Eduvia directement).
 }
 
 // ---------------------------------------------------------------------------

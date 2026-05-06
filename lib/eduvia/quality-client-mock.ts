@@ -15,9 +15,7 @@ import type {
   QualityDeliverableStatus,
   QualityEvidence,
   QualityIndicator,
-  EvidenceStatus,
 } from './quality-types';
-import { computeExpiresAt } from './quality-types';
 
 // ---------------------------------------------------------------------------
 // Donnees figees (referentiel + campus de demo)
@@ -341,57 +339,5 @@ export class EduviaQualityMockClient implements EduviaQualityClient {
       .map((id) => state.evidences.get(id))
       .filter((e): e is QualityEvidence => Boolean(e))
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
-  }
-
-  async uploadEvidence(
-    campusId: number,
-    deliverableId: number,
-    file: { name: string; type: string; bytes: ArrayBuffer | Uint8Array },
-  ): Promise<QualityEvidence> {
-    void campusId;
-    void file.type;
-    void file.bytes;
-    const id = state.nextEvidenceId++;
-    const now = new Date().toISOString();
-    const evidence: QualityEvidence = {
-      id,
-      deliverable_id: deliverableId,
-      campus_id: 1,
-      status: 'to_review',
-      expires_at: null,
-      uploaded_by_id: null,
-      file_name: file.name,
-      file_url: `https://example.com/mock/${id}/${file.name}`,
-      created_at: now,
-      updated_at: now,
-    };
-    state.evidences.set(id, evidence);
-    const set = state.byDeliverable.get(deliverableId) ?? new Set();
-    set.add(id);
-    state.byDeliverable.set(deliverableId, set);
-    return evidence;
-  }
-
-  async updateEvidenceStatus(
-    evidenceId: number,
-    status: 'conform' | 'rejected',
-  ): Promise<QualityEvidence> {
-    const ev = state.evidences.get(evidenceId);
-    if (!ev) throw new Error(`Evidence ${evidenceId} not found`);
-    const now = new Date().toISOString();
-    const deliverable = MOCK_DELIVERABLES.find(
-      (d) => d.id === ev.deliverable_id,
-    );
-    const updated: QualityEvidence = {
-      ...ev,
-      status: status as EvidenceStatus,
-      expires_at:
-        status === 'conform' && deliverable
-          ? computeExpiresAt(deliverable.recurrence)
-          : ev.expires_at,
-      updated_at: now,
-    };
-    state.evidences.set(evidenceId, updated);
-    return updated;
   }
 }

@@ -167,47 +167,6 @@ class EduviaQualityHttpClient implements EduviaQualityClient {
     );
     return r.data;
   }
-
-  async uploadEvidence(
-    campusId: number,
-    deliverableId: number,
-    file: { name: string; type: string; bytes: ArrayBuffer | Uint8Array },
-  ): Promise<QualityEvidence> {
-    const formData = new FormData();
-    formData.append('deliverable_id', String(deliverableId));
-    const blob = new Blob([file.bytes as BlobPart], { type: file.type });
-    formData.append('file', blob, file.name);
-
-    const url = `${this.config.baseUrl}/api/v1/campuses/${campusId}/quality/evidences`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: this.buildHeaders(), // pas de Content-Type, multipart auto
-      body: formData,
-    });
-    if (!res.ok) {
-      throw new EduviaQualityHttpError(
-        `Upload failed: HTTP ${res.status}`,
-        res.status,
-      );
-    }
-    const body = (await res.json()) as ApiResponse<QualityEvidence>;
-    return body.data;
-  }
-
-  async updateEvidenceStatus(
-    evidenceId: number,
-    status: 'conform' | 'rejected',
-  ): Promise<QualityEvidence> {
-    const r = await this.fetchJson<ApiResponse<QualityEvidence>>(
-      `/api/v1/quality/evidences/${evidenceId}`,
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      },
-    );
-    return r.data;
-  }
 }
 
 // ---------------------------------------------------------------------------

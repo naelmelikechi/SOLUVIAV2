@@ -5,7 +5,6 @@ import {
   getAssignments,
   getClientByRef,
   getDeliverableStatuses,
-  getEvidenceNotes,
   getEvidences,
   getReferentiel,
   listCampusesForClient,
@@ -76,7 +75,6 @@ export default async function IndicatorPage({
   const selectedDeliverableId = sp.d ? Number(sp.d) : null;
   let selectedDeliverable = null;
   let selectedEvidences: Awaited<ReturnType<typeof getEvidences>> = [];
-  let evidenceNotes: Awaited<ReturnType<typeof getEvidenceNotes>> = new Map();
   if (
     selectedDeliverableId &&
     !Number.isNaN(selectedDeliverableId) &&
@@ -89,12 +87,6 @@ export default async function IndicatorPage({
       campusId,
       selectedDeliverableId,
     );
-    if (selectedEvidences.length > 0) {
-      evidenceNotes = await getEvidenceNotes(
-        client.id,
-        selectedEvidences.map((e) => e.id),
-      );
-    }
   }
 
   // Recompute defensif des statuts via les evidences (workaround bug expiration Eduvia)
@@ -156,7 +148,6 @@ export default async function IndicatorPage({
         deliverables={deliverablesWithStatus}
         selectedDeliverableId={selectedDeliverable?.id ?? null}
         selectedEvidences={selectedEvidences}
-        evidenceNotes={evidenceNotes}
         currentAssignment={assignment ?? null}
         availableUsers={users}
       />

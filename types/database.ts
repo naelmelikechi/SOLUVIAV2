@@ -2012,54 +2012,6 @@ export type Database = {
           },
         ];
       };
-      qualite_evidence_notes: {
-        Row: {
-          author_id: string | null;
-          campus_id: number;
-          client_id: string;
-          created_at: string;
-          evidence_id: number;
-          id: string;
-          kind: string;
-          message: string;
-        };
-        Insert: {
-          author_id?: string | null;
-          campus_id: number;
-          client_id: string;
-          created_at?: string;
-          evidence_id: number;
-          id?: string;
-          kind: string;
-          message: string;
-        };
-        Update: {
-          author_id?: string | null;
-          campus_id?: number;
-          client_id?: string;
-          created_at?: string;
-          evidence_id?: number;
-          id?: string;
-          kind?: string;
-          message?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'qualite_evidence_notes_author_id_fkey';
-            columns: ['author_id'];
-            isOneToOne: false;
-            referencedRelation: 'users';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'qualite_evidence_notes_client_id_fkey';
-            columns: ['client_id'];
-            isOneToOne: false;
-            referencedRelation: 'clients';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
       rdv_commerciaux: {
         Row: {
           commercial_id: string;

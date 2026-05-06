@@ -211,7 +211,7 @@ export async function getContratsByProjetId(projetId: string) {
         total_spent_time_hours,
         last_activity_at
       ),
-      invoice_steps:eduvia_invoice_steps(paid_amount, total_amount, invoice_state)
+      invoice_steps:eduvia_invoice_steps(paid_amount, total_amount, invoice_state, paid_at)
     `,
     )
     .eq('projet_id', projetId)
@@ -240,6 +240,7 @@ export async function getContratsByProjetId(projetId: string) {
       paid_amount: number | null;
       total_amount: number | null;
       invoice_state: string | null;
+      paid_at: string | null;
     }>,
   }));
 }

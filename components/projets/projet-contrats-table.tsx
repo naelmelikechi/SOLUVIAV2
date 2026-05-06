@@ -211,8 +211,18 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                             Number(c.progression.progression_percentage),
                           )
                         : null;
+                    // Eduvia API quirk: paid_amount toujours = 0 sur
+                    // /contracts/{id}/invoice_steps. Le payé OPCO est porte
+                    // par invoice_state='REGLE' (+ paid_at). On derive donc
+                    // le montant paye = total_amount quand l'etape est REGLE.
+                    const isStepPaid = (s: {
+                      invoice_state: string | null;
+                      paid_at: string | null;
+                    }) => s.invoice_state === 'REGLE' || s.paid_at !== null;
                     const paidTotal = (c.invoice_steps ?? []).reduce(
-                      (s, step) => s + Number(step.paid_amount ?? 0),
+                      (sum, step) =>
+                        sum +
+                        (isStepPaid(step) ? Number(step.total_amount ?? 0) : 0),
                       0,
                     );
                     const invoicedTotal = (c.invoice_steps ?? []).reduce(
@@ -220,7 +230,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                       0,
                     );
                     const paidStepsCount = (c.invoice_steps ?? []).filter(
-                      (s) => Number(s.paid_amount ?? 0) > 0,
+                      isStepPaid,
                     ).length;
                     return (
                       <TableRow

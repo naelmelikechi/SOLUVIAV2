@@ -55,11 +55,19 @@ const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
 };
 
 const INVOICE_STATE_LABELS: Record<string, string> = {
+  // Etats Eduvia (en majuscule, telles que renvoyees par l'API)
+  TRANSMIS: 'Transmise',
+  RECU: 'Recue OPCO',
+  EN_INSTRUCTION: "En cours d'instruction",
+  ACCEPTE: 'Acceptee',
+  REGLE: 'Reglee',
+  REJETE: 'Rejetee',
+  // Anciennes valeurs en minuscule, fallback
   draft: 'Brouillon',
-  sent: 'Envoyée',
-  paid: 'Payée',
+  sent: 'Envoyee',
+  paid: 'Payee',
   overdue: 'En retard',
-  cancelled: 'Annulée',
+  cancelled: 'Annulee',
 };
 
 function Section({
@@ -394,9 +402,13 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
                   <div className="space-y-1.5">
                     {data.invoiceSteps.map((s) => {
                       const total = Number(s.total_amount ?? 0);
-                      const paid = Number(s.paid_amount ?? 0);
+                      // Eduvia API ne remonte pas paid_amount (toujours 0).
+                      // Le payé OPCO = invoice_state='REGLE' (+ paid_at) →
+                      // montant payé = total_amount.
+                      const isPaid =
+                        s.invoice_state === 'REGLE' || s.paid_at !== null;
+                      const paid = isPaid ? total : Number(s.paid_amount ?? 0);
                       const inProgress = Number(s.in_progress_amount ?? 0);
-                      const isPaid = paid >= total && total > 0;
                       const stateLabel = s.invoice_state
                         ? (INVOICE_STATE_LABELS[s.invoice_state] ??
                           s.invoice_state)
@@ -449,10 +461,17 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
                     })}
                     {(() => {
                       const totals = data.invoiceSteps.reduce(
-                        (acc, s) => ({
-                          invoiced: acc.invoiced + Number(s.total_amount ?? 0),
-                          paid: acc.paid + Number(s.paid_amount ?? 0),
-                        }),
+                        (acc, s) => {
+                          const total = Number(s.total_amount ?? 0);
+                          const stepPaid =
+                            s.invoice_state === 'REGLE' || s.paid_at !== null
+                              ? total
+                              : Number(s.paid_amount ?? 0);
+                          return {
+                            invoiced: acc.invoiced + total,
+                            paid: acc.paid + stepPaid,
+                          };
+                        },
                         { invoiced: 0, paid: 0 },
                       );
                       return (

@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import type { ProjetFinance } from '@/lib/queries/projets';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { Card } from '@/components/ui/card';
+import { CommissionRateBadge } from '@/components/projets/commission-rate-badge';
 
 function FinanceStatCard({
   label,
@@ -27,8 +28,12 @@ function FinanceStatCard({
 
 export function ProjetFinanceSection({
   finance,
+  projetId,
+  canEdit = false,
 }: {
   finance: ProjetFinance | null;
+  projetId: string;
+  canEdit?: boolean;
 }) {
   if (!finance) {
     return (
@@ -50,9 +55,11 @@ export function ProjetFinanceSection({
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Finance</h3>
-        <span className="text-primary rounded-full bg-[var(--primary-bg)] px-3 py-1 text-xs font-medium">
-          Commission : {finance.taux_commission}%
-        </span>
+        <CommissionRateBadge
+          projetId={projetId}
+          initialValue={finance.taux_commission}
+          canEdit={canEdit}
+        />
       </div>
 
       {/* OPCO Side */}

@@ -78,6 +78,72 @@ export async function createProjet(data: {
   return { success: true, ref: projet.ref ?? undefined };
 }
 
+export async function updateProjetTauxCommission(
+  projetId: string,
+  tauxCommission: number,
+): Promise<{ success: boolean; error?: string }> {
+  if (!projetId) {
+    return { success: false, error: 'Projet manquant' };
+  }
+  if (
+    !Number.isFinite(tauxCommission) ||
+    tauxCommission < 0 ||
+    tauxCommission > 100
+  ) {
+    return {
+      success: false,
+      error: 'Le taux de commission doit être entre 0 et 100',
+    };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (!isAdmin(caller?.role)) {
+    return { success: false, error: 'Accès réservé aux administrateurs' };
+  }
+
+  const rounded = Math.round(tauxCommission * 100) / 100;
+
+  const { data: updated, error } = await supabase
+    .from('projets')
+    .update({ taux_commission: rounded })
+    .eq('id', projetId)
+    .select('ref')
+    .single();
+
+  if (error) {
+    logger.error('actions.projets', 'updateProjetTauxCommission failed', {
+      error,
+      projetId,
+    });
+    return {
+      success: false,
+      error: error.message || 'Erreur lors de la mise à jour du taux',
+    };
+  }
+
+  logAudit('projet_taux_commission_updated', 'projet', projetId, {
+    tauxCommission: rounded,
+  });
+
+  revalidatePath('/projets');
+  if (updated?.ref) {
+    revalidatePath(`/projets/${updated.ref}`);
+  }
+
+  return { success: true };
+}
+
 export async function duplicateProjet(
   projetId: string,
 ): Promise<{ success: boolean; ref?: string; error?: string }> {

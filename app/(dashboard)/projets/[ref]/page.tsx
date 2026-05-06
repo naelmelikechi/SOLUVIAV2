@@ -106,7 +106,11 @@ export default async function ProjetDetailPage({
       <ProjetStatCards projet={projet} apprentisActifs={apprentisActifs} />
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <ProjetFinanceSection finance={finance} />
+        <ProjetFinanceSection
+          finance={finance}
+          projetId={projet.id}
+          canEdit={userIsAdmin}
+        />
         <div className="space-y-6">
           <ProjetTempsSection temps={temps} />
           <ProjetQualiteSection

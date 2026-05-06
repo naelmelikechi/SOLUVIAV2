@@ -331,7 +331,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                         <TableCell className="text-right">
                           {(c.invoice_steps ?? []).length === 0 ? (
                             <span className="text-muted-foreground text-xs">
-                              \u2014
+                              {'\u2014'}
                             </span>
                           ) : (
                             <Tooltip>
@@ -343,17 +343,16 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                                     </span>
                                   ) : (
                                     <span className="text-muted-foreground">
-                                      0 \u20ac
+                                      {formatCurrency(0)}
                                     </span>
                                   )}
                                 </div>
                                 <div className="text-muted-foreground text-[10px] tabular-nums">
                                   {paidStepsCount}/
-                                  {c.invoice_steps?.length ?? 0}{' '}
-                                  \u00e9ch\u00e9ance
+                                  {c.invoice_steps?.length ?? 0}
                                   {(c.invoice_steps?.length ?? 0) > 1
-                                    ? 's'
-                                    : ''}
+                                    ? ' \u00e9ch\u00e9ances'
+                                    : ' \u00e9ch\u00e9ance'}
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent
@@ -362,7 +361,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                               >
                                 <div className="text-xs">
                                   <span className="text-muted-foreground">
-                                    Encaiss\u00e9 :{' '}
+                                    {'Encaiss\u00e9 : '}
                                   </span>
                                   <span className="font-mono tabular-nums">
                                     {formatCurrency(paidTotal)}
@@ -370,7 +369,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                                 </div>
                                 <div className="text-xs">
                                   <span className="text-muted-foreground">
-                                    Factur\u00e9 :{' '}
+                                    {'Factur\u00e9 : '}
                                   </span>
                                   <span className="font-mono tabular-nums">
                                     {formatCurrency(invoicedTotal)}
@@ -378,7 +377,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                                 </div>
                                 <div className="text-xs">
                                   <span className="text-muted-foreground">
-                                    Reste :{' '}
+                                    {'Reste : '}
                                   </span>
                                   <span className="font-mono tabular-nums">
                                     {formatCurrency(invoicedTotal - paidTotal)}

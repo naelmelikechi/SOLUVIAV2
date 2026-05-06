@@ -7,6 +7,7 @@ import { requestPasswordResetAction } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormErrorBanner } from '@/components/shared/form-error-banner';
 
 const INITIAL_STATE = {
   success: false as boolean,
@@ -81,11 +82,7 @@ export default function ForgotPasswordPage() {
               />
             </div>
 
-            {state.error && (
-              <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/50 dark:text-red-400">
-                {state.error}
-              </div>
-            )}
+            <FormErrorBanner message={state.error} />
 
             <Button
               type="submit"

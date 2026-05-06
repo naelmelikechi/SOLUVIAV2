@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormErrorBanner } from '@/components/shared/form-error-banner';
 
 export default function SetPasswordPage() {
   const router = useRouter();
@@ -84,11 +85,7 @@ export default function SetPasswordPage() {
           />
         </div>
 
-        {error && (
-          <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/50 dark:text-red-400">
-            {error}
-          </div>
-        )}
+        <FormErrorBanner message={error} />
 
         <Button type="submit" className="w-full" size="lg" disabled={loading}>
           {loading ? 'Création...' : 'Créer mon mot de passe'}

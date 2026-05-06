@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 interface SectionCardProps {
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ReactNode;
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
@@ -13,7 +13,7 @@ interface SectionCardProps {
 }
 
 export function SectionCard({
-  icon: Icon,
+  icon,
   title,
   children,
   defaultOpen = true,
@@ -34,7 +34,7 @@ export function SectionCard({
         ) : (
           <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
         )}
-        <Icon className="h-4 w-4 shrink-0" />
+        {icon}
         <span className="text-sm font-semibold">{title}</span>
       </button>
       {open && <div className="px-4 pb-4">{children}</div>}

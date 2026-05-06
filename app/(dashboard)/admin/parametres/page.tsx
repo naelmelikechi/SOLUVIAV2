@@ -79,7 +79,10 @@ export default async function ParametresPage() {
           lastEduviaSyncDate={lastEduviaSyncDate}
         />
         <EmployeeCostDefaultsForm initial={costDefaults} />
-        <SectionCard icon={CalendarClock} title="Échéanciers de facturation">
+        <SectionCard
+          icon={<CalendarClock className="h-4 w-4 shrink-0" />}
+          title="Échéanciers de facturation"
+        >
           <EcheanciersTemplatesSection templates={echeancierTemplates} />
         </SectionCard>
       </div>

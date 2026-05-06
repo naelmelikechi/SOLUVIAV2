@@ -98,7 +98,10 @@ export function EmployeeCostDefaultsForm({ initial }: Props) {
   };
 
   return (
-    <SectionCard icon={Wallet} title="Coût employé par défaut">
+    <SectionCard
+      icon={<Wallet className="h-4 w-4 shrink-0" />}
+      title="Coût employé par défaut"
+    >
       <p className="text-muted-foreground text-xs">
         Valeurs utilisées quand un CDP n&apos;a pas de coût personnalisé saisi
         sur sa fiche. Sert au calcul de rentabilité projet.

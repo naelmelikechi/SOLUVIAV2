@@ -114,7 +114,10 @@ export function ParametresForm({
   return (
     <div className="space-y-4">
       {/* Section 1: Entreprise */}
-      <SectionCard icon={Building2} title="Entreprise">
+      <SectionCard
+        icon={<Building2 className="h-4 w-4 shrink-0" />}
+        title="Entreprise"
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="raison_sociale">Raison sociale</Label>
@@ -187,7 +190,10 @@ export function ParametresForm({
       </SectionCard>
 
       {/* Section 2: Facturation */}
-      <SectionCard icon={FileText} title="Facturation">
+      <SectionCard
+        icon={<FileText className="h-4 w-4 shrink-0" />}
+        title="Facturation"
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="taux_tva">Taux TVA (%)</Label>
@@ -270,7 +276,10 @@ export function ParametresForm({
       </SectionCard>
 
       {/* Section 3: Typologies de projet */}
-      <SectionCard icon={Tag} title="Typologies de projet">
+      <SectionCard
+        icon={<Tag className="h-4 w-4 shrink-0" />}
+        title="Typologies de projet"
+      >
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -301,7 +310,10 @@ export function ParametresForm({
       </SectionCard>
 
       {/* Section 4: Axes de temps */}
-      <SectionCard icon={Clock} title="Axes de temps">
+      <SectionCard
+        icon={<Clock className="h-4 w-4 shrink-0" />}
+        title="Axes de temps"
+      >
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -341,7 +353,10 @@ export function ParametresForm({
       </SectionCard>
 
       {/* Section 5: Jours fériés */}
-      <SectionCard icon={Calendar} title="Jours fériés 2026">
+      <SectionCard
+        icon={<Calendar className="h-4 w-4 shrink-0" />}
+        title="Jours fériés 2026"
+      >
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {joursFeries.map((jour) => {
             const d = new Date(jour.date + 'T00:00:00');
@@ -380,7 +395,10 @@ export function ParametresForm({
       </SectionCard>
 
       {/* Section 6: Intégration Eduvia */}
-      <SectionCard icon={RefreshCw} title="Eduvia">
+      <SectionCard
+        icon={<RefreshCw className="h-4 w-4 shrink-0" />}
+        title="Eduvia"
+      >
         <div className="space-y-3">
           <p className="text-muted-foreground text-sm">
             Synchronisation Eduvia : importe les contrats, apprenants,
@@ -474,7 +492,7 @@ export function ParametresForm({
       </SectionCard>
 
       {/* Section 7: Intégration Odoo */}
-      <SectionCard icon={Plug} title="Odoo">
+      <SectionCard icon={<Plug className="h-4 w-4 shrink-0" />} title="Odoo">
         <div className="space-y-3">
           <p className="text-muted-foreground text-sm">
             Synchronisation Odoo : pousse les factures vers Odoo et tire les

@@ -22,6 +22,7 @@ import {
   STATUT_PROJET_COLORS,
 } from '@/lib/utils/constants';
 import type { ClientProjet } from '@/lib/queries/clients';
+import { CommissionRateBadge } from '@/components/projets/commission-rate-badge';
 
 export function ClientProjetsSection({ projets }: { projets: ClientProjet[] }) {
   const [search, setSearch] = useState('');
@@ -91,7 +92,11 @@ export function ClientProjetsSection({ projets }: { projets: ClientProjet[] }) {
                         {p.cdp ? `${p.cdp.prenom} ${p.cdp.nom}` : '-'}
                       </TableCell>
                       <TableCell className="text-sm tabular-nums">
-                        {p.taux_commission}%
+                        <CommissionRateBadge
+                          projetId={p.id}
+                          initialValue={p.taux_commission}
+                          canEdit
+                        />
                       </TableCell>
                       <TableCell>
                         <StatusBadge

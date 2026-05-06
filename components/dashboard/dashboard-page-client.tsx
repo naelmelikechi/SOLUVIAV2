@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState, cloneElement } from 'react';
 import {
   TrendingUp,
   FileText,
@@ -41,6 +42,7 @@ import type {
 } from '@/lib/queries/dashboard';
 import { RevenueTrendChart } from '@/components/dashboard/revenue-trend-chart';
 import { Sparkline } from '@/components/dashboard/sparkline';
+import { useHiddenKpis } from '@/components/dashboard/use-hidden-kpis';
 import { InvoiceStatusChart } from '@/components/dashboard/invoice-status-chart';
 
 // ============================================================
@@ -124,6 +126,9 @@ interface KpiCardProps {
   color: keyof typeof kpiColorMap;
   /** Optionnel : valeurs des 12 derniers mois pour mini-graphique */
   sparkline?: number[];
+  /** Mode édition : affiche un × pour masquer cette card */
+  editMode?: boolean;
+  onHide?: () => void;
 }
 
 const sparklineColorMap: Record<keyof typeof kpiColorMap, string> = {
@@ -144,6 +149,8 @@ function KpiCard({
   icon: Icon,
   color,
   sparkline,
+  editMode,
+  onHide,
 }: KpiCardProps) {
   const colors = kpiColorMap[color];
   const trendIsGood =
@@ -152,7 +159,17 @@ function KpiCard({
   const showSparkline = sparkline && sparkline.length > 0;
 
   return (
-    <Card className="p-5 transition-shadow hover:shadow-md">
+    <Card className="relative p-5 transition-shadow hover:shadow-md">
+      {editMode && onHide && (
+        <button
+          type="button"
+          onClick={onHide}
+          aria-label={`Masquer ${label}`}
+          className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs transition-colors"
+        >
+          ×
+        </button>
+      )}
       <div className="mb-2 flex items-center gap-2">
         <div
           className={cn(
@@ -259,6 +276,18 @@ export function DashboardPageClient({
   invoiceBreakdown: InvoiceStatusBreakdown;
   weekHours: number;
 }) {
+  // Mode personnalisation : permet de masquer des KPIs (persistance localStorage)
+  const [editMode, setEditMode] = useState(false);
+  const { isHidden, toggle, hiddenKeys, restoreAll } = useHiddenKpis();
+
+  // Helper : rend un KpiCard ou null si la cle est masquee, et propage
+  // editMode + onHide automatiquement.
+  const wrapKpi = (key: string, card: React.ReactElement<KpiCardProps>) => {
+    if (isHidden(key)) return null;
+    if (!editMode) return card;
+    return cloneElement(card, { editMode: true, onHide: () => toggle(key) });
+  };
+
   // ---- Alerts from real data ----
   const tempsNonSaisi = financials.tempsNonSaisi;
 
@@ -508,49 +537,89 @@ export function DashboardPageClient({
         </div>
       </Card>
 
+      {/* ========== Personnalisation toolbar ========== */}
+      <div className="flex items-center justify-end gap-2 text-xs">
+        {hiddenKeys.size > 0 && (
+          <span className="text-muted-foreground">
+            {hiddenKeys.size} KPI(s) masqué(s) ·{' '}
+            <button
+              type="button"
+              onClick={restoreAll}
+              className="text-primary hover:underline"
+            >
+              Restaurer
+            </button>
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setEditMode((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 transition-colors',
+            editMode
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-border hover:bg-accent',
+          )}
+        >
+          {editMode ? 'Terminer' : 'Personnaliser'}
+        </button>
+      </div>
+
       {/* ========== Financial KPIs ========== */}
       <section>
         <h2 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
           Performance financière
         </h2>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <KpiCard
-            label="Production"
-            value={formatCurrency(totalProduction)}
-            trend={trendString(productionTrend)}
-            trendUp={productionTrend > 0}
-            icon={TrendingUp}
-            color="green"
-            sparkline={monthlyTrend.map((m) => m.production)}
-          />
-          <KpiCard
-            label="Facturé"
-            value={formatCurrency(totalFacture)}
-            trend={trendString(factureTrend)}
-            trendUp={factureTrend > 0}
-            icon={FileText}
-            color="blue"
-            sparkline={monthlyTrend.map((m) => m.facture)}
-          />
-          <KpiCard
-            label="Encaissé"
-            value={formatCurrency(totalEncaisse)}
-            trend={trendString(encaisseTrend)}
-            trendUp={encaisseTrend > 0}
-            icon={CircleCheck}
-            color="green"
-            sparkline={monthlyTrend.map((m) => m.encaisse)}
-          />
-          <KpiCard
-            label="En retard"
-            value={formatCurrency(totalEnRetard)}
-            trend={trendString(retardTrend)}
-            trendUp={retardTrend > 0}
-            isNegativeMetric
-            icon={AlertTriangle}
-            color="red"
-            sparkline={monthlyTrend.map((m) => m.enRetard)}
-          />
+          {wrapKpi(
+            'production',
+            <KpiCard
+              label="Production"
+              value={formatCurrency(totalProduction)}
+              trend={trendString(productionTrend)}
+              trendUp={productionTrend > 0}
+              icon={TrendingUp}
+              color="green"
+              sparkline={monthlyTrend.map((m) => m.production)}
+            />,
+          )}
+          {wrapKpi(
+            'facture',
+            <KpiCard
+              label="Facturé"
+              value={formatCurrency(totalFacture)}
+              trend={trendString(factureTrend)}
+              trendUp={factureTrend > 0}
+              icon={FileText}
+              color="blue"
+              sparkline={monthlyTrend.map((m) => m.facture)}
+            />,
+          )}
+          {wrapKpi(
+            'encaisse',
+            <KpiCard
+              label="Encaissé"
+              value={formatCurrency(totalEncaisse)}
+              trend={trendString(encaisseTrend)}
+              trendUp={encaisseTrend > 0}
+              icon={CircleCheck}
+              color="green"
+              sparkline={monthlyTrend.map((m) => m.encaisse)}
+            />,
+          )}
+          {wrapKpi(
+            'enRetard',
+            <KpiCard
+              label="En retard"
+              value={formatCurrency(totalEnRetard)}
+              trend={trendString(retardTrend)}
+              trendUp={retardTrend > 0}
+              isNegativeMetric
+              icon={AlertTriangle}
+              color="red"
+              sparkline={monthlyTrend.map((m) => m.enRetard)}
+            />,
+          )}
         </div>
       </section>
 
@@ -560,41 +629,56 @@ export function DashboardPageClient({
           Activité opérationnelle
         </h2>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-          <KpiCard
-            label="Projets actifs"
-            value={String(data.projetsActifs)}
-            subtitle="en cours de suivi"
-            icon={ClipboardList}
-            color="green"
-          />
-          <KpiCard
-            label="Contrats actifs"
-            value={String(data.contratsActifs)}
-            subtitle="tous projets confondus"
-            icon={Users}
-            color="blue"
-          />
-          <KpiCard
-            label="Apprenants actifs"
-            value={String(nbApprenantsActifs)}
-            subtitle="contrats en cours"
-            icon={GraduationCap}
-            color="purple"
-          />
-          <KpiCard
-            label="Formations en cours"
-            value={String(nbFormationsEnCours)}
-            subtitle="distinctes (Eduvia)"
-            icon={BookOpen}
-            color="blue"
-          />
-          <KpiCard
-            label="Taux saisie temps"
-            value={`${tauxSaisieTemps}%`}
-            subtitle={`${tempsNonSaisi}j non saisi(s) cette semaine`}
-            icon={Calendar}
-            color={tauxSaisieTemps >= 80 ? 'green' : 'orange'}
-          />
+          {wrapKpi(
+            'projetsActifs',
+            <KpiCard
+              label="Projets actifs"
+              value={String(data.projetsActifs)}
+              subtitle="en cours de suivi"
+              icon={ClipboardList}
+              color="green"
+            />,
+          )}
+          {wrapKpi(
+            'contratsActifs',
+            <KpiCard
+              label="Contrats actifs"
+              value={String(data.contratsActifs)}
+              subtitle="tous projets confondus"
+              icon={Users}
+              color="blue"
+            />,
+          )}
+          {wrapKpi(
+            'apprenantsActifs',
+            <KpiCard
+              label="Apprenants actifs"
+              value={String(nbApprenantsActifs)}
+              subtitle="contrats en cours"
+              icon={GraduationCap}
+              color="purple"
+            />,
+          )}
+          {wrapKpi(
+            'formationsEnCours',
+            <KpiCard
+              label="Formations en cours"
+              value={String(nbFormationsEnCours)}
+              subtitle="distinctes (Eduvia)"
+              icon={BookOpen}
+              color="blue"
+            />,
+          )}
+          {wrapKpi(
+            'tauxSaisieTemps',
+            <KpiCard
+              label="Taux saisie temps"
+              value={`${tauxSaisieTemps}%`}
+              subtitle={`${tempsNonSaisi}j non saisi(s) cette semaine`}
+              icon={Calendar}
+              color={tauxSaisieTemps >= 80 ? 'green' : 'orange'}
+            />,
+          )}
         </div>
       </section>
 
@@ -613,21 +697,27 @@ export function DashboardPageClient({
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
-          <KpiCard
-            label="Progression pédagogie"
-            value={`${pedagogieAvgPct}%`}
-            subtitle="moyenne contrats actifs"
-            icon={Activity}
-            color={pedagogieAvgPct >= 60 ? 'green' : 'orange'}
-          />
-          <KpiCard
-            label="Abandons"
-            value={String(nbAbandons)}
-            subtitle="contrats résiliés / annulés"
-            icon={XCircle}
-            color={nbAbandons > 0 ? 'red' : 'green'}
-            isNegativeMetric
-          />
+          {wrapKpi(
+            'pedagogie',
+            <KpiCard
+              label="Progression pédagogie"
+              value={`${pedagogieAvgPct}%`}
+              subtitle="moyenne contrats actifs"
+              icon={Activity}
+              color={pedagogieAvgPct >= 60 ? 'green' : 'orange'}
+            />,
+          )}
+          {wrapKpi(
+            'abandons',
+            <KpiCard
+              label="Abandons"
+              value={String(nbAbandons)}
+              subtitle="contrats résiliés / annulés"
+              icon={XCircle}
+              color={nbAbandons > 0 ? 'red' : 'green'}
+              isNegativeMetric
+            />,
+          )}
         </div>
       </section>
 

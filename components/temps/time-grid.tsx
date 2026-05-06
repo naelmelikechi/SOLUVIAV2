@@ -14,6 +14,11 @@ import {
   useColumnWidths,
   ResizeHandle,
 } from '@/components/temps/use-column-widths';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface TimeGridProps {
   weekDates: string[];
@@ -262,38 +267,44 @@ export function TimeGrid({
                           ? `${saisie.projet_ref} - ${desc}`
                           : saisie.projet_ref;
                       return (
-                        <div
-                          className="flex items-center gap-2"
-                          title={fullTitle}
-                        >
-                          <span
-                            className={cn(
-                              'shrink-0 font-mono text-[10px] font-semibold opacity-70',
-                              saisie.est_interne
-                                ? 'text-amber-700'
-                                : 'text-primary',
-                            )}
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <div className="flex cursor-default items-center gap-2" />
+                            }
                           >
-                            {saisie.projet_ref}
-                          </span>
-                          {desc && desc !== saisie.projet_ref && (
                             <span
                               className={cn(
-                                'min-w-0 flex-1 truncate text-[13px] font-medium',
+                                'shrink-0 font-mono text-[10px] font-semibold opacity-70',
                                 saisie.est_interne
-                                  ? 'text-amber-900'
-                                  : 'text-foreground',
+                                  ? 'text-amber-700'
+                                  : 'text-primary',
                               )}
                             >
-                              {desc}
+                              {saisie.projet_ref}
                             </span>
-                          )}
-                          {saisie.est_interne && (
-                            <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-amber-800 uppercase">
-                              Interne
-                            </span>
-                          )}
-                        </div>
+                            {desc && desc !== saisie.projet_ref && (
+                              <span
+                                className={cn(
+                                  'min-w-0 flex-1 truncate text-[13px] font-medium',
+                                  saisie.est_interne
+                                    ? 'text-amber-900'
+                                    : 'text-foreground',
+                                )}
+                              >
+                                {desc}
+                              </span>
+                            )}
+                            {saisie.est_interne && (
+                              <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-amber-800 uppercase">
+                                Interne
+                              </span>
+                            )}
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="start">
+                            {fullTitle}
+                          </TooltipContent>
+                        </Tooltip>
                       );
                     })()}
                   </td>

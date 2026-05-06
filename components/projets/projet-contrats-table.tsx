@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ContratDetailSheet } from '@/components/projets/contrat-detail-sheet';
 
 const CONTRACT_STATE_LABELS: Record<string, string> = {
   actif: 'Actif',
@@ -95,6 +96,9 @@ function ProgressBar({
 
 export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
   const [search, setSearch] = useState('');
+  const [selectedContratId, setSelectedContratId] = useState<string | null>(
+    null,
+  );
   const actifs = contrats.filter((c) =>
     isContratActif(c.contract_state),
   ).length;
@@ -198,7 +202,11 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                       c.date_fin,
                     );
                     return (
-                      <TableRow key={c.id}>
+                      <TableRow
+                        key={c.id}
+                        onClick={() => setSelectedContratId(c.id)}
+                        className="hover:bg-muted/50 cursor-pointer"
+                      >
                         <TableCell>
                           <Tooltip>
                             <TooltipTrigger className="block cursor-default text-left">
@@ -314,6 +322,10 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
           </>
         )}
       </Card>
+      <ContratDetailSheet
+        contratId={selectedContratId}
+        onOpenChange={(open) => !open && setSelectedContratId(null)}
+      />
     </TooltipProvider>
   );
 }

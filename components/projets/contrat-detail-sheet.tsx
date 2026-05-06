@@ -311,9 +311,12 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
               )}
 
               {data.progression && (
-                <Section icon={TrendingUp} title="Progression pédagogique">
+                <Section
+                  icon={TrendingUp}
+                  title="Progression pédagogique (Eduvia)"
+                >
                   <Row
-                    label="Progression"
+                    label="Progression réelle"
                     value={
                       data.progression.progression_percentage !== null
                         ? `${Number(data.progression.progression_percentage).toFixed(1)} %`

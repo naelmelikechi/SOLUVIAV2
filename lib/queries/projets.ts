@@ -203,7 +203,16 @@ export async function getContratsByProjetId(projetId: string) {
 
   const { data, error } = await supabase
     .from('contrats')
-    .select('*')
+    .select(
+      `
+      *,
+      progression:contrats_progressions!contrats_progressions_contrat_id_fkey(
+        progression_percentage,
+        total_spent_time_hours,
+        last_activity_at
+      )
+    `,
+    )
     .eq('projet_id', projetId)
     .eq('archive', false)
     .order('ref', { ascending: true });
@@ -219,7 +228,14 @@ export async function getContratsByProjetId(projetId: string) {
       { cause: error },
     );
   }
-  return data;
+  // contrats_progressions has UNIQUE(contrat_id) so the join returns at most
+  // one row per contrat; flatten the array to a single object for ergonomics.
+  return (data ?? []).map((c) => ({
+    ...c,
+    progression: Array.isArray(c.progression)
+      ? (c.progression[0] ?? null)
+      : (c.progression ?? null),
+  }));
 }
 
 export type ContratRow = Awaited<

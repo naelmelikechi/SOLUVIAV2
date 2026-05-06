@@ -103,13 +103,15 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
     isContratActif(c.contract_state),
   ).length;
 
-  const progressions = contrats.map((c) =>
-    computeProgressionTheorique(c.date_debut, c.date_fin),
-  );
+  const realProgressions = contrats
+    .map((c) => c.progression?.progression_percentage)
+    .filter((p): p is number => p !== null && p !== undefined)
+    .map(Number);
   const moyenneProgression =
-    progressions.length > 0
+    realProgressions.length > 0
       ? Math.round(
-          progressions.reduce((sum, p) => sum + p, 0) / progressions.length,
+          realProgressions.reduce((sum, p) => sum + p, 0) /
+            realProgressions.length,
         )
       : 0;
 
@@ -140,13 +142,13 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
             <StatusBadge label="Eduvia" color="orange" />
           </div>
           <div className="flex items-center gap-4">
-            {contrats.length > 0 && (
+            {contrats.length > 0 && realProgressions.length > 0 && (
               <span className="text-muted-foreground text-sm">
                 Progression moyenne :{' '}
                 <span className="font-semibold tabular-nums">
                   {moyenneProgression}%
                 </span>{' '}
-                théorique
+                Eduvia ({realProgressions.length}/{contrats.length} synchros)
               </span>
             )}
             <span className="text-muted-foreground text-sm">
@@ -197,10 +199,17 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                     </TableRow>
                   )}
                   {filteredContrats.map((c) => {
-                    const progression = computeProgressionTheorique(
+                    const theorique = computeProgressionTheorique(
                       c.date_debut,
                       c.date_fin,
                     );
+                    const reelle =
+                      c.progression?.progression_percentage !== null &&
+                      c.progression?.progression_percentage !== undefined
+                        ? Math.round(
+                            Number(c.progression.progression_percentage),
+                          )
+                        : null;
                     return (
                       <TableRow
                         key={c.id}
@@ -308,10 +317,49 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                             : '\u2014'}
                         </TableCell>
                         <TableCell>
-                          <ProgressBar
-                            value={progression}
-                            color="bg-[var(--gray)]"
-                          />
+                          <Tooltip>
+                            <TooltipTrigger className="block cursor-default">
+                              <ProgressBar
+                                value={reelle ?? theorique}
+                                comparison={
+                                  reelle !== null ? theorique : undefined
+                                }
+                                color="bg-[var(--primary)]"
+                              />
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              className="space-y-1 px-3 py-2"
+                            >
+                              <div className="text-xs">
+                                <span className="text-muted-foreground">
+                                  Eduvia :{' '}
+                                </span>
+                                <span className="font-mono tabular-nums">
+                                  {reelle !== null
+                                    ? `${reelle}%`
+                                    : 'non synchronisé'}
+                                </span>
+                              </div>
+                              <div className="text-xs">
+                                <span className="text-muted-foreground">
+                                  Théorique :{' '}
+                                </span>
+                                <span className="font-mono tabular-nums">
+                                  {theorique}%
+                                </span>
+                              </div>
+                              {c.progression?.total_spent_time_hours ? (
+                                <div className="text-muted-foreground text-xs">
+                                  Temps passé :{' '}
+                                  {Number(
+                                    c.progression.total_spent_time_hours,
+                                  ).toFixed(1)}{' '}
+                                  h
+                                </div>
+                              ) : null}
+                            </TooltipContent>
+                          </Tooltip>
                         </TableCell>
                       </TableRow>
                     );

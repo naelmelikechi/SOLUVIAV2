@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Calendar, MousePointer, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -144,6 +145,34 @@ export function ProjetEcheancierSection({
           onSaved={() => router.refresh()}
         />
       )}
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Placeholder pour les projets en facturation manuelle
+// ---------------------------------------------------------------------------
+
+export function ProjetEcheancierManualPlaceholder() {
+  return (
+    <Card className="p-6">
+      <div className="mb-3 flex items-center gap-2">
+        <MousePointer className="h-4 w-4 text-orange-600" />
+        <h3 className="text-sm font-semibold">Échéancier de facturation</h3>
+      </div>
+      <p className="text-muted-foreground text-sm">
+        {
+          'Ce projet est en facturation manuelle. Va dans /facturation onglet Manuel pour facturer les engagements ou règlements OPCO.'
+        }
+      </p>
+      <div className="mt-3">
+        <Link
+          href="/facturation?tab=manuel"
+          className="text-primary text-xs font-medium underline-offset-2 hover:underline"
+        >
+          Aller dans /facturation
+        </Link>
+      </div>
     </Card>
   );
 }

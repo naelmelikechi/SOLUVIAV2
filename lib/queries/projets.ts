@@ -158,6 +158,7 @@ export async function getProjetByRef(ref: string) {
       statut,
       date_debut,
       taux_commission,
+      billing_mode,
       client:clients!projets_client_id_fkey (
         id,
         trigramme,

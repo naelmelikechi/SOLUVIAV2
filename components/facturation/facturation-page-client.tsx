@@ -19,9 +19,16 @@ import { EcheanceCalendar } from '@/components/facturation/echeance-calendar';
 import { createFactureListColumns } from '@/components/facturation/facture-list-columns';
 import { AjustementsList } from '@/components/facturation/ajustements-list';
 import { EcheanceApercuHtml } from '@/components/facturation/echeance-apercu-html';
+import { BrouillonsTab } from '@/components/facturation/brouillons-tab';
+import { ManuelTab } from '@/components/facturation/manuel-tab';
 import { EmptyState } from '@/components/shared/empty-state';
-import type { FactureListItem, EcheancePending } from '@/lib/queries/factures';
+import type {
+  FactureListItem,
+  EcheancePending,
+  BrouillonItem,
+} from '@/lib/queries/factures';
 import type { AjustementPending } from '@/lib/queries/ajustements';
+import type { ProjetBillableEvents } from '@/lib/queries/billable-events';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_FACTURE_LABELS } from '@/lib/utils/constants';
 import { cn } from '@/lib/utils';
@@ -43,15 +50,21 @@ interface FacturationPageClientProps {
   factures: FactureListItem[];
   echeances: EcheancePending[];
   ajustements: AjustementPending[];
+  brouillons: BrouillonItem[];
+  manualProjets: ProjetBillableEvents[];
 }
 
 export function FacturationPageClient({
   factures,
   echeances,
   ajustements,
+  brouillons,
+  manualProjets,
 }: FacturationPageClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState(0);
+  // Onglet par defaut : Brouillons s'il y en a (priorite revue), sinon
+  // Echeances. Le user peut toujours basculer manuellement.
+  const [activeTab, setActiveTab] = useState(brouillons.length > 0 ? 0 : 1);
   const [echeanceView, setEcheanceView] = useState<'list' | 'calendar'>('list');
   const [preview, setPreview] = useState<
     { kind: 'facture'; ref: string } | { kind: 'echeance'; id: string } | null
@@ -114,7 +127,9 @@ export function FacturationPageClient({
   if (
     factures.length === 0 &&
     echeances.length === 0 &&
-    ajustements.length === 0
+    ajustements.length === 0 &&
+    brouillons.length === 0 &&
+    manualProjets.length === 0
   ) {
     return (
       <EmptyState
@@ -129,21 +144,37 @@ export function FacturationPageClient({
     <Tabs value={activeTab} onValueChange={setActiveTab}>
       <TabsList variant="line">
         <TabsTrigger value={0}>
-          Échéances
+          {'Brouillons'}
+          {brouillons.length > 0 && (
+            <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[10px] font-bold text-white">
+              {brouillons.length}
+            </span>
+          )}
+        </TabsTrigger>
+        <TabsTrigger value={1}>
+          {'Échéances'}
           {echeances.length > 0 && (
             <span className="bg-primary ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white">
               {echeances.length}
             </span>
           )}
         </TabsTrigger>
-        <TabsTrigger value={1}>
-          Factures
+        {manualProjets.length > 0 && (
+          <TabsTrigger value={2}>
+            {'Manuel'}
+            <span className="text-muted-foreground ml-1.5 text-xs">
+              ({manualProjets.length})
+            </span>
+          </TabsTrigger>
+        )}
+        <TabsTrigger value={3}>
+          {'Factures'}
           <span className="text-muted-foreground ml-1.5 text-xs">
             ({factures.length})
           </span>
         </TabsTrigger>
-        <TabsTrigger value={2}>
-          Ajustements
+        <TabsTrigger value={4}>
+          {'Ajustements'}
           {ajustements.length > 0 && (
             <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[10px] font-bold text-white">
               {ajustements.length}
@@ -153,6 +184,12 @@ export function FacturationPageClient({
       </TabsList>
 
       <TabsContent value={0}>
+        <div className="mt-4">
+          <BrouillonsTab brouillons={brouillons} />
+        </div>
+      </TabsContent>
+
+      <TabsContent value={1}>
         <div className="mt-4 space-y-4">
           <div className="flex items-center justify-between">
             <BillingPeriodBanner />
@@ -201,7 +238,15 @@ export function FacturationPageClient({
         </div>
       </TabsContent>
 
-      <TabsContent value={1}>
+      {manualProjets.length > 0 && (
+        <TabsContent value={2}>
+          <div className="mt-4">
+            <ManuelTab projets={manualProjets} />
+          </div>
+        </TabsContent>
+      )}
+
+      <TabsContent value={3}>
         <div className="mt-4">
           <div className="mb-4 flex justify-end">
             <Button variant="outline" size="sm" onClick={handleExport}>
@@ -221,7 +266,7 @@ export function FacturationPageClient({
         </div>
       </TabsContent>
 
-      <TabsContent value={2}>
+      <TabsContent value={4}>
         <div className="mt-4">
           <AjustementsList ajustements={ajustements} />
         </div>

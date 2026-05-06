@@ -5,13 +5,23 @@ import { Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { ProjectRef } from '@/components/shared/project-ref';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { BillingModeBadge } from '@/components/projets/billing-mode-badge';
 import type { ProjetDetail } from '@/lib/queries/projets';
 import {
   STATUT_PROJET_LABELS,
   STATUT_PROJET_COLORS,
 } from '@/lib/utils/constants';
 
-export function ProjetDetailHeader({ projet }: { projet: ProjetDetail }) {
+export function ProjetDetailHeader({
+  projet,
+  canEditBillingMode = false,
+}: {
+  projet: ProjetDetail;
+  canEditBillingMode?: boolean;
+}) {
+  const billingMode: 'auto' | 'manual' =
+    projet.billing_mode === 'manual' ? 'manual' : 'auto';
+
   return (
     <div className="flex flex-wrap items-center gap-2 md:gap-4">
       <ProjectRef ref_={projet.ref ?? ''} className="text-sm" noLink />
@@ -43,6 +53,11 @@ export function ProjetDetailHeader({ projet }: { projet: ProjetDetail }) {
       <StatusBadge
         label={STATUT_PROJET_LABELS[projet.statut] ?? projet.statut}
         color={STATUT_PROJET_COLORS[projet.statut] ?? 'gray'}
+      />
+      <BillingModeBadge
+        projetId={projet.id}
+        billingMode={billingMode}
+        canEdit={canEditBillingMode}
       />
     </div>
   );

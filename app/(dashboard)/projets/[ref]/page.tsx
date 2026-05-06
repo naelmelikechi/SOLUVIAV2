@@ -25,7 +25,10 @@ import { ProjetQualiteSection } from '@/components/projets/projet-qualite-sectio
 import { ProjetContratsTable } from '@/components/projets/projet-contrats-table';
 import { ProjetStatCards } from '@/components/projets/projet-stat-cards';
 import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
-import { ProjetEcheancierSection } from '@/components/projets/projet-echeancier-section';
+import {
+  ProjetEcheancierSection,
+  ProjetEcheancierManualPlaceholder,
+} from '@/components/projets/projet-echeancier-section';
 import {
   listEcheancierTemplates,
   getProjetEcheancierConfig,
@@ -94,7 +97,7 @@ export default async function ProjetDetailPage({
         Retour aux projets
       </Link>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <ProjetDetailHeader projet={projet} />
+        <ProjetDetailHeader projet={projet} canEditBillingMode={userIsAdmin} />
         {userIsAdmin && (
           <ProjetDuplicateButton
             projetId={projet.id}
@@ -120,13 +123,17 @@ export default async function ProjetDetailPage({
       </div>
 
       <div className="mb-6">
-        <ProjetEcheancierSection
-          projetId={projet.id}
-          templates={echeancierTemplates}
-          currentTemplateId={echeancierConfig?.echeancier_template_id ?? null}
-          currentOverride={echeancierConfig?.echeancier_override}
-          isAdmin={userIsAdmin}
-        />
+        {projet.billing_mode === 'manual' ? (
+          <ProjetEcheancierManualPlaceholder />
+        ) : (
+          <ProjetEcheancierSection
+            projetId={projet.id}
+            templates={echeancierTemplates}
+            currentTemplateId={echeancierConfig?.echeancier_template_id ?? null}
+            currentOverride={echeancierConfig?.echeancier_override}
+            isAdmin={userIsAdmin}
+          />
+        )}
       </div>
 
       <ProjetContratsTable contrats={contrats} />

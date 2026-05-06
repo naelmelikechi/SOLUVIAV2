@@ -144,6 +144,61 @@ export async function updateProjetTauxCommission(
   return { success: true };
 }
 
+export async function updateProjetBillingMode(
+  projetId: string,
+  mode: 'auto' | 'manual',
+): Promise<{ success: boolean; error?: string }> {
+  if (!projetId) {
+    return { success: false, error: 'Projet manquant' };
+  }
+  if (mode !== 'auto' && mode !== 'manual') {
+    return { success: false, error: 'Mode de facturation invalide' };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: caller } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (!isAdmin(caller?.role)) {
+    return { success: false, error: 'Accès admin requis' };
+  }
+
+  const { data: updated, error } = await supabase
+    .from('projets')
+    .update({ billing_mode: mode })
+    .eq('id', projetId)
+    .select('ref')
+    .single();
+
+  if (error) {
+    logger.error('actions.projets', 'updateProjetBillingMode failed', {
+      error,
+      projetId,
+    });
+    return {
+      success: false,
+      error: error.message || 'Erreur lors de la mise à jour du mode',
+    };
+  }
+
+  logAudit('projet_billing_mode_changed', 'projet', projetId, { mode });
+
+  revalidatePath('/projets');
+  if (updated?.ref) {
+    revalidatePath(`/projets/${updated.ref}`);
+  }
+
+  return { success: true };
+}
+
 export async function duplicateProjet(
   projetId: string,
 ): Promise<{ success: boolean; ref?: string; error?: string }> {

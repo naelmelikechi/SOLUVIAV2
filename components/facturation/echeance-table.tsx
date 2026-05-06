@@ -84,7 +84,7 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
       const result = await createFactures(Array.from(selectedIds));
       if (result.success) {
         toast.success(
-          `${result.refs.length} facture${result.refs.length > 1 ? 's' : ''} émise${result.refs.length > 1 ? 's' : ''} avec succès`,
+          `${result.ids.length} brouillon${result.ids.length > 1 ? 's' : ''} créé${result.ids.length > 1 ? 's' : ''}. À vérifier puis envoyer dans l’onglet Brouillons.`,
         );
         setSelectedIds(new Set());
       } else {
@@ -199,10 +199,11 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
           </span>
         </p>
         <Button
+          aria-label="Préparer brouillons"
           disabled={selectedIds.size === 0 || isPending}
           onClick={handleEmettre}
         >
-          {isPending ? 'Émission en cours...' : 'Émettre les factures'}
+          {isPending ? 'Préparation en cours...' : 'Préparer brouillons'}
         </Button>
       </div>
     </div>

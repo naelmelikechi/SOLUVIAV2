@@ -1082,6 +1082,9 @@ export type Database = {
           contrat_id: string;
           created_at: string;
           description: string;
+          est_avoir: boolean;
+          event_source_id: string | null;
+          event_type: string | null;
           facture_id: string;
           id: string;
           mois_relatif: number | null;
@@ -1094,6 +1097,9 @@ export type Database = {
           contrat_id: string;
           created_at?: string;
           description: string;
+          est_avoir?: boolean;
+          event_source_id?: string | null;
+          event_type?: string | null;
           facture_id: string;
           id?: string;
           mois_relatif?: number | null;
@@ -1106,6 +1112,9 @@ export type Database = {
           contrat_id?: string;
           created_at?: string;
           description?: string;
+          est_avoir?: boolean;
+          event_source_id?: string | null;
+          event_type?: string | null;
           facture_id?: string;
           id?: string;
           mois_relatif?: number | null;
@@ -1721,6 +1730,7 @@ export type Database = {
         Row: {
           archive: boolean;
           backup_cdp_id: string | null;
+          billing_mode: string;
           categorie_interne: string | null;
           cdp_id: string | null;
           client_id: string;
@@ -1740,6 +1750,7 @@ export type Database = {
         Insert: {
           archive?: boolean;
           backup_cdp_id?: string | null;
+          billing_mode?: string;
           categorie_interne?: string | null;
           cdp_id?: string | null;
           client_id: string;
@@ -1759,6 +1770,7 @@ export type Database = {
         Update: {
           archive?: boolean;
           backup_cdp_id?: string | null;
+          billing_mode?: string;
           categorie_interne?: string | null;
           cdp_id?: string | null;
           client_id?: string;

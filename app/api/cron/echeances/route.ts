@@ -44,6 +44,8 @@ export async function GET(request: Request) {
 
   // 2. Charge les projets actifs avec contrats + config echeancier
   // Filtre clients reels uniquement (pas demo, pas archive)
+  // Mode manual = facturation event-based dans /facturation onglet Manuel,
+  // pas d'echeances auto a generer
   const { data: projets, error: projetsError } = await supabase
     .from('projets')
     .select(
@@ -55,6 +57,7 @@ export async function GET(request: Request) {
     )
     .eq('statut', 'actif')
     .eq('archive', false)
+    .eq('billing_mode', 'auto')
     .eq('client.is_demo', false)
     .eq('client.archive', false);
 

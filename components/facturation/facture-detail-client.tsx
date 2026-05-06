@@ -2,12 +2,15 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Download,
   Mail,
   FileWarning,
   Loader2,
   AlertTriangle,
+  Send,
+  Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -16,6 +19,7 @@ import {
   sendFactureEmailAction,
   sendRelanceEmailAction,
 } from '@/lib/actions/email';
+import { sendFacture } from '@/lib/actions/factures';
 import type { FactureDetail } from '@/lib/queries/factures';
 
 interface FactureDetailActionsProps {
@@ -27,9 +31,36 @@ export function FactureDetailActions({
   facture,
   avoirSurCetteFacture,
 }: FactureDetailActionsProps) {
+  const router = useRouter();
   const [avoirOpen, setAvoirOpen] = useState(false);
   const [emailPending, startEmailTransition] = useTransition();
   const [relancePending, startRelanceTransition] = useTransition();
+  const [sendPending, startSendTransition] = useTransition();
+
+  const isBrouillon = facture.statut === 'a_emettre';
+
+  const handleSendBrouillon = () => {
+    startSendTransition(async () => {
+      const result = await sendFacture(facture.id);
+      if (result.success) {
+        toast.success(
+          result.ref
+            ? `Envoyé : ${result.ref}`
+            : 'Brouillon envoyé avec succès',
+        );
+        if (result.ref) {
+          // Le ref vient d'etre attribue, l'URL doit pointer vers le nouveau
+          // ref (la route etait sur l'ancienne URL UUID-less). Pour les
+          // brouillons sans ref, le detail est probablement accede via l'id.
+          router.replace(`/facturation/${result.ref}`);
+        } else {
+          router.refresh();
+        }
+      } else {
+        toast.error(result.error ?? "Erreur lors de l'envoi");
+      }
+    });
+  };
 
   const handleDownloadPdf = async () => {
     try {
@@ -60,13 +91,42 @@ export function FactureDetailActions({
 
   return (
     <>
+      {/* Bandeau brouillon */}
+      {isBrouillon && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            {
+              'Brouillon non envoyé. Vérifiez puis cliquez sur Envoyer pour finaliser et déclencher la numérotation gapless + l’envoi email.'
+            }
+          </p>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="mb-6 flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
-          <Download className="mr-1.5 h-4 w-4" />
-          Télécharger PDF
-        </Button>
-        {!facture.est_avoir && (
+        {isBrouillon && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSendBrouillon}
+            disabled={sendPending}
+          >
+            {sendPending ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="mr-1.5 h-4 w-4" />
+            )}
+            {sendPending ? 'Envoi en cours...' : 'Envoyer'}
+          </Button>
+        )}
+        {!isBrouillon && (
+          <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
+            <Download className="mr-1.5 h-4 w-4" />
+            Télécharger PDF
+          </Button>
+        )}
+        {!facture.est_avoir && !isBrouillon && (
           <Button
             variant="outline"
             size="sm"
@@ -106,7 +166,7 @@ export function FactureDetailActions({
             {relancePending ? 'Envoi...' : 'Envoyer une relance'}
           </Button>
         )}
-        {!facture.est_avoir && facture.statut !== 'a_emettre' && (
+        {!facture.est_avoir && !isBrouillon && (
           <Button
             variant="outline"
             size="sm"

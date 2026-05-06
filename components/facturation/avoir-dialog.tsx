@@ -132,7 +132,9 @@ export function AvoirDialog({
           note: finalNote || undefined,
         });
         if (result.success) {
-          toast.success(`Avoir ${result.ref} émis avec succès`);
+          toast.success(
+            'Brouillon d’avoir créé. À vérifier puis envoyer dans l’onglet Brouillons.',
+          );
           onOpenChange(false);
           setMotif('');
           setMontantHt(montantHtDefault.toString());

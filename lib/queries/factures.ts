@@ -17,6 +17,7 @@ export async function getFacturesList() {
     )
     .eq('client.is_demo', false)
     .eq('client.archive', false)
+    .neq('statut', 'a_emettre') // exclut les brouillons (vus dans onglet dedie)
     .order('numero_seq', { ascending: false });
   if (error) {
     logger.error('queries.factures', 'getFacturesList failed', { error });
@@ -32,6 +33,37 @@ export async function getFacturesList() {
 export type FactureListItem = Awaited<
   ReturnType<typeof getFacturesList>
 >[number];
+
+// ---------------------------------------------------------------------------
+// Brouillons : factures en statut 'a_emettre' (creees mais pas encore
+// envoyees). Affiches dans l'onglet Brouillons de /facturation pour
+// verification + envoi. Inclut clients demo (pour le smoke-test).
+// ---------------------------------------------------------------------------
+export async function getBrouillons() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('factures')
+    .select(
+      `
+      id, date_emission, date_echeance, mois_concerne,
+      montant_ht, taux_tva, montant_tva, montant_ttc,
+      est_avoir, avoir_motif, facture_origine_id, created_at,
+      projet:projets!factures_projet_id_fkey(id, ref, billing_mode),
+      client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, is_demo),
+      lignes:facture_lignes(id, description, montant_ht, event_type, event_source_id,
+        contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
+    `,
+    )
+    .eq('statut', 'a_emettre')
+    .order('created_at', { ascending: true });
+  if (error) {
+    logger.error('queries.factures', 'getBrouillons failed', { error });
+    return [];
+  }
+  return data ?? [];
+}
+
+export type BrouillonItem = Awaited<ReturnType<typeof getBrouillons>>[number];
 
 export async function getFactureByRef(ref: string) {
   const supabase = await createClient();

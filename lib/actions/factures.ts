@@ -11,12 +11,21 @@ import {
   resolveProjetEcheancier,
   type ContratEcheancierContext,
 } from '@/lib/echeancier/calc';
+import { getBillableEvents } from '@/lib/queries/billable-events';
 
+/**
+ * Cree des factures BROUILLON (statut 'a_emettre') a partir d'echeances
+ * selectionnees. Aucune ref ni email n'est genere a ce stade : il faut
+ * appeler sendFacture(s) ensuite pour finaliser.
+ *
+ * Le statut brouillon permet a l'utilisateur de relire la facture, modifier
+ * les lignes ou supprimer le brouillon sans consommer de numero gapless.
+ */
 export async function createFactures(
   echeanceIds: string[],
-): Promise<{ success: boolean; refs: string[]; error?: string }> {
+): Promise<{ success: boolean; ids: string[]; error?: string }> {
   if (echeanceIds.length === 0) {
-    return { success: false, refs: [], error: 'Aucune échéance sélectionnée' };
+    return { success: false, ids: [], error: 'Aucune échéance sélectionnée' };
   }
 
   const supabase = await createClient();
@@ -24,7 +33,7 @@ export async function createFactures(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { success: false, refs: [], error: 'Non authentifié' };
+  if (!user) return { success: false, ids: [], error: 'Non authentifié' };
 
   // 1. Fetch selected echeances with projet + client + echeancier config
   const { data: echeances, error: fetchError } = await supabase
@@ -41,12 +50,11 @@ export async function createFactures(
     .in('id', echeanceIds)
     .is('facture_id', null);
 
-  if (fetchError)
-    return { success: false, refs: [], error: fetchError.message };
+  if (fetchError) return { success: false, ids: [], error: fetchError.message };
   if (!echeances || echeances.length === 0) {
     return {
       success: false,
-      refs: [],
+      ids: [],
       error: 'Échéances introuvables ou déjà facturées',
     };
   }
@@ -93,7 +101,7 @@ export async function createFactures(
   }
 
   // 3. For each group, create facture + lignes
-  const createdRefs: string[] = [];
+  const createdIds: string[] = [];
 
   for (const group of groups.values()) {
     // Fetch active contrats for this projet (avec champs necessaires au calcul)
@@ -205,7 +213,10 @@ export async function createFactures(
     const dateEcheance = new Date(today.getFullYear(), today.getMonth() + 2, 0);
     const dateEcheanceStr = dateEcheance.toISOString().split('T')[0]!;
 
-    // INSERT facture (trigger generates ref + numero_seq)
+    // INSERT facture en statut 'a_emettre' (brouillon).
+    // Pas de ref/numero_seq attribues a ce stade : le trigger BEFORE INSERT
+    // skip car statut='a_emettre'. La numerotation gapless reste preservee
+    // car un brouillon supprime ne consomme aucun numero.
     const { data: facture, error: insertError } = await supabase
       .from('factures')
       .insert({
@@ -218,17 +229,17 @@ export async function createFactures(
         taux_tva: tauxTva,
         montant_tva: montantTva,
         montant_ttc: montantTtc,
-        statut: 'emise',
+        statut: 'a_emettre',
         est_avoir: false,
         created_by: user.id,
       })
-      .select('id, ref')
+      .select('id')
       .single();
 
     if (insertError || !facture) continue;
 
     // INSERT facture_lignes avec snapshots
-    await supabase.from('facture_lignes').insert(
+    const { error: lignesError } = await supabase.from('facture_lignes').insert(
       lignes.map((l) => ({
         facture_id: facture.id,
         contrat_id: l.contrat_id,
@@ -241,36 +252,38 @@ export async function createFactures(
       })),
     );
 
-    // UPDATE echeances to link
+    if (lignesError) {
+      // Rollback : supprime le brouillon orphelin (autorise tant qu'a_emettre)
+      await supabase.from('factures').delete().eq('id', facture.id);
+      logger.error('actions.factures', 'createFactures lignes insert failed', {
+        factureId: facture.id,
+        error: lignesError,
+      });
+      continue;
+    }
+
+    // UPDATE echeances to link au brouillon
     await supabase
       .from('echeances')
       .update({ facture_id: facture.id, validee: true })
       .in('id', group.echeanceIds);
 
-    createdRefs.push(facture.ref ?? '');
+    createdIds.push(facture.id);
 
-    logAudit('facture_created', 'facture', facture.id, { ref: facture.ref });
-
-    sendEmailForFacture(facture.id, supabase).catch((err) => {
-      logger.error('actions.factures', 'Email fire-and-forget failed', {
-        factureId: facture.id,
-        factureRef: facture.ref,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
+    logAudit('brouillon_created', 'facture', facture.id, { mois: moisLabel });
   }
 
   revalidatePath('/facturation');
 
-  if (createdRefs.length === 0) {
+  if (createdIds.length === 0) {
     return {
       success: false,
-      refs: [],
-      error: 'Aucune facture créée - vérifiez les contrats actifs',
+      ids: [],
+      error: 'Aucun brouillon créé - vérifiez les contrats actifs',
     };
   }
 
-  return { success: true, refs: createdRefs };
+  return { success: true, ids: createdIds };
 }
 
 // ---------------------------------------------------------------------------
@@ -384,7 +397,7 @@ export async function createAvoir(params: {
   motif: string;
   montant: number;
   note?: string;
-}): Promise<{ success: boolean; ref?: string; error?: string }> {
+}): Promise<{ success: boolean; id?: string; error?: string }> {
   const { factureOrigineId, motif, montant, note } = params;
 
   if (!motif) return { success: false, error: 'Motif requis' };
@@ -446,6 +459,9 @@ export async function createAvoir(params: {
   const montantTva = Math.round(montantHt * origine.taux_tva) / 100;
   const montantTtc = Math.round((montantHt + montantTva) * 100) / 100;
 
+  // L'avoir est cree en BROUILLON (statut 'a_emettre' + est_avoir=true).
+  // Le user doit le verifier puis l'envoyer via sendFacture, ce qui
+  // transitionnera le statut vers 'avoir' et attribuera le ref final.
   const { data: avoir, error: insertError } = await supabase
     .from('factures')
     .insert({
@@ -458,7 +474,7 @@ export async function createAvoir(params: {
       taux_tva: origine.taux_tva,
       montant_tva: montantTva,
       montant_ttc: montantTtc,
-      statut: 'avoir',
+      statut: 'a_emettre',
       est_avoir: true,
       avoir_motif: note ? `${motif} - ${note}` : motif,
       facture_origine_id: factureOrigineId,
@@ -491,13 +507,189 @@ export async function createAvoir(params: {
     });
   }
 
-  // Audit log
-  logAudit('avoir_created', 'facture', avoir.id, { ref: avoir.ref });
+  // Audit log : brouillon d'avoir cree, ref final attribue a l'envoi
+  logAudit('brouillon_avoir_created', 'facture', avoir.id, {
+    motif,
+    montant: montantHt,
+  });
 
   revalidatePath('/facturation');
   revalidatePath(`/facturation/${origine.ref}`);
 
-  return { success: true, ref: avoir.ref ?? undefined };
+  return { success: true, id: avoir.id };
+}
+
+// ---------------------------------------------------------------------------
+// sendFacture - transition brouillon (a_emettre) -> emise (ou avoir).
+// ---------------------------------------------------------------------------
+// Au passage de statut, le trigger BEFORE UPDATE attribue ref + numero_seq
+// (gapless). L'email est ensuite envoye en fire-and-forget. Le push Odoo se
+// fera au prochain cron /api/sync/odoo (qui filtre statut IN ('emise','en_retard')
+// et odoo_id IS NULL pour les factures, et est_avoir=true pour les avoirs).
+export async function sendFacture(
+  factureId: string,
+): Promise<{ success: boolean; ref?: string; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  // Verrou + verification
+  const { data: facture, error: fetchError } = await supabase
+    .from('factures')
+    .select('id, statut, est_avoir, montant_ht, montant_ttc')
+    .eq('id', factureId)
+    .single();
+
+  if (fetchError || !facture) {
+    return { success: false, error: 'Facture introuvable' };
+  }
+
+  if (facture.statut !== 'a_emettre') {
+    return {
+      success: false,
+      error: 'La facture n’est pas un brouillon (déjà envoyée ?)',
+    };
+  }
+
+  // Verifie qu'il y a au moins une ligne (eviter d'envoyer un brouillon vide)
+  const { count: lignesCount } = await supabase
+    .from('facture_lignes')
+    .select('id', { count: 'exact', head: true })
+    .eq('facture_id', factureId);
+
+  if (!lignesCount || lignesCount === 0) {
+    return {
+      success: false,
+      error:
+        'Brouillon sans ligne, impossible d’envoyer. Supprimez-le ou ajoutez une ligne.',
+    };
+  }
+
+  // Transition de statut. Le trigger assign_facture_ref_on_send attribue le
+  // ref + numero_seq dans la meme transaction (gapless preserve).
+  const targetStatut = facture.est_avoir ? 'avoir' : 'emise';
+  const { data: updated, error: updateError } = await supabase
+    .from('factures')
+    .update({ statut: targetStatut })
+    .eq('id', factureId)
+    .eq('statut', 'a_emettre') // optimistic lock
+    .select('id, ref, statut')
+    .single();
+
+  if (updateError || !updated) {
+    logger.error('actions.factures', 'sendFacture update failed', {
+      factureId,
+      error: updateError,
+    });
+    return {
+      success: false,
+      error: updateError?.message ?? 'Échec de la mise à jour',
+    };
+  }
+
+  logAudit('facture_sent', 'facture', updated.id, {
+    ref: updated.ref,
+    statut: updated.statut,
+  });
+
+  // Email fire-and-forget : si Resend echoue, on ne casse pas la facture
+  // (facture deja en 'emise' avec ref, l'utilisateur peut renvoyer manuellement).
+  sendEmailForFacture(updated.id, supabase).catch((err) => {
+    logger.error('actions.factures', 'Email fire-and-forget failed', {
+      factureId: updated.id,
+      factureRef: updated.ref,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+
+  revalidatePath('/facturation');
+  revalidatePath(`/facturation/${updated.ref}`);
+
+  return { success: true, ref: updated.ref ?? undefined };
+}
+
+// ---------------------------------------------------------------------------
+// sendFacturesBulk - itere sendFacture sur N brouillons. Continue meme si
+// une transition echoue, retourne le detail.
+// ---------------------------------------------------------------------------
+export async function sendFacturesBulk(factureIds: string[]): Promise<{
+  success: boolean;
+  sent: { id: string; ref: string }[];
+  errors: { id: string; error: string }[];
+}> {
+  if (factureIds.length === 0) {
+    return { success: false, sent: [], errors: [] };
+  }
+  const sent: { id: string; ref: string }[] = [];
+  const errors: { id: string; error: string }[] = [];
+  for (const id of factureIds) {
+    const r = await sendFacture(id);
+    if (r.success && r.ref) sent.push({ id, ref: r.ref });
+    else errors.push({ id, error: r.error ?? 'Erreur inconnue' });
+  }
+  return { success: errors.length === 0, sent, errors };
+}
+
+// ---------------------------------------------------------------------------
+// deleteBrouillon - supprime un brouillon (statut a_emettre uniquement).
+// ---------------------------------------------------------------------------
+// Autorise car aucun ref/numero_seq n'a ete attribue : pas d'impact gapless.
+// Les facture_lignes sont supprimees par CASCADE. Les echeances liees sont
+// detachees (facture_id remis a NULL, validee=false).
+export async function deleteBrouillon(
+  factureId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  const { data: facture, error: fetchError } = await supabase
+    .from('factures')
+    .select('id, statut')
+    .eq('id', factureId)
+    .single();
+
+  if (fetchError || !facture) {
+    return { success: false, error: 'Facture introuvable' };
+  }
+
+  if (facture.statut !== 'a_emettre') {
+    return {
+      success: false,
+      error:
+        'Seuls les brouillons peuvent être supprimés. Pour annuler une facture émise, créez un avoir.',
+    };
+  }
+
+  // Detache les echeances liees (validee=false, facture_id=NULL)
+  await supabase
+    .from('echeances')
+    .update({ facture_id: null, validee: false })
+    .eq('facture_id', factureId);
+
+  // Supprime les lignes (puis la facture). CASCADE serait plus propre mais
+  // on est explicite ici pour eviter les surprises.
+  await supabase.from('facture_lignes').delete().eq('facture_id', factureId);
+
+  const { error: deleteError } = await supabase
+    .from('factures')
+    .delete()
+    .eq('id', factureId)
+    .eq('statut', 'a_emettre'); // garde-fou
+
+  if (deleteError) {
+    return { success: false, error: deleteError.message };
+  }
+
+  logAudit('brouillon_deleted', 'facture', factureId, {});
+  revalidatePath('/facturation');
+  return { success: true };
 }
 
 export async function addManualPayment(params: {
@@ -581,4 +773,215 @@ export async function addManualPayment(params: {
   revalidatePath(`/facturation/${facture.ref}`);
 
   return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// createFactureFromEvents - facturation manuelle event-based (mode 'manual')
+// ---------------------------------------------------------------------------
+// Cree un brouillon de facture (statut 'a_emettre') depuis une selection
+// d'evenements facturables (engagements ou opco_steps). Une seule facture
+// est produite, avec une ligne par event. Le ref final est attribue a
+// l'envoi via sendFacture.
+//
+// Idempotence : la UNIQUE INDEX uq_facture_lignes_event_live garantit qu'un
+// event ne peut etre dans deux lignes "live" en meme temps. Si un autre
+// utilisateur facture le meme event en parallele, l'INSERT echoue, on
+// rollback proprement.
+//
+// Regle d'exclusion engagement <-> opco_step : appliquee cote query
+// (getBillableEvents marque le type oppose comme 'locked' si l'autre est
+// deja facture). Cote action, on re-verifie en fetchant l'etat live.
+
+export interface SelectedEvent {
+  type: 'engagement' | 'opco_step';
+  source_id: string;
+}
+
+export async function createFactureFromEvents(params: {
+  projetId: string;
+  events: SelectedEvent[];
+}): Promise<{ success: boolean; id?: string; error?: string }> {
+  const { projetId, events } = params;
+
+  if (!projetId) {
+    return { success: false, error: 'Projet manquant' };
+  }
+  if (!events || events.length === 0) {
+    return { success: false, error: 'Aucun événement sélectionné' };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Non authentifié' };
+
+  // 1. Recharge l'etat live des events (anti-stale UI)
+  const live = await getBillableEvents(projetId);
+  if (!live) {
+    return { success: false, error: 'Projet introuvable' };
+  }
+
+  // 2. Index par (type, source_id) pour acces O(1)
+  const liveByKey = new Map(
+    live.events.map((e) => [`${e.type}::${e.source_id}`, e]),
+  );
+
+  // 3. Verifie chaque event selectionne : doit etre 'available'
+  const resolved: typeof live.events = [];
+  for (const sel of events) {
+    const e = liveByKey.get(`${sel.type}::${sel.source_id}`);
+    if (!e) {
+      return {
+        success: false,
+        error: `Événement introuvable : ${sel.type}/${sel.source_id}`,
+      };
+    }
+    if (e.status === 'billed') {
+      return {
+        success: false,
+        error: `Déjà facturé sur ${e.billed_on?.facture_ref ?? 'un brouillon'} : ${e.apprenant_prenom} ${e.apprenant_nom}`,
+      };
+    }
+    if (e.status === 'locked') {
+      const opp = e.type === 'engagement' ? 'règlements OPCO' : 'engagement';
+      return {
+        success: false,
+        error: `Verrouillé : ${e.apprenant_prenom} ${e.apprenant_nom} a déjà été facturé via ${opp} (${e.locked_by?.facture_ref ?? '-'})`,
+      };
+    }
+    resolved.push(e);
+  }
+
+  // 4. Verifie l'exclusion engagement <-> opco_step DANS la selection
+  //    (un meme contrat ne peut pas avoir engagement + opco_step coches en
+  //    meme temps - on tient ca cote front aussi mais ceinture+bretelle).
+  const typesByContrat = new Map<string, Set<string>>();
+  for (const e of resolved) {
+    let s = typesByContrat.get(e.contrat_id);
+    if (!s) {
+      s = new Set();
+      typesByContrat.set(e.contrat_id, s);
+    }
+    s.add(e.type);
+  }
+  for (const [cid, types] of typesByContrat) {
+    if (types.has('engagement') && types.has('opco_step')) {
+      const e = resolved.find((x) => x.contrat_id === cid);
+      return {
+        success: false,
+        error: `Sélection invalide : ${e?.apprenant_prenom ?? ''} ${e?.apprenant_nom ?? ''} a un engagement ET un règlement OPCO cochés. Choisissez l'un OU l'autre.`,
+      };
+    }
+  }
+
+  // 5. Recupere client_id du projet
+  const { data: projet } = await supabase
+    .from('projets')
+    .select('id, client_id, taux_commission')
+    .eq('id', projetId)
+    .single();
+  if (!projet) return { success: false, error: 'Projet introuvable' };
+
+  const taux = Number(projet.taux_commission ?? live.tauxCommission);
+
+  // 6. Calcule montants
+  const totalHt =
+    Math.round(resolved.reduce((s, e) => s + e.montant_commissionne, 0) * 100) /
+    100;
+  const tauxTva = 20;
+  const montantTva = Math.round(totalHt * tauxTva) / 100;
+  const montantTtc = Math.round((totalHt + montantTva) * 100) / 100;
+
+  if (totalHt <= 0) {
+    return { success: false, error: 'Montant total nul ou négatif' };
+  }
+
+  const today = new Date();
+  const dateEcheance = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+  const dateEcheanceStr = dateEcheance.toISOString().split('T')[0]!;
+
+  // 7. INSERT brouillon
+  const { data: facture, error: insertError } = await supabase
+    .from('factures')
+    .insert({
+      projet_id: projetId,
+      client_id: projet.client_id,
+      date_emission: new Date().toISOString().split('T')[0]!,
+      date_echeance: dateEcheanceStr,
+      mois_concerne: new Date().toISOString().slice(0, 7), // YYYY-MM
+      montant_ht: totalHt,
+      taux_tva: tauxTva,
+      montant_tva: montantTva,
+      montant_ttc: montantTtc,
+      statut: 'a_emettre',
+      est_avoir: false,
+      created_by: user.id,
+    })
+    .select('id')
+    .single();
+
+  if (insertError || !facture) {
+    return {
+      success: false,
+      error: insertError?.message ?? 'Échec de la création',
+    };
+  }
+
+  // 8. INSERT lignes avec event_type + event_source_id
+  //    L'index UNIQUE partial peut rejeter si race condition - on rollback.
+  const lignes = resolved.map((e) => {
+    const typeLabel =
+      e.type === 'engagement'
+        ? 'Engagement contrat'
+        : `Règlement OPCO #${e.step_number ?? '?'}`;
+    const idLabel = e.contract_number ?? e.contrat_ref ?? '-';
+    const apprenant = `${e.apprenant_prenom} ${e.apprenant_nom}`.trim();
+    return {
+      facture_id: facture.id,
+      contrat_id: e.contrat_id,
+      description: `Commission ${taux}% - ${typeLabel} - ${apprenant} - ${idLabel}`,
+      montant_ht: e.montant_commissionne,
+      mois_relatif: e.step_number ?? 0,
+      quote_part: taux / 100,
+      npec_snapshot: e.montant_brut,
+      taux_commission_snapshot: taux,
+      event_type: e.type,
+      event_source_id: e.source_id,
+    };
+  });
+
+  const { error: lignesError } = await supabase
+    .from('facture_lignes')
+    .insert(lignes);
+
+  if (lignesError) {
+    // Race condition (UNIQUE viole) ou autre : on supprime le brouillon
+    await supabase.from('factures').delete().eq('id', facture.id);
+    logger.error('actions.factures', 'createFactureFromEvents lignes failed', {
+      factureId: facture.id,
+      error: lignesError,
+    });
+    // Detection race condition
+    if (lignesError.code === '23505') {
+      return {
+        success: false,
+        error:
+          'Un événement a été facturé en parallèle par un autre utilisateur. Recharger la page et réessayer.',
+      };
+    }
+    return { success: false, error: lignesError.message };
+  }
+
+  logAudit('manual_brouillon_created', 'facture', facture.id, {
+    eventCount: resolved.length,
+    montantHt: totalHt,
+    types: Array.from(new Set(resolved.map((e) => e.type))),
+  });
+
+  revalidatePath('/facturation');
+  revalidatePath(`/projets/${live.projetRef}`);
+
+  return { success: true, id: facture.id };
 }

@@ -195,7 +195,7 @@ export function ProspectDetailSheet({
                   label="Dirigeant"
                   value={`${prospect.dirigeant_nom}${
                     prospect.dirigeant_poste
-                      ? ` — ${prospect.dirigeant_poste}`
+                      ? `, ${prospect.dirigeant_poste}`
                       : ''
                   }`}
                   wide
@@ -316,7 +316,7 @@ export function ProspectDetailSheet({
                   <p className="text-sm font-medium">Prêt à être converti</p>
                   <p className="text-muted-foreground mt-0.5 text-xs">
                     Ce prospect est signé. Crée une fiche client avec un
-                    trigramme auto-généré — le projet CFA pourra être lancé
+                    trigramme auto-généré : le projet CFA pourra être lancé
                     depuis la page Clients.
                   </p>
                 </div>

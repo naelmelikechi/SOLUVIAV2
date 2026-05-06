@@ -12,7 +12,7 @@ import { isContratActif } from '@/lib/utils/contrat-states';
 export interface VoletPerformance {
   // valeur % numerique (null si pas calculable). Pour rentabilite: % marge.
   value: number | null;
-  // affichage formate (ex "85 %", "42,80 €/h", "—")
+  // affichage formate (ex "85 %", "42,80 €/h", "-")
   display: string;
   // good/warn/bad pour la couleur. Neutral si pas de seuil.
   status: 'good' | 'warn' | 'bad' | 'neutral';
@@ -33,14 +33,14 @@ export interface ProjetPerformance {
 
 const NULL_VOLET = (formula: string): VoletPerformance => ({
   value: null,
-  display: '—',
+  display: '-',
   status: 'neutral',
   formula,
   detail: 'Données insuffisantes',
 });
 
 function pct(n: number | null): string {
-  if (n == null) return '—';
+  if (n == null) return '-';
   return `${Math.round(n)} %`;
 }
 

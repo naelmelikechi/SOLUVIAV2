@@ -9,7 +9,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
-import { formatCurrency, formatDate } from '@/lib/utils/formatters';
+import {
+  formatCurrency,
+  formatDate,
+  formatPercent,
+} from '@/lib/utils/formatters';
 import { resolveAjustement } from '@/lib/actions/echeanciers';
 import type { AjustementPending } from '@/lib/queries/ajustements';
 
@@ -173,8 +177,8 @@ export function AjustementsList({ ajustements }: Props) {
                         ) : (
                           <span className="text-muted-foreground tabular-nums">
                             facture {formatCurrency(b.montant_facture ?? 0)} ·
-                            réalisé {((b.pct_realise ?? 0) * 100).toFixed(0)}% ·
-                            avoir{' '}
+                            réalisé {formatPercent((b.pct_realise ?? 0) * 100)}{' '}
+                            · avoir{' '}
                             <span className="font-semibold text-[var(--destructive)]">
                               {formatCurrency(b.montant_avoir ?? 0)}
                             </span>

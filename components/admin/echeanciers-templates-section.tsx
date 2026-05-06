@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { StatusBadge } from '@/components/shared/status-badge';
 import { parseJalons, validateJalons, type Jalon } from '@/lib/echeancier/calc';
 import {
   archiveEcheancierTemplate,
@@ -103,9 +102,34 @@ export function EcheanciersTemplatesSection({ templates }: Props) {
                       <div className="flex items-center gap-2">
                         <Calendar className="text-primary h-4 w-4" />
                         <span className="text-sm font-semibold">{t.nom}</span>
-                        {t.is_default && (
-                          <StatusBadge label="Par défaut" color="green" />
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => !t.is_default && setDefault(t.id)}
+                          disabled={pending || t.is_default}
+                          title={
+                            t.is_default
+                              ? 'Template par défaut'
+                              : 'Définir par défaut'
+                          }
+                          aria-label={
+                            t.is_default
+                              ? 'Template par défaut'
+                              : 'Définir par défaut'
+                          }
+                          className={cn(
+                            'inline-flex items-center justify-center rounded-md p-1 transition-colors',
+                            t.is_default
+                              ? 'cursor-default'
+                              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                          )}
+                        >
+                          <Star
+                            className={cn(
+                              'h-3.5 w-3.5',
+                              t.is_default && 'fill-yellow-400 text-yellow-400',
+                            )}
+                          />
+                        </button>
                       </div>
                       {t.description ? (
                         <p className="text-muted-foreground mt-1 text-xs">
@@ -117,17 +141,6 @@ export function EcheanciersTemplatesSection({ templates }: Props) {
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
-                      {!t.is_default && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDefault(t.id)}
-                          disabled={pending}
-                          title="Définir par défaut"
-                        >
-                          <Star className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
                       <Button
                         variant="ghost"
                         size="sm"

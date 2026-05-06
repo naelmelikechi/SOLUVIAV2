@@ -241,7 +241,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                               </TooltipContent>
                             </Tooltip>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
                         <TableCell className="text-sm tabular-nums">

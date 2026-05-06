@@ -267,7 +267,7 @@ export function TimeGrid({
                         return (
                           <span
                             className={cn(
-                              'text-muted-foreground truncate text-xs',
+                              'text-muted-foreground min-w-0 flex-1 truncate text-xs',
                               saisie.est_interne && 'italic',
                             )}
                           >
@@ -276,7 +276,7 @@ export function TimeGrid({
                         );
                       })()}
                       {saisie.est_interne && (
-                        <span className="text-muted-foreground ml-auto rounded bg-[var(--card-alt)] px-1.5 py-0.5 text-[9px] font-semibold tracking-wider uppercase">
+                        <span className="text-muted-foreground shrink-0 rounded bg-[var(--card-alt)] px-1.5 py-0.5 text-[9px] font-semibold tracking-wider uppercase">
                           Interne
                         </span>
                       )}

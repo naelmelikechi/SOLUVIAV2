@@ -133,7 +133,7 @@ export default async function CriterionPage({
         />
         <MetricTile
           label="Prochaine échéance"
-          value={nextExpiry ? formatDateFr(nextExpiry) : '—'}
+          value={nextExpiry ? formatDateFr(nextExpiry) : '-'}
           sub={nextExpiry ? '' : 'Aucune'}
         />
       </div>

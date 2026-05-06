@@ -6,18 +6,22 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-export const metadata: Metadata = { title: 'Qualiopi - SOLUVIA' };
+export const metadata: Metadata = { title: 'Qualité - SOLUVIA' };
 export const revalidate = 60;
 
 export default async function QualiopiHomePage() {
-  const clients = await getQualiopiClients();
+  const allClients = await getQualiopiClients();
+  // Le pseudo-client "Interne SOLUVIA" (trigramme INT) n'a pas vocation
+  // a avoir une cle Eduvia : c'est le bucket des projets internes (R&D,
+  // formations internes, etc.).
+  const clients = allClients.filter((c) => c.trigramme !== 'INT');
   const configured = clients.filter((c) => c.has_api_key);
   const missing = clients.filter((c) => !c.has_api_key);
 
   return (
     <div>
       <PageHeader
-        title="Qualiopi"
+        title="Qualité"
         description="Suivi de la conformité Qualiopi des CFA via Eduvia"
       />
 

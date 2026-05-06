@@ -298,7 +298,7 @@ function FormView({ absence, initialDate, onCancel, onSaved }: FormViewProps) {
 
   const handleSubmit = useCallback(() => {
     if (sameDay && demiJourDebut && demiJourFin) {
-      toast.error('Un seul jour ne peut pas etre demi-journee aux deux bornes');
+      toast.error('Un seul jour ne peut pas être demi-journée aux deux bornes');
       return;
     }
     startTransition(async () => {
@@ -313,10 +313,10 @@ function FormView({ absence, initialDate, onCancel, onSaved }: FormViewProps) {
         ? await updateAbsenceAction(absence!.id, data)
         : await createAbsenceAction(data);
       if (result.success) {
-        toast.success(isEdit ? 'Absence mise a jour' : 'Absence enregistree');
+        toast.success(isEdit ? 'Absence mise à jour' : 'Absence enregistrée');
         onSaved();
       } else {
-        toast.error(result.error ?? 'Erreur lors de l enregistrement');
+        toast.error(result.error ?? "Erreur lors de l'enregistrement");
       }
     });
   }, [
@@ -347,7 +347,7 @@ function FormView({ absence, initialDate, onCancel, onSaved }: FormViewProps) {
     startTransition(async () => {
       const result = await deleteAbsenceAction(absence.id);
       if (result.success) {
-        toast.success('Absence supprimee');
+        toast.success('Absence supprimée');
         onSaved();
       } else {
         toast.error(result.error ?? 'Erreur lors de la suppression');

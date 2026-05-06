@@ -107,15 +107,17 @@ export function Topbar({
             &#8984;K
           </kbd>
         </button>
-        <Link href="/notifications" aria-label="Notifications">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-[18px] w-[18px]" />
-            {badgeCounts.notifications > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-bold text-white">
-                {badgeCounts.notifications}
-              </span>
-            )}
-          </Button>
+        <Link
+          href="/notifications"
+          aria-label="Notifications"
+          className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring relative inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <Bell className="h-[18px] w-[18px]" />
+          {badgeCounts.notifications > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-bold text-white">
+              {badgeCounts.notifications}
+            </span>
+          )}
         </Link>
       </div>
     </header>

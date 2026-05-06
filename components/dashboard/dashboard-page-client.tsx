@@ -664,9 +664,9 @@ export function DashboardPageClient({
           {wrapKpi(
             'formationsEnCours',
             <KpiCard
-              label="Formations en cours"
+              label="Formations"
               value={String(nbFormationsEnCours)}
-              subtitle="distinctes (Eduvia)"
+              subtitle="en cours (Eduvia)"
               icon={BookOpen}
               color="blue"
             />,

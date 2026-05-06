@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { History } from 'lucide-react';
+import { History, CalendarClock } from 'lucide-react';
 import {
   getParametresByCategorie,
   getTypologies,
@@ -17,7 +17,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { ParametresForm } from '@/components/admin/parametres-form';
 import { EmployeeCostDefaultsForm } from '@/components/admin/employee-cost-defaults-form';
 import { EcheanciersTemplatesSection } from '@/components/admin/echeanciers-templates-section';
-import { Card } from '@/components/ui/card';
+import { SectionCard } from '@/components/admin/section-card';
 
 export const metadata: Metadata = { title: 'Paramètres - SOLUVIA' };
 
@@ -69,7 +69,7 @@ export default async function ParametresPage() {
           Historique
         </Link>
       </PageHeader>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <ParametresForm
           entreprise={entreprise}
           facturation={facturation}
@@ -79,12 +79,9 @@ export default async function ParametresPage() {
           lastEduviaSyncDate={lastEduviaSyncDate}
         />
         <EmployeeCostDefaultsForm initial={costDefaults} />
-        <Card className="p-6">
-          <h2 className="mb-4 text-lg font-semibold">
-            Échéanciers de facturation
-          </h2>
+        <SectionCard icon={CalendarClock} title="Échéanciers de facturation">
           <EcheanciersTemplatesSection templates={echeancierTemplates} />
-        </Card>
+        </SectionCard>
       </div>
     </div>
   );

@@ -8,15 +8,13 @@ import {
   Tag,
   Clock,
   Calendar,
-  Link,
+  Plug,
   RefreshCw,
-  ChevronDown,
-  ChevronRight,
   Loader2,
   CheckCircle2,
   AlertTriangle,
 } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { SectionCard } from '@/components/admin/section-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,7 +29,10 @@ import {
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { createClient } from '@/lib/supabase/client';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { formatDate } from '@/lib/utils/formatters';
+import { cn } from '@/lib/utils';
 import {
   triggerOdooSync,
   triggerEduviaSync,
@@ -51,42 +52,6 @@ interface ParametresFormProps {
   }[];
   joursFeries: { id: string; date: string; libelle: string }[];
   lastEduviaSyncDate: string | null;
-}
-
-function SectionCard({
-  icon: Icon,
-  title,
-  children,
-  defaultOpen = true,
-  muted = false,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-  muted?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <Card className={muted ? 'opacity-60' : undefined}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full cursor-pointer items-center gap-2 px-4 text-left"
-      >
-        {open ? (
-          <ChevronDown className="text-muted-foreground h-4 w-4 shrink-0" />
-        ) : (
-          <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
-        )}
-        <Icon className="h-4 w-4 shrink-0" />
-        <span className="text-sm font-semibold">{title}</span>
-      </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
-    </Card>
-  );
 }
 
 export function ParametresForm({
@@ -306,7 +271,7 @@ export function ParametresForm({
 
       {/* Section 3: Typologies de projet */}
       <SectionCard icon={Tag} title="Typologies de projet">
-        <div className="border-border overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -337,7 +302,7 @@ export function ParametresForm({
 
       {/* Section 4: Axes de temps */}
       <SectionCard icon={Clock} title="Axes de temps">
-        <div className="border-border overflow-x-auto rounded-lg border">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -377,16 +342,40 @@ export function ParametresForm({
 
       {/* Section 5: Jours fériés */}
       <SectionCard icon={Calendar} title="Jours fériés 2026">
-        <div className="grid gap-x-8 gap-y-1.5 sm:grid-cols-2">
-          {joursFeries.map((jour) => (
-            <div key={jour.id} className="flex items-center gap-3 py-1">
-              <span className="w-20 shrink-0 font-mono text-sm font-medium">
-                {formatDate(jour.date)}
-              </span>
-              <span className="text-muted-foreground text-sm">-</span>
-              <span className="text-sm">{jour.libelle}</span>
-            </div>
-          ))}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {joursFeries.map((jour) => {
+            const d = new Date(jour.date + 'T00:00:00');
+            const isPast = d.getTime() < new Date().setHours(0, 0, 0, 0);
+            const day = format(d, 'd', { locale: fr });
+            const month = format(d, 'MMM', { locale: fr }).replace('.', '');
+            const weekday = format(d, 'EEEE', { locale: fr });
+            return (
+              <div
+                key={jour.id}
+                className={cn(
+                  'bg-card flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors',
+                  isPast
+                    ? 'opacity-50'
+                    : 'hover:border-foreground/20 hover:bg-accent/40',
+                )}
+              >
+                <div className="bg-background flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md border">
+                  <span className="text-muted-foreground text-[9px] leading-none font-semibold tracking-wider uppercase">
+                    {month}
+                  </span>
+                  <span className="text-base leading-tight font-semibold tabular-nums">
+                    {day}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{jour.libelle}</p>
+                  <p className="text-muted-foreground text-xs capitalize">
+                    {weekday}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </SectionCard>
 
@@ -485,7 +474,7 @@ export function ParametresForm({
       </SectionCard>
 
       {/* Section 7: Intégration Odoo */}
-      <SectionCard icon={Link} title="Odoo">
+      <SectionCard icon={Plug} title="Odoo">
         <div className="space-y-3">
           <p className="text-muted-foreground text-sm">
             Synchronisation Odoo : pousse les factures vers Odoo et tire les
@@ -521,7 +510,7 @@ export function ParametresForm({
               {pingPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Test...
+                  Test en cours...
                 </>
               ) : (
                 'Tester la connexion'

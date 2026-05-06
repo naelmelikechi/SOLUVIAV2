@@ -341,7 +341,7 @@ export async function computeProrataAvoir(params: {
     if (!c?.date_debut || !c?.duree_mois) {
       breakdown.push({
         contratRef: c?.ref ?? null,
-        apprenant: apprenant || '—',
+        apprenant: apprenant || '-',
         montantLigneHt: montantLigne,
         dureeRealiseeMois: 0,
         dureeTotaleMois: 0,
@@ -363,7 +363,7 @@ export async function computeProrataAvoir(params: {
 
     breakdown.push({
       contratRef: c.ref ?? null,
-      apprenant: apprenant || '—',
+      apprenant: apprenant || '-',
       montantLigneHt: montantLigne,
       dureeRealiseeMois: Math.round(realiseeMois * 10) / 10,
       dureeTotaleMois: c.duree_mois,

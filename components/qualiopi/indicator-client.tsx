@@ -26,6 +26,7 @@ import {
 import type { QualiopiAssignment } from '@/lib/queries/qualiopi';
 import type { ActiveUserMinimal } from '@/lib/queries/users';
 import { assignIndicatorResponsible } from '@/lib/actions/qualiopi';
+import { formatDateShort } from '@/lib/utils/formatters';
 
 interface IndicatorClientProps {
   clientId: string;
@@ -193,7 +194,12 @@ function EvidencesPanel({
       <div className="border-b border-[var(--border-light)] px-4 py-3">
         <div className="mb-1 flex items-start justify-between gap-2">
           <h3 className="text-sm font-semibold">{deliverable.title}</h3>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label="Fermer"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -234,8 +240,10 @@ function EvidencesPanel({
                 />
               </div>
               <div className="text-muted-foreground text-xs">
-                Déposé le {formatDate(e.created_at)}
-                {e.expires_at ? ` · Expire le ${formatDate(e.expires_at)}` : ''}
+                Déposé le {formatDateShort(e.created_at)}
+                {e.expires_at
+                  ? ` · Expire le ${formatDateShort(e.expires_at)}`
+                  : ''}
               </div>
             </div>
           ))
@@ -243,15 +251,6 @@ function EvidencesPanel({
       </div>
     </Card>
   );
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
 }
 
 // ---------------------------------------------------------------------------

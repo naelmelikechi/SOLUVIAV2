@@ -26,8 +26,16 @@ export function formatDateLong(date: string | Date): string {
   return format(d, 'd MMMM yyyy', { locale: fr });
 }
 
-export function formatPercent(value: number): string {
-  return `${Math.round(value)}%`;
+export function formatPercent(value: number, decimals = 0): string {
+  return `${value.toFixed(decimals)}%`;
+}
+
+export function formatDateShort(date: string | Date): string {
+  const d =
+    typeof date === 'string'
+      ? new Date(date + (date.length === 10 ? 'T00:00:00' : ''))
+      : date;
+  return format(d, 'dd/MM/yyyy', { locale: fr });
 }
 
 export function formatHeures(h: number): string {

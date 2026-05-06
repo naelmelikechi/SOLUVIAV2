@@ -235,22 +235,22 @@ export const RECURRENCE_LABELS: Record<DeliverableRecurrence, string> = {
   per_cohort: 'Par cohorte',
   per_incident: 'Par incident',
   per_subcontractor: 'Par sous-traitant',
-  on_change: 'A chaque changement',
+  on_change: 'À chaque changement',
 };
 
 /** Label francais pour les statuts livrable */
 export const DELIVERABLE_STATUS_LABELS: Record<DeliverableStatusValue, string> =
   {
     missing: 'Manquant',
-    to_review: 'A valider',
+    to_review: 'À valider',
     conform: 'Conforme',
-    rejected: 'Rejete',
-    expired: 'Expire',
+    rejected: 'Rejeté',
+    expired: 'Expiré',
   };
 
 export const EVIDENCE_STATUS_LABELS: Record<EvidenceStatus, string> = {
-  to_review: 'A valider',
+  to_review: 'À valider',
   conform: 'Conforme',
-  rejected: 'Rejete',
-  expired: 'Expire',
+  rejected: 'Rejeté',
+  expired: 'Expiré',
 };

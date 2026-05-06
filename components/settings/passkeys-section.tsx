@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { deletePasskey } from '@/lib/actions/passkeys';
 import type { PasskeyRow } from '@/lib/queries/passkeys';
+import { formatDate } from '@/lib/utils/formatters';
 
 function defaultDeviceName() {
   if (typeof navigator === 'undefined') return 'Passkey';
@@ -34,15 +35,6 @@ function defaultDeviceName() {
   if (/Windows/.test(ua)) return 'Windows (Hello)';
   if (/Android/.test(ua)) return 'Android';
   return 'Passkey';
-}
-
-function formatDate(iso: string | null) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {

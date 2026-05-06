@@ -5,7 +5,7 @@ import { Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
+import { SectionCard } from '@/components/admin/section-card';
 import { toast } from 'sonner';
 import { updateEmployeeCostDefaults } from '@/lib/actions/employee-cost';
 import {
@@ -98,16 +98,12 @@ export function EmployeeCostDefaultsForm({ initial }: Props) {
   };
 
   return (
-    <Card className="space-y-4 p-4">
-      <div className="flex items-center gap-2">
-        <Wallet className="h-4 w-4" />
-        <h3 className="text-sm font-semibold">Coût employé par défaut</h3>
-      </div>
+    <SectionCard icon={Wallet} title="Coût employé par défaut">
       <p className="text-muted-foreground text-xs">
         Valeurs utilisées quand un CDP n&apos;a pas de coût personnalisé saisi
         sur sa fiche. Sert au calcul de rentabilité projet.
       </p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {FIELDS.map((f) => (
           <div key={f.key} className="space-y-1">
             <Label htmlFor={`def-${f.key}`} className="text-xs">
@@ -132,7 +128,7 @@ export function EmployeeCostDefaultsForm({ initial }: Props) {
           </div>
         ))}
       </div>
-      <div className="bg-muted/50 flex items-center justify-between rounded-md p-3 text-xs">
+      <div className="bg-muted/50 mt-4 flex items-center justify-between rounded-md p-3 text-xs">
         <span className="text-muted-foreground">
           Coût total annuel :{' '}
           {Math.round(breakdown.coutTotalAnnuel).toLocaleString('fr-FR')} € ·{' '}
@@ -142,11 +138,11 @@ export function EmployeeCostDefaultsForm({ initial }: Props) {
           {breakdown.coutHoraire.toFixed(2)} €/h calculé
         </span>
       </div>
-      <div className="flex justify-end">
+      <div className="mt-4 flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
           {saving ? 'Enregistrement...' : 'Enregistrer les défauts'}
         </Button>
       </div>
-    </Card>
+    </SectionCard>
   );
 }

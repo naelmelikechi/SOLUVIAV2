@@ -191,10 +191,14 @@ export function FacturePaiements({
               <p className="text-sm font-medium">Nouveau paiement</p>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-1">
-                  <label className="text-muted-foreground text-xs font-medium">
+                  <label
+                    htmlFor="paiement-montant"
+                    className="text-muted-foreground text-xs font-medium"
+                  >
                     Montant (EUR)
                   </label>
                   <Input
+                    id="paiement-montant"
                     type="number"
                     step="0.01"
                     min="0.01"
@@ -205,10 +209,14 @@ export function FacturePaiements({
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-muted-foreground text-xs font-medium">
+                  <label
+                    htmlFor="paiement-date"
+                    className="text-muted-foreground text-xs font-medium"
+                  >
                     Date de réception
                   </label>
                   <Input
+                    id="paiement-date"
                     type="date"
                     value={dateReception}
                     onChange={(e) => setDateReception(e.target.value)}

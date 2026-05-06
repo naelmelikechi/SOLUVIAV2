@@ -35,16 +35,16 @@ INSERT INTO projets (ref, client_id, typologie_id, statut, est_absence) VALUES
 -- French bank holidays 2026
 INSERT INTO jours_feries (date, libelle, annee) VALUES
   ('2026-01-01', 'Jour de l''An', 2026),
-  ('2026-04-06', 'Lundi de Paques', 2026),
-  ('2026-05-01', 'Fete du Travail', 2026),
+  ('2026-04-06', 'Lundi de Pâques', 2026),
+  ('2026-05-01', 'Fête du Travail', 2026),
   ('2026-05-08', 'Victoire 1945', 2026),
   ('2026-05-14', 'Ascension', 2026),
-  ('2026-05-25', 'Lundi de Pentecote', 2026),
-  ('2026-07-14', 'Fete Nationale', 2026),
+  ('2026-05-25', 'Lundi de Pentecôte', 2026),
+  ('2026-07-14', 'Fête Nationale', 2026),
   ('2026-08-15', 'Assomption', 2026),
   ('2026-11-01', 'Toussaint', 2026),
   ('2026-11-11', 'Armistice', 2026),
-  ('2026-12-25', 'Noel', 2026);
+  ('2026-12-25', 'Noël', 2026);
 
 -- Default system parameters
 INSERT INTO parametres (cle, valeur, categorie, description) VALUES

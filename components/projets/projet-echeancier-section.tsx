@@ -346,6 +346,7 @@ function EcheancierDialog({
                         })
                       }
                       className="w-20"
+                      aria-label="Mois relatif"
                     />
                     <Input
                       type="number"
@@ -359,6 +360,7 @@ function EcheancierDialog({
                         })
                       }
                       className="w-20"
+                      aria-label="Quote-part (douzièmes)"
                     />
                     <span className="text-muted-foreground text-xs">/12</span>
                     <Input
@@ -369,11 +371,13 @@ function EcheancierDialog({
                         updateJalon(idx, { label: e.target.value || undefined })
                       }
                       className="flex-1"
+                      aria-label="Label du jalon"
                     />
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => removeJalon(idx)}
+                      aria-label="Supprimer ce jalon"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

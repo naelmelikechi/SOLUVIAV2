@@ -94,7 +94,7 @@ function VoletCard({
             ? 'À minimiser'
             : volet.status === 'neutral'
               ? 'Données insuffisantes'
-              : '0 — 100 % · à maximiser'}
+              : '0 à 100 % · à maximiser'}
         </p>
       </div>
     </Card>

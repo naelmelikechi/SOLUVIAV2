@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { formatPercent } from '@/lib/utils/formatters';
 import {
   STAGE_PROSPECT_ORDER,
   STAGE_PROSPECT_LABELS,
@@ -417,7 +418,7 @@ export function PipelineBoard({
         />
         <StatTile
           label="Taux de signature"
-          value={`${totals.conversion.toFixed(1)}%`}
+          value={formatPercent(totals.conversion, 1)}
           sub={`${totals.counts.signe} signés / ${totals.total}`}
           icon={TrendingUp}
         />
@@ -645,15 +646,15 @@ export function PipelineBoard({
                   : null;
           const stageRate =
             fromStage && fromStage > 0
-              ? `${(
+              ? formatPercent(
                   ((stage === 'r1'
                     ? totals.counts.r1 + totals.counts.r2 + totals.counts.signe
                     : stage === 'r2'
                       ? totals.counts.r2 + totals.counts.signe
                       : totals.counts.signe) /
                     fromStage) *
-                  100
-                ).toFixed(0)}%`
+                    100,
+                )
               : null;
 
           return (

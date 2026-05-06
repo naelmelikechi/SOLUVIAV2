@@ -271,7 +271,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
               row.contenu?.slice(0, 140) ??
               (row.gif_url ? '(a envoyé un GIF)' : '');
             try {
-              new Notification(`${who} — SOLUVIA`, {
+              new Notification(`${who} - SOLUVIA`, {
                 body: preview,
                 tag: 'soluvia-team-chat',
                 silent: false,

@@ -236,8 +236,8 @@ export function TimeGrid({
                   key={saisie.projet_id}
                   className={cn(
                     'border-b border-[var(--border-light)]',
-                    saisie.est_interne && 'bg-[var(--card-alt)]/40',
-                    isFirstInterne && 'border-t-2 border-t-[var(--border)]',
+                    saisie.est_interne && 'bg-amber-50/70',
+                    isFirstInterne && 'border-t-2 border-t-amber-300',
                   )}
                   title={
                     saisie.est_interne
@@ -246,41 +246,56 @@ export function TimeGrid({
                   }
                 >
                   {/* Project label */}
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          'font-mono text-xs font-bold',
-                          saisie.est_interne
-                            ? 'text-muted-foreground'
-                            : 'text-primary',
-                        )}
-                      >
-                        {saisie.projet_ref}
-                      </span>
-                      {(() => {
-                        const prefix = `${saisie.projet_ref} - `;
-                        const desc = saisie.projet_label.startsWith(prefix)
-                          ? saisie.projet_label.slice(prefix.length)
-                          : saisie.projet_label;
-                        if (!desc || desc === saisie.projet_ref) return null;
-                        return (
+                  <td
+                    className={cn(
+                      'px-3 py-2',
+                      saisie.est_interne && 'border-l-[3px] border-l-amber-400',
+                    )}
+                  >
+                    {(() => {
+                      const prefix = `${saisie.projet_ref} - `;
+                      const desc = saisie.projet_label.startsWith(prefix)
+                        ? saisie.projet_label.slice(prefix.length)
+                        : saisie.projet_label;
+                      const fullTitle =
+                        desc && desc !== saisie.projet_ref
+                          ? `${saisie.projet_ref} - ${desc}`
+                          : saisie.projet_ref;
+                      return (
+                        <div
+                          className="flex items-center gap-2"
+                          title={fullTitle}
+                        >
                           <span
                             className={cn(
-                              'text-muted-foreground min-w-0 flex-1 truncate text-xs',
-                              saisie.est_interne && 'italic',
+                              'shrink-0 font-mono text-[10px] font-semibold opacity-70',
+                              saisie.est_interne
+                                ? 'text-amber-700'
+                                : 'text-primary',
                             )}
                           >
-                            {desc}
+                            {saisie.projet_ref}
                           </span>
-                        );
-                      })()}
-                      {saisie.est_interne && (
-                        <span className="text-muted-foreground shrink-0 rounded bg-[var(--card-alt)] px-1.5 py-0.5 text-[9px] font-semibold tracking-wider uppercase">
-                          Interne
-                        </span>
-                      )}
-                    </div>
+                          {desc && desc !== saisie.projet_ref && (
+                            <span
+                              className={cn(
+                                'min-w-0 flex-1 truncate text-[13px] font-medium',
+                                saisie.est_interne
+                                  ? 'text-amber-900'
+                                  : 'text-foreground',
+                              )}
+                            >
+                              {desc}
+                            </span>
+                          )}
+                          {saisie.est_interne && (
+                            <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-amber-800 uppercase">
+                              Interne
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* Day cells */}

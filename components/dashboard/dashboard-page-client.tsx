@@ -9,6 +9,10 @@ import {
   ClipboardList,
   Users,
   GraduationCap,
+  BookOpen,
+  XCircle,
+  Activity,
+  ShieldCheck,
   Calendar,
   ArrowUpRight,
   ArrowDownRight,
@@ -303,6 +307,9 @@ export function DashboardPageClient({
     totalFacture,
     totalEncaisse,
     nbApprenantsActifs,
+    nbFormationsEnCours,
+    nbAbandons,
+    pedagogieAvgPct,
     tauxSaisieTemps,
   } = financials;
   const totalEnRetard = Math.max(0, totalFacture - totalEncaisse);
@@ -552,7 +559,7 @@ export function DashboardPageClient({
         <h2 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
           Activité opérationnelle
         </h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
           <KpiCard
             label="Projets actifs"
             value={String(data.projetsActifs)}
@@ -575,11 +582,51 @@ export function DashboardPageClient({
             color="purple"
           />
           <KpiCard
+            label="Formations en cours"
+            value={String(nbFormationsEnCours)}
+            subtitle="distinctes (Eduvia)"
+            icon={BookOpen}
+            color="blue"
+          />
+          <KpiCard
             label="Taux saisie temps"
             value={`${tauxSaisieTemps}%`}
             subtitle={`${tempsNonSaisi}j non saisi(s) cette semaine`}
             icon={Calendar}
             color={tauxSaisieTemps >= 80 ? 'green' : 'orange'}
+          />
+        </div>
+      </section>
+
+      {/* ========== Qualiopi KPIs ========== */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+            Qualité & pédagogie
+          </h2>
+          <Link
+            href="/qualiopi"
+            className="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium"
+          >
+            <ShieldCheck className="h-3 w-3" />
+            Voir Qualiopi
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
+          <KpiCard
+            label="Progression pédagogie"
+            value={`${pedagogieAvgPct}%`}
+            subtitle="moyenne contrats actifs"
+            icon={Activity}
+            color={pedagogieAvgPct >= 60 ? 'green' : 'orange'}
+          />
+          <KpiCard
+            label="Abandons"
+            value={String(nbAbandons)}
+            subtitle="contrats résiliés / annulés"
+            icon={XCircle}
+            color={nbAbandons > 0 ? 'red' : 'green'}
+            isNegativeMetric
           />
         </div>
       </section>

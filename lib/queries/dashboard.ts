@@ -115,6 +115,9 @@ export interface DashboardFinancials {
   totalFacture: number; // same scope
   totalEncaisse: number; // sum of paiements.montant
   nbApprenantsActifs: number; // count of active contrats
+  nbFormationsEnCours: number; // count distinct formations sur contrats actifs
+  nbAbandons: number; // count contrats resilie ou ANNULE (synced)
+  pedagogieAvgPct: number; // avg progression_percentage des contrats actifs (0-100)
   tempsNonSaisi: number; // days without time entries this week
   tauxSaisieTemps: number; // % of time entries filled this month
 }
@@ -182,6 +185,47 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
       .gte('date', monthStart)
       .lte('date', monthEnd),
   ]);
+
+  // Separate query : KPIs operationnels (formations, abandons, pedagogie).
+  // On charge tous les contrats Eduvia non archives une fois et on derive.
+  const operationalRes = await supabase
+    .from('contrats')
+    .select(
+      'eduvia_formation_id, contract_state, contrats_progressions(progression_percentage)',
+    )
+    .eq('archive', false);
+  if (operationalRes.error) {
+    logger.error(
+      'queries.dashboard',
+      'getDashboardFinancials failed (operational)',
+      { error: operationalRes.error },
+    );
+  }
+  const opContrats = operationalRes.data ?? [];
+  const formationsActives = new Set<number>();
+  let nbAbandons = 0;
+  let progSum = 0;
+  let progCount = 0;
+  for (const c of opContrats) {
+    const isActive = ACTIVE_STATES_ARRAY.includes(c.contract_state ?? '');
+    const isAbandon =
+      c.contract_state === 'resilie' || c.contract_state === 'ANNULE';
+    if (isActive && c.eduvia_formation_id != null) {
+      formationsActives.add(c.eduvia_formation_id);
+    }
+    if (isAbandon) nbAbandons += 1;
+    if (isActive) {
+      const prog = Array.isArray(c.contrats_progressions)
+        ? c.contrats_progressions[0]
+        : c.contrats_progressions;
+      if (prog?.progression_percentage != null) {
+        progSum += Number(prog.progression_percentage);
+        progCount += 1;
+      }
+    }
+  }
+  const pedagogieAvgPct = progCount > 0 ? Math.round(progSum / progCount) : 0;
+  const nbFormationsEnCours = formationsActives.size;
 
   // Log any individual query errors but don't throw - dashboard is best-effort
   if (facturesRes.error)
@@ -292,6 +336,9 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
     totalFacture,
     totalEncaisse,
     nbApprenantsActifs,
+    nbFormationsEnCours,
+    nbAbandons,
+    pedagogieAvgPct,
     tempsNonSaisi,
     tauxSaisieTemps,
   };

@@ -109,6 +109,7 @@ export function NoticeIframe({
               Chargement de la notice...
             </div>
           ) : null}
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
           <iframe
             ref={iframeRef}
             src={url}

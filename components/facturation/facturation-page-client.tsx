@@ -267,6 +267,7 @@ export function FacturationPageClient({
                   </p>
                 </div>
               )}
+              {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
               <iframe
                 key={preview.ref}
                 src={previewInlineUrl}

@@ -332,14 +332,17 @@ export interface MonthlyTrendRow {
   production: number;
   facture: number;
   encaisse: number;
+  enRetard: number;
 }
 
 export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
   const supabase = await createClient();
 
+  // 12 mois glissants pour les sparklines KPI (etait 6 historiquement,
+  // toujours OK pour le bar chart RevenueTrendChart qui slice les 6 derniers).
   const now = new Date();
   const months: string[] = [];
-  for (let offset = -5; offset <= 0; offset++) {
+  for (let offset = -11; offset <= 0; offset++) {
     const d = startOfMonth(addMonths(now, offset));
     months.push(format(d, 'yyyy-MM-dd'));
   }
@@ -401,12 +404,16 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
     }
   }
 
-  // Facturé by month
+  // Facturé by month + En retard by month
   const factureByMonth = new Map<string, number>();
+  const enRetardByMonth = new Map<string, number>();
   for (const f of facturesRes.data ?? []) {
     if (!f.mois_concerne) continue;
     const key = f.mois_concerne.slice(0, 7);
     factureByMonth.set(key, (factureByMonth.get(key) ?? 0) + f.montant_ht);
+    if (f.statut === 'en_retard') {
+      enRetardByMonth.set(key, (enRetardByMonth.get(key) ?? 0) + f.montant_ht);
+    }
   }
 
   // Encaissé by month
@@ -427,6 +434,7 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
       production: Math.round((productionByMonth.get(key) ?? 0) * 100) / 100,
       facture: Math.round((factureByMonth.get(key) ?? 0) * 100) / 100,
       encaisse: Math.round((encaisseByMonth.get(key) ?? 0) * 100) / 100,
+      enRetard: Math.round((enRetardByMonth.get(key) ?? 0) * 100) / 100,
     };
   });
 }

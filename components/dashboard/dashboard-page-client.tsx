@@ -36,6 +36,7 @@ import type {
   InvoiceStatusBreakdown,
 } from '@/lib/queries/dashboard';
 import { RevenueTrendChart } from '@/components/dashboard/revenue-trend-chart';
+import { Sparkline } from '@/components/dashboard/sparkline';
 import { InvoiceStatusChart } from '@/components/dashboard/invoice-status-chart';
 
 // ============================================================
@@ -117,7 +118,17 @@ interface KpiCardProps {
   subtitle?: string;
   icon: React.ComponentType<{ className?: string }>;
   color: keyof typeof kpiColorMap;
+  /** Optionnel : valeurs des 12 derniers mois pour mini-graphique */
+  sparkline?: number[];
 }
+
+const sparklineColorMap: Record<keyof typeof kpiColorMap, string> = {
+  green: '#10b981',
+  blue: '#3b82f6',
+  red: '#ef4444',
+  orange: '#f59e0b',
+  purple: '#8b5cf6',
+};
 
 function KpiCard({
   label,
@@ -128,10 +139,13 @@ function KpiCard({
   subtitle,
   icon: Icon,
   color,
+  sparkline,
 }: KpiCardProps) {
   const colors = kpiColorMap[color];
   const trendIsGood =
     trendUp !== undefined ? (isNegativeMetric ? !trendUp : trendUp) : undefined;
+
+  const showSparkline = sparkline && sparkline.length > 0;
 
   return (
     <Card className="p-5 transition-shadow hover:shadow-md">
@@ -148,7 +162,17 @@ function KpiCard({
           {label}
         </span>
       </div>
-      <div className="text-2xl font-bold tabular-nums">{value}</div>
+      <div className="flex items-end justify-between gap-2">
+        <div className="text-2xl font-bold tabular-nums">{value}</div>
+        {showSparkline && (
+          <Sparkline
+            values={sparkline}
+            color={sparklineColorMap[color]}
+            height={32}
+            width={88}
+          />
+        )}
+      </div>
       {trend && (
         <div
           className={cn(
@@ -490,6 +514,7 @@ export function DashboardPageClient({
             trendUp={productionTrend > 0}
             icon={TrendingUp}
             color="green"
+            sparkline={monthlyTrend.map((m) => m.production)}
           />
           <KpiCard
             label="Facturé"
@@ -498,6 +523,7 @@ export function DashboardPageClient({
             trendUp={factureTrend > 0}
             icon={FileText}
             color="blue"
+            sparkline={monthlyTrend.map((m) => m.facture)}
           />
           <KpiCard
             label="Encaissé"
@@ -506,6 +532,7 @@ export function DashboardPageClient({
             trendUp={encaisseTrend > 0}
             icon={CircleCheck}
             color="green"
+            sparkline={monthlyTrend.map((m) => m.encaisse)}
           />
           <KpiCard
             label="En retard"
@@ -515,6 +542,7 @@ export function DashboardPageClient({
             isNegativeMetric
             icon={AlertTriangle}
             color="red"
+            sparkline={monthlyTrend.map((m) => m.enRetard)}
           />
         </div>
       </section>

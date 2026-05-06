@@ -22,7 +22,10 @@ function ChartSkeleton() {
 }
 
 export function RevenueTrendChart({ data }: { data: MonthlyTrendRow[] }) {
-  const hasData = data.some(
+  // Le helper renvoie 12 mois (sparklines KPI) : on slice les 6 derniers
+  // pour ce chart qui historiquement etait sur 6 mois.
+  const last6 = data.slice(-6);
+  const hasData = last6.some(
     (d) => d.production > 0 || d.facture > 0 || d.encaisse > 0,
   );
 
@@ -53,7 +56,7 @@ export function RevenueTrendChart({ data }: { data: MonthlyTrendRow[] }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <RechartsArea data={data} formatCurrency={formatCurrency} />
+        <RechartsArea data={last6} formatCurrency={formatCurrency} />
       </CardContent>
     </Card>
   );

@@ -210,7 +210,8 @@ export async function getContratsByProjetId(projetId: string) {
         progression_percentage,
         total_spent_time_hours,
         last_activity_at
-      )
+      ),
+      invoice_steps:eduvia_invoice_steps(paid_amount, total_amount, invoice_state)
     `,
     )
     .eq('projet_id', projetId)
@@ -228,13 +229,18 @@ export async function getContratsByProjetId(projetId: string) {
       { cause: error },
     );
   }
-  // contrats_progressions has UNIQUE(contrat_id) so the join returns at most
-  // one row per contrat; flatten the array to a single object for ergonomics.
+  // Flatten the join: progression has UNIQUE(contrat_id), keep just the
+  // row. invoice_steps stays an array, used to compute paid totals.
   return (data ?? []).map((c) => ({
     ...c,
     progression: Array.isArray(c.progression)
       ? (c.progression[0] ?? null)
       : (c.progression ?? null),
+    invoice_steps: (c.invoice_steps ?? []) as Array<{
+      paid_amount: number | null;
+      total_amount: number | null;
+      invoice_state: string | null;
+    }>,
   }));
 }
 

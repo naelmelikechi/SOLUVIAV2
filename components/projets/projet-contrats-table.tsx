@@ -184,6 +184,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                     <TableHead className="text-right">
                       Prise en charge
                     </TableHead>
+                    <TableHead className="text-right">Encaissé</TableHead>
                     <TableHead>Progression</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -191,7 +192,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                   {filteredContrats.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="text-muted-foreground h-16 text-center text-sm"
                       >
                         Aucun résultat.
@@ -210,6 +211,17 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                             Number(c.progression.progression_percentage),
                           )
                         : null;
+                    const paidTotal = (c.invoice_steps ?? []).reduce(
+                      (s, step) => s + Number(step.paid_amount ?? 0),
+                      0,
+                    );
+                    const invoicedTotal = (c.invoice_steps ?? []).reduce(
+                      (s, step) => s + Number(step.total_amount ?? 0),
+                      0,
+                    );
+                    const paidStepsCount = (c.invoice_steps ?? []).filter(
+                      (s) => Number(s.paid_amount ?? 0) > 0,
+                    ).length;
                     return (
                       <TableRow
                         key={c.id}
@@ -315,6 +327,66 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                           {c.npec_amount
                             ? formatCurrency(c.npec_amount)
                             : '\u2014'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {(c.invoice_steps ?? []).length === 0 ? (
+                            <span className="text-muted-foreground text-xs">
+                              \u2014
+                            </span>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger className="block w-full cursor-default text-right">
+                                <div className="font-mono text-sm tabular-nums">
+                                  {paidTotal > 0 ? (
+                                    <span className="text-[var(--success)]">
+                                      {formatCurrency(paidTotal)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">
+                                      0 \u20ac
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-muted-foreground text-[10px] tabular-nums">
+                                  {paidStepsCount}/
+                                  {c.invoice_steps?.length ?? 0}{' '}
+                                  \u00e9ch\u00e9ance
+                                  {(c.invoice_steps?.length ?? 0) > 1
+                                    ? 's'
+                                    : ''}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="top"
+                                className="space-y-0.5 px-3 py-2"
+                              >
+                                <div className="text-xs">
+                                  <span className="text-muted-foreground">
+                                    Encaiss\u00e9 :{' '}
+                                  </span>
+                                  <span className="font-mono tabular-nums">
+                                    {formatCurrency(paidTotal)}
+                                  </span>
+                                </div>
+                                <div className="text-xs">
+                                  <span className="text-muted-foreground">
+                                    Factur\u00e9 :{' '}
+                                  </span>
+                                  <span className="font-mono tabular-nums">
+                                    {formatCurrency(invoicedTotal)}
+                                  </span>
+                                </div>
+                                <div className="text-xs">
+                                  <span className="text-muted-foreground">
+                                    Reste :{' '}
+                                  </span>
+                                  <span className="font-mono tabular-nums">
+                                    {formatCurrency(invoicedTotal - paidTotal)}
+                                  </span>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Tooltip>

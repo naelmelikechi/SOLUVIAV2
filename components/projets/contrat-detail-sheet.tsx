@@ -392,36 +392,92 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
               {data.invoiceSteps.length > 0 && (
                 <Section icon={Receipt} title="Facturation Eduvia">
                   <div className="space-y-1.5">
-                    {data.invoiceSteps.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex items-center justify-between border-b py-1 last:border-0"
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-muted-foreground text-xs">
-                            #{s.step_number} · {fmtDate(s.opening_date)}
-                            {s.invoice_state
-                              ? ` · ${INVOICE_STATE_LABELS[s.invoice_state] ?? s.invoice_state}`
-                              : ''}
-                          </span>
-                          {s.external_code && (
-                            <span className="text-muted-foreground font-mono text-[10px]">
-                              {s.external_code}
+                    {data.invoiceSteps.map((s) => {
+                      const total = Number(s.total_amount ?? 0);
+                      const paid = Number(s.paid_amount ?? 0);
+                      const inProgress = Number(s.in_progress_amount ?? 0);
+                      const isPaid = paid >= total && total > 0;
+                      const stateLabel = s.invoice_state
+                        ? (INVOICE_STATE_LABELS[s.invoice_state] ??
+                          s.invoice_state)
+                        : null;
+                      return (
+                        <div
+                          key={s.id}
+                          className="flex items-start justify-between gap-2 border-b py-1.5 last:border-0"
+                        >
+                          <div className="flex min-w-0 flex-col">
+                            <span className="text-sm font-medium">
+                              #{s.step_number} · {fmtDate(s.opening_date)}
                             </span>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="font-mono text-sm tabular-nums">
-                            {formatCurrency(Number(s.total_amount ?? 0))}
-                          </div>
-                          {Number(s.paid_amount ?? 0) > 0 && (
-                            <div className="text-muted-foreground font-mono text-[10px] tabular-nums">
-                              payé : {formatCurrency(Number(s.paid_amount))}
+                            <div className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
+                              {stateLabel && (
+                                <span
+                                  className={
+                                    isPaid
+                                      ? 'text-[var(--success)]'
+                                      : 'text-muted-foreground'
+                                  }
+                                >
+                                  {isPaid ? 'Payé' : stateLabel}
+                                </span>
+                              )}
+                              {s.external_code && (
+                                <span className="font-mono">
+                                  · {s.external_code}
+                                </span>
+                              )}
                             </div>
-                          )}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <div className="font-mono text-sm tabular-nums">
+                              {formatCurrency(total)}
+                            </div>
+                            {paid > 0 && (
+                              <div className="font-mono text-[11px] text-[var(--success)] tabular-nums">
+                                payé {formatCurrency(paid)}
+                              </div>
+                            )}
+                            {inProgress > 0 && (
+                              <div className="text-muted-foreground font-mono text-[11px] tabular-nums">
+                                en cours {formatCurrency(inProgress)}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+                    {(() => {
+                      const totals = data.invoiceSteps.reduce(
+                        (acc, s) => ({
+                          invoiced: acc.invoiced + Number(s.total_amount ?? 0),
+                          paid: acc.paid + Number(s.paid_amount ?? 0),
+                        }),
+                        { invoiced: 0, paid: 0 },
+                      );
+                      return (
+                        <div className="space-y-0.5 pt-1 text-xs">
+                          <div className="text-muted-foreground flex items-center justify-between">
+                            <span>Total facturé</span>
+                            <span className="font-mono tabular-nums">
+                              {formatCurrency(totals.invoiced)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[var(--success)]">
+                            <span>Total encaissé</span>
+                            <span className="font-mono tabular-nums">
+                              {formatCurrency(totals.paid)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>Reste</span>
+                            <span className="font-mono tabular-nums">
+                              {formatCurrency(totals.invoiced - totals.paid)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </Section>
               )}

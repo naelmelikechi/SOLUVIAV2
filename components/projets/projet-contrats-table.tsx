@@ -114,6 +114,8 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
       filterBySearch(contrats, search, (c) =>
         [
           c.ref,
+          c.contract_number,
+          c.internal_number,
           c.apprenant_prenom,
           c.apprenant_nom,
           c.formation_titre,
@@ -198,9 +200,40 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                     return (
                       <TableRow key={c.id}>
                         <TableCell>
-                          <span className="inline-block rounded bg-[var(--orange-bg)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--warning)]">
-                            {c.ref}
-                          </span>
+                          <Tooltip>
+                            <TooltipTrigger className="block cursor-default text-left">
+                              <span className="inline-block rounded bg-[var(--orange-bg)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--warning)]">
+                                {c.contract_number ?? c.ref}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              className="space-y-0.5 px-3 py-2"
+                            >
+                              <div className="text-xs">
+                                <span className="text-muted-foreground">
+                                  DECA :{' '}
+                                </span>
+                                <span className="font-mono">
+                                  {c.contract_number ?? '-'}
+                                </span>
+                              </div>
+                              <div className="text-xs">
+                                <span className="text-muted-foreground">
+                                  Eduvia :{' '}
+                                </span>
+                                <span className="font-mono">
+                                  {c.internal_number ?? '-'}
+                                </span>
+                              </div>
+                              <div className="text-xs">
+                                <span className="text-muted-foreground">
+                                  Soluvia :{' '}
+                                </span>
+                                <span className="font-mono">{c.ref}</span>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
                         </TableCell>
                         <TableCell className="text-sm">
                           {c.apprenant_prenom} {c.apprenant_nom}

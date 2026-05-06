@@ -576,8 +576,11 @@ function ExpandableMonthRows({
             ) : (
               <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
             )}
-            {row.isCurrent && <span className="text-primary">&#9654;</span>}
-            {row.label}
+            <span
+              className={cn(row.isCurrent && 'text-primary font-bold italic')}
+            >
+              {row.label}
+            </span>
           </span>
         </TableCell>
         {showGroups.mois && (

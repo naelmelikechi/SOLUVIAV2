@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { requireUser } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { sendEmailForFacture } from '@/lib/email/client';
 import { logger } from '@/lib/utils/logger';
@@ -28,12 +29,9 @@ export async function createFactures(
     return { success: false, ids: [], error: 'Aucune échéance sélectionnée' };
   }
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, ids: [], error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, ids: [], error: auth.error };
+  const { supabase, user } = auth;
 
   // 1. Fetch selected echeances with projet + client + echeancier config
   const { data: echeances, error: fetchError } = await supabase
@@ -403,12 +401,9 @@ export async function createAvoir(params: {
   if (!motif) return { success: false, error: 'Motif requis' };
   if (montant <= 0) return { success: false, error: 'Montant invalide' };
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   // Fetch origin facture
   const { data: origine, error: origineError } = await supabase
@@ -529,12 +524,9 @@ export async function createAvoir(params: {
 export async function sendFacture(
   factureId: string,
 ): Promise<{ success: boolean; ref?: string; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   // Verrou + verification
   const { data: facture, error: fetchError } = await supabase
@@ -642,12 +634,9 @@ export async function sendFacturesBulk(factureIds: string[]): Promise<{
 export async function deleteBrouillon(
   factureId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { data: facture, error: fetchError } = await supabase
     .from('factures')
@@ -702,12 +691,9 @@ export async function addManualPayment(params: {
   if (montant <= 0) return { success: false, error: 'Montant invalide' };
   if (!dateReception) return { success: false, error: 'Date requise' };
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   // Fetch facture to validate status and get montant_ttc + ref
   const { data: facture, error: fetchError } = await supabase
@@ -810,12 +796,9 @@ export async function createFactureFromEvents(params: {
     return { success: false, error: 'Aucun événement sélectionné' };
   }
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   // 1. Recharge l'etat live des events (anti-stale UI)
   const live = await getBillableEvents(projetId);
@@ -1012,12 +995,9 @@ export async function createBlankBrouillon(params: {
     return { success: false, error: 'Au moins une ligne requise' };
   }
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   const { data: projet } = await supabase
     .from('projets')

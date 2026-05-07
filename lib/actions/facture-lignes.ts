@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { requireUser } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -90,12 +91,9 @@ export interface AddLigneParams {
 export async function addLigneToBrouillon(
   params: AddLigneParams,
 ): Promise<{ success: boolean; ligneId?: string; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const check = await assertBrouillon(params.factureId);
   if (!check.ok) return { success: false, error: check.error };
@@ -173,12 +171,9 @@ export interface UpdateLigneParams {
 export async function updateLigneInBrouillon(
   params: UpdateLigneParams,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   // Charge la ligne pour acceder a la facture et verifier le statut
   const { data: ligne, error: fetchError } = await supabase
@@ -243,12 +238,9 @@ export async function updateLigneInBrouillon(
 export async function removeLigneFromBrouillon(
   ligneId: string,
 ): Promise<{ success: boolean; eventFreed?: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   // Charge la ligne pour stats + verification statut
   const { data: ligne, error: fetchError } = await supabase

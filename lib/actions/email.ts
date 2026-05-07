@@ -1,20 +1,16 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/guards';
 import { sendEmailForFacture } from '@/lib/email/client';
 import { logAudit } from '@/lib/utils/audit';
 
 export async function sendFactureEmailAction(
   factureId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  // Auth check
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const result = await sendEmailForFacture(factureId, supabase);
 
@@ -39,12 +35,9 @@ export async function sendFactureEmailAction(
 export async function sendRelanceEmailAction(
   factureId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { sendRelanceEmail } = await import('@/lib/email/client');
   const result = await sendRelanceEmail(factureId, supabase);

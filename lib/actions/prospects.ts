@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import * as XLSX from 'xlsx';
+import { requireUser } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { canAccessPipeline, isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
@@ -14,11 +15,9 @@ type TypeProspect = Database['public']['Enums']['type_prospect'];
 const STAGE_VALUES: StageProspect[] = ['non_contacte', 'r1', 'r2', 'signe'];
 
 async function getCaller() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    const supabase = await createClient();
     return {
       supabase,
       user: null,
@@ -26,6 +25,7 @@ async function getCaller() {
       pipelineAccess: false,
     };
   }
+  const { supabase, user } = auth;
   const { data } = await supabase
     .from('users')
     .select('role, pipeline_access')
@@ -44,13 +44,11 @@ async function getCaller() {
 // ---------------------------------------------------------------------------
 
 export async function loadProspectDetails(id: string) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const auth = await requireUser();
+  if (!auth.ok) {
     return { prospect: null, notes: [], convertedClient: null, rdvs: [] };
   }
+  const { supabase } = auth;
 
   const [prospectResult, notesResult, rdvsResult] = await Promise.all([
     supabase

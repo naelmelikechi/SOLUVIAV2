@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { timingSafeEqual } from 'crypto';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/guards';
 import { env } from '@/lib/env';
 import { logAudit } from '@/lib/utils/audit';
 import {
@@ -21,12 +21,9 @@ export async function updateProfile(
   nom: string,
   telephone: string | null,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser } = auth;
 
   // Normalize: empty string → null (DB column is nullable).
   const tel = telephone?.trim() ? telephone.trim() : null;
@@ -56,12 +53,9 @@ export async function updateProfile(
 export async function updatePassword(
   newPassword: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   if (newPassword.length < 8) {
     return {
@@ -102,11 +96,9 @@ type AvatarActionResult = {
 
 /** Passe en mode quotidien. Le seed random éventuel est gardé en DB mais ignoré. */
 export async function setAvatarDaily(): Promise<AvatarActionResult> {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser } = auth;
 
   const { error } = await supabase
     .from('users')
@@ -123,11 +115,9 @@ export async function setAvatarDaily(): Promise<AvatarActionResult> {
 
 /** Tire un nouveau random. Rate-limit 1/jour (via avatar_regen_date). */
 export async function rollRandomAvatar(): Promise<AvatarActionResult> {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser } = auth;
 
   const { data: userData } = await supabase
     .from('users')
@@ -167,12 +157,10 @@ export async function rollRandomAvatar(): Promise<AvatarActionResult> {
  * Idempotent si déjà figé.
  */
 export async function freezeCurrentAvatar(): Promise<AvatarActionResult> {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser || !authUser.email)
-    return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser } = auth;
+  if (!authUser.email) return { success: false, error: 'Non authentifié' };
 
   const { data: userData } = await supabase
     .from('users')
@@ -216,11 +204,9 @@ export async function freezeCurrentAvatar(): Promise<AvatarActionResult> {
 export async function attemptUnlockFrozenAvatar(
   attempt: string,
 ): Promise<AvatarActionResult> {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser } = auth;
 
   const expected = env.AVATAR_UNLOCK_SECRET;
   if (!expected) {

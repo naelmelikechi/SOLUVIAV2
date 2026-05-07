@@ -2,9 +2,9 @@
 
 import { randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { requireAdmin, requireSuperAdmin } from '@/lib/auth/guards';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdmin, isSuperAdmin } from '@/lib/utils/roles';
+import { isSuperAdmin } from '@/lib/utils/roles';
 import { logAudit } from '@/lib/utils/audit';
 
 // ---------------------------------------------------------------------------
@@ -15,12 +15,9 @@ export async function updateUserRole(
   userId: string,
   role: 'admin' | 'cdp' | 'superadmin',
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser, role: callerRole } = auth;
 
   // Cannot change own role
   if (authUser.id === userId) {
@@ -28,15 +25,6 @@ export async function updateUserRole(
       success: false,
       error: 'Vous ne pouvez pas modifier votre propre rôle',
     };
-  }
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', authUser.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
   }
 
   // Fetch target user's current role
@@ -50,7 +38,7 @@ export async function updateUserRole(
   // - Only superadmin can assign 'superadmin' or 'admin' roles
   // - Only superadmin can modify another admin or superadmin
   // - Admin can only manage CDPs
-  if (!isSuperAdmin(caller?.role)) {
+  if (!isSuperAdmin(callerRole)) {
     if (role === 'superadmin' || role === 'admin') {
       return {
         success: false,
@@ -87,21 +75,9 @@ export async function updateUserProfile(
   prenom: string,
   nom: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', authUser.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { error } = await supabase
     .from('users')
@@ -124,21 +100,9 @@ export async function updateUserPipelineAccess(
   userId: string,
   pipelineAccess: boolean,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', authUser.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { error } = await supabase
     .from('users')
@@ -160,21 +124,9 @@ export async function updateUserIdeasPermissions(
   userId: string,
   permissions: { canValidateIdeas: boolean; canShipIdeas: boolean },
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', authUser.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { error } = await supabase
     .from('users')
@@ -199,27 +151,15 @@ export async function toggleUserActive(
   userId: string,
   actif: boolean,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser, role: callerRole } = auth;
 
   if (authUser.id === userId) {
     return {
       success: false,
       error: 'Vous ne pouvez pas modifier votre propre compte',
     };
-  }
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', authUser.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
   }
 
   // Admin cannot deactivate another admin or superadmin
@@ -229,7 +169,7 @@ export async function toggleUserActive(
     .eq('id', userId)
     .single();
   if (
-    !isSuperAdmin(caller?.role) &&
+    !isSuperAdmin(callerRole) &&
     (target?.role === 'admin' || target?.role === 'superadmin')
   ) {
     return {
@@ -258,29 +198,14 @@ export async function toggleUserActive(
 export async function deleteUser(
   userId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireSuperAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser } = auth;
 
   if (authUser.id === userId) {
     return {
       success: false,
       error: 'Vous ne pouvez pas supprimer votre propre compte',
-    };
-  }
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', authUser.id)
-    .single();
-  if (!isSuperAdmin(caller?.role)) {
-    return {
-      success: false,
-      error: 'Seul un superadmin peut supprimer un utilisateur',
     };
   }
 
@@ -355,24 +280,12 @@ export async function inviteUser(
   // output du meme process Node).
   const password = `Soluvia-${randomBytes(12).toString('base64url')}`;
 
-  const supabase = await createClient();
-
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', authUser.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès refusé - réservé aux admins' };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser, role: callerRole } = auth;
 
   // Only superadmin can invite admins
-  if (role === 'admin' && !isSuperAdmin(caller?.role)) {
+  if (role === 'admin' && !isSuperAdmin(callerRole)) {
     return {
       success: false,
       error: 'Seul un superadmin peut inviter un administrateur',

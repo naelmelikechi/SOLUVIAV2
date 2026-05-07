@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { requireUser } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { canValidateIdeas, canShipIdeas, isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
@@ -8,11 +9,9 @@ import { logAudit } from '@/lib/utils/audit';
 import type { CibleIdee } from '@/lib/utils/constants';
 
 async function getCaller() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const auth = await requireUser();
+  if (!auth.ok) {
+    const supabase = await createClient();
     return {
       supabase,
       user: null,
@@ -21,6 +20,7 @@ async function getCaller() {
       canShip: false,
     };
   }
+  const { supabase, user } = auth;
   const { data } = await supabase
     .from('users')
     .select('role, can_validate_ideas, can_ship_ideas')

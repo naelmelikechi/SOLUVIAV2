@@ -1,30 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { isAdmin } from '@/lib/utils/roles';
+import { requireAdmin } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import { parseJalons, validateJalons } from '@/lib/echeancier/calc';
 import type { Json } from '@/types/database';
 
 const SCOPE = 'actions.echeanciers';
-
-async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false as const, error: 'Non authentifié' };
-  const { data } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-  if (!isAdmin(data?.role))
-    return { ok: false as const, error: 'Accès refusé' };
-  return { ok: true as const, supabase, userId: user.id };
-}
 
 /** Assigne un template à un projet (ou clear si null) */
 export async function setProjetEcheancierTemplate(params: {
@@ -183,7 +166,7 @@ export async function resolveAjustement(params: {
     .update({
       resolved_at: new Date().toISOString(),
       resolved_action: params.action,
-      resolved_by: auth.userId,
+      resolved_by: auth.user.id,
       resolved_facture_id: params.factureId ?? null,
     })
     .eq('id', params.id);

@@ -144,9 +144,11 @@ describe('deriveDeliverableStatus', () => {
 // ---------------------------------------------------------------------------
 
 describe('computeCompletion', () => {
-  it('retourne 100% / valid=false sur ensemble vide', () => {
+  it('retourne 0% / valid=false sur ensemble vide (pas de donnees)', () => {
+    // Voir lib/eduvia/quality-types.ts: total === 0 => 0%, on ne pretend pas
+    // etre conforme par absence de donnees.
     expect(computeCompletion([])).toEqual({
-      percent: 100,
+      percent: 0,
       conform: 0,
       total: 0,
       valid: false,

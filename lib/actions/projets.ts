@@ -1,8 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { isAdmin } from '@/lib/utils/roles';
+import { requireAdmin } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 
@@ -24,23 +23,9 @@ export async function createProjet(data: {
     return { success: false, error: 'Le chef de projet est requis' };
   }
 
-  const supabase = await createClient();
-
-  // Auth check
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
-
-  // Admin check
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès réservé aux administrateurs' };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   // Validate CDP != backup CDP
   if (data.backupCdpId && data.backupCdpId === data.cdpId) {
@@ -96,21 +81,9 @@ export async function updateProjetTauxCommission(
     };
   }
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès réservé aux administrateurs' };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const rounded = Math.round(tauxCommission * 100) / 100;
 
@@ -155,21 +128,9 @@ export async function updateProjetBillingMode(
     return { success: false, error: 'Mode de facturation invalide' };
   }
 
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès admin requis' };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { data: updated, error } = await supabase
     .from('projets')
@@ -202,23 +163,9 @@ export async function updateProjetBillingMode(
 export async function duplicateProjet(
   projetId: string,
 ): Promise<{ success: boolean; ref?: string; error?: string }> {
-  const supabase = await createClient();
-
-  // Auth check
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
-
-  // Admin check
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-  if (!isAdmin(caller?.role)) {
-    return { success: false, error: 'Accès réservé aux administrateurs' };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   // Fetch the original projet
   const { data: original, error: fetchError } = await supabase

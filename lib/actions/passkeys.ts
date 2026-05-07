@@ -1,16 +1,14 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/guards';
 
 export async function deletePasskey(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non connecté' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   // RLS contraint deja a `auth.uid() = user_id`, mais on filtre explicitement
   // pour eviter une suppression silencieuse en cas de policy mal configuree.

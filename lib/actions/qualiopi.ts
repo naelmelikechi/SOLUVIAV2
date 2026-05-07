@@ -1,19 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 
 const SCOPE = 'actions.qualiopi';
-
-async function getCallerUserId(): Promise<string | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user?.id ?? null;
-}
 
 // ---------------------------------------------------------------------------
 // Assignation responsable d'un indicateur (cote SOLUVIA)
@@ -25,17 +17,17 @@ export async function assignIndicatorResponsible(params: {
   indicatorId: number;
   userId: string | null;
 }): Promise<{ success: boolean; error?: string }> {
-  const callerId = await getCallerUserId();
-  if (!callerId) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
-  const supabase = await createClient();
   const { error } = await supabase.from('qualite_assignments').upsert(
     {
       client_id: params.clientId,
       campus_id: params.campusId,
       indicator_id: params.indicatorId,
       user_id: params.userId,
-      created_by: callerId,
+      created_by: user.id,
     },
     { onConflict: 'campus_id,indicator_id' },
   );

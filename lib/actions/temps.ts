@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/guards';
 import {
   getWeekDates,
   getSaisiesForWeek,
@@ -17,12 +17,9 @@ export async function saveSaisieTemps(
   date: string,
   heures: number,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   // If heures is 0, delete the row
   if (heures === 0) {
@@ -61,12 +58,9 @@ export async function saveSaisieTempsAxes(
   date: string,
   axes: Record<string, number>,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   // Find saisie
   const { data: saisie, error: findError } = await supabase
@@ -137,12 +131,9 @@ export async function fetchTeamWeekData(weekOffset: number) {
 export async function copyPreviousWeek(
   currentWeekDates: string[],
 ): Promise<{ success: boolean; copied: number; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, copied: 0, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, copied: 0, error: auth.error };
+  const { supabase, user } = auth;
 
   // Calculate previous week dates (subtract 7 days from each current date).
   // En UTC strict : new Date('YYYY-MM-DDT00:00:00') est interprete en local,

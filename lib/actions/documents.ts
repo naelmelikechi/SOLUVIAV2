@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 
@@ -56,12 +56,9 @@ export async function uploadClientDocument(
   clientId: string,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   const validation = validateFile(formData.get('file') as File | null);
   if (validation.error || !validation.file) {
@@ -130,12 +127,9 @@ export async function uploadProjetDocument(
   projetRef: string,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   const validation = validateFile(formData.get('file') as File | null);
   if (validation.error || !validation.file) {
@@ -203,12 +197,9 @@ export async function getDocumentDownloadUrl(
   storagePath: string,
   bucket: DocumentBucket = 'client-documents',
 ): Promise<{ url?: string; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { error: auth.error };
+  const { supabase } = auth;
 
   const { data, error } = await supabase.storage
     .from(bucket)
@@ -230,12 +221,9 @@ export async function deleteClientDocument(
   documentId: string,
   clientId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { data: doc, error: fetchError } = await supabase
     .from('client_documents')
@@ -275,12 +263,9 @@ export async function deleteProjetDocument(
   documentId: string,
   projetRef: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { data: doc, error: fetchError } = await supabase
     .from('projet_documents')

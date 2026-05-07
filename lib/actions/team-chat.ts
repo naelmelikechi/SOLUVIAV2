@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/guards';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/utils/logger';
 import { revalidatePath } from 'next/cache';
@@ -24,11 +24,9 @@ export async function sendTeamMessage(
   contenu: string | null,
   gifUrl: string | null,
 ): Promise<{ success: boolean; error?: string; message?: SentTeamMessage }> {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser } = auth;
 
   const trimmed = contenu?.trim() ?? '';
   const gif = gifUrl?.trim() ?? '';
@@ -77,11 +75,9 @@ export async function sendTeamMessage(
 export async function deleteTeamMessage(
   messageId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   // RLS policy team_messages_delete enforces ownership - this will silently
   // delete nothing if the user isn't the author, which is the correct behaviour.
@@ -118,11 +114,8 @@ export interface GiphyResult {
 export async function searchGiphy(
   query: string,
 ): Promise<{ success: boolean; results?: GiphyResult[]; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-  if (!authUser) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
 
   const apiKey = env.GIPHY_API_KEY;
   if (!apiKey) {

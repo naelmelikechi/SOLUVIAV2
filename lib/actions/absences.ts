@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/guards';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
 import type { AbsenceType } from '@/lib/utils/absences';
@@ -41,11 +41,9 @@ export async function createAbsenceAction(
   const err = validate(data);
   if (err) return { success: false, error: err };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   // Chevauchement
   const { data: overlap } = await supabase
@@ -94,11 +92,9 @@ export async function updateAbsenceAction(
   const err = validate(data);
   if (err) return { success: false, error: err };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   // Chevauchement (en excluant l absence elle-meme)
   const { data: overlap } = await supabase
@@ -142,11 +138,9 @@ export async function updateAbsenceAction(
 export async function deleteAbsenceAction(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifie' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { error } = await supabase.from('absences').delete().eq('id', id);
 

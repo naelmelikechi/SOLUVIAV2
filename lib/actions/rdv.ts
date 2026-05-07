@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/auth/guards';
 import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -24,11 +24,9 @@ export async function createRdvFormateur(
   if (!data.datePrevue) {
     return { success: false, error: 'Date prévue requise' };
   }
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   const { data: rdv, error } = await supabase
     .from('rdv_formateurs')
@@ -58,11 +56,9 @@ export async function updateRdvFormateurStatut(
   id: string,
   statut: StatutRdv,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const update: { statut: StatutRdv; date_realisee?: string | null } = {
     statut,
@@ -87,11 +83,9 @@ export async function updateRdvFormateurStatut(
 export async function deleteRdvFormateur(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const { error } = await supabase.from('rdv_formateurs').delete().eq('id', id);
   if (error) return { success: false, error: error.message };
@@ -111,11 +105,9 @@ export async function createRdvCommercial(
   if (!data.datePrevue) {
     return { success: false, error: 'Date prévue requise' };
   }
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   const { data: rdv, error } = await supabase
     .from('rdv_commerciaux')
@@ -143,11 +135,9 @@ export async function updateRdvCommercialStatut(
   id: string,
   statut: StatutRdv,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
 
   const update: { statut: StatutRdv; date_realisee?: string | null } = {
     statut,
@@ -172,11 +162,9 @@ export async function updateRdvCommercialStatut(
 export async function deleteRdvCommercial(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Non authentifié' };
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
 
   const { data: existing } = await supabase
     .from('rdv_commerciaux')

@@ -106,20 +106,35 @@ residuels listes ci-dessous. Ne pas annoncer 9.5 avant que ces points
 soient adresses (notamment Sprint 6 : tests d integration SQL pour
 les triggers gapless, e2e Playwright sur les flows critiques).
 
-### Risques residuels apres sprint 5
+### Sprint 6 (continue dans la meme branche)
+
+- **Playwright e2e** : skeleton + 6 smoke tests verts (5.3s) - commits
+  `8720ad7`, `790c8ec`. Couvre proxy redirects + login form.
+- **Tests pgTAP SQL** : 19 invariants verts - commit `96c425f`.
+  - 01_gapless_invoice (7) : trigger ref + numero_seq, sequence contigue
+  - 02_rls_facture_delete (5) : admin/cdp DELETE rules, gapless preserve
+  - 03_delete_user_cascade (7) : role check, cascade transactionnelle
+- **NEW BUG FIX trouve en ecrivant les tests** : aucune policy
+  FOR DELETE sur factures, donc deleteBrouillon retournait
+  silencieusement 0 rows en prod. Migration ajoutee +
+  policy stricte (admin only + statut=a_emettre). Commit `96c425f`.
+- **Types Supabase regeneres** : `npx supabase gen types --local`
+  ramene tout a jour (delete_user_cascade dans Functions, billing_mode
+  sur projets, apprenants_qualiopi_fields). Cast retire. Commit
+  `1a4d629`.
+
+### Risques residuels apres sprint 5+6
 
 - **Encryption legacy fallback** (#13) : garde 7 jours d observation
   Sentry. Retrait conditionne au compteur a 0.
-- **Migration 20260507120000_delete_user_cascade** : a appliquer
-  cote prod (`npx supabase db push`) AVANT de deployer le fix #5.
-  Sinon la Server Action plantera avec "function does not exist".
-- **Types Supabase generes pas a jour** : delete_user_cascade n est
-  pas dans Database['public']['Functions']. Cast typage local dans
-  users.ts en attendant un `npx supabase gen types`.
-- **Tests d integration SQL** (gapless trigger, RLS DELETE policies) :
-  toujours hors scope vitest, prevus Sprint 6.
-- **Tests e2e Playwright** : flows login -> facturation -> emission ->
-  email, avec fixtures Supabase branch. Prevus Sprint 6.
+- **Deux migrations 20260506160000** (collision timestamp documentee
+  dans AUDIT_EXTRAS.md) : `db push` echoue sur fresh install. A
+  renommer dans une fenetre maintenance.
+- **Migration prod a appliquer** : 20260507120000_delete_user_cascade.sql
+  - 20260507130000_factures_delete_brouillon_policy.sql AVANT deploy.
+    Sinon deleteUser et deleteBrouillon plantent / silent no-op.
+- **Tests e2e authenticated** : storageState avec un compte CI dedie
+  reste a faire pour couvrir les flows post-login (facturation, temps).
 
 ## Items hors-scope (Sprint 5+ recommande)
 

@@ -3,15 +3,24 @@ import { escapeHtml } from '@/lib/utils/escape-html';
 
 describe('escapeHtml', () => {
   it('escapes les caracteres HTML reserves', () => {
+    // Au sprint 5 #14 on a retire / ` = du set : / cassait les URLs
+    // dans le fallback texte des emails sans gain securite reel.
     expect(escapeHtml('<script>alert(1)</script>')).toBe(
-      '&lt;script&gt;alert(1)&lt;&#x2F;script&gt;',
+      '&lt;script&gt;alert(1)&lt;/script&gt;',
     );
   });
 
   it('escapes les guillemets pour les contextes attribut', () => {
     expect(escapeHtml('"><img src=x onerror=alert(1)>')).toBe(
-      '&quot;&gt;&lt;img src&#x3D;x onerror&#x3D;alert(1)&gt;',
+      '&quot;&gt;&lt;img src=x onerror=alert(1)&gt;',
     );
+  });
+
+  it('passe-plat sur / ` = (sprint 5 #14 : retires du set)', () => {
+    expect(escapeHtml('https://example.com/path?a=1&b=2')).toBe(
+      'https://example.com/path?a=1&amp;b=2',
+    );
+    expect(escapeHtml('`code`')).toBe('`code`');
   });
 
   it('escape les apostrophes', () => {

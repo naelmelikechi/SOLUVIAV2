@@ -2,6 +2,7 @@ import { createElement, type ReactElement } from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { logger } from '@/lib/utils/logger';
 import { formatDate } from '@/lib/utils/formatters';
+import { escapeHtml } from '@/lib/utils/escape-html';
 import { buildFactureEmailHtml } from '@/lib/email/templates';
 import { sendEmail } from '@/lib/email/_send';
 import { FacturePdf } from '@/components/facturation/facture-pdf';
@@ -251,9 +252,15 @@ function buildInvitationEmailHtml(params: {
   role: string;
   tempPassword: string;
 }): string {
-  const greeting = params.inviteePrenom
-    ? `Bonjour ${params.inviteePrenom},`
-    : 'Bonjour,';
+  // Escape tous les inputs user-controlled. inviterName/inviteePrenom viennent
+  // d'un formulaire admin, role d'une enum verifiee mais escape par defense en
+  // profondeur, tempPassword est genere serveur (crypto.randomBytes) mais peut
+  // contenir des caracteres < ou & a escape pour le rendu HTML.
+  const inviterName = escapeHtml(params.inviterName);
+  const inviteePrenom = escapeHtml(params.inviteePrenom);
+  const role = escapeHtml(params.role);
+  const tempPassword = escapeHtml(params.tempPassword);
+  const greeting = inviteePrenom ? `Bonjour ${inviteePrenom},` : 'Bonjour,';
   return `
 <!DOCTYPE html>
 <html>
@@ -267,7 +274,7 @@ function buildInvitationEmailHtml(params: {
     <div style="padding:32px;">
       <h2 style="margin:0 0 16px;font-size:18px;color:#1a2e1a;">${greeting}</h2>
       <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">
-        <strong>${params.inviterName}</strong> vous a invité(e) à rejoindre SOLUVIA en tant que <strong>${params.role}</strong>.
+        <strong>${inviterName}</strong> vous a invité(e) à rejoindre SOLUVIA en tant que <strong>${role}</strong>.
       </p>
       <p style="margin:0 0 8px;color:#2d4a2d;font-size:14px;line-height:1.6;">
         Voici vos identifiants de connexion :
@@ -277,7 +284,7 @@ function buildInvitationEmailHtml(params: {
         <p style="margin:0 0 8px;font-size:13px;color:#6b8a6b;">Adresse de connexion</p>
         <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#1a2e1a;">https://app.mysoluvia.com</p>
         <p style="margin:0 0 8px;font-size:13px;color:#6b8a6b;">Mot de passe temporaire</p>
-        <p style="margin:0;font-size:16px;font-weight:700;font-family:monospace;color:#16a34a;letter-spacing:1px;">${params.tempPassword}</p>
+        <p style="margin:0;font-size:16px;font-weight:700;font-family:monospace;color:#16a34a;letter-spacing:1px;">${tempPassword}</p>
       </div>
 
       <p style="margin:16px 0 0;color:#6b8a6b;font-size:13px;line-height:1.6;">

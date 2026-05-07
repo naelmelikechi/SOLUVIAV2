@@ -53,14 +53,20 @@ export function TimeGrid({
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
     {},
   );
+  const mountedRef = useRef(true);
 
-  // Cleanup debounce timers on unmount
+  // Cleanup au unmount. On lit explicitement `.current` au cleanup (pas une
+  // copie capturee au mount) parce que saveStatusTimer.current est REASSIGNE
+  // par handleCellSave apres le mount ; capturer au mount stockerait null.
+  // debounceTimers.current est mute in-place (ajout de cles), donc OK.
+  // ESLint exhaustive-deps ne distingue pas les deux cas - disable local.
   useEffect(() => {
-    const timers = debounceTimers.current;
-    const statusTimer = saveStatusTimer.current;
+    mountedRef.current = true;
     return () => {
-      Object.values(timers).forEach(clearTimeout);
-      if (statusTimer) clearTimeout(statusTimer);
+      mountedRef.current = false;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      Object.values(debounceTimers.current).forEach(clearTimeout);
+      if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
     };
   }, []);
 
@@ -143,12 +149,18 @@ export function TimeGrid({
     }
     debounceTimers.current[key] = setTimeout(async () => {
       delete debounceTimers.current[key];
+      if (!mountedRef.current) return;
       setSaveStatus('saving');
       const result = await saveSaisieTemps(projetId, date, parsed);
+      // Le composant a pu unmount pendant le await (navigation). On gate les
+      // setState pour ne pas tomber sur "setState on unmounted component".
+      if (!mountedRef.current) return;
       if (result.success) {
         setSaveStatus('saved');
         if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
-        saveStatusTimer.current = setTimeout(() => setSaveStatus('idle'), 2000);
+        saveStatusTimer.current = setTimeout(() => {
+          if (mountedRef.current) setSaveStatus('idle');
+        }, 2000);
       } else {
         setSaveStatus('idle');
         toast.error(result.error ?? 'Erreur lors de la sauvegarde');

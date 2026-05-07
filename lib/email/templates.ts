@@ -5,6 +5,7 @@
 
 import type { EmetteurInfo } from '@/lib/queries/parametres';
 import { formatDate } from '@/lib/utils/formatters';
+import { escapeHtml } from '@/lib/utils/escape-html';
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA',
@@ -30,19 +31,29 @@ export function buildFactureEmailHtml(params: {
 }): string {
   const { factureRef, isAvoir, montantTtc, dateEcheance } = params;
   const emetteur = params.emetteur ?? EMETTEUR_FALLBACK;
-  const companyName =
+  const rawCompanyName =
     emetteur.raison_sociale.split(' ')[0] ?? emetteur.raison_sociale;
 
   const docType = isAvoir ? "l'avoir" : 'la facture';
   const montantFormatted = formatEur(Math.abs(montantTtc));
   const echeanceFormatted = formatDate(dateEcheance);
 
+  // Tous les inputs user-controlled (raison_sociale via emetteur, factureRef
+  // qui suit une convention mais peut etre custom) sont escapes avant
+  // interpolation. Voir lib/utils/escape-html.ts.
+  const escapedFactureRef = escapeHtml(factureRef);
+  const companyName = escapeHtml(rawCompanyName);
+  const fullCompanyName = escapeHtml(emetteur.raison_sociale);
+  const adresse = escapeHtml(emetteur.adresse);
+  const siret = escapeHtml(emetteur.siret);
+  const tva = escapeHtml(emetteur.tva);
+
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${isAvoir ? 'Avoir' : 'Facture'} ${factureRef}</title>
+  <title>${isAvoir ? 'Avoir' : 'Facture'} ${escapedFactureRef}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
@@ -58,7 +69,7 @@ export function buildFactureEmailHtml(params: {
                     <span style="font-size:22px;font-weight:bold;color:#ffffff;letter-spacing:1px;">${companyName}</span>
                   </td>
                   <td align="right">
-                    <span style="font-size:13px;color:#dcfce7;">${isAvoir ? 'Avoir' : 'Facture'} ${factureRef}</span>
+                    <span style="font-size:13px;color:#dcfce7;">${isAvoir ? 'Avoir' : 'Facture'} ${escapedFactureRef}</span>
                   </td>
                 </tr>
               </table>
@@ -72,7 +83,7 @@ export function buildFactureEmailHtml(params: {
                 Madame, Monsieur,
               </p>
               <p style="margin:0 0 16px;font-size:15px;color:#1a1a1a;line-height:1.6;">
-                Veuillez trouver ci-joint ${docType} <strong>${factureRef}</strong> d'un montant de <strong>${montantFormatted} TTC</strong>.
+                Veuillez trouver ci-joint ${docType} <strong>${escapedFactureRef}</strong> d'un montant de <strong>${montantFormatted} TTC</strong>.
               </p>
 
               <!-- Info box -->
@@ -118,10 +129,10 @@ export function buildFactureEmailHtml(params: {
           <tr>
             <td style="background-color:#f9fafb;padding:20px 32px;border-top:1px solid #e5e7eb;">
               <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;line-height:1.5;">
-                ${emetteur.raison_sociale} - ${emetteur.adresse}
+                ${fullCompanyName} - ${adresse}
               </p>
               <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;line-height:1.5;">
-                SIRET ${emetteur.siret} - TVA ${emetteur.tva}
+                SIRET ${siret} - TVA ${tva}
               </p>
               <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5;">
                 Cet email a été envoyé automatiquement. Merci de ne pas y répondre directement.

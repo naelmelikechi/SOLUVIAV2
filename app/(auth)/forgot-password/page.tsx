@@ -60,13 +60,6 @@ export default function ForgotPasswordPage() {
       ) : (
         <>
           <form action={formAction} className="space-y-4">
-            <input
-              type="hidden"
-              name="origin"
-              value={
-                typeof window !== 'undefined' ? window.location.origin : ''
-              }
-            />
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

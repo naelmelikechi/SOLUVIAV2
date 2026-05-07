@@ -70,12 +70,24 @@ export async function loginAction(
   return { success: true };
 }
 
+/**
+ * Origine serveur de l'app, utilisee pour les redirectTo Supabase Auth.
+ * On ne fait JAMAIS confiance a une origin postee par le client (vecteur
+ * de phishing : un attaquant pourrait rediriger le code OAuth vers un
+ * domaine qu'il controle). Voir audit I3.
+ */
+function getSiteUrl(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL;
+  if (fromEnv) return fromEnv.replace(/\/$/, '');
+  // Fallback local dev. En prod NEXT_PUBLIC_SITE_URL doit etre defini.
+  return 'http://localhost:3000';
+}
+
 export async function requestPasswordResetAction(
   _prevState: unknown,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
   const email = normaliseEmail(String(formData.get('email') ?? ''));
-  const origin = String(formData.get('origin') ?? '');
 
   if (!email) {
     return { success: false, error: "L'email est requis." };
@@ -98,9 +110,7 @@ export async function requestPasswordResetAction(
   }
 
   const supabase = await createClient();
-  const redirectTo = origin
-    ? `${origin}/api/auth/callback`
-    : '/api/auth/callback';
+  const redirectTo = `${getSiteUrl()}/api/auth/callback`;
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo,
   });

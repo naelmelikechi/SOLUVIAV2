@@ -7,6 +7,7 @@ import { requireAdmin, requireSuperAdmin } from '@/lib/auth/guards';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSuperAdmin } from '@/lib/utils/roles';
 import { logAudit } from '@/lib/utils/audit';
+import { logger } from '@/lib/utils/logger';
 
 const InviteUserSchema = z.object({
   email: z.string().email('Adresse email invalide').max(254),
@@ -280,43 +281,55 @@ export async function deleteUser(
     };
   }
 
-  // Get target info for audit
+  // Get target info for audit (avant suppression cote DB).
   const { data: target } = await supabase
     .from('users')
     .select('email, nom, prenom, role')
     .eq('id', userId)
     .single();
 
-  // Nullify foreign keys referencing this user
-  const adminClient = createAdminClient();
-  await supabase.from('notifications').delete().eq('user_id', userId);
-  await supabase.from('saisies_temps').delete().eq('user_id', userId);
-  await supabase.from('client_notes').delete().eq('user_id', userId);
-  await supabase.from('projets').update({ cdp_id: null }).eq('cdp_id', userId);
-  await supabase
-    .from('projets')
-    .update({ backup_cdp_id: null })
-    .eq('backup_cdp_id', userId);
-  await supabase
-    .from('factures')
-    .update({ created_by: null })
-    .eq('created_by', userId);
-  await supabase
-    .from('parametres')
-    .update({ updated_by: null })
-    .eq('updated_by', userId);
-
-  // Delete from public.users
-  const { error: deleteError } = await supabase
-    .from('users')
-    .delete()
-    .eq('id', userId);
-  if (deleteError) {
-    return { success: false, error: deleteError.message };
+  // 1. Suppression atomique cote DB via RPC delete_user_cascade (sprint 5 #5).
+  //    Avant : 7 DELETE/UPDATE sequentiels sans transaction - si l'un cassait
+  //    au milieu, on avait un user partiellement supprime (notifs gone mais
+  //    public.users intact). La fonction Postgres encapsule tout dans une
+  //    transaction implicite plpgsql.
+  // Cast: la fonction est ajoutee par la migration 20260507120000_delete_user_cascade.
+  // Les types Supabase generes seront a jour apres la prochaine
+  // `supabase gen types`. On cast dans l intervalle pour ne pas bloquer.
+  const { error: cascadeError } = await (
+    supabase.rpc as unknown as (
+      fn: string,
+      args: { p_user_id: string },
+    ) => Promise<{ error: { message: string } | null }>
+  )('delete_user_cascade', { p_user_id: userId });
+  if (cascadeError) {
+    logger.error('actions.users', 'delete_user_cascade RPC failed', {
+      userId,
+      error: cascadeError,
+    });
+    return {
+      success: false,
+      error: `Suppression DB echouee : ${cascadeError.message}`,
+    };
   }
 
-  // Delete from auth.users
-  await adminClient.auth.admin.deleteUser(userId);
+  // 2. Suppression de l'auth user. ICI on VERIFIE l erreur (avant : ignoree
+  //    silencieusement, donc un auth.users orphelin pouvait empecher la
+  //    reinvitation avec le meme email). Procedure de reconciliation manuelle
+  //    documentee dans docs/RUNBOOKS.md.
+  const adminClient = createAdminClient();
+  const { error: authErr } = await adminClient.auth.admin.deleteUser(userId);
+  if (authErr) {
+    logger.error('actions.users', 'auth.admin.deleteUser failed', {
+      userId,
+      authErr,
+    });
+    return {
+      success: false,
+      error:
+        "Profil supprime mais l'auth Supabase est restee : contactez un superadmin (procedure dans docs/RUNBOOKS.md).",
+    };
+  }
 
   logAudit(
     'user_deleted',

@@ -42,8 +42,12 @@ const eslintConfig = defineConfig([
       'jsx-a11y/no-redundant-roles': 'error',
       'jsx-a11y/role-has-required-aria-props': 'error',
       'jsx-a11y/role-supports-aria-props': 'error',
-      'jsx-a11y/no-noninteractive-element-interactions': 'warn',
-      'jsx-a11y/no-static-element-interactions': 'warn',
+      // Promues 'error' au sprint 5 #11 apres verification : 0 warning sur
+      // le codebase actuel. Si une violation legitime apparait (iframe externe,
+      // tooltip presentationnel), prefer un eslint-disable ciblee + commentaire
+      // plutot que de redescendre toute la regle.
+      'jsx-a11y/no-noninteractive-element-interactions': 'error',
+      'jsx-a11y/no-static-element-interactions': 'error',
     },
   },
   {

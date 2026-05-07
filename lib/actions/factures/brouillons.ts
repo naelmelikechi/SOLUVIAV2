@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -13,6 +14,60 @@ import {
 } from '@/lib/echeancier/calc';
 import { getBillableEvents } from '@/lib/queries/billable-events';
 
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+// Pourquoi : RLS bloque les acces non autorises mais ne contraint pas le
+// type. Sans ces guards, un client peut poster montants=NaN, ids=garbage ou
+// arrays de 100k items et corrompre les donnees / ouvrir un DoS.
+
+const uuidSchema = (label: string) =>
+  z.string().uuid(`${label} doit etre un UUID`);
+
+const montantHtSchema = z
+  .number()
+  .finite('Montant doit etre un nombre fini')
+  .gte(-10_000_000, 'Montant aberrant')
+  .lte(10_000_000, 'Montant aberrant');
+
+const CreateFacturesSchema = z
+  .array(uuidSchema('echeanceId'))
+  .min(1, 'Aucune échéance sélectionnée')
+  .max(500, 'Trop d’échéances sélectionnées');
+
+const DeleteBrouillonSchema = uuidSchema('factureId');
+
+const SelectedEventSchema = z.object({
+  type: z.enum(['engagement', 'opco_step']),
+  source_id: uuidSchema('source_id'),
+});
+
+const CreateFactureFromEventsSchema = z.object({
+  projetId: uuidSchema('projetId'),
+  events: z
+    .array(SelectedEventSchema)
+    .min(1, 'Aucun événement sélectionné')
+    .max(500, 'Trop d’événements sélectionnés'),
+});
+
+const BlankBrouillonLigneSchema = z.object({
+  contratId: uuidSchema('contratId'),
+  description: z.string().trim().min(1, 'Description requise').max(2000),
+  montantHt: montantHtSchema,
+  moisRelatif: z.number().int().gte(-120).lte(120).optional(),
+  quotePart: z.number().finite().gte(0).lte(1).optional(),
+  npecSnapshot: z.number().finite().gte(0).lte(10_000_000).optional(),
+  tauxCommissionSnapshot: z.number().finite().gte(0).lte(100).optional(),
+});
+
+const CreateBlankBrouillonSchema = z.object({
+  projetId: uuidSchema('projetId'),
+  lignes: z
+    .array(BlankBrouillonLigneSchema)
+    .min(1, 'Au moins une ligne requise')
+    .max(500, 'Trop de lignes'),
+});
+
 /**
  * Cree des factures BROUILLON (statut 'a_emettre') a partir d'echeances
  * selectionnees. Aucune ref ni email n'est genere a ce stade : il faut
@@ -24,9 +79,15 @@ import { getBillableEvents } from '@/lib/queries/billable-events';
 export async function createFactures(
   echeanceIds: string[],
 ): Promise<{ success: boolean; ids: string[]; error?: string }> {
-  if (echeanceIds.length === 0) {
-    return { success: false, ids: [], error: 'Aucune échéance sélectionnée' };
+  const parsed = CreateFacturesSchema.safeParse(echeanceIds);
+  if (!parsed.success) {
+    return {
+      success: false,
+      ids: [],
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
+  echeanceIds = parsed.data;
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, ids: [], error: auth.error };
@@ -297,6 +358,15 @@ export async function createFactures(
 export async function deleteBrouillon(
   factureId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = DeleteBrouillonSchema.safeParse(factureId);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  factureId = parsed.data;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -370,14 +440,14 @@ export async function createFactureFromEvents(params: {
   projetId: string;
   events: SelectedEvent[];
 }): Promise<{ success: boolean; id?: string; error?: string }> {
-  const { projetId, events } = params;
-
-  if (!projetId) {
-    return { success: false, error: 'Projet manquant' };
+  const parsed = CreateFactureFromEventsSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
-  if (!events || events.length === 0) {
-    return { success: false, error: 'Aucun événement sélectionné' };
-  }
+  const { projetId, events } = parsed.data;
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
@@ -575,12 +645,14 @@ export async function createBlankBrouillon(params: {
   projetId: string;
   lignes: BlankBrouillonLigne[];
 }): Promise<{ success: boolean; id?: string; error?: string }> {
-  const { projetId, lignes } = params;
-
-  if (!projetId) return { success: false, error: 'Projet requis' };
-  if (!lignes || lignes.length === 0) {
-    return { success: false, error: 'Au moins une ligne requise' };
+  const parsed = CreateBlankBrouillonSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
+  const { projetId, lignes } = parsed.data;
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };

@@ -1,10 +1,22 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { sendEmailForFacture } from '@/lib/email/client';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
+
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+
+const SendFactureSchema = z.string().uuid('factureId doit etre un UUID');
+
+const SendFacturesBulkSchema = z
+  .array(z.string().uuid('factureId doit etre un UUID'))
+  .min(1, 'Aucune facture sélectionnée')
+  .max(500, 'Trop de factures sélectionnées');
 
 // ---------------------------------------------------------------------------
 // sendFacture - transition brouillon (a_emettre) -> emise (ou avoir).
@@ -16,6 +28,15 @@ import { logAudit } from '@/lib/utils/audit';
 export async function sendFacture(
   factureId: string,
 ): Promise<{ success: boolean; ref?: string; error?: string }> {
+  const parsed = SendFactureSchema.safeParse(factureId);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  factureId = parsed.data;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -110,9 +131,21 @@ export async function sendFacturesBulk(factureIds: string[]): Promise<{
   sent: { id: string; ref: string }[];
   errors: { id: string; error: string }[];
 }> {
-  if (factureIds.length === 0) {
-    return { success: false, sent: [], errors: [] };
+  const parsed = SendFacturesBulkSchema.safeParse(factureIds);
+  if (!parsed.success) {
+    return {
+      success: false,
+      sent: [],
+      errors: [
+        {
+          id: '',
+          error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+        },
+      ],
+    };
   }
+  factureIds = parsed.data;
+
   const sent: { id: string; ref: string }[] = [];
   const errors: { id: string; error: string }[] = [];
   for (const id of factureIds) {

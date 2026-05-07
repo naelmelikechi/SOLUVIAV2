@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { timingSafeEqual } from 'crypto';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { env } from '@/lib/env';
 import { logAudit } from '@/lib/utils/audit';
@@ -13,6 +14,44 @@ import {
 } from '@/lib/utils/avatar';
 
 // ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+
+const UpdateProfileSchema = z.object({
+  prenom: z
+    .string()
+    .trim()
+    .min(1, 'Le prénom est requis')
+    .max(100, 'Le prénom est trop long'),
+  nom: z
+    .string()
+    .trim()
+    .min(1, 'Le nom est requis')
+    .max(100, 'Le nom est trop long'),
+  // Telephone: nullable, format libre mais borné
+  telephone: z
+    .string()
+    .trim()
+    .max(32, 'Numéro de téléphone trop long')
+    .nullable()
+    .optional(),
+});
+
+const UpdatePasswordSchema = z.object({
+  newPassword: z
+    .string()
+    .min(8, 'Le mot de passe doit contenir au moins 8 caractères')
+    .max(72, 'Le mot de passe est trop long (max 72 caractères)'),
+});
+
+const UnlockAttemptSchema = z.object({
+  attempt: z
+    .string()
+    .min(1, 'Tentative requise')
+    .max(256, 'Tentative trop longue'),
+});
+
+// ---------------------------------------------------------------------------
 // updateProfile - update current user's prenom and nom
 // ---------------------------------------------------------------------------
 
@@ -21,6 +60,17 @@ export async function updateProfile(
   nom: string,
   telephone: string | null,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateProfileSchema.safeParse({ prenom, nom, telephone });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  prenom = parsed.data.prenom;
+  nom = parsed.data.nom;
+  telephone = parsed.data.telephone ?? null;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
@@ -59,16 +109,18 @@ export async function updateProfile(
 export async function updatePassword(
   newPassword: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdatePasswordSchema.safeParse({ newPassword });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  newPassword = parsed.data.newPassword;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
-
-  if (newPassword.length < 8) {
-    return {
-      success: false,
-      error: 'Le mot de passe doit contenir au moins 8 caractères',
-    };
-  }
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
 
@@ -222,6 +274,15 @@ export async function freezeCurrentAvatar(): Promise<AvatarActionResult> {
 export async function attemptUnlockFrozenAvatar(
   attempt: string,
 ): Promise<AvatarActionResult> {
+  const parsed = UnlockAttemptSchema.safeParse({ attempt });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  attempt = parsed.data.attempt;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;

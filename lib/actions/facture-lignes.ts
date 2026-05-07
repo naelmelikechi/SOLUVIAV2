@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
@@ -15,6 +16,48 @@ import { logAudit } from '@/lib/utils/audit';
 // ---------------------------------------------------------------------------
 
 const TVA_RATE_DEFAULT = 20;
+
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+// Pourquoi : RLS bloque les acces non autorises mais ne contraint pas le
+// type. Sans ces guards, un client peut poster montantHt=NaN ou
+// factureId=garbage et corrompre les donnees ou crasher la query.
+
+const uuidSchema = (label: string) =>
+  z.string().uuid(`${label} doit etre un UUID`);
+
+// Montants HT : on accepte 0..10M€. Le signe (avoirs) est applique en aval.
+const montantHtSchema = z
+  .number()
+  .finite('Montant doit etre un nombre fini')
+  .gte(-10_000_000, 'Montant aberrant')
+  .lte(10_000_000, 'Montant aberrant');
+
+const descriptionSchema = z
+  .string()
+  .trim()
+  .min(1, 'Description requise')
+  .max(2000, 'Description trop longue');
+
+const AddLigneSchema = z.object({
+  factureId: uuidSchema('factureId'),
+  contratId: uuidSchema('contratId'),
+  description: descriptionSchema,
+  montantHt: montantHtSchema,
+  moisRelatif: z.number().int().gte(-120).lte(120).optional(),
+  quotePart: z.number().finite().gte(0).lte(1).optional(),
+  npecSnapshot: z.number().finite().gte(0).lte(10_000_000).optional(),
+  tauxCommissionSnapshot: z.number().finite().gte(0).lte(100).optional(),
+});
+
+const UpdateLigneSchema = z.object({
+  ligneId: uuidSchema('ligneId'),
+  description: z.string().trim().min(1).max(2000).optional(),
+  montantHt: montantHtSchema.optional(),
+});
+
+const RemoveLigneSchema = uuidSchema('ligneId');
 
 async function recomputeFactureTotaux(factureId: string): Promise<void> {
   const supabase = await createClient();
@@ -91,29 +134,32 @@ export interface AddLigneParams {
 export async function addLigneToBrouillon(
   params: AddLigneParams,
 ): Promise<{ success: boolean; ligneId?: string; error?: string }> {
+  const parsed = AddLigneSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  const data = parsed.data;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
-  const check = await assertBrouillon(params.factureId);
+  const check = await assertBrouillon(data.factureId);
   if (!check.ok) return { success: false, error: check.error };
 
-  if (!params.description?.trim()) {
-    return { success: false, error: 'Description requise' };
-  }
-  if (!Number.isFinite(params.montantHt)) {
-    return { success: false, error: 'Montant invalide' };
-  }
   // Pour les avoirs, le montant doit etre negatif (on inverse au besoin).
   const sign = check.est_avoir ? -1 : 1;
   const montantHtSigned =
-    sign === -1 ? -Math.abs(params.montantHt) : Math.abs(params.montantHt);
+    sign === -1 ? -Math.abs(data.montantHt) : Math.abs(data.montantHt);
 
   // Verifie que le contrat appartient bien au projet de la facture
   const { data: contrat } = await supabase
     .from('contrats')
     .select('id, projet_id, archive')
-    .eq('id', params.contratId)
+    .eq('id', data.contratId)
     .maybeSingle();
   if (!contrat) {
     return { success: false, error: 'Contrat introuvable' };
@@ -128,35 +174,35 @@ export async function addLigneToBrouillon(
   const { data: ligne, error: insertError } = await supabase
     .from('facture_lignes')
     .insert({
-      facture_id: params.factureId,
-      contrat_id: params.contratId,
-      description: params.description.trim(),
+      facture_id: data.factureId,
+      contrat_id: data.contratId,
+      description: data.description,
       montant_ht: montantHtSigned,
-      mois_relatif: params.moisRelatif ?? 0,
-      quote_part: params.quotePart ?? 0,
-      npec_snapshot: params.npecSnapshot ?? 0,
-      taux_commission_snapshot: params.tauxCommissionSnapshot ?? 0,
+      mois_relatif: data.moisRelatif ?? 0,
+      quote_part: data.quotePart ?? 0,
+      npec_snapshot: data.npecSnapshot ?? 0,
+      taux_commission_snapshot: data.tauxCommissionSnapshot ?? 0,
     })
     .select('id')
     .single();
 
   if (insertError || !ligne) {
     logger.error('actions.facture-lignes', 'addLigne failed', {
-      factureId: params.factureId,
+      factureId: data.factureId,
       error: insertError,
     });
     return { success: false, error: insertError?.message ?? 'Erreur ajout' };
   }
 
-  await recomputeFactureTotaux(params.factureId);
+  await recomputeFactureTotaux(data.factureId);
 
   logAudit(
     'facture_ligne_added',
     'facture',
-    params.factureId,
+    data.factureId,
     {
       ligneId: ligne.id,
-      contratId: params.contratId,
+      contratId: data.contratId,
       montant: montantHtSigned,
     },
     user.id,
@@ -177,6 +223,15 @@ export interface UpdateLigneParams {
 export async function updateLigneInBrouillon(
   params: UpdateLigneParams,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateLigneSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  const data = parsed.data;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -185,7 +240,7 @@ export async function updateLigneInBrouillon(
   const { data: ligne, error: fetchError } = await supabase
     .from('facture_lignes')
     .select('id, facture_id, montant_ht')
-    .eq('id', params.ligneId)
+    .eq('id', data.ligneId)
     .maybeSingle();
   if (fetchError || !ligne) {
     return { success: false, error: 'Ligne introuvable' };
@@ -195,19 +250,13 @@ export async function updateLigneInBrouillon(
   if (!check.ok) return { success: false, error: check.error };
 
   const updates: { description?: string; montant_ht?: number } = {};
-  if (params.description !== undefined) {
-    if (!params.description.trim()) {
-      return { success: false, error: 'Description ne peut être vide' };
-    }
-    updates.description = params.description.trim();
+  if (data.description !== undefined) {
+    updates.description = data.description;
   }
-  if (params.montantHt !== undefined) {
-    if (!Number.isFinite(params.montantHt)) {
-      return { success: false, error: 'Montant invalide' };
-    }
+  if (data.montantHt !== undefined) {
     const sign = check.est_avoir ? -1 : 1;
     updates.montant_ht =
-      sign === -1 ? -Math.abs(params.montantHt) : Math.abs(params.montantHt);
+      sign === -1 ? -Math.abs(data.montantHt) : Math.abs(data.montantHt);
   }
   if (Object.keys(updates).length === 0) {
     return { success: true };
@@ -216,17 +265,17 @@ export async function updateLigneInBrouillon(
   const { error: updateError } = await supabase
     .from('facture_lignes')
     .update(updates)
-    .eq('id', params.ligneId);
+    .eq('id', data.ligneId);
 
   if (updateError) {
     logger.error('actions.facture-lignes', 'updateLigne failed', {
-      ligneId: params.ligneId,
+      ligneId: data.ligneId,
       error: updateError,
     });
     return { success: false, error: updateError.message };
   }
 
-  if (params.montantHt !== undefined) {
+  if (data.montantHt !== undefined) {
     await recomputeFactureTotaux(ligne.facture_id);
   }
 
@@ -235,7 +284,7 @@ export async function updateLigneInBrouillon(
     'facture',
     ligne.facture_id,
     {
-      ligneId: params.ligneId,
+      ligneId: data.ligneId,
       updates,
     },
     user.id,
@@ -250,6 +299,15 @@ export async function updateLigneInBrouillon(
 export async function removeLigneFromBrouillon(
   ligneId: string,
 ): Promise<{ success: boolean; eventFreed?: boolean; error?: string }> {
+  const parsed = RemoveLigneSchema.safeParse(ligneId);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  ligneId = parsed.data;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;

@@ -1,12 +1,67 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { canValidateIdeas, canShipIdeas, isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import type { CibleIdee } from '@/lib/utils/constants';
+
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+
+const ideeIdSchema = z.string().uuid('Idée ID doit etre un UUID');
+const titreSchema = z
+  .string()
+  .trim()
+  .min(1, 'Le titre est requis')
+  .max(2000, 'Le titre est trop long');
+const descriptionSchema = z
+  .string()
+  .trim()
+  .max(2000, 'La description est trop longue')
+  .optional();
+const cibleSchema = z.enum(['eduvia', 'soluvia', 'workflow', 'autre']);
+const motifSchema = z
+  .string()
+  .trim()
+  .min(1, 'Le motif est requis')
+  .max(2000, 'Le motif est trop long');
+
+const ProposeIdeaSchema = z.object({
+  titre: titreSchema,
+  description: descriptionSchema,
+  cible: cibleSchema,
+});
+
+const UpdateProposedIdeaSchema = z.object({
+  id: ideeIdSchema,
+  titre: titreSchema,
+  description: descriptionSchema,
+  cible: cibleSchema,
+});
+
+const RejectIdeaSchema = z.object({
+  id: ideeIdSchema,
+  motif: motifSchema,
+});
+
+const IdeaIdOnlySchema = z.object({ id: ideeIdSchema });
+
+const ArchiveIdeaSchema = z.object({
+  id: ideeIdSchema,
+  archive: z.boolean(),
+});
+
+const ReopenAndEditIdeaSchema = z.object({
+  id: ideeIdSchema,
+  titre: titreSchema,
+  description: descriptionSchema,
+  cible: cibleSchema,
+});
 
 async function getCaller() {
   const auth = await requireUser();
@@ -35,19 +90,6 @@ async function getCaller() {
   };
 }
 
-type RequireStringResult =
-  | { ok: false; error: string }
-  | { ok: true; value: string };
-
-function requireString(
-  val: string | undefined | null,
-  field: string,
-): RequireStringResult {
-  const trimmed = val?.trim() ?? '';
-  if (!trimmed) return { ok: false, error: `${field} est requis` };
-  return { ok: true, value: trimmed };
-}
-
 // ---------------------------------------------------------------------------
 // Propose a new idea
 // ---------------------------------------------------------------------------
@@ -57,8 +99,15 @@ export async function proposeIdea(data: {
   description?: string;
   cible: CibleIdee;
 }): Promise<{ success: boolean; id?: string; error?: string }> {
-  const titreCheck = requireString(data.titre, 'Le titre');
-  if (!titreCheck.ok) return { success: false, error: titreCheck.error };
+  const parsed = ProposeIdeaSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  const titre = parsed.data.titre;
+  const description = parsed.data.description?.trim() || null;
 
   const { supabase, user } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
@@ -67,9 +116,9 @@ export async function proposeIdea(data: {
     .from('idees')
     .insert({
       auteur_id: user.id,
-      titre: titreCheck.value,
-      description: data.description?.trim() || null,
-      cible: data.cible,
+      titre,
+      description,
+      cible: parsed.data.cible,
       statut: 'proposee',
     })
     .select('id')
@@ -80,13 +129,7 @@ export async function proposeIdea(data: {
     return { success: false, error: error?.message ?? 'Erreur' };
   }
 
-  logAudit(
-    'idea_proposed',
-    'idee',
-    idee.id,
-    { titre: titreCheck.value },
-    user.id,
-  );
+  logAudit('idea_proposed', 'idee', idee.id, { titre }, user.id);
   revalidatePath('/idees');
   return { success: true, id: idee.id };
 }
@@ -99,8 +142,13 @@ export async function updateProposedIdea(
   id: string,
   data: { titre: string; description?: string; cible: CibleIdee },
 ): Promise<{ success: boolean; error?: string }> {
-  const titreCheck = requireString(data.titre, 'Le titre');
-  if (!titreCheck.ok) return { success: false, error: titreCheck.error };
+  const parsed = UpdateProposedIdeaSchema.safeParse({ id, ...data });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
 
   const { supabase, user, role } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
@@ -108,7 +156,7 @@ export async function updateProposedIdea(
   const { data: existing, error: fetchError } = await supabase
     .from('idees')
     .select('auteur_id, statut')
-    .eq('id', id)
+    .eq('id', parsed.data.id)
     .single();
   if (fetchError || !existing) {
     return { success: false, error: 'Idée introuvable' };
@@ -126,15 +174,15 @@ export async function updateProposedIdea(
   const { error } = await supabase
     .from('idees')
     .update({
-      titre: titreCheck.value,
-      description: data.description?.trim() || null,
-      cible: data.cible,
+      titre: parsed.data.titre,
+      description: parsed.data.description?.trim() || null,
+      cible: parsed.data.cible,
     })
-    .eq('id', id);
+    .eq('id', parsed.data.id);
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('idea_updated', 'idee', id, undefined, user.id);
+  logAudit('idea_updated', 'idee', parsed.data.id, undefined, user.id);
   revalidatePath('/idees');
   return { success: true };
 }
@@ -176,6 +224,15 @@ async function notifyAuthor(
 export async function validateIdea(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = IdeaIdOnlySchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+
   const { supabase, user, role, canValidate } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canValidateIdeas(role, canValidate)) {
@@ -228,8 +285,15 @@ export async function rejectIdea(
   id: string,
   motif: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const motifCheck = requireString(motif, 'Le motif');
-  if (!motifCheck.ok) return { success: false, error: motifCheck.error };
+  const parsed = RejectIdeaSchema.safeParse({ id, motif });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  const motifValue = parsed.data.motif;
+  id = parsed.data.id;
 
   const { supabase, user, role, canValidate } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
@@ -256,7 +320,7 @@ export async function rejectIdea(
     .from('idees')
     .update({
       statut: 'rejetee',
-      rejet_motif: motifCheck.value,
+      rejet_motif: motifValue,
     })
     .eq('id', id);
 
@@ -268,9 +332,9 @@ export async function rejectIdea(
     'idee_rejetee',
     existing.titre,
     id,
-    motifCheck.value,
+    motifValue,
   );
-  logAudit('idea_rejected', 'idee', id, { motif: motifCheck.value }, user.id);
+  logAudit('idea_rejected', 'idee', id, { motif: motifValue }, user.id);
   revalidatePath('/idees');
   return { success: true };
 }
@@ -282,6 +346,15 @@ export async function rejectIdea(
 export async function markIdeaImplemented(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = IdeaIdOnlySchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+
   const { supabase, user, role, canShip } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canShipIdeas(role, canShip)) {
@@ -334,6 +407,15 @@ export async function markIdeaImplemented(
 export async function reopenIdea(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = IdeaIdOnlySchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+
   const { supabase, user, role, canValidate, canShip } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
 
@@ -385,6 +467,15 @@ export async function reopenIdea(
 export async function revertImplementedIdea(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = IdeaIdOnlySchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+
   const { supabase, user, role, canShip } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canShipIdeas(role, canShip)) {
@@ -425,8 +516,13 @@ export async function reopenAndEditIdea(
   id: string,
   data: { titre: string; description?: string; cible: CibleIdee },
 ): Promise<{ success: boolean; error?: string }> {
-  const titreCheck = requireString(data.titre, 'Le titre');
-  if (!titreCheck.ok) return { success: false, error: titreCheck.error };
+  const parsed = ReopenAndEditIdeaSchema.safeParse({ id, ...data });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
 
   const { supabase, user, role } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
@@ -434,7 +530,7 @@ export async function reopenAndEditIdea(
   const { data: existing, error: fetchError } = await supabase
     .from('idees')
     .select('auteur_id, statut')
-    .eq('id', id)
+    .eq('id', parsed.data.id)
     .single();
   if (fetchError || !existing) {
     return { success: false, error: 'Idée introuvable' };
@@ -454,16 +550,22 @@ export async function reopenAndEditIdea(
   const { error } = await supabase
     .from('idees')
     .update({
-      titre: titreCheck.value,
-      description: data.description?.trim() || null,
-      cible: data.cible,
+      titre: parsed.data.titre,
+      description: parsed.data.description?.trim() || null,
+      cible: parsed.data.cible,
       statut: 'proposee',
       rejet_motif: null,
     })
-    .eq('id', id);
+    .eq('id', parsed.data.id);
   if (error) return { success: false, error: error.message };
 
-  logAudit('idea_reopened_with_edit', 'idee', id, undefined, user.id);
+  logAudit(
+    'idea_reopened_with_edit',
+    'idee',
+    parsed.data.id,
+    undefined,
+    user.id,
+  );
   revalidatePath('/idees');
   return { success: true };
 }
@@ -476,6 +578,16 @@ export async function archiveIdea(
   id: string,
   archive: boolean,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = ArchiveIdeaSchema.safeParse({ id, archive });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+  archive = parsed.data.archive;
+
   const { supabase, user, role } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!isAdmin(role)) {

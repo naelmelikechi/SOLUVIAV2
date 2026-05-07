@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import * as XLSX from 'xlsx';
 import { requireUser } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
@@ -12,7 +13,59 @@ import type { Database } from '@/types/database';
 type StageProspect = Database['public']['Enums']['stage_prospect'];
 type TypeProspect = Database['public']['Enums']['type_prospect'];
 
-const STAGE_VALUES: StageProspect[] = ['non_contacte', 'r1', 'r2', 'signe'];
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+// Pourquoi : RLS bloque les acces non autorises mais ne contraint pas le
+// type. Sans ces guards, un client peut poster ids=garbage, stage hors enum,
+// commercialId hostile, ce qui crash la query Postgres ou corrompt la base.
+
+const stageSchema = z.enum(['non_contacte', 'r1', 'r2', 'signe'], {
+  message: 'Stage invalide',
+});
+
+const LoadProspectDetailsSchema = z.object({
+  id: z.string().uuid('Prospect ID doit etre un UUID'),
+});
+
+const UpdateProspectStageSchema = z.object({
+  id: z.string().uuid('Prospect ID doit etre un UUID'),
+  stage: stageSchema,
+});
+
+const UpdateProspectAssignmentSchema = z.object({
+  id: z.string().uuid('Prospect ID doit etre un UUID'),
+  commercialId: z.string().uuid('commercialId doit etre un UUID').nullable(),
+});
+
+const BulkUpdateProspectsSchema = z.object({
+  ids: z
+    .array(z.string().uuid('ID doit etre un UUID'))
+    .min(1, 'Aucun prospect sélectionné')
+    .max(500, 'Maximum 500 prospects par operation'),
+  patch: z
+    .object({
+      commercialId: z
+        .string()
+        .uuid('commercialId doit etre un UUID')
+        .nullable()
+        .optional(),
+      stage: stageSchema.optional(),
+    })
+    .refine(
+      (p) => p.commercialId !== undefined || p.stage !== undefined,
+      'Aucune modification fournie',
+    ),
+});
+
+const AddProspectNoteSchema = z.object({
+  prospectId: z.string().uuid('Prospect ID doit etre un UUID'),
+  contenu: z.string().trim().min(1, 'Le contenu est requis').max(2000),
+});
+
+const ConvertProspectSchema = z.object({
+  id: z.string().uuid('Prospect ID doit etre un UUID'),
+});
 
 async function getCaller() {
   const auth = await requireUser();
@@ -44,6 +97,11 @@ async function getCaller() {
 // ---------------------------------------------------------------------------
 
 export async function loadProspectDetails(id: string) {
+  const parsed = LoadProspectDetailsSchema.safeParse({ id });
+  if (!parsed.success) {
+    return { prospect: null, notes: [], convertedClient: null, rdvs: [] };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) {
     return { prospect: null, notes: [], convertedClient: null, rdvs: [] };
@@ -56,21 +114,21 @@ export async function loadProspectDetails(id: string) {
       .select(
         '*, commercial:users!prospects_commercial_id_fkey(id, nom, prenom), client:clients(id, raison_sociale)',
       )
-      .eq('id', id)
+      .eq('id', parsed.data.id)
       .maybeSingle(),
     supabase
       .from('prospect_notes')
       .select(
         '*, user:users!prospect_notes_user_id_fkey(id, nom, prenom, role)',
       )
-      .eq('prospect_id', id)
+      .eq('prospect_id', parsed.data.id)
       .order('created_at', { ascending: false }),
     supabase
       .from('rdv_commerciaux')
       .select(
         '*, commercial:users!rdv_commerciaux_commercial_id_fkey(id, nom, prenom)',
       )
-      .eq('prospect_id', id)
+      .eq('prospect_id', parsed.data.id)
       .order('date_prevue', { ascending: false }),
   ]);
 
@@ -95,8 +153,12 @@ export async function updateProspectStage(
   id: string,
   stage: StageProspect,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!STAGE_VALUES.includes(stage)) {
-    return { success: false, error: 'Stage invalide' };
+  const parsed = UpdateProspectStageSchema.safeParse({ id, stage });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
 
   const { supabase, user, role, pipelineAccess } = await getCaller();
@@ -107,19 +169,25 @@ export async function updateProspectStage(
 
   const { error } = await supabase
     .from('prospects')
-    .update({ stage })
-    .eq('id', id);
+    .update({ stage: parsed.data.stage })
+    .eq('id', parsed.data.id);
 
   if (error) {
     logger.error('actions.prospects', 'updateProspectStage failed', {
-      id,
-      stage,
+      id: parsed.data.id,
+      stage: parsed.data.stage,
       error,
     });
     return { success: false, error: error.message };
   }
 
-  logAudit('prospect_stage_updated', 'prospect', id, { stage }, user.id);
+  logAudit(
+    'prospect_stage_updated',
+    'prospect',
+    parsed.data.id,
+    { stage: parsed.data.stage },
+    user.id,
+  );
   revalidatePath('/commercial/pipeline');
   return { success: true };
 }
@@ -132,6 +200,14 @@ export async function updateProspectAssignment(
   id: string,
   commercialId: string | null,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateProspectAssignmentSchema.safeParse({ id, commercialId });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const { supabase, user, role, pipelineAccess } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canAccessPipeline(role, pipelineAccess)) {
@@ -140,19 +216,25 @@ export async function updateProspectAssignment(
 
   const { error } = await supabase
     .from('prospects')
-    .update({ commercial_id: commercialId })
-    .eq('id', id);
+    .update({ commercial_id: parsed.data.commercialId })
+    .eq('id', parsed.data.id);
 
   if (error) {
     logger.error('actions.prospects', 'updateProspectAssignment failed', {
-      id,
-      commercialId,
+      id: parsed.data.id,
+      commercialId: parsed.data.commercialId,
       error,
     });
     return { success: false, error: error.message };
   }
 
-  logAudit('prospect_assigned', 'prospect', id, { commercialId }, user.id);
+  logAudit(
+    'prospect_assigned',
+    'prospect',
+    parsed.data.id,
+    { commercialId: parsed.data.commercialId },
+    user.id,
+  );
   revalidatePath('/commercial/pipeline');
   return { success: true };
 }
@@ -165,20 +247,19 @@ export async function bulkUpdateProspects(
   ids: string[],
   patch: { commercialId?: string | null; stage?: StageProspect },
 ): Promise<{ success: boolean; updated?: number; error?: string }> {
-  if (!ids?.length) {
-    return { success: false, error: 'Aucun prospect sélectionné' };
-  }
-  if (patch.stage && !STAGE_VALUES.includes(patch.stage)) {
-    return { success: false, error: 'Stage invalide' };
+  const parsed = BulkUpdateProspectsSchema.safeParse({ ids, patch });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
 
   const update: Database['public']['Tables']['prospects']['Update'] = {};
-  if (patch.commercialId !== undefined)
-    update.commercial_id = patch.commercialId;
-  if (patch.stage !== undefined) update.stage = patch.stage;
-  if (Object.keys(update).length === 0) {
-    return { success: false, error: 'Aucune modification fournie' };
-  }
+  if (parsed.data.patch.commercialId !== undefined)
+    update.commercial_id = parsed.data.patch.commercialId;
+  if (parsed.data.patch.stage !== undefined)
+    update.stage = parsed.data.patch.stage;
 
   const { supabase, user, role, pipelineAccess } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
@@ -189,12 +270,12 @@ export async function bulkUpdateProspects(
   const { error } = await supabase
     .from('prospects')
     .update(update)
-    .in('id', ids);
+    .in('id', parsed.data.ids);
 
   if (error) {
     logger.error('actions.prospects', 'bulkUpdateProspects failed', {
-      count: ids.length,
-      patch,
+      count: parsed.data.ids.length,
+      patch: parsed.data.patch,
       error,
     });
     return { success: false, error: error.message };
@@ -205,13 +286,13 @@ export async function bulkUpdateProspects(
     'prospect',
     undefined,
     {
-      count: ids.length,
-      patch,
+      count: parsed.data.ids.length,
+      patch: parsed.data.patch,
     },
     user.id,
   );
   revalidatePath('/commercial/pipeline');
-  return { success: true, updated: ids.length };
+  return { success: true, updated: parsed.data.ids.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -222,8 +303,12 @@ export async function addProspectNote(
   prospectId: string,
   contenu: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!contenu?.trim()) {
-    return { success: false, error: 'Le contenu est requis' };
+  const parsed = AddProspectNoteSchema.safeParse({ prospectId, contenu });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
 
   const { supabase, user, role, pipelineAccess } = await getCaller();
@@ -233,14 +318,20 @@ export async function addProspectNote(
   }
 
   const { error } = await supabase.from('prospect_notes').insert({
-    prospect_id: prospectId,
+    prospect_id: parsed.data.prospectId,
     user_id: user.id,
-    contenu: contenu.trim(),
+    contenu: parsed.data.contenu,
   });
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('note_added', 'prospect', prospectId, undefined, user.id);
+  logAudit(
+    'note_added',
+    'prospect',
+    parsed.data.prospectId,
+    undefined,
+    user.id,
+  );
   revalidatePath('/commercial/pipeline');
   return { success: true };
 }
@@ -252,6 +343,14 @@ export async function addProspectNote(
 export async function convertProspectToClient(
   id: string,
 ): Promise<{ success: boolean; clientId?: string; error?: string }> {
+  const parsed = ConvertProspectSchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const { supabase, user, role } = await getCaller();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!isAdmin(role)) {
@@ -264,7 +363,7 @@ export async function convertProspectToClient(
   const { data: prospect, error: fetchError } = await supabase
     .from('prospects')
     .select('*')
-    .eq('id', id)
+    .eq('id', parsed.data.id)
     .single();
 
   if (fetchError || !prospect) {
@@ -296,7 +395,7 @@ export async function convertProspectToClient(
 
   if (insertError || !client) {
     logger.error('actions.prospects', 'convertProspectToClient failed', {
-      id,
+      id: parsed.data.id,
       error: insertError,
     });
     return {
@@ -308,12 +407,12 @@ export async function convertProspectToClient(
   await supabase
     .from('prospects')
     .update({ client_id: client.id })
-    .eq('id', id);
+    .eq('id', parsed.data.id);
 
   logAudit(
     'prospect_converted',
     'prospect',
-    id,
+    parsed.data.id,
     { clientId: client.id },
     user.id,
   );
@@ -411,6 +510,16 @@ function mapRow(row: Record<string, unknown>): ExcelRow | null {
   };
 }
 
+// Schema valide le File extrait de FormData (pas le FormData lui-meme).
+const ImportFileSchema = z.object({
+  size: z
+    .number()
+    .int()
+    .positive('Aucun fichier fourni')
+    .max(20 * 1024 * 1024, 'Le fichier dépasse 20 Mo'),
+  name: z.string().max(500).optional(),
+});
+
 export async function importProspectsFromExcel(formData: FormData): Promise<{
   success: boolean;
   created?: number;
@@ -428,12 +537,20 @@ export async function importProspectsFromExcel(formData: FormData): Promise<{
   }
 
   const file = formData.get('file') as File | null;
-  if (!file || file.size === 0) {
+  if (!file) {
     return { success: false, error: 'Aucun fichier fourni' };
   }
 
-  if (file.size > 20 * 1024 * 1024) {
-    return { success: false, error: 'Le fichier dépasse 20 Mo' };
+  // Valider apres extraction du File (pas le FormData lui-meme).
+  const parsed = ImportFileSchema.safeParse({
+    size: file.size,
+    name: file.name,
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Fichier invalide',
+    };
   }
 
   let workbook: XLSX.WorkBook;

@@ -209,16 +209,11 @@ les agents inventent ~30%).
 - `optimizePackageImports: ['lucide-react', 'date-fns']` : `next.config.ts`
 - `tsc --noEmit` ajoute a lint-staged
 
-### P1 hors scope sprint 7 (a programmer)
+### P1 hors scope sprint 7 (Zod traite en sprint 8 ci-dessous)
 
-- **Validation Zod sur 24 modules d actions** : seuls 4/28 utilisent Zod
-  (temps, users, factures/avoirs, factures/payments). Impact serieux mais
-  ~4h de travail soigne, hors d un commit unique. Sprint 8 dedie.
-- **Couverture vitest sur lib/queries/_ et lib/actions/_** : ~35% du code
-  app non couvert (eduvia/sync, odoo/sync, tous les CRUD). Necessite
-  fixtures Supabase mockes. Sprint 8.
-- **Test pgTAP de concurrence sendFacture** : invariant gapless n est
-  teste qu en mono-thread aujourd hui. Necessite `pg_isolation` ou pgbench.
+- **Validation Zod sur 24 modules d actions** : sprint 8.
+- **Couverture vitest sur lib/queries/_ et lib/actions/_** : reporte sprint 9.
+- **Test pgTAP de concurrence sendFacture** : reporte sprint 9.
 
 ### Faux positifs des agents (verifies et ecartes)
 
@@ -241,3 +236,85 @@ npm run test        154/154 passing
 
 **Note honnete : 9.5/10** apres sprint 7. P1 Zod coverage + tests sont
 les 0.5 points restants, programmes en sprint 8.
+
+## Sprint 8 - Zod hardening (2026-05-07, meme branche)
+
+Defense en profondeur : RLS bloque les acces non autorises mais ne
+contraint pas le type. Sans schemas Zod, un client peut poster des
+payloads malformes (NaN, garbage UUIDs, enums invalides) qui crashent
+les queries ou corrompent les donnees. Sprint 8 etend la couverture
+de 4/28 modules a 23/28 modules.
+
+### Approche
+
+4 agents en parallele sur des sets de modules non-overlap, plus 6
+modules Tier 3 traites manuellement. Pattern uniforme calque sur
+`lib/actions/temps.ts` : schemas Zod en haut du fichier, `safeParse`
+en TOUT PREMIER de chaque fonction publique, retour
+`{success: false, error: parsed.error.issues[0]?.message}`.
+
+### Couverture
+
+| Module                 | Fonctions Zod-isees | Source      |
+| ---------------------- | ------------------- | ----------- |
+| factures/brouillons.ts | 4                   | agent       |
+| factures/emission.ts   | 2                   | agent       |
+| facture-lignes.ts      | 3                   | agent       |
+| echeanciers.ts         | 7                   | agent       |
+| projets.ts             | 4                   | agent       |
+| contrats.ts            | 1                   | agent       |
+| clients.ts             | 10                  | agent       |
+| prospects.ts           | 7                   | agent       |
+| idees.ts               | 9                   | agent       |
+| documents.ts           | 5                   | agent       |
+| absences.ts            | 3                   | agent       |
+| rdv.ts                 | 6                   | agent       |
+| settings.ts            | 3                   | agent       |
+| notifications.ts       | 2                   | manuel      |
+| passkeys.ts            | 1                   | manuel      |
+| email.ts               | 2                   | manuel      |
+| employee-cost.ts       | 2                   | manuel      |
+| qualiopi.ts            | 1                   | manuel      |
+| team-chat.ts           | 3                   | manuel      |
+| **Pre-sprint 8**       |                     |             |
+| temps.ts               | 5                   | sprint 5 #8 |
+| users.ts               | 7                   | sprint 5 #8 |
+| factures/avoirs.ts     | 2                   | sprint 5 #8 |
+| factures/payments.ts   | 1                   | sprint 5 #8 |
+
+**Total : 23 modules, ~85 fonctions validees Zod.**
+
+### Modules non-Zodises (justifies)
+
+- `sync.ts` : 3 fonctions sans parametre (admin-only triggers).
+- `production.ts` : 2 fonctions read-only (RLS protege la lecture).
+- `auth.ts` : validation manuelle + rate limit deja en place (hot path).
+- `factures/index.ts` : barrel export, pas de logique.
+- `facture-lignes-helpers.ts` : helpers prives.
+
+### Conventions Zod adoptees
+
+- UUIDs : `z.string().uuid('XXX doit etre un UUID')`
+- Montants : `z.number().finite().gte(0).lte(10_000_000)` (10M EUR cap)
+- Taux % : `z.number().finite().gte(0).lte(100)`
+- Dates ISO : `z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '...')`
+- Strings libres : `z.string().trim().min(1).max(2000)`
+- Enums : `z.enum([...])` avec valeurs reelles du Database type
+- Arrays IDs : `.min(1).max(500)` (anti-DoS)
+- Password : `z.string().min(8).max(72)` (bcrypt-safe)
+
+### Verifications finales sprint 8
+
+```
+npm run lint        0 errors, 0 warnings
+npx tsc --noEmit    clean
+npm run test        154/154 passing
+```
+
+### Reste a faire (sprint 9)
+
+- Couverture vitest sur lib/queries/\* et lib/eduvia/sync, lib/odoo/sync.
+- Test pgTAP de concurrence sendFacture (necessite pg_isolation/pgbench).
+- Application en prod des migrations 20260507144228 + 20260507144229.
+
+**Note honnete : 9.7/10** apres sprint 8.

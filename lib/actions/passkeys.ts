@@ -1,11 +1,22 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireUser } from '@/lib/auth/guards';
+
+const passkeyIdSchema = z.string().uuid('Passkey ID doit etre un UUID');
 
 export async function deletePasskey(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = passkeyIdSchema.safeParse(id);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -15,7 +26,7 @@ export async function deletePasskey(
   const { error } = await supabase
     .from('webauthn_credentials')
     .delete()
-    .eq('id', id)
+    .eq('id', parsed.data)
     .eq('user_id', user.id);
 
   if (error) return { success: false, error: error.message };

@@ -1,14 +1,39 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertAdmin } from '@/lib/queries/employee-cost';
 import type { EmployeeCostInputs } from '@/lib/utils/employee-cost';
 
+// Bornes raisonnables : un salaire annuel > 1M€ ou des heures > 80/sem
+// indiquent une saisie corrompue plutot qu un cas legitime.
+const employeeCostFieldsSchema = z.object({
+  salaire_brut_annuel: z.number().finite().gte(0).lte(2_000_000),
+  primes_annuelles: z.number().finite().gte(0).lte(2_000_000),
+  avantages_annuels: z.number().finite().gte(0).lte(500_000),
+  taux_charges_patronales: z.number().finite().gte(0).lte(100),
+  heures_hebdo: z.number().finite().gte(0).lte(80),
+  jours_conges_payes: z.number().finite().gte(0).lte(60),
+  jours_rtt: z.number().finite().gte(0).lte(60),
+});
+
+const UpdateUserCostSchema = z.object({
+  userId: z.string().uuid('User ID doit etre un UUID'),
+  fields: employeeCostFieldsSchema,
+});
+
 export async function updateUserCost(
   userId: string,
   fields: EmployeeCostInputs,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateUserCostSchema.safeParse({ userId, fields });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
   try {
     await assertAdmin();
   } catch (err) {
@@ -49,6 +74,13 @@ export async function updateEmployeeCostDefaults(fields: {
   jours_conges_payes: number;
   jours_rtt: number;
 }): Promise<{ success: boolean; error?: string }> {
+  const parsed = employeeCostFieldsSchema.safeParse(fields);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
   try {
     await assertAdmin();
   } catch (err) {

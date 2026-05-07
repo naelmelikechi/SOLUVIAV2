@@ -1,11 +1,19 @@
 'use server';
 
+import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireUser } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 
 const SCOPE = 'actions.qualiopi';
+
+const AssignIndicatorSchema = z.object({
+  clientId: z.string().uuid('Client ID doit etre un UUID'),
+  campusId: z.number().int().positive(),
+  indicatorId: z.number().int().positive(),
+  userId: z.string().uuid().nullable(),
+});
 
 // ---------------------------------------------------------------------------
 // Assignation responsable d'un indicateur (cote SOLUVIA)
@@ -17,16 +25,24 @@ export async function assignIndicatorResponsible(params: {
   indicatorId: number;
   userId: string | null;
 }): Promise<{ success: boolean; error?: string }> {
+  const parsed = AssignIndicatorSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
   const { error } = await supabase.from('qualite_assignments').upsert(
     {
-      client_id: params.clientId,
-      campus_id: params.campusId,
-      indicator_id: params.indicatorId,
-      user_id: params.userId,
+      client_id: parsed.data.clientId,
+      campus_id: parsed.data.campusId,
+      indicator_id: parsed.data.indicatorId,
+      user_id: parsed.data.userId,
       created_by: user.id,
     },
     { onConflict: 'campus_id,indicator_id' },
@@ -40,8 +56,8 @@ export async function assignIndicatorResponsible(params: {
     'qualite_assignments',
     undefined,
     {
-      indicator_id: params.indicatorId,
-      user_id: params.userId,
+      indicator_id: parsed.data.indicatorId,
+      user_id: parsed.data.userId,
     },
     user.id,
   );

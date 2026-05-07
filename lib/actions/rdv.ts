@@ -1,11 +1,62 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import type { StatutRdv } from '@/lib/utils/constants';
+
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const rdvIdSchema = z.string().uuid('RDV ID doit etre un UUID');
+const projetIdSchema = z.string().uuid('Projet ID doit etre un UUID');
+const prospectIdSchema = z.string().uuid('Prospect ID doit etre un UUID');
+const formateurIdSchema = z
+  .string()
+  .uuid('Formateur ID doit etre un UUID')
+  .nullable()
+  .optional();
+const datePrevueSchema = z
+  .string()
+  .regex(ISO_DATE_RE, 'Date au format YYYY-MM-DD requise');
+const shortTextSchema = z
+  .string()
+  .trim()
+  .max(2000, 'Texte trop long')
+  .optional();
+const statutRdvSchema = z.enum(['prevu', 'realise', 'annule']);
+
+const CreateRdvFormateurSchema = z.object({
+  projetId: projetIdSchema,
+  data: z.object({
+    formateurNom: shortTextSchema,
+    formateurId: formateurIdSchema,
+    datePrevue: datePrevueSchema,
+    objet: shortTextSchema,
+    notes: shortTextSchema,
+  }),
+});
+
+const UpdateRdvFormateurStatutSchema = z.object({
+  id: rdvIdSchema,
+  statut: statutRdvSchema,
+});
+
+const RdvIdOnlySchema = z.object({ id: rdvIdSchema });
+
+const CreateRdvCommercialSchema = z.object({
+  prospectId: prospectIdSchema,
+  data: z.object({
+    datePrevue: datePrevueSchema,
+    objet: shortTextSchema,
+    notes: shortTextSchema,
+  }),
+});
 
 // ---------------------------------------------------------------------------
 // RDV formateurs (CDP scope)
@@ -21,9 +72,16 @@ export async function createRdvFormateur(
     notes?: string;
   },
 ): Promise<{ success: boolean; id?: string; error?: string }> {
-  if (!data.datePrevue) {
-    return { success: false, error: 'Date prévue requise' };
+  const parsed = CreateRdvFormateurSchema.safeParse({ projetId, data });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
+  projetId = parsed.data.projetId;
+  data = parsed.data.data;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -62,6 +120,16 @@ export async function updateRdvFormateurStatut(
   id: string,
   statut: StatutRdv,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateRdvFormateurStatutSchema.safeParse({ id, statut });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+  statut = parsed.data.statut;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -95,6 +163,15 @@ export async function updateRdvFormateurStatut(
 export async function deleteRdvFormateur(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = RdvIdOnlySchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -114,9 +191,16 @@ export async function createRdvCommercial(
   prospectId: string,
   data: { datePrevue: string; objet?: string; notes?: string },
 ): Promise<{ success: boolean; id?: string; error?: string }> {
-  if (!data.datePrevue) {
-    return { success: false, error: 'Date prévue requise' };
+  const parsed = CreateRdvCommercialSchema.safeParse({ prospectId, data });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
+  prospectId = parsed.data.prospectId;
+  data = parsed.data.data;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -153,6 +237,16 @@ export async function updateRdvCommercialStatut(
   id: string,
   statut: StatutRdv,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateRdvFormateurStatutSchema.safeParse({ id, statut });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+  statut = parsed.data.statut;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -186,6 +280,15 @@ export async function updateRdvCommercialStatut(
 export async function deleteRdvCommercial(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = RdvIdOnlySchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;

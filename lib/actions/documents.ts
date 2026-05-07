@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -20,6 +21,68 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
 export type DocumentBucket = 'client-documents' | 'project-documents';
 
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+
+const uuidSchema = z.string().uuid('ID doit etre un UUID');
+const projetRefSchema = z
+  .string()
+  .trim()
+  .min(1, 'Référence projet requise')
+  .max(64, 'Référence projet trop longue');
+const storagePathSchema = z
+  .string()
+  .trim()
+  .min(1, 'Storage path requis')
+  .max(1024, 'Storage path trop long');
+const bucketSchema = z.enum(['client-documents', 'project-documents']);
+
+// Métadata fichier extraite (filename, size, type) - le File lui-même n'est pas
+// validé par Zod (FormData côté serveur).
+const FileMetadataSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Nom de fichier requis')
+    .max(512, 'Nom de fichier trop long'),
+  size: z
+    .number()
+    .int('Taille doit etre un entier')
+    .positive('Fichier vide')
+    .max(MAX_FILE_SIZE, 'Le fichier ne doit pas dépasser 10 Mo'),
+  type: z.string().refine((v) => ACCEPTED_TYPES.includes(v), {
+    message:
+      'Type de fichier non supporté. Formats acceptés : PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, WEBP',
+  }),
+});
+
+const UploadClientDocumentSchema = z.object({
+  clientId: uuidSchema,
+  fileMeta: FileMetadataSchema,
+});
+
+const UploadProjetDocumentSchema = z.object({
+  projetId: uuidSchema,
+  projetRef: projetRefSchema,
+  fileMeta: FileMetadataSchema,
+});
+
+const GetDownloadUrlSchema = z.object({
+  storagePath: storagePathSchema,
+  bucket: bucketSchema,
+});
+
+const DeleteClientDocumentSchema = z.object({
+  documentId: uuidSchema,
+  clientId: uuidSchema,
+});
+
+const DeleteProjetDocumentSchema = z.object({
+  documentId: uuidSchema,
+  projetRef: projetRefSchema,
+});
+
 function getTypeDocument(mimeType: string): string {
   if (mimeType === 'application/pdf') return 'PDF';
   if (mimeType.includes('word') || mimeType.includes('wordprocessing'))
@@ -28,22 +91,6 @@ function getTypeDocument(mimeType: string): string {
     return 'Excel';
   if (mimeType.startsWith('image/')) return 'Image';
   return 'Autre';
-}
-
-function validateFile(file: File | null): { error?: string; file?: File } {
-  if (!file || file.size === 0) {
-    return { error: 'Aucun fichier sélectionné' };
-  }
-  if (!ACCEPTED_TYPES.includes(file.type)) {
-    return {
-      error:
-        'Type de fichier non supporté. Formats acceptés : PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, WEBP',
-    };
-  }
-  if (file.size > MAX_FILE_SIZE) {
-    return { error: 'Le fichier ne doit pas dépasser 10 Mo' };
-  }
-  return { file };
 }
 
 function buildStoragePath(ownerId: string, fileName: string): string {
@@ -56,15 +103,25 @@ export async function uploadClientDocument(
   clientId: string,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
+  const file = formData.get('file') as File | null;
+  if (!file || file.size === 0) {
+    return { success: false, error: 'Aucun fichier sélectionné' };
+  }
+  const parsed = UploadClientDocumentSchema.safeParse({
+    clientId,
+    fileMeta: { name: file.name, size: file.size, type: file.type },
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  clientId = parsed.data.clientId;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
-
-  const validation = validateFile(formData.get('file') as File | null);
-  if (validation.error || !validation.file) {
-    return { success: false, error: validation.error };
-  }
-  const file = validation.file;
 
   const storagePath = buildStoragePath(clientId, file.name);
 
@@ -133,15 +190,27 @@ export async function uploadProjetDocument(
   projetRef: string,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
+  const file = formData.get('file') as File | null;
+  if (!file || file.size === 0) {
+    return { success: false, error: 'Aucun fichier sélectionné' };
+  }
+  const parsed = UploadProjetDocumentSchema.safeParse({
+    projetId,
+    projetRef,
+    fileMeta: { name: file.name, size: file.size, type: file.type },
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  projetId = parsed.data.projetId;
+  projetRef = parsed.data.projetRef;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
-
-  const validation = validateFile(formData.get('file') as File | null);
-  if (validation.error || !validation.file) {
-    return { success: false, error: validation.error };
-  }
-  const file = validation.file;
 
   const storagePath = buildStoragePath(projetId, file.name);
 
@@ -209,6 +278,15 @@ export async function getDocumentDownloadUrl(
   storagePath: string,
   bucket: DocumentBucket = 'client-documents',
 ): Promise<{ url?: string; error?: string }> {
+  const parsed = GetDownloadUrlSchema.safeParse({ storagePath, bucket });
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  storagePath = parsed.data.storagePath;
+  bucket = parsed.data.bucket;
+
   const auth = await requireUser();
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
@@ -233,6 +311,16 @@ export async function deleteClientDocument(
   documentId: string,
   clientId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = DeleteClientDocumentSchema.safeParse({ documentId, clientId });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  documentId = parsed.data.documentId;
+  clientId = parsed.data.clientId;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -281,6 +369,19 @@ export async function deleteProjetDocument(
   documentId: string,
   projetRef: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = DeleteProjetDocumentSchema.safeParse({
+    documentId,
+    projetRef,
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  documentId = parsed.data.documentId;
+  projetRef = parsed.data.projetRef;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;

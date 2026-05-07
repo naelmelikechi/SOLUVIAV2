@@ -187,7 +187,7 @@ beforeEach(() => {
 describe('sendFacture - gapless integrity', () => {
   it('refuse d emettre une facture qui n est PAS un brouillon', async () => {
     const mock = buildSupabaseMock({
-      facture: { id: 'fac-1', statut: 'emise' },
+      facture: { id: '11111111-1111-4111-8111-111111111111', statut: 'emise' },
     });
     requireUserMock.mockResolvedValue({
       ok: true,
@@ -196,7 +196,7 @@ describe('sendFacture - gapless integrity', () => {
     });
 
     const { sendFacture } = await import('@/lib/actions/factures/emission');
-    const result = await sendFacture('fac-1');
+    const result = await sendFacture('11111111-1111-4111-8111-111111111111');
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/brouillon/i);
@@ -207,7 +207,10 @@ describe('sendFacture - gapless integrity', () => {
 
   it('refuse d emettre un brouillon SANS lignes (eviterait gaspiller un numero_seq)', async () => {
     const mock = buildSupabaseMock({
-      facture: { id: 'fac-1', statut: 'a_emettre' },
+      facture: {
+        id: '11111111-1111-4111-8111-111111111111',
+        statut: 'a_emettre',
+      },
       lignesCount: 0,
     });
     requireUserMock.mockResolvedValue({
@@ -217,7 +220,7 @@ describe('sendFacture - gapless integrity', () => {
     });
 
     const { sendFacture } = await import('@/lib/actions/factures/emission');
-    const result = await sendFacture('fac-1');
+    const result = await sendFacture('11111111-1111-4111-8111-111111111111');
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/ligne/i);
@@ -227,9 +230,17 @@ describe('sendFacture - gapless integrity', () => {
 
   it('utilise un optimistic lock sur statut=a_emettre dans le UPDATE (pas de double-send)', async () => {
     const mock = buildSupabaseMock({
-      facture: { id: 'fac-1', statut: 'a_emettre', est_avoir: false },
+      facture: {
+        id: '11111111-1111-4111-8111-111111111111',
+        statut: 'a_emettre',
+        est_avoir: false,
+      },
       lignesCount: 3,
-      updatedFacture: { id: 'fac-1', ref: 'FAC-2026-0042', statut: 'emise' },
+      updatedFacture: {
+        id: '11111111-1111-4111-8111-111111111111',
+        ref: 'FAC-2026-0042',
+        statut: 'emise',
+      },
     });
     requireUserMock.mockResolvedValue({
       ok: true,
@@ -238,7 +249,7 @@ describe('sendFacture - gapless integrity', () => {
     });
 
     const { sendFacture } = await import('@/lib/actions/factures/emission');
-    const result = await sendFacture('fac-1');
+    const result = await sendFacture('11111111-1111-4111-8111-111111111111');
 
     expect(result.success).toBe(true);
     expect(result.ref).toBe('FAC-2026-0042');
@@ -255,7 +266,11 @@ describe('sendFacture - gapless integrity', () => {
 
   it('echoue proprement si l UPDATE ne trouve pas la ligne (race condition)', async () => {
     const mock = buildSupabaseMock({
-      facture: { id: 'fac-1', statut: 'a_emettre', est_avoir: false },
+      facture: {
+        id: '11111111-1111-4111-8111-111111111111',
+        statut: 'a_emettre',
+        est_avoir: false,
+      },
       lignesCount: 2,
       updatedFacture: null, // un autre acteur a deja envoye
     });
@@ -266,7 +281,7 @@ describe('sendFacture - gapless integrity', () => {
     });
 
     const { sendFacture } = await import('@/lib/actions/factures/emission');
-    const result = await sendFacture('fac-1');
+    const result = await sendFacture('11111111-1111-4111-8111-111111111111');
 
     expect(result.success).toBe(false);
   });
@@ -279,7 +294,7 @@ describe('sendFacture - gapless integrity', () => {
 describe('deleteBrouillon - gapless integrity', () => {
   it('refuse de supprimer une facture EMISE (preserve la sequence)', async () => {
     const mock = buildSupabaseMock({
-      facture: { id: 'fac-1', statut: 'emise' },
+      facture: { id: '11111111-1111-4111-8111-111111111111', statut: 'emise' },
     });
     requireUserMock.mockResolvedValue({
       ok: true,
@@ -289,7 +304,9 @@ describe('deleteBrouillon - gapless integrity', () => {
 
     const { deleteBrouillon } =
       await import('@/lib/actions/factures/brouillons');
-    const result = await deleteBrouillon('fac-1');
+    const result = await deleteBrouillon(
+      '11111111-1111-4111-8111-111111111111',
+    );
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/brouillon|avoir/i);
@@ -302,7 +319,10 @@ describe('deleteBrouillon - gapless integrity', () => {
 
   it('refuse de supprimer une facture EN_RETARD', async () => {
     const mock = buildSupabaseMock({
-      facture: { id: 'fac-1', statut: 'en_retard' },
+      facture: {
+        id: '11111111-1111-4111-8111-111111111111',
+        statut: 'en_retard',
+      },
     });
     requireUserMock.mockResolvedValue({
       ok: true,
@@ -312,14 +332,16 @@ describe('deleteBrouillon - gapless integrity', () => {
 
     const { deleteBrouillon } =
       await import('@/lib/actions/factures/brouillons');
-    const result = await deleteBrouillon('fac-1');
+    const result = await deleteBrouillon(
+      '11111111-1111-4111-8111-111111111111',
+    );
 
     expect(result.success).toBe(false);
   });
 
   it('refuse de supprimer un AVOIR (sequence avoir gapless)', async () => {
     const mock = buildSupabaseMock({
-      facture: { id: 'fac-1', statut: 'avoir' },
+      facture: { id: '11111111-1111-4111-8111-111111111111', statut: 'avoir' },
     });
     requireUserMock.mockResolvedValue({
       ok: true,
@@ -329,14 +351,19 @@ describe('deleteBrouillon - gapless integrity', () => {
 
     const { deleteBrouillon } =
       await import('@/lib/actions/factures/brouillons');
-    const result = await deleteBrouillon('fac-1');
+    const result = await deleteBrouillon(
+      '11111111-1111-4111-8111-111111111111',
+    );
 
     expect(result.success).toBe(false);
   });
 
   it('lors d un delete autorise, le DELETE final filtre sur statut=a_emettre (defense en profondeur)', async () => {
     const mock = buildSupabaseMock({
-      facture: { id: 'fac-1', statut: 'a_emettre' },
+      facture: {
+        id: '11111111-1111-4111-8111-111111111111',
+        statut: 'a_emettre',
+      },
     });
     requireUserMock.mockResolvedValue({
       ok: true,
@@ -346,7 +373,9 @@ describe('deleteBrouillon - gapless integrity', () => {
 
     const { deleteBrouillon } =
       await import('@/lib/actions/factures/brouillons');
-    const result = await deleteBrouillon('fac-1');
+    const result = await deleteBrouillon(
+      '11111111-1111-4111-8111-111111111111',
+    );
 
     expect(result.success).toBe(true);
 

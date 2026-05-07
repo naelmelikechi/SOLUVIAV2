@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireAdmin } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -9,21 +10,95 @@ import type { Json } from '@/types/database';
 
 const SCOPE = 'actions.echeanciers';
 
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+// Pourquoi : RLS bloque les acces non autorises mais ne contraint pas les
+// types. Sans guards, un client peut poster mois_relatif=NaN, quote_part
+// negative, ou un id non-UUID et corrompre les donnees ou crasher la query.
+
+const projetIdSchema = z.string().uuid('Projet ID doit etre un UUID');
+const templateIdSchema = z.string().uuid('Template ID doit etre un UUID');
+
+const JalonSchema = z.object({
+  mois_relatif: z
+    .number()
+    .int('mois_relatif doit etre un entier')
+    .gte(1, 'mois_relatif doit etre >= 1')
+    .lte(120, 'mois_relatif trop grand'),
+  quote_part: z
+    .number()
+    .finite('quote_part doit etre un nombre fini')
+    .gt(0, 'quote_part doit etre strictement positif')
+    .lte(1, 'quote_part doit etre <= 1'),
+  label: z.string().trim().max(200).optional(),
+});
+
+const JalonsArraySchema = z
+  .array(JalonSchema)
+  .min(1, 'Au moins un jalon requis')
+  .max(60, 'Trop de jalons (max 60)');
+
+const SetProjetEcheancierTemplateSchema = z.object({
+  projetId: projetIdSchema,
+  templateId: templateIdSchema.nullable(),
+});
+
+const CreateEcheancierTemplateSchema = z.object({
+  nom: z
+    .string()
+    .trim()
+    .min(1, 'Nom requis')
+    .max(200, 'Nom trop long (max 200)'),
+  description: z.string().trim().max(2000).nullable(),
+  jalons: JalonsArraySchema,
+});
+
+const UpdateEcheancierTemplateSchema = z.object({
+  id: templateIdSchema,
+  nom: z
+    .string()
+    .trim()
+    .min(1, 'Nom requis')
+    .max(200, 'Nom trop long (max 200)'),
+  description: z.string().trim().max(2000).nullable(),
+  jalons: JalonsArraySchema,
+});
+
+const ResolveAjustementSchema = z.object({
+  id: z.string().uuid('Ajustement ID doit etre un UUID'),
+  action: z.enum(['emitted', 'ignored']),
+  factureId: z.string().uuid('Facture ID doit etre un UUID').optional(),
+});
+
+const SetProjetEcheancierOverrideSchema = z.object({
+  projetId: projetIdSchema,
+  jalons: JalonsArraySchema.nullable(),
+});
+
 /** Assigne un template à un projet (ou clear si null) */
 export async function setProjetEcheancierTemplate(params: {
   projetId: string;
   templateId: string | null;
 }): Promise<{ success: boolean; error?: string }> {
+  const parsed = SetProjetEcheancierTemplateSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
   const { error } = await auth.supabase
     .from('projets')
     .update({
-      echeancier_template_id: params.templateId,
+      echeancier_template_id: parsed.data.templateId,
       echeancier_override: null, // reset l'override quand on change de template
     })
-    .eq('id', params.projetId);
+    .eq('id', parsed.data.projetId);
   if (error) {
     logger.error(SCOPE, 'set template failed', { error });
     return { success: false, error: error.message };
@@ -31,9 +106,9 @@ export async function setProjetEcheancierTemplate(params: {
   logAudit(
     'projet_echeancier_template',
     'projet',
-    params.projetId,
+    parsed.data.projetId,
     {
-      template_id: params.templateId,
+      template_id: parsed.data.templateId,
     },
     auth.user.id,
   );
@@ -50,10 +125,18 @@ export async function createEcheancierTemplate(params: {
   description: string | null;
   jalons: Array<{ mois_relatif: number; quote_part: number; label?: string }>;
 }): Promise<{ success: boolean; error?: string; id?: string }> {
+  const parsed = CreateEcheancierTemplateSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
-  const validation = validateJalons(parseJalons(params.jalons));
+  const validation = validateJalons(parseJalons(parsed.data.jalons));
   if (!validation.ok) {
     return { success: false, error: validation.errors.join(', ') };
   }
@@ -61,9 +144,9 @@ export async function createEcheancierTemplate(params: {
   const { data, error } = await auth.supabase
     .from('echeanciers_templates')
     .insert({
-      nom: params.nom.trim(),
-      description: params.description?.trim() || null,
-      jalons: params.jalons as unknown as Json,
+      nom: parsed.data.nom,
+      description: parsed.data.description?.trim() || null,
+      jalons: parsed.data.jalons as unknown as Json,
       is_default: false,
     })
     .select('id')
@@ -77,7 +160,7 @@ export async function createEcheancierTemplate(params: {
     'echeanciers_templates',
     data.id,
     {
-      nom: params.nom,
+      nom: parsed.data.nom,
     },
     auth.user.id,
   );
@@ -91,10 +174,18 @@ export async function updateEcheancierTemplate(params: {
   description: string | null;
   jalons: Array<{ mois_relatif: number; quote_part: number; label?: string }>;
 }): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateEcheancierTemplateSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
-  const validation = validateJalons(parseJalons(params.jalons));
+  const validation = validateJalons(parseJalons(parsed.data.jalons));
   if (!validation.ok) {
     return { success: false, error: validation.errors.join(', ') };
   }
@@ -102,16 +193,16 @@ export async function updateEcheancierTemplate(params: {
   const { error } = await auth.supabase
     .from('echeanciers_templates')
     .update({
-      nom: params.nom.trim(),
-      description: params.description?.trim() || null,
-      jalons: params.jalons as unknown as Json,
+      nom: parsed.data.nom,
+      description: parsed.data.description?.trim() || null,
+      jalons: parsed.data.jalons as unknown as Json,
     })
-    .eq('id', params.id);
+    .eq('id', parsed.data.id);
   if (error) return { success: false, error: error.message };
   logAudit(
     'echeancier_template_updated',
     'echeanciers_templates',
-    params.id,
+    parsed.data.id,
     undefined,
     auth.user.id,
   );
@@ -123,6 +214,14 @@ export async function updateEcheancierTemplate(params: {
 export async function setEcheancierTemplateDefault(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = templateIdSchema.safeParse(id);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
@@ -137,13 +236,13 @@ export async function setEcheancierTemplateDefault(
   const { error: setErr } = await auth.supabase
     .from('echeanciers_templates')
     .update({ is_default: true })
-    .eq('id', id);
+    .eq('id', parsed.data);
   if (setErr) return { success: false, error: setErr.message };
 
   logAudit(
     'echeancier_template_set_default',
     'echeanciers_templates',
-    id,
+    parsed.data,
     undefined,
     auth.user.id,
   );
@@ -152,22 +251,37 @@ export async function setEcheancierTemplateDefault(
   return { success: true };
 }
 
+const ArchiveEcheancierTemplateSchema = z.object({
+  id: templateIdSchema,
+  archive: z.boolean(),
+});
+
 export async function archiveEcheancierTemplate(
   id: string,
   archive: boolean,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = ArchiveEcheancierTemplateSchema.safeParse({ id, archive });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
   const { error } = await auth.supabase
     .from('echeanciers_templates')
-    .update({ archive })
-    .eq('id', id);
+    .update({ archive: parsed.data.archive })
+    .eq('id', parsed.data.id);
   if (error) return { success: false, error: error.message };
   logAudit(
-    archive ? 'echeancier_template_archived' : 'echeancier_template_restored',
+    parsed.data.archive
+      ? 'echeancier_template_archived'
+      : 'echeancier_template_restored',
     'echeanciers_templates',
-    id,
+    parsed.data.id,
     undefined,
     auth.user.id,
   );
@@ -184,6 +298,14 @@ export async function resolveAjustement(params: {
   action: 'emitted' | 'ignored';
   factureId?: string;
 }): Promise<{ success: boolean; error?: string }> {
+  const parsed = ResolveAjustementSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
@@ -191,16 +313,18 @@ export async function resolveAjustement(params: {
     .from('facturation_ajustements_pending')
     .update({
       resolved_at: new Date().toISOString(),
-      resolved_action: params.action,
+      resolved_action: parsed.data.action,
       resolved_by: auth.user.id,
-      resolved_facture_id: params.factureId ?? null,
+      resolved_facture_id: parsed.data.factureId ?? null,
     })
-    .eq('id', params.id);
+    .eq('id', parsed.data.id);
   if (error) return { success: false, error: error.message };
   logAudit(
-    params.action === 'emitted' ? 'ajustement_emitted' : 'ajustement_ignored',
+    parsed.data.action === 'emitted'
+      ? 'ajustement_emitted'
+      : 'ajustement_ignored',
     'facturation_ajustements_pending',
-    params.id,
+    parsed.data.id,
     undefined,
     auth.user.id,
   );
@@ -217,19 +341,27 @@ export async function setProjetEcheancierOverride(params: {
     label?: string;
   }> | null;
 }): Promise<{ success: boolean; error?: string; warnings?: string[] }> {
+  const parsed = SetProjetEcheancierOverrideSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
 
-  if (params.jalons !== null) {
-    const validation = validateJalons(parseJalons(params.jalons));
+  if (parsed.data.jalons !== null) {
+    const validation = validateJalons(parseJalons(parsed.data.jalons));
     if (!validation.ok) {
       return { success: false, error: validation.errors.join(', ') };
     }
 
     const { error } = await auth.supabase
       .from('projets')
-      .update({ echeancier_override: params.jalons as unknown as Json })
-      .eq('id', params.projetId);
+      .update({ echeancier_override: parsed.data.jalons as unknown as Json })
+      .eq('id', parsed.data.projetId);
     if (error) {
       logger.error(SCOPE, 'set override failed', { error });
       return { success: false, error: error.message };
@@ -237,9 +369,9 @@ export async function setProjetEcheancierOverride(params: {
     logAudit(
       'projet_echeancier_override',
       'projet',
-      params.projetId,
+      parsed.data.projetId,
       {
-        jalons: params.jalons,
+        jalons: parsed.data.jalons,
       } as unknown as Record<string, Json>,
       auth.user.id,
     );
@@ -255,12 +387,12 @@ export async function setProjetEcheancierOverride(params: {
   const { error } = await auth.supabase
     .from('projets')
     .update({ echeancier_override: null })
-    .eq('id', params.projetId);
+    .eq('id', parsed.data.projetId);
   if (error) return { success: false, error: error.message };
   logAudit(
     'projet_echeancier_override_cleared',
     'projet',
-    params.projetId,
+    parsed.data.projetId,
     undefined,
     auth.user.id,
   );

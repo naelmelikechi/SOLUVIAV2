@@ -2,6 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
@@ -15,31 +16,60 @@ interface AbsenceData {
   demi_jour_fin?: boolean;
 }
 
-function validate(data: AbsenceData): string | null {
-  if (data.type !== 'conges' && data.type !== 'maladie') {
-    return 'Type d absence invalide';
-  }
-  if (!data.date_debut || !data.date_fin) {
-    return 'Dates requises';
-  }
-  if (data.date_fin < data.date_debut) {
-    return 'La date de fin doit etre apres la date de debut';
-  }
-  if (
-    data.date_debut === data.date_fin &&
-    data.demi_jour_debut &&
-    data.demi_jour_fin
-  ) {
-    return 'Un seul jour ne peut pas etre demi-journee aux deux bornes';
-  }
-  return null;
-}
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const AbsenceDataSchema = z
+  .object({
+    type: z.enum(['conges', 'maladie']),
+    date_debut: z
+      .string()
+      .regex(ISO_DATE_RE, 'Date au format YYYY-MM-DD requise'),
+    date_fin: z
+      .string()
+      .regex(ISO_DATE_RE, 'Date au format YYYY-MM-DD requise'),
+    demi_jour_debut: z.boolean().optional(),
+    demi_jour_fin: z.boolean().optional(),
+  })
+  .refine((d) => d.date_fin >= d.date_debut, {
+    message: 'La date de fin doit etre apres la date de debut',
+    path: ['date_fin'],
+  })
+  .refine(
+    (d) =>
+      !(
+        d.date_debut === d.date_fin &&
+        d.demi_jour_debut === true &&
+        d.demi_jour_fin === true
+      ),
+    {
+      message: 'Un seul jour ne peut pas etre demi-journee aux deux bornes',
+    },
+  );
+
+const absenceIdSchema = z.string().uuid('Absence ID doit etre un UUID');
+
+const UpdateAbsenceSchema = z.object({
+  id: absenceIdSchema,
+  data: AbsenceDataSchema,
+});
+
+const DeleteAbsenceSchema = z.object({ id: absenceIdSchema });
 
 export async function createAbsenceAction(
   data: AbsenceData,
 ): Promise<{ success: boolean; id?: string; error?: string }> {
-  const err = validate(data);
-  if (err) return { success: false, error: err };
+  const parsed = AbsenceDataSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  data = parsed.data;
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
@@ -89,8 +119,15 @@ export async function updateAbsenceAction(
   id: string,
   data: AbsenceData,
 ): Promise<{ success: boolean; error?: string }> {
-  const err = validate(data);
-  if (err) return { success: false, error: err };
+  const parsed = UpdateAbsenceSchema.safeParse({ id, data });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+  data = parsed.data.data;
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
@@ -138,6 +175,15 @@ export async function updateAbsenceAction(
 export async function deleteAbsenceAction(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = DeleteAbsenceSchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  id = parsed.data.id;
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;

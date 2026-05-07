@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireAdmin, requireUser } from '@/lib/auth/guards';
 import { encryptApiKey, decryptApiKey } from '@/lib/utils/encryption';
 import { baseUrlFrom } from '@/lib/eduvia/client';
@@ -13,6 +14,110 @@ import {
 } from '@/lib/utils/siret';
 
 const SOLUVIA_INTERNAL_CLIENT_ID = '00000000-0000-0000-0000-0000000000ff';
+
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+// Pourquoi : RLS bloque les acces non autorises mais ne contraint pas le
+// type. Sans ces guards, un client peut poster des donnees aberrantes
+// (raison sociale = NaN, email = garbage, URL hostile) et corrompre la base.
+
+const uuidSchema = z.string().uuid('ID doit etre un UUID');
+const clientIdSchema = z.string().uuid('clientId doit etre un UUID');
+const optionalTrimmedString = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .nullable()
+    .transform((v) => (v && v.length > 0 ? v : null));
+
+const ClientDataSchema = z.object({
+  raison_sociale: z
+    .string()
+    .trim()
+    .min(1, 'La raison sociale est requise')
+    .max(2000),
+  // SIRET : format strict valide en aval via checkSiretServer (Luhn + format).
+  // Ici on accepte la chaine brute (avec espaces) qui sera normalisee plus tard.
+  siret: z.string().trim().max(50).optional().nullable(),
+  adresse: optionalTrimmedString(2000),
+  localisation: optionalTrimmedString(500),
+  tva_intracommunautaire: optionalTrimmedString(50),
+  numero_qualiopi: optionalTrimmedString(100),
+  numero_nda: optionalTrimmedString(100),
+  numero_uai: optionalTrimmedString(100),
+  is_demo: z.boolean().optional(),
+});
+
+const CreateClientSchema = ClientDataSchema;
+const UpdateClientSchema = z.object({
+  id: uuidSchema,
+  data: ClientDataSchema,
+});
+
+const UpdateClientApporteurSchema = z.object({
+  clientId: clientIdSchema,
+  apporteurId: z.string().uuid('apporteurId doit etre un UUID').nullable(),
+  apporteurDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date au format YYYY-MM-DD requise')
+    .nullable(),
+});
+
+const ArchiveClientSchema = z.object({ id: uuidSchema });
+
+const ContactDataSchema = z.object({
+  nom: z.string().trim().min(1, 'Le nom est requis').max(2000),
+  poste: optionalTrimmedString(500),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('Email invalide')
+    .max(254)
+    .nullable()
+    .optional(),
+  telephone: z.string().trim().min(5).max(30).nullable().optional(),
+});
+
+const AddClientContactSchema = z.object({
+  clientId: clientIdSchema,
+  data: ContactDataSchema,
+});
+
+const DeleteClientContactSchema = z.object({
+  contactId: uuidSchema,
+  clientId: clientIdSchema,
+});
+
+const AddClientNoteSchema = z.object({
+  clientId: clientIdSchema,
+  contenu: z.string().trim().min(1, 'Le contenu est requis').max(2000),
+});
+
+const AddClientApiKeySchema = z.object({
+  clientId: clientIdSchema,
+  data: z.object({
+    // instance_url stocke en hostname (ex: "dupont.eduvia.app"),
+    // pas en URL complete - voir baseUrlFrom() dans lib/eduvia/client.ts.
+    instanceUrl: z
+      .string()
+      .trim()
+      .min(1, "L'URL de l'instance est requise")
+      .max(500)
+      .refine(
+        (v) => v.includes('.eduvia.app'),
+        "L'URL doit contenir .eduvia.app (ex: dupont.eduvia.app)",
+      ),
+    // API key Eduvia : chiffree en aval, pas de validation format stricte.
+    apiKey: z.string().trim().min(1, 'La cle API est requise').max(500),
+    label: z.string().trim().min(1, 'Le libelle est requis').max(200),
+  }),
+});
+
+const DeleteClientApiKeySchema = z.object({ keyId: uuidSchema });
 
 interface SiretCheckResult {
   ok: boolean;
@@ -87,12 +192,17 @@ interface ClientData {
 export async function createClientAction(
   data: ClientData,
 ): Promise<{ success: boolean; id?: string; error?: string }> {
-  if (!data.raison_sociale?.trim()) {
-    return { success: false, error: 'La raison sociale est requise' };
+  const parsed = CreateClientSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
+  const validated = parsed.data;
 
-  const siretCheck = checkSiretServer(data.siret, {
-    isDemo: data.is_demo ?? false,
+  const siretCheck = checkSiretServer(validated.siret, {
+    isDemo: validated.is_demo ?? false,
     isInternal: false,
   });
   if (!siretCheck.ok) {
@@ -107,16 +217,16 @@ export async function createClientAction(
   const { data: client, error } = await supabase
     .from('clients')
     .insert({
-      raison_sociale: data.raison_sociale.trim(),
+      raison_sociale: validated.raison_sociale,
       trigramme: '',
       siret: siretCheck.cleaned || null,
-      adresse: data.adresse?.trim() || null,
-      localisation: data.localisation?.trim() || null,
-      tva_intracommunautaire: data.tva_intracommunautaire?.trim() || null,
-      numero_qualiopi: data.numero_qualiopi?.trim() || null,
-      numero_nda: data.numero_nda?.trim() || null,
-      numero_uai: data.numero_uai?.trim() || null,
-      is_demo: data.is_demo ?? false,
+      adresse: validated.adresse,
+      localisation: validated.localisation,
+      tva_intracommunautaire: validated.tva_intracommunautaire,
+      numero_qualiopi: validated.numero_qualiopi,
+      numero_nda: validated.numero_nda,
+      numero_uai: validated.numero_uai,
+      is_demo: validated.is_demo ?? false,
     })
     .select('id')
     .single();
@@ -138,14 +248,19 @@ export async function updateClientAction(
   id: string,
   data: ClientData,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!data.raison_sociale?.trim()) {
-    return { success: false, error: 'La raison sociale est requise' };
+  const parsed = UpdateClientSchema.safeParse({ id, data });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
+  const { id: validatedId, data: validated } = parsed.data;
 
-  const siretCheck = checkSiretServer(data.siret, {
-    isDemo: data.is_demo ?? false,
-    isInternal: id === SOLUVIA_INTERNAL_CLIENT_ID,
-    clientId: id,
+  const siretCheck = checkSiretServer(validated.siret, {
+    isDemo: validated.is_demo ?? false,
+    isInternal: validatedId === SOLUVIA_INTERNAL_CLIENT_ID,
+    clientId: validatedId,
   });
   if (!siretCheck.ok) {
     return { success: false, error: siretCheck.error };
@@ -158,24 +273,24 @@ export async function updateClientAction(
   const { error } = await supabase
     .from('clients')
     .update({
-      raison_sociale: data.raison_sociale.trim(),
+      raison_sociale: validated.raison_sociale,
       siret: siretCheck.cleaned || null,
-      adresse: data.adresse?.trim() || null,
-      localisation: data.localisation?.trim() || null,
-      tva_intracommunautaire: data.tva_intracommunautaire?.trim() || null,
-      numero_qualiopi: data.numero_qualiopi?.trim() || null,
-      numero_nda: data.numero_nda?.trim() || null,
-      numero_uai: data.numero_uai?.trim() || null,
-      is_demo: data.is_demo ?? false,
+      adresse: validated.adresse,
+      localisation: validated.localisation,
+      tva_intracommunautaire: validated.tva_intracommunautaire,
+      numero_qualiopi: validated.numero_qualiopi,
+      numero_nda: validated.numero_nda,
+      numero_uai: validated.numero_uai,
+      is_demo: validated.is_demo ?? false,
     })
-    .eq('id', id);
+    .eq('id', validatedId);
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('client_updated', 'client', id, undefined, user.id);
+  logAudit('client_updated', 'client', validatedId, undefined, user.id);
 
   revalidatePath('/admin/clients');
-  revalidatePath(`/admin/clients/${id}`);
+  revalidatePath(`/admin/clients/${validatedId}`);
 
   return { success: true };
 }
@@ -189,19 +304,37 @@ export async function updateClientApporteur(
   apporteurId: string | null,
   apporteurDate: string | null,
 ): Promise<{ success: boolean; error?: string }> {
+  // Normalisation prealable des chaines vides en null pour rester compatible
+  // avec les anciens callers qui envoient '' au lieu de null.
+  const normalizedApporteurId =
+    apporteurId && apporteurId.trim() ? apporteurId.trim() : null;
+  const normalizedApporteurDate =
+    apporteurDate && apporteurDate.trim() ? apporteurDate.trim() : null;
+
+  const parsed = UpdateClientApporteurSchema.safeParse({
+    clientId,
+    apporteurId: normalizedApporteurId,
+    apporteurDate: normalizedApporteurDate,
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  const validated = parsed.data;
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
-  const normalizedId = apporteurId && apporteurId.trim() ? apporteurId : null;
-  let normalizedDate =
-    apporteurDate && apporteurDate.trim() ? apporteurDate : null;
+  let normalizedDate = validated.apporteurDate;
 
-  if (normalizedId) {
+  if (validated.apporteurId) {
     const { data: apporteur, error: lookupError } = await supabase
       .from('users')
       .select('id')
-      .eq('id', normalizedId)
+      .eq('id', validated.apporteurId)
       .maybeSingle();
 
     if (lookupError || !apporteur) {
@@ -221,26 +354,26 @@ export async function updateClientApporteur(
   const { error } = await supabase
     .from('clients')
     .update({
-      apporteur_commercial_id: normalizedId,
+      apporteur_commercial_id: validated.apporteurId,
       apporteur_date: normalizedDate,
     })
-    .eq('id', clientId);
+    .eq('id', validated.clientId);
 
   if (error) return { success: false, error: error.message };
 
   logAudit(
     'client_apporteur_updated',
     'client',
-    clientId,
+    validated.clientId,
     {
-      apporteurId: normalizedId,
+      apporteurId: validated.apporteurId,
       apporteurDate: normalizedDate,
     },
     user.id,
   );
 
   revalidatePath('/admin/clients');
-  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath(`/admin/clients/${validated.clientId}`);
 
   return { success: true };
 }
@@ -252,6 +385,14 @@ export async function updateClientApporteur(
 export async function archiveClient(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = ArchiveClientSchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'ID invalide',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -259,11 +400,11 @@ export async function archiveClient(
   const { error } = await supabase
     .from('clients')
     .update({ archive: true })
-    .eq('id', id);
+    .eq('id', parsed.data.id);
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('client_archived', 'client', id, undefined, user.id);
+  logAudit('client_archived', 'client', parsed.data.id, undefined, user.id);
 
   revalidatePath('/admin/clients');
 
@@ -277,6 +418,14 @@ export async function archiveClient(
 export async function unarchiveClient(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = ArchiveClientSchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'ID invalide',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -284,14 +433,14 @@ export async function unarchiveClient(
   const { error } = await supabase
     .from('clients')
     .update({ archive: false })
-    .eq('id', id);
+    .eq('id', parsed.data.id);
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('client_unarchived', 'client', id, undefined, user.id);
+  logAudit('client_unarchived', 'client', parsed.data.id, undefined, user.id);
 
   revalidatePath('/admin/clients');
-  revalidatePath(`/admin/clients/${id}`);
+  revalidatePath(`/admin/clients/${parsed.data.id}`);
 
   return { success: true };
 }
@@ -311,27 +460,49 @@ export async function addClientContact(
   clientId: string,
   data: ContactData,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!data.nom?.trim()) {
-    return { success: false, error: 'Le nom est requis' };
+  // Normaliser '' en null avant validation pour les champs optionnels
+  const normalized = {
+    nom: data.nom,
+    poste: data.poste?.trim() ? data.poste : null,
+    email: data.email?.trim() ? data.email : null,
+    telephone: data.telephone?.trim() ? data.telephone : null,
+  };
+
+  const parsed = AddClientContactSchema.safeParse({
+    clientId,
+    data: normalized,
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
+  const validated = parsed.data;
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
   const { error } = await supabase.from('client_contacts').insert({
-    client_id: clientId,
-    nom: data.nom.trim(),
-    poste: data.poste?.trim() || null,
-    email: data.email?.trim() || null,
-    telephone: data.telephone?.trim() || null,
+    client_id: validated.clientId,
+    nom: validated.data.nom,
+    poste: validated.data.poste ?? null,
+    email: validated.data.email ?? null,
+    telephone: validated.data.telephone ?? null,
   });
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('contact_added', 'client', clientId, { nom: data.nom }, user.id);
+  logAudit(
+    'contact_added',
+    'client',
+    validated.clientId,
+    { nom: validated.data.nom },
+    user.id,
+  );
 
-  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath(`/admin/clients/${validated.clientId}`);
 
   return { success: true };
 }
@@ -344,6 +515,14 @@ export async function deleteClientContact(
   contactId: string,
   clientId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = DeleteClientContactSchema.safeParse({ contactId, clientId });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -351,13 +530,19 @@ export async function deleteClientContact(
   const { error } = await supabase
     .from('client_contacts')
     .delete()
-    .eq('id', contactId);
+    .eq('id', parsed.data.contactId);
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('contact_deleted', 'client', contactId, undefined, user.id);
+  logAudit(
+    'contact_deleted',
+    'client',
+    parsed.data.contactId,
+    undefined,
+    user.id,
+  );
 
-  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath(`/admin/clients/${parsed.data.clientId}`);
 
   return { success: true };
 }
@@ -370,8 +555,12 @@ export async function addClientNote(
   clientId: string,
   contenu: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!contenu?.trim()) {
-    return { success: false, error: 'Le contenu est requis' };
+  const parsed = AddClientNoteSchema.safeParse({ clientId, contenu });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
 
   const auth = await requireUser();
@@ -379,16 +568,16 @@ export async function addClientNote(
   const { supabase, user } = auth;
 
   const { error } = await supabase.from('client_notes').insert({
-    client_id: clientId,
+    client_id: parsed.data.clientId,
     user_id: user.id,
-    contenu: contenu.trim(),
+    contenu: parsed.data.contenu,
   });
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('note_added', 'client', clientId, undefined, user.id);
+  logAudit('note_added', 'client', parsed.data.clientId, undefined, user.id);
 
-  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath(`/admin/clients/${parsed.data.clientId}`);
 
   return { success: true };
 }
@@ -405,24 +594,14 @@ export async function addClientApiKey(
     label: string;
   },
 ): Promise<{ success: boolean; error?: string }> {
-  if (!data.instanceUrl?.trim()) {
-    return { success: false, error: "L'URL de l'instance est requise" };
-  }
-
-  if (!data.instanceUrl.includes('.eduvia.app')) {
+  const parsed = AddClientApiKeySchema.safeParse({ clientId, data });
+  if (!parsed.success) {
     return {
       success: false,
-      error: "L'URL doit contenir .eduvia.app (ex: dupont.eduvia.app)",
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
     };
   }
-
-  if (!data.apiKey?.trim()) {
-    return { success: false, error: 'La clé API est requise' };
-  }
-
-  if (!data.label?.trim()) {
-    return { success: false, error: 'Le libellé est requis' };
-  }
+  const validated = parsed.data;
 
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
@@ -430,7 +609,7 @@ export async function addClientApiKey(
 
   let apiKeyEncrypted: string;
   try {
-    apiKeyEncrypted = encryptApiKey(data.apiKey.trim());
+    apiKeyEncrypted = encryptApiKey(validated.data.apiKey);
   } catch (err) {
     logger.error(
       'actions.clients',
@@ -445,18 +624,24 @@ export async function addClientApiKey(
   }
 
   const { error } = await supabase.from('client_api_keys').insert({
-    client_id: clientId,
-    instance_url: data.instanceUrl.trim(),
+    client_id: validated.clientId,
+    instance_url: validated.data.instanceUrl,
     api_key_encrypted: apiKeyEncrypted,
-    label: data.label.trim(),
+    label: validated.data.label,
     is_active: true,
   });
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('apikey_added', 'client', clientId, { label: data.label }, user.id);
+  logAudit(
+    'apikey_added',
+    'client',
+    validated.clientId,
+    { label: validated.data.label },
+    user.id,
+  );
 
-  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath(`/admin/clients/${validated.clientId}`);
 
   return { success: true };
 }
@@ -468,6 +653,14 @@ export async function addClientApiKey(
 export async function deleteClientApiKey(
   keyId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = DeleteClientApiKeySchema.safeParse({ keyId });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -476,17 +669,17 @@ export async function deleteClientApiKey(
   const { data: keyRow } = await supabase
     .from('client_api_keys')
     .select('client_id')
-    .eq('id', keyId)
+    .eq('id', parsed.data.keyId)
     .single();
 
   const { error } = await supabase
     .from('client_api_keys')
     .delete()
-    .eq('id', keyId);
+    .eq('id', parsed.data.keyId);
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('apikey_deleted', 'client', keyId, undefined, user.id);
+  logAudit('apikey_deleted', 'client', parsed.data.keyId, undefined, user.id);
 
   if (keyRow) {
     revalidatePath(`/admin/clients/${keyRow.client_id}`);

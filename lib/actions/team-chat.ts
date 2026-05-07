@@ -1,5 +1,6 @@
 'use server';
 
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/utils/logger';
@@ -11,6 +12,19 @@ import { revalidatePath } from 'next/cache';
 // ---------------------------------------------------------------------------
 
 const MAX_CONTENU = 2000;
+
+const SendTeamMessageSchema = z.object({
+  contenu: z.string().max(MAX_CONTENU).nullable(),
+  gifUrl: z
+    .string()
+    .max(500)
+    .regex(/^https:\/\/(media[0-9]*|i)\.giphy\.com\//, 'URL GIF non autorisee')
+    .nullable(),
+});
+
+const messageIdSchema = z.string().uuid('Message ID doit etre un UUID');
+
+const SearchGiphySchema = z.string().max(200);
 
 export interface SentTeamMessage {
   id: string;
@@ -24,31 +38,26 @@ export async function sendTeamMessage(
   contenu: string | null,
   gifUrl: string | null,
 ): Promise<{ success: boolean; error?: string; message?: SentTeamMessage }> {
+  const parsed = SendTeamMessageSchema.safeParse({ contenu, gifUrl });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 
-  const trimmed = contenu?.trim() ?? '';
-  const gif = gifUrl?.trim() ?? '';
+  const trimmed = parsed.data.contenu?.trim() ?? '';
+  const gif = parsed.data.gifUrl?.trim() ?? '';
 
   if (!trimmed && !gif) {
     return {
       success: false,
       error: 'Le message est vide.',
     };
-  }
-  if (trimmed.length > MAX_CONTENU) {
-    return {
-      success: false,
-      error: `Message trop long (max ${MAX_CONTENU} caractères).`,
-    };
-  }
-
-  // Basic sanity check on the gif URL: must be a Giphy-hosted URL.
-  // Giphy shards images across media0-9.giphy.com; the legacy `media.giphy.com`
-  // and `i.giphy.com` are also valid hosts returned by their API.
-  if (gif && !/^https:\/\/(media[0-9]*|i)\.giphy\.com\//.test(gif)) {
-    return { success: false, error: 'URL GIF non autorisée.' };
   }
 
   // Insert and return the row so the client can render it optimistically
@@ -75,6 +84,14 @@ export async function sendTeamMessage(
 export async function deleteTeamMessage(
   messageId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = messageIdSchema.safeParse(messageId);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase } = auth;
@@ -84,7 +101,7 @@ export async function deleteTeamMessage(
   const { error } = await supabase
     .from('team_messages')
     .delete()
-    .eq('id', messageId);
+    .eq('id', parsed.data);
 
   if (error) {
     logger.error('team_chat', 'deleteTeamMessage failed', { error });
@@ -114,6 +131,14 @@ export interface GiphyResult {
 export async function searchGiphy(
   query: string,
 ): Promise<{ success: boolean; results?: GiphyResult[]; error?: string }> {
+  const parsed = SearchGiphySchema.safeParse(query);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
 
@@ -126,7 +151,7 @@ export async function searchGiphy(
     };
   }
 
-  const q = query.trim();
+  const q = parsed.data.trim();
   const url = q
     ? `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(apiKey)}&q=${encodeURIComponent(q)}&limit=12&rating=g&lang=fr`
     : `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(apiKey)}&limit=12&rating=g`;

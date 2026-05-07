@@ -31,7 +31,12 @@ jobs:
 
       # Demarre la stack locale (Postgres 17 + auth + studio + ...).
       # Les migrations sous supabase/migrations/ sont appliquees a l init.
-      # Le seed.sql (s il existe) est aussi joue.
+      # On EVITE le seed (donnees demo) car il a des refs FK qui demandent
+      # des users prealables, hors scope des tests d invariants. Les tests
+      # pgTAP creent leurs propres fixtures via TEMP TABLE.
+      - name: Move seed away (skip seed for pgTAP)
+        run: mv supabase/seed.sql supabase/seed.sql.bak
+
       - name: Start Supabase
         run: supabase start --workdir . --ignore-health-check
 

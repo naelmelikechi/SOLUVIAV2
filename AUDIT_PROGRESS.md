@@ -57,6 +57,70 @@ Etat final : **note 9.5/10** apres 4 sprints (voir justification)
 | logAudit migration complete (14 fichiers restants) | `ac2a08a` | done (73 callsites migres, total 80/80)                         |
 | A11y deep dive                                     | `bc6e796` | done (a11y rules promues, 7 violations fixees, 0 warning final) |
 
+## Sprint 5 - Remediation audit externe (mergé sur la branche, en attente PR)
+
+Audit independant 2026-05-07 : note reelle 8/10 (pas 9.5 comme annonce S4).
+14 findings re-decouverts, dont 4 importants en faux-positifs S1-S4.
+
+| ID  | Finding                                   | Commit    | Date       | Statut |
+| --- | ----------------------------------------- | --------- | ---------- | ------ |
+| #1  | logAudit fire-and-forget (80 callsites)   | `53e5770` | 2026-05-07 | done   |
+| #4  | TZ bug badges temps                       | `aed85e8` | 2026-05-07 | done   |
+| #8  | Validation Zod (temps + factures + users) | `df8220d` | 2026-05-07 | done   |
+| #11 | a11y warn -> error                        | `a3f851a` | 2026-05-07 | done   |
+| #6  | createAvoir multi-contrat                 | `83bda9f` | 2026-05-07 | done   |
+| #5  | deleteUser atomique (RPC + auth-err)      | `1011943` | 2026-05-07 | done   |
+| #7  | WebAuthn login-verify rate limit          | `44eb4f3` | 2026-05-07 | done   |
+| #3  | Dashboard layout server-side              | `50b7f5b` | 2026-05-07 | done   |
+| #9  | Helper UTC date_echeance                  | `1b77c3d` | 2026-05-07 | done   |
+| #10 | Matcher proxy.ts                          | `fed99f8` | 2026-05-07 | done   |
+| #2  | Cookie validation comment                 | `fed99f8` | 2026-05-07 | done   |
+| #14 | escape-html minimal                       | `3ce1b50` | 2026-05-07 | done   |
+| #13 | Encryption legacy observabilite (7j)      | `edefe3b` | 2026-05-07 | done   |
+| #12 | Perf dashboard (couvert par #3)           | `50b7f5b` | 2026-05-07 | done   |
+
+### Verifications finales sprint 5
+
+```
+npm run lint        0 errors, 0 warnings
+npm run typecheck   clean
+npm run test        154/154 passing (15 fichiers, +24 nouveaux tests)
+```
+
+### Note honnete par axe (sprint 5)
+
+| Axe          | S1-3 | S4 (annonce) | S4 (reel) | **S5**  | Justification                                                 |
+| ------------ | ---- | ------------ | --------- | ------- | ------------------------------------------------------------- |
+| Securite     | 9    | 9.5          | 8.5       | **9**   | + rate limit WebAuthn, cookie comment, deleteUser auth-err    |
+| Fiabilite    | 8.5  | 9.5          | 7         | **9**   | + logAudit auto-defer (vrai), avoir multi-contrat fixe        |
+| Architecture | 9    | 9.5          | 8.5       | **9.5** | + dashboard server-side, Zod schemas, RPC atomic              |
+| Tooling      | 9    | 9.5          | 9         | **9.5** | + ESLint rule logAudit, a11y promues effectivement, +24 tests |
+| Coherence    | 8    | 9            | 7         | **9**   | + dates UTC partout, escape-html minimal, AUDIT honnete       |
+
+**Note globale honnete : 9/10**.
+
+L'audit precedent annoncait 9.5 mais avait laisse 14 findings en place
+(dont 4 importants reglementairement). Cette note 9 reflete les fixes
+reels + 1.5 points d ecart conserve volontairement pour les risques
+residuels listes ci-dessous. Ne pas annoncer 9.5 avant que ces points
+soient adresses (notamment Sprint 6 : tests d integration SQL pour
+les triggers gapless, e2e Playwright sur les flows critiques).
+
+### Risques residuels apres sprint 5
+
+- **Encryption legacy fallback** (#13) : garde 7 jours d observation
+  Sentry. Retrait conditionne au compteur a 0.
+- **Migration 20260507120000_delete_user_cascade** : a appliquer
+  cote prod (`npx supabase db push`) AVANT de deployer le fix #5.
+  Sinon la Server Action plantera avec "function does not exist".
+- **Types Supabase generes pas a jour** : delete_user_cascade n est
+  pas dans Database['public']['Functions']. Cast typage local dans
+  users.ts en attendant un `npx supabase gen types`.
+- **Tests d integration SQL** (gapless trigger, RLS DELETE policies) :
+  toujours hors scope vitest, prevus Sprint 6.
+- **Tests e2e Playwright** : flows login -> facturation -> emission ->
+  email, avec fixtures Supabase branch. Prevus Sprint 6.
+
 ## Items hors-scope (Sprint 5+ recommande)
 
 - **Tests d'integration SQL** : trigger BEFORE UPDATE pour ref + numero_seq atomique, RLS DELETE policies, concurrence sendFacture. Necessite Supabase local + migration de test, hors scope vitest pure.

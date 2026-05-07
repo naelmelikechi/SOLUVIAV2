@@ -1,9 +1,32 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/utils/audit';
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const ComputeProrataAvoirSchema = z.object({
+  factureOrigineId: z.string().uuid('factureOrigineId doit etre un UUID'),
+  dateRupture: z
+    .string()
+    .regex(ISO_DATE_RE, 'Date au format YYYY-MM-DD requise'),
+});
+
+const CreateAvoirSchema = z.object({
+  factureOrigineId: z.string().uuid('factureOrigineId doit etre un UUID'),
+  motif: z.string().min(1, 'Motif requis').max(200, 'Motif trop long'),
+  montant: z
+    .number()
+    .finite('Montant doit etre un nombre fini')
+    .positive('Montant doit etre strictement positif')
+    .max(10_000_000, 'Montant aberrant'),
+  note: z.string().max(2000).optional(),
+  // contratId : ajoute au #6 pour lier explicitement l avoir a un contrat
+  contratId: z.string().uuid('contratId doit etre un UUID').optional(),
+});
 
 // ---------------------------------------------------------------------------
 // computeProrataAvoir — suggested avoir amount for a "Rupture anticipée" motif
@@ -30,8 +53,14 @@ export async function computeProrataAvoir(params: {
   breakdown?: ProrataBreakdownItem[];
   error?: string;
 }> {
-  const { factureOrigineId, dateRupture } = params;
-  if (!dateRupture) return { success: false, error: 'Date de rupture requise' };
+  const parsed = ComputeProrataAvoirSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  const { factureOrigineId, dateRupture } = parsed.data;
 
   const rupture = new Date(dateRupture);
   if (Number.isNaN(rupture.getTime())) {
@@ -116,11 +145,16 @@ export async function createAvoir(params: {
   motif: string;
   montant: number;
   note?: string;
+  contratId?: string;
 }): Promise<{ success: boolean; id?: string; error?: string }> {
-  const { factureOrigineId, motif, montant, note } = params;
-
-  if (!motif) return { success: false, error: 'Motif requis' };
-  if (montant <= 0) return { success: false, error: 'Montant invalide' };
+  const parsed = CreateAvoirSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  const { factureOrigineId, motif, montant, note } = parsed.data;
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };

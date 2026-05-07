@@ -1,5 +1,6 @@
 'use server';
 
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import {
   getWeekDates,
@@ -7,6 +8,47 @@ import {
   getTeamWeekSummary,
 } from '@/lib/queries/temps';
 import { subtractDaysIso } from '@/lib/utils/dates';
+
+// ---------------------------------------------------------------------------
+// Schemas Zod (validation cote serveur, defense en profondeur)
+// ---------------------------------------------------------------------------
+// Pourquoi : RLS bloque les acces non autorises mais ne contraint pas le
+// type. Sans ces guards, un client peut poster heures=NaN ou date=garbage
+// et corrompre les donnees ou crasher la query.
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const dateSchema = z
+  .string()
+  .regex(ISO_DATE_RE, 'Date au format YYYY-MM-DD requise');
+const projetIdSchema = z.string().uuid('Projet ID doit etre un UUID');
+const heuresSchema = z
+  .number()
+  .finite('Heures doit etre un nombre fini')
+  .min(0, 'Heures negatives interdites')
+  .max(24, 'Maximum 24h par jour');
+
+const SaveSaisieTempsSchema = z.object({
+  projetId: projetIdSchema,
+  date: dateSchema,
+  heures: heuresSchema,
+});
+
+const SaveSaisieTempsAxesSchema = z.object({
+  projetId: projetIdSchema,
+  date: dateSchema,
+  // Chaque axe : code arbitraire mais bornee (5..30 chars), heures 0..24
+  axes: z.record(z.string().min(1).max(64), heuresSchema),
+});
+
+const WeekOffsetSchema = z
+  .number()
+  .int('weekOffset doit etre un entier')
+  .gte(-260, 'weekOffset trop loin dans le passe')
+  .lte(52, 'weekOffset trop loin dans le futur');
+
+const CurrentWeekDatesSchema = z
+  .array(dateSchema)
+  .length(7, 'Une semaine doit contenir 7 dates');
 
 // ---------------------------------------------------------------------------
 // saveSaisieTemps - upsert a single time entry
@@ -17,18 +59,26 @@ export async function saveSaisieTemps(
   date: string,
   heures: number,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = SaveSaisieTempsSchema.safeParse({ projetId, date, heures });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
   // If heures is 0, delete the row
-  if (heures === 0) {
+  if (parsed.data.heures === 0) {
     const { error } = await supabase
       .from('saisies_temps')
       .delete()
       .eq('user_id', user.id)
-      .eq('projet_id', projetId)
-      .eq('date', date);
+      .eq('projet_id', parsed.data.projetId)
+      .eq('date', parsed.data.date);
 
     if (error) return { success: false, error: error.message };
     return { success: true };
@@ -38,9 +88,9 @@ export async function saveSaisieTemps(
   const { error } = await supabase.from('saisies_temps').upsert(
     {
       user_id: user.id,
-      projet_id: projetId,
-      date,
-      heures,
+      projet_id: parsed.data.projetId,
+      date: parsed.data.date,
+      heures: parsed.data.heures,
     },
     { onConflict: 'user_id,projet_id,date' },
   );
@@ -58,6 +108,14 @@ export async function saveSaisieTempsAxes(
   date: string,
   axes: Record<string, number>,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = SaveSaisieTempsAxesSchema.safeParse({ projetId, date, axes });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -67,8 +125,8 @@ export async function saveSaisieTempsAxes(
     .from('saisies_temps')
     .select('id')
     .eq('user_id', user.id)
-    .eq('projet_id', projetId)
-    .eq('date', date)
+    .eq('projet_id', parsed.data.projetId)
+    .eq('date', parsed.data.date)
     .maybeSingle();
 
   if (findError) return { success: false, error: findError.message };
@@ -83,7 +141,7 @@ export async function saveSaisieTempsAxes(
   if (deleteError) return { success: false, error: deleteError.message };
 
   // Insert new axes (only non-zero)
-  const rows = Object.entries(axes)
+  const rows = Object.entries(parsed.data.axes)
     .filter(([, h]) => h > 0)
     .map(([axe, heures]) => ({
       saisie_id: saisie.id,
@@ -107,7 +165,11 @@ export async function saveSaisieTempsAxes(
 // ---------------------------------------------------------------------------
 
 export async function fetchWeekData(weekOffset: number) {
-  const weekDates = getWeekDates(weekOffset);
+  const parsed = WeekOffsetSchema.safeParse(weekOffset);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? 'weekOffset invalide');
+  }
+  const weekDates = getWeekDates(parsed.data);
   const saisies = await getSaisiesForWeek(weekDates);
 
   return { weekDates, saisies };
@@ -118,7 +180,11 @@ export async function fetchWeekData(weekOffset: number) {
 // ---------------------------------------------------------------------------
 
 export async function fetchTeamWeekData(weekOffset: number) {
-  const weekDates = getWeekDates(weekOffset);
+  const parsed = WeekOffsetSchema.safeParse(weekOffset);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? 'weekOffset invalide');
+  }
+  const weekDates = getWeekDates(parsed.data);
   const summary = await getTeamWeekSummary(weekDates);
 
   return { weekDates, summary };
@@ -131,9 +197,20 @@ export async function fetchTeamWeekData(weekOffset: number) {
 export async function copyPreviousWeek(
   currentWeekDates: string[],
 ): Promise<{ success: boolean; copied: number; error?: string }> {
+  const parsed = CurrentWeekDatesSchema.safeParse(currentWeekDates);
+  if (!parsed.success) {
+    return {
+      success: false,
+      copied: 0,
+      error: parsed.error.issues[0]?.message ?? 'Dates de semaine invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, copied: 0, error: auth.error };
   const { supabase, user } = auth;
+  // Re-bind to the validated array for the rest of the function.
+  currentWeekDates = parsed.data;
 
   // Calculate previous week dates (subtract 7 days from each current date).
   // En UTC strict : new Date('YYYY-MM-DDT00:00:00') est interprete en local,

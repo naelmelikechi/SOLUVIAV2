@@ -1,19 +1,36 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
+
+const AddManualPaymentSchema = z.object({
+  factureId: z.string().uuid('factureId doit etre un UUID'),
+  montant: z
+    .number()
+    .finite('Montant doit etre un nombre fini')
+    .positive('Montant doit etre strictement positif')
+    .max(10_000_000, 'Montant aberrant'),
+  dateReception: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date au format YYYY-MM-DD requise'),
+});
 
 export async function addManualPayment(params: {
   factureId: string;
   montant: number;
   dateReception: string;
 }): Promise<{ success: boolean; error?: string }> {
-  const { factureId, montant, dateReception } = params;
-
-  if (montant <= 0) return { success: false, error: 'Montant invalide' };
-  if (!dateReception) return { success: false, error: 'Date requise' };
+  const parsed = AddManualPaymentSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+  const { factureId, montant, dateReception } = parsed.data;
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };

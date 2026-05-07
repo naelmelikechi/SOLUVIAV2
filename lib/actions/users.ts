@@ -2,10 +2,31 @@
 
 import { randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { requireAdmin, requireSuperAdmin } from '@/lib/auth/guards';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSuperAdmin } from '@/lib/utils/roles';
 import { logAudit } from '@/lib/utils/audit';
+
+const InviteUserSchema = z.object({
+  email: z.string().email('Adresse email invalide').max(254),
+  role: z.enum(['admin', 'cdp'], 'Role invalide (admin ou cdp)'),
+  prenom: z.string().min(1, 'Prenom requis').max(100),
+  nom: z.string().min(1, 'Nom requis').max(100),
+});
+
+const UpdateUserRoleSchema = z.object({
+  userId: z.string().uuid('userId doit etre un UUID'),
+  role: z.enum(['admin', 'cdp', 'superadmin'], 'Role invalide'),
+});
+
+const UpdateUserProfileSchema = z.object({
+  userId: z.string().uuid('userId doit etre un UUID'),
+  prenom: z.string().min(1, 'Prenom requis').max(100),
+  nom: z.string().min(1, 'Nom requis').max(100),
+});
+
+const UserIdSchema = z.string().uuid('userId doit etre un UUID');
 
 // ---------------------------------------------------------------------------
 // updateUserRole - change a user's role (with hierarchy guards)
@@ -15,6 +36,14 @@ export async function updateUserRole(
   userId: string,
   role: 'admin' | 'cdp' | 'superadmin',
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateUserRoleSchema.safeParse({ userId, role });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
@@ -75,6 +104,14 @@ export async function updateUserProfile(
   prenom: string,
   nom: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateUserProfileSchema.safeParse({ userId, prenom, nom });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
@@ -106,6 +143,10 @@ export async function updateUserPipelineAccess(
   userId: string,
   pipelineAccess: boolean,
 ): Promise<{ success: boolean; error?: string }> {
+  if (!UserIdSchema.safeParse(userId).success) {
+    return { success: false, error: 'userId doit etre un UUID' };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
@@ -136,6 +177,10 @@ export async function updateUserIdeasPermissions(
   userId: string,
   permissions: { canValidateIdeas: boolean; canShipIdeas: boolean },
 ): Promise<{ success: boolean; error?: string }> {
+  if (!UserIdSchema.safeParse(userId).success) {
+    return { success: false, error: 'userId doit etre un UUID' };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
@@ -169,6 +214,10 @@ export async function toggleUserActive(
   userId: string,
   actif: boolean,
 ): Promise<{ success: boolean; error?: string }> {
+  if (!UserIdSchema.safeParse(userId).success) {
+    return { success: false, error: 'userId doit etre un UUID' };
+  }
+
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
@@ -216,6 +265,10 @@ export async function toggleUserActive(
 export async function deleteUser(
   userId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  if (!UserIdSchema.safeParse(userId).success) {
+    return { success: false, error: 'userId doit etre un UUID' };
+  }
+
   const auth = await requireSuperAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
@@ -291,12 +344,17 @@ export async function inviteUser(
   prenom?: string,
   nom?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  if (!email?.trim()) {
-    return { success: false, error: "L'adresse email est requise" };
-  }
-
-  if (!prenom?.trim() || !nom?.trim()) {
-    return { success: false, error: 'Le prénom et le nom sont requis' };
+  const parsed = InviteUserSchema.safeParse({
+    email: email?.trim(),
+    role,
+    prenom: prenom?.trim(),
+    nom: nom?.trim(),
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
   }
 
   // Readable temp password - user will change it in Mon compte. randomBytes
@@ -340,7 +398,7 @@ export async function inviteUser(
   // Create user with password (no magic link needed)
   const { data: newUser, error: createError } =
     await adminClient.auth.admin.createUser({
-      email: email.trim(),
+      email: parsed.data.email,
       password,
       email_confirm: true,
       user_metadata: { role },
@@ -358,9 +416,9 @@ export async function inviteUser(
   try {
     const { sendInvitationEmail } = await import('@/lib/email/client');
     await sendInvitationEmail({
-      to: email.trim(),
+      to: parsed.data.email,
       inviterName,
-      inviteePrenom: prenom!.trim(),
+      inviteePrenom: parsed.data.prenom,
       role: role === 'admin' ? 'Administrateur' : 'Chef de projet',
       tempPassword: password,
     });
@@ -371,9 +429,9 @@ export async function inviteUser(
   // Insert the user row with prenom/nom
   const { error: insertError } = await adminClient.from('users').insert({
     id: newUser.user.id,
-    email: email.trim(),
-    nom: nom!.trim(),
-    prenom: prenom!.trim(),
+    email: parsed.data.email,
+    nom: parsed.data.nom,
+    prenom: parsed.data.prenom,
     role,
     actif: true,
   });
@@ -403,7 +461,7 @@ export async function inviteUser(
 
     const admins = adminsRows ?? [];
     if (admins.length > 0) {
-      const fullName = `${prenom!.trim()} ${nom!.trim()}`.trim();
+      const fullName = `${parsed.data.prenom} ${parsed.data.nom}`.trim();
       const notifs = admins.map((a) => ({
         user_id: a.id,
         subject_user_id: newUser.user.id,

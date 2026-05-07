@@ -1,5 +1,6 @@
 'use server';
 
+import { randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -349,8 +350,10 @@ export async function inviteUser(
     return { success: false, error: 'Le prénom et le nom sont requis' };
   }
 
-  // Readable temp password - user will change it in Mon compte
-  const password = `Soluvia-${Math.random().toString(36).slice(2, 6)}${Math.floor(Math.random() * 9000 + 1000)}`;
+  // Readable temp password - user will change it in Mon compte. randomBytes
+  // est crypto-secure (vs Math.random predictible si l'attaquant a un autre
+  // output du meme process Node).
+  const password = `Soluvia-${randomBytes(12).toString('base64url')}`;
 
   const supabase = await createClient();
 

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
+import { logger } from '@/lib/utils/logger';
 
 export default function DashboardError({
   error,
@@ -12,7 +13,9 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    // Forwarde a Sentry via le logger (vs console.error qui ne remontait
+    // pas a la plateforme malgre l'instrumentation Sentry deja en place).
+    logger.error('ui.dashboard', error, { digest: error.digest });
   }, [error]);
 
   return (

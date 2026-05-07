@@ -27,7 +27,9 @@ test.describe('Smoke - acces anonyme', () => {
   test('page /login rend le formulaire email + password', async ({ page }) => {
     await page.goto('/login');
     await expect(page.getByLabel(/email/i)).toBeVisible();
-    await expect(page.getByLabel(/mot de passe/i)).toBeVisible();
+    await expect(
+      page.getByRole('textbox', { name: 'Mot de passe' }),
+    ).toBeVisible();
   });
 
   test('page /mentions-legales accessible sans login', async ({ page }) => {
@@ -50,7 +52,9 @@ test.describe('Smoke - acces anonyme', () => {
   }) => {
     await page.goto('/login');
     await page.getByLabel(/email/i).fill('nobody@example.com');
-    await page.getByLabel(/mot de passe/i).fill('wrong-password-1234');
+    await page
+      .getByRole('textbox', { name: 'Mot de passe' })
+      .fill('wrong-password-1234');
     await page.getByRole('button', { name: /connexion|se connecter/i }).click();
     // Reste sur login (pas de redirect projets)
     await expect(page).toHaveURL(/\/login/);

@@ -6,6 +6,7 @@ import {
   getSaisiesForWeek,
   getTeamWeekSummary,
 } from '@/lib/queries/temps';
+import { subtractDaysIso } from '@/lib/utils/dates';
 
 // ---------------------------------------------------------------------------
 // saveSaisieTemps - upsert a single time entry
@@ -143,12 +144,13 @@ export async function copyPreviousWeek(
   } = await supabase.auth.getUser();
   if (!user) return { success: false, copied: 0, error: 'Non authentifié' };
 
-  // Calculate previous week dates (subtract 7 days from each current date)
-  const previousWeekDates = currentWeekDates.map((dateStr) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().split('T')[0]!;
-  });
+  // Calculate previous week dates (subtract 7 days from each current date).
+  // En UTC strict : new Date('YYYY-MM-DDT00:00:00') est interprete en local,
+  // et toISOString() reconvertit en UTC, ce qui decale la date d'un jour en
+  // Europe/Paris (UTC+1/+2). Voir lib/utils/dates.ts.
+  const previousWeekDates = currentWeekDates.map((dateStr) =>
+    subtractDaysIso(dateStr, 7),
+  );
 
   // Fetch saisies for previous week
   const { data: prevSaisies, error: fetchError } = await supabase

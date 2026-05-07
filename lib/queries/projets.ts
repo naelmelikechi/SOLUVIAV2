@@ -253,22 +253,35 @@ export type ContratRow = Awaited<
 export async function getProjetFinance(projetId: string) {
   const supabase = await createClient();
 
-  const { data: contrats } = await supabase
-    .from('contrats')
-    .select('id, npec_amount')
-    .eq('projet_id', projetId)
-    .eq('archive', false);
+  // Trois queries independantes lancees en parallele : contrats (production
+  // OPCO), factures (facture/en_retard OPCO), projet (taux_commission). La
+  // 4e (paiements) depend du resultat factures, on la fait apres.
+  const [contratsRes, facturesRes, projetRes] = await Promise.all([
+    supabase
+      .from('contrats')
+      .select('id, npec_amount')
+      .eq('projet_id', projetId)
+      .eq('archive', false),
+    supabase
+      .from('factures')
+      .select('id, montant_ht, statut')
+      .eq('projet_id', projetId)
+      .in('statut', ['emise', 'payee', 'en_retard']),
+    supabase
+      .from('projets')
+      .select('taux_commission')
+      .eq('id', projetId)
+      .single(),
+  ]);
+
+  const contrats = contratsRes.data;
+  const factures = facturesRes.data;
+  const projet = projetRes.data;
 
   const production_opco = (contrats ?? []).reduce(
     (sum, c) => sum + (c.npec_amount ?? 0),
     0,
   );
-
-  const { data: factures } = await supabase
-    .from('factures')
-    .select('id, montant_ht, statut')
-    .eq('projet_id', projetId)
-    .in('statut', ['emise', 'payee', 'en_retard']);
 
   const facture_opco = (factures ?? []).reduce(
     (sum, f) => sum + (f.montant_ht ?? 0),
@@ -287,12 +300,6 @@ export async function getProjetFinance(projetId: string) {
       0,
     );
   }
-
-  const { data: projet } = await supabase
-    .from('projets')
-    .select('taux_commission')
-    .eq('id', projetId)
-    .single();
 
   const en_retard = (factures ?? [])
     .filter((f) => f.statut === 'en_retard')

@@ -4,18 +4,15 @@ import { updateSession } from '@/lib/supabase/middleware';
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip static assets and API routes - saves function invocations
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.startsWith('/logo') ||
-    pathname.startsWith('/api/') ||
-    pathname.includes('.')
-  ) {
-    return NextResponse.next();
-  }
-
-  // Check session from cookies (fast, no Supabase call)
+  // Note : la verification du cookie ici est uniquement un check de
+  // PRESENCE pour decider du routing (login vs redirect). La VALIDATION
+  // reelle de la session se fait :
+  //   - cote Server Component via requireUser() (lib/auth/guards.ts) qui
+  //     appelle supabase.auth.getUser() et retourne ok=false si invalide
+  //   - cote dashboard layout (sprint 5 #3) qui appelle getCurrentUser()
+  //     puis redirect('/login') si null
+  // Donc un cookie sb-*-auth-token=garbage passe ce check mais sera
+  // rejete a la premiere lecture serveur. Defense en profondeur, voir #2.
   const hasSession = request.cookies
     .getAll()
     .some((c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
@@ -68,3 +65,21 @@ export async function proxy(request: NextRequest) {
 
   return response;
 }
+
+/**
+ * Matcher : skip les statics et les routes API. Le filtre interne
+ * `pathname.startsWith('/_next')` etait redondant - on l a retire pour
+ * eviter le double check (sprint 5 #10).
+ *
+ * Pattern : tout path SAUF
+ *   - _next/static, _next/image (assets bundlees)
+ *   - favicon.ico
+ *   - /api/* (les routes API gerent leur auth elles-memes)
+ *   - /logo/* (logos publics)
+ *   - fichiers avec extension (.svg, .png, .jpg, .jpeg, .gif, .webp, .ico, .css, .js, .map)
+ */
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|api/|logo/|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map)$).*)',
+  ],
+};

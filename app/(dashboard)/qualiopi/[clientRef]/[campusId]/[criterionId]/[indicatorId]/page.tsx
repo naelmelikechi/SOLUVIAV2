@@ -69,6 +69,7 @@ export default async function IndicatorPage({
     deliverables
       .map((d) => statusByDeliverable.get(d.id))
       .filter((s): s is NonNullable<typeof s> => Boolean(s)),
+    deliverables.length,
   );
 
   // Recupere les evidences du livrable selectionne (si applicable)

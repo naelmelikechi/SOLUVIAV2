@@ -207,14 +207,25 @@ export function deriveDeliverableStatus(
   return 'missing';
 }
 
-/** Calcul du % de completion pour un ensemble de livrables */
+/**
+ * Calcul du % de completion pour un ensemble de livrables.
+ *
+ * `expectedTotal` est le nombre de livrables attendu cote referentiel
+ * (Eduvia ne cree une ligne `deliverable_status` qu'apres premiere evidence,
+ * donc `statuses.length` peut etre inferieur au referentiel reel). Si fourni,
+ * il sert de denominateur ; sinon on retombe sur statuses.length.
+ *
+ * `total === 0` => 0% (et non 100%) : on ne pretend pas etre conforme par
+ * absence de donnees. `valid` reste false dans ce cas.
+ */
 export function computeCompletion(
   statuses: Pick<QualityDeliverableStatus, 'status'>[],
+  expectedTotal?: number,
 ): { percent: number; conform: number; total: number; valid: boolean } {
-  const total = statuses.length;
+  const total = expectedTotal ?? statuses.length;
   const conform = statuses.filter((s) => s.status === 'conform').length;
   return {
-    percent: total === 0 ? 100 : Math.round((conform / total) * 100),
+    percent: total === 0 ? 0 : Math.round((conform / total) * 100),
     conform,
     total,
     valid: total > 0 && conform === total,

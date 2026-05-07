@@ -53,13 +53,16 @@ export default async function CriterionPage({
     .map((d) => statusByDeliverable.get(d.id))
     .filter((s): s is NonNullable<typeof s> => Boolean(s));
 
-  const totalCompletion = computeCompletion(statusesForCriterion);
+  const totalCompletion = computeCompletion(
+    statusesForCriterion,
+    allDeliverables.length,
+  );
   const indicatorsNonConforme = indicators.filter((i) => {
     const dels = referentiel.deliverablesByIndicator.get(i.id) ?? [];
     const sts = dels
       .map((d) => statusByDeliverable.get(d.id))
       .filter((s): s is NonNullable<typeof s> => Boolean(s));
-    return !computeCompletion(sts).valid;
+    return !computeCompletion(sts, dels.length).valid;
   }).length;
 
   const nextExpiry = statusesForCriterion
@@ -146,7 +149,7 @@ export default async function CriterionPage({
           const sts = dels
             .map((d) => statusByDeliverable.get(d.id))
             .filter((s): s is NonNullable<typeof s> => Boolean(s));
-          const c = computeCompletion(sts);
+          const c = computeCompletion(sts, dels.length);
           const exp = sts
             .filter((s) => s.next_expiry)
             .map((s) => s.next_expiry!)

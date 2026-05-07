@@ -152,10 +152,21 @@ class EduviaQualityHttpClient implements EduviaQualityClient {
   async listDeliverableStatuses(
     campusId: number,
   ): Promise<QualityDeliverableStatus[]> {
-    const r = await this.fetchJson<ApiResponse<QualityDeliverableStatus[]>>(
-      `/api/v1/campuses/${campusId}/quality/deliverable_statuses?per_page=100`,
-    );
-    return r.data;
+    // Pagine systematiquement : un campus actif depasse facilement 100 livrables
+    // (referentiel Qualiopi ~111 + criteres Eduvia). Sans pagination, on tronque
+    // silencieusement les statuts au-dela de la page 1.
+    const all: QualityDeliverableStatus[] = [];
+    let page = 1;
+    // Garde-fou : 50 pages max (= 5000 statuts), bien au-dessus du reel.
+    while (page <= 50) {
+      const r = await this.fetchJson<ApiResponse<QualityDeliverableStatus[]>>(
+        `/api/v1/campuses/${campusId}/quality/deliverable_statuses?per_page=100&page=${page}`,
+      );
+      if (r.data) all.push(...r.data);
+      if (!r.meta || page >= r.meta.total_pages) break;
+      page += 1;
+    }
+    return all;
   }
 
   async listEvidences(

@@ -1,42 +1,65 @@
 import {
   listCampusesForClient,
   getDeliverableStatuses,
+  getReferentiel,
 } from '@/lib/queries/qualiopi';
 import { logger } from '@/lib/utils/logger';
 
 const SCOPE = 'queries.qualiopi-stats';
 
 export interface QualiopiCompletion {
-  realise: number; // nb deliverable_statuses 'conform' (tous campus)
-  total: number; // nb deliverable_statuses total (tous campus)
+  realise: number; // nb livrables `conform` (tous campus)
+  total: number; // nb livrables attendus dans le referentiel * nb campus
 }
 
 /**
- * Calcule la completion Qualiopi pour un client (CFA) :
- * total = nombre de deliverable_statuses sur tous les campus
- * realise = nombre de statuses avec status === 'conform'
+ * Calcule la completion Qualiopi pour un client (CFA).
  *
- * Source : Eduvia /quality/* via le client API du CFA. Si le CFA n'a pas
- * de cle API active, retourne { realise: 0, total: 0 }.
+ * Denominateur : nb livrables du referentiel * nb campus (le referentiel est
+ * partage entre campus d'une meme instance Eduvia, chaque campus doit valider
+ * tous les livrables). On ne se base PAS sur statuses.length car Eduvia ne
+ * cree une ligne `deliverable_status` qu'a partir de la premiere evidence
+ * deposee : un livrable vierge serait sinon exclu et gonflerait le ratio.
+ *
+ * Si le CFA n'a pas de cle API active, retourne { realise: 0, total: 0 }.
  */
 export async function computeQualiopiCompletion(
   clientId: string,
 ): Promise<QualiopiCompletion> {
   try {
-    const campuses = await listCampusesForClient(clientId);
+    const [campuses, referentiel] = await Promise.all([
+      listCampusesForClient(clientId),
+      getReferentiel(clientId),
+    ]);
     if (campuses.length === 0) return { realise: 0, total: 0 };
+
+    const totalDeliverablesReferentiel = referentiel.criteria.reduce(
+      (acc, c) => {
+        const inds = referentiel.indicatorsByCriterion.get(c.id) ?? [];
+        return (
+          acc +
+          inds.reduce(
+            (a, i) =>
+              a + (referentiel.deliverablesByIndicator.get(i.id)?.length ?? 0),
+            0,
+          )
+        );
+      },
+      0,
+    );
 
     const statusesByCampus = await Promise.all(
       campuses.map((c) => getDeliverableStatuses(clientId, c.id)),
     );
 
     let realise = 0;
-    let total = 0;
     for (const statuses of statusesByCampus) {
-      total += statuses.length;
       realise += statuses.filter((s) => s.status === 'conform').length;
     }
-    return { realise, total };
+    return {
+      realise,
+      total: totalDeliverablesReferentiel * campuses.length,
+    };
   } catch (err) {
     logger.error(SCOPE, 'computeQualiopiCompletion failed', { clientId, err });
     return { realise: 0, total: 0 };

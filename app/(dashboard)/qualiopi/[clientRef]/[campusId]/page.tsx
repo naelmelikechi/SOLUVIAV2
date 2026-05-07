@@ -59,7 +59,10 @@ export default async function QualiopiCampusPage({
         .map((d) => statusByDeliverable.get(d.id))
         .filter((s): s is NonNullable<typeof s> => Boolean(s));
 
-      const completion = computeCompletion(statusesForCriterion);
+      const completion = computeCompletion(
+        statusesForCriterion,
+        allDeliverables.length,
+      );
       const nextExpiry = statusesForCriterion
         .filter((s) => s.next_expiry)
         .map((s) => s.next_expiry!)
@@ -74,7 +77,29 @@ export default async function QualiopiCampusPage({
       };
     });
 
-  const globalCompletion = computeCompletion(statuses);
+  // Total global = somme sur les criteres affiches (filtre 'all' / 'qualiopi'
+  // / 'eduvia'). On agrege depuis criteriaWithStats pour rester coherent avec
+  // le filtre, et on evite `statuses.length` comme denominateur : Eduvia ne
+  // cree une ligne `deliverable_status` qu'a partir de la premiere evidence,
+  // donc un livrable vierge serait sinon exclu et gonflerait le %.
+  const totalDeliverablesGlobal = criteriaWithStats.reduce(
+    (acc, c) => acc + c.nbDeliverables,
+    0,
+  );
+  const conformDeliverablesGlobal = criteriaWithStats.reduce(
+    (acc, c) => acc + c.completion.conform,
+    0,
+  );
+  const globalCompletion = {
+    total: totalDeliverablesGlobal,
+    conform: conformDeliverablesGlobal,
+    percent:
+      totalDeliverablesGlobal === 0
+        ? 0
+        : Math.round(
+            (conformDeliverablesGlobal / totalDeliverablesGlobal) * 100,
+          ),
+  };
   const conformeCriteria = criteriaWithStats.filter(
     (c) => c.completion.valid,
   ).length;

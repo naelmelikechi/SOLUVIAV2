@@ -40,3 +40,62 @@ export function subtractDaysIso(dateStr: string, days: number): string {
 export function addDaysIso(dateStr: string, days: number): string {
   return subtractDaysIso(dateStr, -days);
 }
+
+/**
+ * Format une `Date` en `YYYY-MM-DD` selon le fuseau LOCAL.
+ *
+ * Pourquoi : `Date.prototype.toISOString()` renvoie l'UTC. En Europe/Paris
+ * (UTC+1/+2), minuit local correspond a 22h-23h UTC la veille - donc
+ * `new Date().toISOString().slice(0,10)` peut retourner la date d'hier
+ * au lieu d'aujourd'hui. Ce helper reste en local et evite ce piege.
+ */
+export function toLocalISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Lundi de la semaine de `now`, en `YYYY-MM-DD` local. Sat/Sun pointent
+ * sur le LUNDI PRECEDENT (semaine qu'on vient de finir cote utilisateur).
+ * Sert au compte de jours travailles non saisis.
+ */
+export function currentMondayLocalISO(now: Date = new Date()): string {
+  const day = now.getDay(); // 0 = Sun … 6 = Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + diff,
+  );
+  return toLocalISODate(monday);
+}
+
+/**
+ * Vendredi de la semaine de `now`, en `YYYY-MM-DD` local. Voir doc de
+ * `currentMondayLocalISO` pour la semantique Sat/Sun.
+ */
+export function currentFridayLocalISO(now: Date = new Date()): string {
+  const day = now.getDay();
+  const diff = day === 0 ? -2 : 5 - day;
+  const friday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + diff,
+  );
+  return toLocalISODate(friday);
+}
+
+/**
+ * Dernier jour du mois suivant `from`, en `YYYY-MM-DD` UTC strict. Utilise
+ * pour calculer une `date_echeance` deterministe sans dependre du fuseau
+ * du runtime (utile aussi en cas d'execution edge ou client).
+ */
+export function lastDayOfNextMonthUtcISO(from: Date = new Date()): string {
+  // new Date(Date.UTC(y, m+2, 0)) -> dernier jour du mois (m+1) en UTC.
+  const d = new Date(
+    Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 2, 0),
+  );
+  return d.toISOString().split('T')[0]!;
+}

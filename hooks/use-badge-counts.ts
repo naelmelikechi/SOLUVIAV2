@@ -192,6 +192,21 @@ export function useBadgeCounts(): BadgeCounts {
       null;
     let supabase: ReturnType<typeof createClient> | null = null;
 
+    // Debounce 2s pour eviter le storm de re-fetch sur des bursts d'evenements
+    // (ex. saisies_temps ecrit toutes les 2s par utilisateur). Voir audit I4.
+    const debouncers: Record<string, ReturnType<typeof setTimeout> | null> = {
+      factures: null,
+      notifications: null,
+      temps: null,
+      intercontrat: null,
+    };
+    const debouncedRefresh = (key: keyof typeof debouncers, fn: () => void) => {
+      if (debouncers[key]) clearTimeout(debouncers[key]!);
+      debouncers[key] = setTimeout(() => {
+        if (mountedRef.current) fn();
+      }, 2000);
+    };
+
     try {
       supabase = createClient();
       channel = supabase
@@ -199,27 +214,35 @@ export function useBadgeCounts(): BadgeCounts {
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'factures' },
-          () => refreshFactures(),
+          () => debouncedRefresh('factures', refreshFactures),
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'notifications' },
-          () => refreshNotifications(),
+          () => debouncedRefresh('notifications', refreshNotifications),
+        )
+        // saisies_temps : narrow a INSERT/DELETE. Le badge "tempsNonSaisi"
+        // compte les jours AVEC ou SANS row, donc UPDATE de heures n'a aucun
+        // impact (et l'auto-save 2s genere des dizaines d'UPDATE par session).
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'saisies_temps' },
+          () => debouncedRefresh('temps', refreshTemps),
         )
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'saisies_temps' },
-          () => refreshTemps(),
+          { event: 'DELETE', schema: 'public', table: 'saisies_temps' },
+          () => debouncedRefresh('temps', refreshTemps),
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'projets' },
-          () => refreshIntercontrat(),
+          () => debouncedRefresh('intercontrat', refreshIntercontrat),
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'users' },
-          () => refreshIntercontrat(),
+          () => debouncedRefresh('intercontrat', refreshIntercontrat),
         )
         .subscribe();
     } catch {
@@ -228,6 +251,9 @@ export function useBadgeCounts(): BadgeCounts {
 
     return () => {
       mountedRef.current = false;
+      Object.values(debouncers).forEach((t) => {
+        if (t) clearTimeout(t);
+      });
       if (supabase && channel) {
         supabase.removeChannel(channel);
       }

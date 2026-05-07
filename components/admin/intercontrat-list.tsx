@@ -50,34 +50,51 @@ export function IntercontratList({
 
   // Realtime : rafraichit la page quand un projet ou un user change
   // (affectation, archive, role, pipeline_access).
+  // Voir audit I4 :
+  // - saisies_temps narrow a INSERT/DELETE : le taux billable peut rester
+  //   stale jusqu'au prochain navigate, mais on evite N admins qui re-fetchent
+  //   toute la page a chaque keystroke d'auto-save (UPDATE heures).
+  // - debounce 2s pour eviter les storms de re-fetch.
   useEffect(() => {
     let supabase: ReturnType<typeof createClient> | null = null;
     let channel: ReturnType<ReturnType<typeof createClient>['channel']> | null =
       null;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefresh = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => router.refresh(), 2000);
+    };
     try {
       supabase = createClient();
+      const channelId = `admin-intercontrat-${Math.random().toString(36).slice(2)}`;
       channel = supabase
-        .channel('admin-intercontrat')
+        .channel(channelId)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'projets' },
-          () => router.refresh(),
+          scheduleRefresh,
         )
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'users' },
-          () => router.refresh(),
+          scheduleRefresh,
         )
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'saisies_temps' },
-          () => router.refresh(),
+          { event: 'INSERT', schema: 'public', table: 'saisies_temps' },
+          scheduleRefresh,
+        )
+        .on(
+          'postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'saisies_temps' },
+          scheduleRefresh,
         )
         .subscribe();
     } catch {
       // Realtime indisponible : la page reste statique jusqu au prochain navigate.
     }
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       if (supabase && channel) supabase.removeChannel(channel);
     };
   }, [router]);

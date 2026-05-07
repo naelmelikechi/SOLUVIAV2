@@ -22,16 +22,39 @@ Après fix : `Buffer.from(raw.slice(0, 64), 'hex')` = 256 bits pleins.
 sur l'ancienne cle utf-8 tronquee. Tout `encryptApiKey` (au prochain write
 de l'admin sur `/admin/parametres`) re-encrypte avec la nouvelle cle.
 
-### Procédure de retrait du fallback legacy
+### Procédure de retrait du fallback legacy (sprint 5 #13)
 
-Une fois que tous les clients ont re-saisi leur clé API au moins une fois
-(suivi via les logs `encryption` warn "Decryption via cle legacy") :
+#### Observabilité
 
-1. Vérifier qu'il n'y a plus aucun warn `Decryption via cle legacy` sur
-   30 jours glissants en prod.
-2. Supprimer `getLegacyEncryptionKey` et le bloc fallback dans
-   `decryptApiKey` (lib/utils/encryption.ts).
-3. Tester en preview avec les clés de prod migrées avant déploiement.
+Chaque appel à `decryptApiKey` qui retombe sur la clé legacy emet un
+événement Sentry tagué :
+
+```
+scope: encryption.legacy_decrypt_used
+level: warning
+```
+
+Filtre Sentry à utiliser pour le suivi :
+`scope:encryption.legacy_decrypt_used` (saved view recommandée).
+
+#### Procédure (7 jours d'observation minimum)
+
+1. **J0** : déployer le fix C2 + cette observabilité (déjà en place).
+2. **J0 → J7** : laisser tourner. Vérifier dans Sentry chaque jour le
+   nombre d'événements `scope:encryption.legacy_decrypt_used`.
+3. **J7** :
+   - **Si compteur = 0** : retirer le fallback. Supprimer
+     `getLegacyEncryptionKey` et le bloc try/catch legacy dans
+     `decryptApiKey` (lib/utils/encryption.ts). Tester en preview
+     avec les clés de prod migrées avant déploiement.
+   - **Si compteur > 0** : identifier les tenants concernés (regarder
+     les logs Vercel autour de l'événement Sentry pour retrouver le
+     `client_id`). Soit demander aux admins concernés de ressaisir
+     leur clé API via `/admin/parametres`, soit écrire et exécuter
+     `scripts/migrate-legacy-encrypted.ts` qui décrypte avec la clé
+     legacy + re-chiffre avec la clé courante en transactionnel.
+4. **Re-vérifier J7+7** que le compteur reste à 0 puis retirer le
+   fallback.
 
 ### Rotation de la ENCRYPTION_KEY
 

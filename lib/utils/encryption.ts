@@ -125,9 +125,12 @@ export function decryptApiKey(encrypted: string): string {
   if (legacyKey) {
     try {
       const plaintext = tryDecrypt(ivHex, authTagHex, ciphertext, legacyKey);
+      // Counter Sentry sprint 5 #13 : tag explicite pour filtrer cet
+      // evenement et verifier sur 7 jours s'il reste des secrets en
+      // cle legacy avant de retirer le fallback. Voir docs/SECURITY.md.
       logger.warn(
-        'encryption',
-        'Decryption via cle legacy. Re-encrypter en re-saisissant la cle dans /admin/parametres pour migrer.',
+        'encryption.legacy_decrypt_used',
+        'Decryption via cle legacy (utf-8 tronquee, ~128 bits). Re-encrypter en re-saisissant la cle dans /admin/parametres.',
       );
       return plaintext;
     } catch {

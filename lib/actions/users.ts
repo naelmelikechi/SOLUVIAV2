@@ -293,15 +293,9 @@ export async function deleteUser(
   //    au milieu, on avait un user partiellement supprime (notifs gone mais
   //    public.users intact). La fonction Postgres encapsule tout dans une
   //    transaction implicite plpgsql.
-  // Cast: la fonction est ajoutee par la migration 20260507120000_delete_user_cascade.
-  // Les types Supabase generes seront a jour apres la prochaine
-  // `supabase gen types`. On cast dans l intervalle pour ne pas bloquer.
-  const { error: cascadeError } = await (
-    supabase.rpc as unknown as (
-      fn: string,
-      args: { p_user_id: string },
-    ) => Promise<{ error: { message: string } | null }>
-  )('delete_user_cascade', { p_user_id: userId });
+  const { error: cascadeError } = await supabase.rpc('delete_user_cascade', {
+    p_user_id: userId,
+  });
   if (cascadeError) {
     logger.error('actions.users', 'delete_user_cascade RPC failed', {
       userId,

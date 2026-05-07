@@ -26,7 +26,18 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+    },
+  ],
   // Demarre le dev server automatiquement si on n attaque pas une URL deja
   // up. PLAYWRIGHT_BASE_URL=https://preview.vercel.app skip ce step.
   webServer: process.env.PLAYWRIGHT_BASE_URL

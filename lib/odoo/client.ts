@@ -373,6 +373,12 @@ class OdooJsonRpcClient implements OdooClient {
       write_date: string;
     };
 
+    const sinceOdoo = since
+      .replace('T', ' ')
+      .replace(/\.\d+/, '')
+      .replace('Z', '')
+      .slice(0, 19);
+
     const moves = await this.executeKw<CancelRecord[]>(
       'account.move',
       'search_read',
@@ -380,7 +386,7 @@ class OdooJsonRpcClient implements OdooClient {
         [
           ['state', '=', 'cancel'],
           ['move_type', 'in', ['out_invoice', 'out_refund']],
-          ['write_date', '>=', since],
+          ['write_date', '>=', sinceOdoo],
         ],
       ],
       { fields: ['id', 'name', 'ref', 'state', 'write_date'] },

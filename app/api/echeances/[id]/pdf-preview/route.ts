@@ -16,12 +16,21 @@ import { createElement, type ReactElement } from 'react';
  * The PDF is rendered with `isDraft=true` so a clear "APERÇU" banner
  * distinguishes it from a real, legally numbered facture.
  */
+export const maxDuration = 60;
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
 
   const { data: echeance, error } = await supabase
     .from('echeances')
@@ -144,10 +153,8 @@ export async function GET(
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="apercu-echeance-${echeance.id}.pdf"`,
-      // CDN cache 1h + SWR : second clic sur la meme echeance = instant
-      // Si les contrats du projet changent, l'apercu peut etre stale jusqu'a
-      // expiration (acceptable, c'est un brouillon).
-      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+      // Donnees sensibles (SIRET, montants, apprenants) : pas de cache partage.
+      'Cache-Control': 'private, no-store, max-age=0',
     },
   });
 }

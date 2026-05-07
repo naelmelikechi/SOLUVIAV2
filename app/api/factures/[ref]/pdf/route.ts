@@ -3,12 +3,23 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { getFactureByRef, getFactureRefById } from '@/lib/queries/factures';
 import { getEmetteurInfo } from '@/lib/queries/parametres';
 import { FacturePdf } from '@/components/facturation/facture-pdf';
+import { createClient } from '@/lib/supabase/server';
 import { createElement, type ReactElement } from 'react';
+
+export const maxDuration = 60;
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ ref: string }> },
 ) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
   const { ref } = await params;
   const facture = await getFactureByRef(ref);
 
@@ -44,7 +55,7 @@ export async function GET(
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `${disposition}; filename="${facture.ref}.pdf"`,
-      'Cache-Control': 'public, max-age=86400, immutable',
+      'Cache-Control': 'private, no-store, max-age=0',
     },
   });
 }

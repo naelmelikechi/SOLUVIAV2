@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getEmetteurInfo } from '@/lib/queries/parametres';
 
+export const maxDuration = 60;
+
 /**
  * Donnees brutes (JSON) pour l'apercu HTML d'une echeance brouillon.
  * Beaucoup plus rapide que le rendu PDF (~5KB JSON vs ~30KB PDF + 1-3s
@@ -14,6 +16,13 @@ export async function GET(
 ) {
   const { id } = await params;
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
 
   const { data: echeance, error } = await supabase
     .from('echeances')
@@ -106,7 +115,8 @@ export async function GET(
     },
     {
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        // Donnees sensibles (SIRET, montants, apprenants) : pas de cache partage.
+        'Cache-Control': 'private, no-store, max-age=0',
       },
     },
   );

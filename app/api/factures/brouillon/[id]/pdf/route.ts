@@ -7,7 +7,10 @@ import {
 } from '@/lib/queries/factures';
 import { getEmetteurInfo } from '@/lib/queries/parametres';
 import { FacturePdf } from '@/components/facturation/facture-pdf';
+import { createClient } from '@/lib/supabase/server';
 import { createElement, type ReactElement } from 'react';
+
+export const maxDuration = 60;
 
 /**
  * Apercu PDF d'un brouillon de facture (statut 'a_emettre').
@@ -21,6 +24,14 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
+
   const { id } = await params;
   const facture = await getFactureById(id);
 

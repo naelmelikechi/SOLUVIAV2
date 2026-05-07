@@ -46,6 +46,30 @@ const eslintConfig = defineConfig([
       'jsx-a11y/no-static-element-interactions': 'warn',
     },
   },
+  {
+    // logAudit() est fire-safe par design : la fonction defere l'INSERT
+    // via Next.js `after()` en interne (voir lib/utils/audit.ts), donc
+    // Vercel attend la fin avant tear-down sans bloquer la reponse. Pas
+    // besoin de `await` ni de wrapper avec `after()` aux callsites - les
+    // deux formes sont du bruit et faussent l'intention. Voir le test
+    // d'invariant dans __tests__/audit.test.ts.
+    files: ['lib/actions/**/*.ts', 'lib/actions/**/*.tsx', 'app/**/*.ts', 'app/**/*.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "AwaitExpression > CallExpression[callee.name='logAudit']",
+          message:
+            "logAudit() est fire-safe (defere via after() en interne). Ne pas await.",
+        },
+        {
+          selector: "CallExpression[callee.name='after'] > ArrowFunctionExpression > CallExpression[callee.name='logAudit']",
+          message:
+            "logAudit() est deja deferee via after() en interne (lib/utils/audit.ts). Ne pas la wrapper a nouveau.",
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     '.next/**',

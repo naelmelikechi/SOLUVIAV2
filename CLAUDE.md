@@ -47,8 +47,9 @@ and pushes invoices to Odoo. Detailed specs in `specs/` (00-09).
 
 ## Conventions
 
-- Components: PascalCase files (`Sidebar.tsx`)
-- Utilities: camelCase files (`formatters.ts`)
+- Components: kebab-case files (`sidebar.tsx`, `data-table.tsx`, `user-edit-dialog.tsx`)
+- Utilities: kebab-case files (`formatters.ts`, `cron-auth.ts`)
+- Exports: PascalCase for components (`export function Sidebar()`), camelCase for functions
 - All French domain terms kept in French (projet, contrat, facture, qualite, temps)
 - UI text: French
 - All data tables use the shared `DataTable` component from `components/shared/data-table/`

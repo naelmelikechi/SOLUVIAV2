@@ -27,12 +27,14 @@ const eslintConfig = defineConfig([
       ],
       // React hooks discipline
       'react-hooks/exhaustive-deps': 'error',
-      // Start warning on a11y but don't block builds yet
-      'jsx-a11y/alt-text': 'warn',
-      'jsx-a11y/anchor-has-content': 'warn',
-      'jsx-a11y/anchor-is-valid': 'warn',
-      'jsx-a11y/aria-props': 'warn',
-      'jsx-a11y/aria-role': 'warn',
+      // a11y : promus en error sur ce qui est facile a respecter
+      // (alt-text, aria-* malformes, anchors). Gardes en warn sur ceux qui
+      // demandent des refactos plus larges (click-events-have-key-events).
+      'jsx-a11y/alt-text': 'error',
+      'jsx-a11y/aria-props': 'error',
+      'jsx-a11y/aria-role': 'error',
+      'jsx-a11y/anchor-has-content': 'error',
+      'jsx-a11y/anchor-is-valid': 'error',
       'jsx-a11y/click-events-have-key-events': 'warn',
       'jsx-a11y/no-noninteractive-element-interactions': 'warn',
     },

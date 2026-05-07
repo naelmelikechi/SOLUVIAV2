@@ -27,6 +27,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command';
 import type { LucideIcon } from 'lucide-react';
+import { matchesSearch } from '@/lib/utils/search';
 
 interface CommandPaletteItem {
   label: string;
@@ -153,10 +154,7 @@ export function CommandPalette() {
       className="sm:max-w-lg"
     >
       <Command
-        filter={(value, search) => {
-          if (value.toLowerCase().includes(search.toLowerCase())) return 1;
-          return 0;
-        }}
+        filter={(value, search) => (matchesSearch(value, search) ? 1 : 0)}
       >
         <CommandInput placeholder="Rechercher..." />
         <CommandList>

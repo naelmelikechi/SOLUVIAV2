@@ -16,6 +16,7 @@ import {
   fetchUserCost,
   saveUserCost,
 } from '@/components/admin/user-cost-actions';
+import { logger } from '@/lib/utils/logger';
 
 interface UserCostSectionProps {
   userId: string;
@@ -124,6 +125,12 @@ export function UserCostSection({ userId, defaults }: UserCostSectionProps) {
           jours_conges_payes: data.jours_conges_payes?.toString() ?? '',
           jours_rtt: data.jours_rtt?.toString() ?? '',
         });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          logger.error('user-cost-section', err, { userId });
+          toast.error('Impossible de charger les donnees de cout employe');
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

@@ -109,6 +109,14 @@ export function NoticeIframe({
               Chargement de la notice...
             </div>
           ) : null}
+          {/*
+            sandbox="allow-scripts allow-same-origin" est generalement deconseille
+            par MDN car le contenu peut s'auto-desandboxer s'il partage l'origine
+            du parent. Ici l'iframe charge quavia.eduvia.app (cross-origin par
+            rapport a app.mysoluvia.com), donc allow-same-origin permet seulement
+            au contenu d'acceder a ses propres cookies / storage de quavia.eduvia.app.
+            Le scenario de de-sandboxing ne s'applique pas aux iframes cross-origin.
+          */}
           {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
           <iframe
             ref={iframeRef}

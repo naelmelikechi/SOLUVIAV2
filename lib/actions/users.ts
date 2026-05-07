@@ -60,7 +60,7 @@ export async function updateUserRole(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('user_role_changed', 'user', userId, { role });
+  logAudit('user_role_changed', 'user', userId, { role }, authUser.id);
 
   revalidatePath('/admin/utilisateurs');
   return { success: true };
@@ -77,7 +77,7 @@ export async function updateUserProfile(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user: authUser } = auth;
 
   const { error } = await supabase
     .from('users')
@@ -86,7 +86,13 @@ export async function updateUserProfile(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('user_profile_updated', 'user', userId, { prenom, nom });
+  logAudit(
+    'user_profile_updated',
+    'user',
+    userId,
+    { prenom, nom },
+    authUser.id,
+  );
 
   revalidatePath('/admin/utilisateurs');
   return { success: true };
@@ -102,7 +108,7 @@ export async function updateUserPipelineAccess(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user: authUser } = auth;
 
   const { error } = await supabase
     .from('users')
@@ -111,7 +117,13 @@ export async function updateUserPipelineAccess(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('user_pipeline_access_changed', 'user', userId, { pipelineAccess });
+  logAudit(
+    'user_pipeline_access_changed',
+    'user',
+    userId,
+    { pipelineAccess },
+    authUser.id,
+  );
   revalidatePath('/admin/utilisateurs');
   return { success: true };
 }
@@ -126,7 +138,7 @@ export async function updateUserIdeasPermissions(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user: authUser } = auth;
 
   const { error } = await supabase
     .from('users')
@@ -138,7 +150,13 @@ export async function updateUserIdeasPermissions(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('user_ideas_permissions_changed', 'user', userId, permissions);
+  logAudit(
+    'user_ideas_permissions_changed',
+    'user',
+    userId,
+    permissions,
+    authUser.id,
+  );
   revalidatePath('/admin/utilisateurs');
   return { success: true };
 }
@@ -185,7 +203,7 @@ export async function toggleUserActive(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('user_toggled', 'user', userId, { actif });
+  logAudit('user_toggled', 'user', userId, { actif }, authUser.id);
 
   revalidatePath('/admin/utilisateurs');
   return { success: true };
@@ -247,11 +265,17 @@ export async function deleteUser(
   // Delete from auth.users
   await adminClient.auth.admin.deleteUser(userId);
 
-  logAudit('user_deleted', 'user', userId, {
-    email: target?.email ?? '',
-    nom: target?.nom ?? '',
-    prenom: target?.prenom ?? '',
-  });
+  logAudit(
+    'user_deleted',
+    'user',
+    userId,
+    {
+      email: target?.email ?? '',
+      nom: target?.nom ?? '',
+      prenom: target?.prenom ?? '',
+    },
+    authUser.id,
+  );
 
   revalidatePath('/admin/utilisateurs');
   return { success: true };
@@ -358,7 +382,13 @@ export async function inviteUser(
     return { success: false, error: insertError.message };
   }
 
-  logAudit('user_invited', 'user', newUser.user.id, { email, role });
+  logAudit(
+    'user_invited',
+    'user',
+    newUser.user.id,
+    { email, role },
+    authUser.id,
+  );
 
   // Notification fan-out aux admins quand on invite un CDP : ils sauront
   // qu un nouveau collaborateur attend une affectation projet. La notif

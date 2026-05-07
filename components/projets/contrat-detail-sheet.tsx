@@ -11,6 +11,7 @@ import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
 import { fetchContratDetail } from '@/lib/actions/contrats';
 import type { ContratDetail } from '@/lib/queries/contrats';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
+import { logger } from '@/lib/utils/logger';
 
 const fmtDate = (d: string | Date | null | undefined): string | null =>
   d ? formatDate(d) : null;
@@ -118,9 +119,13 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
   useEffect(() => {
     if (!contratId) return;
     let cancelled = false;
-    fetchContratDetail(contratId).then((res) => {
-      if (!cancelled) setData(res);
-    });
+    fetchContratDetail(contratId)
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((err) => {
+        logger.error('contrat-detail-sheet', err, { contratId });
+      });
     return () => {
       cancelled = true;
     };

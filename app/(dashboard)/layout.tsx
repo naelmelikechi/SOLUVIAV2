@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { Topbar } from '@/components/layout/Topbar';
+import { Sidebar } from '@/components/layout/sidebar';
+import { Topbar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/shared/command-palette';
 import { OnboardingDialog } from '@/components/shared/onboarding';
 import { UnassignedBanner } from '@/components/layout/unassigned-banner';

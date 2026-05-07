@@ -70,6 +70,7 @@ export function TimeAxisPanel({
           size="icon"
           onClick={onClose}
           className="h-7 w-7"
+          aria-label="Fermer le panneau"
         >
           <X className="h-4 w-4" />
         </Button>

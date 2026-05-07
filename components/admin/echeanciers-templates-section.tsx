@@ -330,6 +330,7 @@ function TemplateDialog({
                     variant="ghost"
                     size="icon"
                     onClick={() => remove(idx)}
+                    aria-label="Supprimer ce jalon"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

@@ -366,6 +366,7 @@ function FormView({ absence, initialDate, onCancel, onSaved }: FormViewProps) {
           size="icon"
           onClick={onCancel}
           className="h-7 w-7"
+          aria-label="Fermer le formulaire"
         >
           <X className="h-4 w-4" />
         </Button>

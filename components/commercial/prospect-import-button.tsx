@@ -59,7 +59,7 @@ export function ProspectImportButton() {
         ) : (
           <Upload className="mr-2 h-3.5 w-3.5" />
         )}
-        {uploading ? 'Import...' : 'Importer Excel'}
+        {uploading ? 'Import en cours...' : 'Importer Excel'}
       </Button>
     </>
   );

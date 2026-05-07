@@ -1,5 +1,29 @@
 import type { NextConfig } from 'next';
 
+// Content-Security-Policy : applique uniquement en prod. En dev, Next.js
+// utilise eval() pour HMR + des origines variables, ce qui rend une CSP
+// stricte ingerable sans nonces. Voir docs/SECURITY.md.
+//
+// 'unsafe-inline' sur script-src est requis par Next.js (scripts d'init
+// inlines pour l'hydration). On accepte le compromis : protection contre
+// les XSS reflechis via injection HTML, sans la couverture totale qu'aurait
+// une CSP base sur des nonces (a venir si le risque le justifie).
+const cspDirectives = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://va.vercel-scripts.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://api.dicebear.com https://*.giphy.com https://*.supabase.co",
+  "font-src 'self' data:",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+  "frame-src 'self' https://*.eduvia.app",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+
+const isProd = process.env.NODE_ENV === 'production';
+
 const securityHeaders = [
   {
     key: 'Strict-Transport-Security',
@@ -12,6 +36,7 @@ const securityHeaders = [
     key: 'Permissions-Policy',
     value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
   },
+  ...(isProd ? [{ key: 'Content-Security-Policy', value: cspDirectives }] : []),
 ];
 
 const nextConfig: NextConfig = {

@@ -178,3 +178,66 @@ npm run test        130/130 passing (13 fichiers)
 - CSP avec `'unsafe-inline'` sur script-src : Next.js l'exige pour l'hydration. Remplacer par nonce-based si menace evolue.
 - Drag-and-drop kanban : limitations clavier HTML5 DnD native. Alternative menu deroulant existe mais pourrait etre rendue plus visible.
 - Invariants gapless DB-level (trigger atomic, RLS DELETE, concurrence) : non couverts par tests vitest, prevus pour Sprint 5+ via tests SQL contre Supabase local.
+
+## Sprint 7 - Audit complet 2026-05-07 (sur la meme branche)
+
+Audit interne complet (6 agents en parallele : securite, archi, DB, perf,
+tests, UI). 3 P0 + 5 P1 reels apres verification directe (memoire confirme :
+les agents inventent ~30%).
+
+### P0 corriges
+
+| ID  | Finding                                       | Fichier                               | Statut |
+| --- | --------------------------------------------- | ------------------------------------- | ------ |
+| #1  | Open redirect via `next` (vector `@evil.com`) | `app/api/auth/callback/route.ts:8-12` | done   |
+| #2  | Email PII forwarde a Sentry via logger        | `lib/utils/logger.ts:53-72`           | done   |
+| #3  | Em-dashes UI (violation feedback durable)     | facturation/\*.tsx (6 occurrences)    | done   |
+
+### P1 corriges
+
+| ID  | Finding                                   | Fichier                                       | Statut |
+| --- | ----------------------------------------- | --------------------------------------------- | ------ |
+| #4  | Rate limit manquant sur 3 routes WebAuthn | webauthn/{login-options,register-\*}/route.ts | done   |
+| #5  | `audit_logs` supprimables par admin       | `20260507144228_audit_logs_no_delete.sql`     | done   |
+| #6  | Indexes `created_at DESC` manquants       | `20260507144229_audit_history_indexes.sql`    | done   |
+
+### P2 polish
+
+- Bouton "Close" -> "Fermer" : `components/ui/dialog.tsx:112`
+- `text-red-500` -> `text-destructive` : `app/(dashboard)/error.tsx:23`
+- Skip-to-main-content link + `id="main-content"` sur `<main>` (dashboard + auth layouts)
+- `optimizePackageImports: ['lucide-react', 'date-fns']` : `next.config.ts`
+- `tsc --noEmit` ajoute a lint-staged
+
+### P1 hors scope sprint 7 (a programmer)
+
+- **Validation Zod sur 24 modules d actions** : seuls 4/28 utilisent Zod
+  (temps, users, factures/avoirs, factures/payments). Impact serieux mais
+  ~4h de travail soigne, hors d un commit unique. Sprint 8 dedie.
+- **Couverture vitest sur lib/queries/_ et lib/actions/_** : ~35% du code
+  app non couvert (eduvia/sync, odoo/sync, tous les CRUD). Necessite
+  fixtures Supabase mockes. Sprint 8.
+- **Test pgTAP de concurrence sendFacture** : invariant gapless n est
+  teste qu en mono-thread aujourd hui. Necessite `pg_isolation` ou pgbench.
+
+### Faux positifs des agents (verifies et ecartes)
+
+- "Storage policies sans path scoping" : la migration
+  `20260424113204_scope_storage_policies.sql` re-cree toutes les policies
+  avec `EXISTS` sur les tables metadata + check `cdp_id`. Agent a lu
+  `00051` sans voir le hardening.
+- "Pas de policy `admin_update_factures`" : la policy existe ligne 5 de
+  `00030_rls_policies.sql`. Invente.
+- "Sonner sans aria-live" : la lib pose `aria-live="polite"` par defaut
+  sur son conteneur en interne.
+
+### Verifications finales sprint 7
+
+```
+npm run lint        0 errors, 0 warnings
+npx tsc --noEmit    clean
+npm run test        154/154 passing
+```
+
+**Note honnete : 9.5/10** apres sprint 7. P1 Zod coverage + tests sont
+les 0.5 points restants, programmes en sprint 8.

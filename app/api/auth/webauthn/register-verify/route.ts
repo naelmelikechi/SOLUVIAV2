@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveRP } from '@/lib/webauthn/config';
 import { consumeChallenge } from '@/lib/webauthn/challenge-store';
+import { checkRateLimit } from '@/lib/utils/rate-limit';
+import { logger } from '@/lib/utils/logger';
 
 interface VerifyBody {
   response: RegistrationResponseJSON;
@@ -19,6 +21,25 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: 'Non connecté' }, { status: 401 });
+  }
+
+  // Limite par user.id : symmetric avec register-options, evite spam d'inserts
+  // dans webauthn_credentials par un compte compromis.
+  const rl = await checkRateLimit('webauthn-register-verify', user.id, {
+    limit: 10,
+    windowSeconds: 5 * 60,
+  });
+  if (rl.limited) {
+    logger.warn('webauthn.register-verify', 'rate limit hit', {
+      userId: user.id,
+    });
+    return NextResponse.json(
+      { error: `Trop de tentatives. Reessayez dans ${rl.retryAfter ?? 60}s.` },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rl.retryAfter ?? 60) },
+      },
+    );
   }
 
   const cookieStore = await cookies();

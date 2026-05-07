@@ -313,7 +313,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                           </Link>
                         ) : (
                           <span className="text-muted-foreground text-xs">
-                            {'—'}
+                            {'-'}
                           </span>
                         )}
                       </TableCell>
@@ -338,7 +338,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                         {lignesCount}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm tabular-nums">
-                        {b.created_at ? formatDate(b.created_at) : '—'}
+                        {b.created_at ? formatDate(b.created_at) : '-'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">

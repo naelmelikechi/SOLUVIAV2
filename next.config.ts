@@ -46,6 +46,10 @@ const nextConfig: NextConfig = {
       dynamic: 60,
       static: 300,
     },
+    // Tree-shake les barrel files lourds (lucide-react: 1k+ icones,
+    // date-fns: 200+ helpers). Next.js applique des transforms specifiques
+    // qui reduisent significativement le bundle client.
+    optimizePackageImports: ['lucide-react', 'date-fns'],
   },
   images: {
     remotePatterns: [

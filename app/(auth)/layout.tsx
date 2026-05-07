@@ -5,6 +5,7 @@ export default function AuthLayout({
 }) {
   return (
     <main
+      id="main-content"
       className="auth-light-force flex min-h-screen items-center justify-center p-4"
       style={
         {

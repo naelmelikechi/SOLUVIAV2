@@ -52,7 +52,7 @@ function eventKey(e: Pick<BillableEvent, 'type' | 'source_id'>): EventKey {
   return `${e.type}::${e.source_id}`;
 }
 
-const NDASH = '—';
+const NDASH = '-';
 
 export function ManuelTab({ projets }: ManuelTabProps) {
   const router = useRouter();

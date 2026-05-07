@@ -66,7 +66,10 @@ export function DashboardShell({
           badgeCounts={badgeCounts}
         />
         <UnassignedBanner visible={showUnassignedBanner} />
-        <main className="bg-background animate-in fade-in flex-1 overflow-y-auto p-4 duration-200 md:p-6">
+        <main
+          id="main-content"
+          className="bg-background animate-in fade-in flex-1 overflow-y-auto p-4 duration-200 md:p-6"
+        >
           {children}
         </main>
       </div>

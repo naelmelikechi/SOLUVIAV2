@@ -50,6 +50,31 @@ function serializeError(err: unknown): LogRecord['error'] {
   return { name: 'Unknown', message: String(err) };
 }
 
+// Champs PII / secrets a ne JAMAIS forwarder a Sentry. Les logs JSON locaux
+// les conservent pour forensics, mais ils sortent strippes vers le SaaS
+// tiers (RGPD).
+const SENTRY_STRIP_KEYS = new Set([
+  'email',
+  'telephone',
+  'phone',
+  'password',
+  'token',
+  'apiKey',
+  'api_key',
+  'secret',
+]);
+
+function scrubForSentry(
+  context: LogContext | undefined,
+): LogContext | undefined {
+  if (!context) return context;
+  const out: LogContext = {};
+  for (const [k, v] of Object.entries(context)) {
+    out[k] = SENTRY_STRIP_KEYS.has(k) ? '[redacted]' : v;
+  }
+  return out;
+}
+
 function forwardToSentry(record: LogRecord): void {
   if (record.level !== 'error' && record.level !== 'warn') return;
   if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
@@ -57,6 +82,7 @@ function forwardToSentry(record: LogRecord): void {
   void import('@sentry/nextjs').then((Sentry) => {
     const tags: Record<string, string> = { scope: record.scope };
     if (record.error?.code) tags.code = record.error.code;
+    const extra = scrubForSentry(record.context);
     if (record.error) {
       const err = new Error(record.error.message);
       err.name = record.error.name;
@@ -64,13 +90,13 @@ function forwardToSentry(record: LogRecord): void {
       Sentry.captureException(err, {
         level: record.level === 'warn' ? 'warning' : 'error',
         tags,
-        extra: record.context,
+        extra,
       });
     } else {
       Sentry.captureMessage(record.message, {
         level: record.level === 'warn' ? 'warning' : 'error',
         tags,
-        extra: record.context,
+        extra,
       });
     }
   });

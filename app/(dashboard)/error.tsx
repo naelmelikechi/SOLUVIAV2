@@ -20,7 +20,7 @@ export default function DashboardError({
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-      <AlertTriangle className="h-12 w-12 text-red-500" />
+      <AlertTriangle className="text-destructive h-12 w-12" />
       <h2 className="text-lg font-semibold">Une erreur est survenue</h2>
       <p className="text-muted-foreground max-w-md text-center text-sm">
         {error.message ||

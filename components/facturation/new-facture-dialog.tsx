@@ -55,7 +55,7 @@ function buildDescription(params: {
   const { taux, formationTitre, prenom, nom, mois } = params;
   const formation = formationTitre ?? '';
   const apprenant = [prenom, nom].filter(Boolean).join(' ');
-  return `Commission ${taux}% ${'—'} ${formation} ${'—'} ${apprenant} ${'—'} mois M+${mois}`;
+  return `Commission ${taux}% - ${formation} - ${apprenant} - mois M+${mois}`;
 }
 
 function computeMontantHt(params: {
@@ -448,7 +448,7 @@ export function NewFactureDialog({
                   {projetData.clientRaisonSociale}
                 </span>
                 <span className="text-muted-foreground">
-                  {'—'} {'Commission '}
+                  {'- Commission '}
                   {projetData.tauxCommission}
                   {'%'}
                 </span>
@@ -614,8 +614,8 @@ export function NewFactureDialog({
             <div className="text-muted-foreground flex-1 text-xs">
               {selectedLignes.length}
               {' contrat'}
-              {selectedLignes.length > 1 ? 's' : ''} {'—'}
-              {' Total HT '}
+              {selectedLignes.length > 1 ? 's' : ''}
+              {' - Total HT '}
               <span className="text-foreground font-mono font-semibold tabular-nums">
                 {formatCurrency(totalHt)}
               </span>

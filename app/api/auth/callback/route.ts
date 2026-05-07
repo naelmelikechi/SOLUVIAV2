@@ -5,7 +5,11 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const type = searchParams.get('type');
-  const next = searchParams.get('next') ?? '/projets';
+  const rawNext = searchParams.get('next');
+  // Reject anything that is not a same-origin absolute path. Notamment
+  // `//evil.com`, `\\evil.com`, `@evil.com` (userinfo trick) ou un URL absolu
+  // qui ferait fuiter la session via redirect post-OAuth.
+  const next = rawNext && /^\/[^/\\@]/.test(rawNext) ? rawNext : '/projets';
 
   if (code) {
     const supabase = await createClient();

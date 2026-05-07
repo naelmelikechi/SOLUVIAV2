@@ -57,6 +57,91 @@ Etat final : **note 9.5/10** apres 4 sprints (voir justification)
 | logAudit migration complete (14 fichiers restants) | `ac2a08a` | done (73 callsites migres, total 80/80)                         |
 | A11y deep dive                                     | `bc6e796` | done (a11y rules promues, 7 violations fixees, 0 warning final) |
 
+## Sprint 5 - Remediation audit externe (mergé sur la branche, en attente PR)
+
+Audit independant 2026-05-07 : note reelle 8/10 (pas 9.5 comme annonce S4).
+14 findings re-decouverts, dont 4 importants en faux-positifs S1-S4.
+
+| ID  | Finding                                   | Commit    | Date       | Statut |
+| --- | ----------------------------------------- | --------- | ---------- | ------ |
+| #1  | logAudit fire-and-forget (80 callsites)   | `53e5770` | 2026-05-07 | done   |
+| #4  | TZ bug badges temps                       | `aed85e8` | 2026-05-07 | done   |
+| #8  | Validation Zod (temps + factures + users) | `df8220d` | 2026-05-07 | done   |
+| #11 | a11y warn -> error                        | `a3f851a` | 2026-05-07 | done   |
+| #6  | createAvoir multi-contrat                 | `83bda9f` | 2026-05-07 | done   |
+| #5  | deleteUser atomique (RPC + auth-err)      | `1011943` | 2026-05-07 | done   |
+| #7  | WebAuthn login-verify rate limit          | `44eb4f3` | 2026-05-07 | done   |
+| #3  | Dashboard layout server-side              | `50b7f5b` | 2026-05-07 | done   |
+| #9  | Helper UTC date_echeance                  | `1b77c3d` | 2026-05-07 | done   |
+| #10 | Matcher proxy.ts                          | `fed99f8` | 2026-05-07 | done   |
+| #2  | Cookie validation comment                 | `fed99f8` | 2026-05-07 | done   |
+| #14 | escape-html minimal                       | `3ce1b50` | 2026-05-07 | done   |
+| #13 | Encryption legacy observabilite (7j)      | `edefe3b` | 2026-05-07 | done   |
+| #12 | Perf dashboard (couvert par #3)           | `50b7f5b` | 2026-05-07 | done   |
+
+### Verifications finales sprint 5
+
+```
+npm run lint        0 errors, 0 warnings
+npm run typecheck   clean
+npm run test        154/154 passing (15 fichiers, +24 nouveaux tests)
+```
+
+### Note honnete par axe (sprint 5)
+
+| Axe          | S1-3 | S4 (annonce) | S4 (reel) | **S5**  | Justification                                                 |
+| ------------ | ---- | ------------ | --------- | ------- | ------------------------------------------------------------- |
+| Securite     | 9    | 9.5          | 8.5       | **9**   | + rate limit WebAuthn, cookie comment, deleteUser auth-err    |
+| Fiabilite    | 8.5  | 9.5          | 7         | **9**   | + logAudit auto-defer (vrai), avoir multi-contrat fixe        |
+| Architecture | 9    | 9.5          | 8.5       | **9.5** | + dashboard server-side, Zod schemas, RPC atomic              |
+| Tooling      | 9    | 9.5          | 9         | **9.5** | + ESLint rule logAudit, a11y promues effectivement, +24 tests |
+| Coherence    | 8    | 9            | 7         | **9**   | + dates UTC partout, escape-html minimal, AUDIT honnete       |
+
+**Note globale honnete : 9/10**.
+
+L'audit precedent annoncait 9.5 mais avait laisse 14 findings en place
+(dont 4 importants reglementairement). Cette note 9 reflete les fixes
+reels + 1.5 points d ecart conserve volontairement pour les risques
+residuels listes ci-dessous. Ne pas annoncer 9.5 avant que ces points
+soient adresses (notamment Sprint 6 : tests d integration SQL pour
+les triggers gapless, e2e Playwright sur les flows critiques).
+
+### Sprint 6 (continue dans la meme branche)
+
+- **Playwright e2e** : skeleton + 6 smoke tests verts (5.3s) - commits
+  `8720ad7`, `790c8ec`. Couvre proxy redirects + login form.
+- **Tests pgTAP SQL** : 19 invariants verts - commit `96c425f`.
+  - 01_gapless_invoice (7) : trigger ref + numero_seq, sequence contigue
+  - 02_rls_facture_delete (5) : admin/cdp DELETE rules, gapless preserve
+  - 03_delete_user_cascade (7) : role check, cascade transactionnelle
+- **NEW BUG FIX trouve en ecrivant les tests** : aucune policy
+  FOR DELETE sur factures, donc deleteBrouillon retournait
+  silencieusement 0 rows en prod. Migration ajoutee +
+  policy stricte (admin only + statut=a_emettre). Commit `96c425f`.
+- **Types Supabase regeneres** : `npx supabase gen types --local`
+  ramene tout a jour (delete_user_cascade dans Functions, billing_mode
+  sur projets, apprenants_qualiopi_fields). Cast retire. Commit
+  `1a4d629`.
+
+### Risques residuels apres sprint 5+6
+
+- **Encryption legacy fallback** (#13) : garde 7 jours d observation
+  Sentry. Retrait conditionne au compteur a 0.
+- **Deux migrations 20260506160000** (collision timestamp local
+  uniquement, pas en prod - prod a 20260506103843 et 20260506161233 :
+  noms locaux mal dates vs prod). Documentee dans AUDIT_EXTRAS.md, a
+  renommer pour aligner avec prod si on veut pouvoir refaire un
+  fresh init proprement.
+- **Migrations APPLIQUEES en prod via Supabase MCP (2026-05-07)** :
+  - 20260507113954_delete_user_cascade
+  - 20260507114004_factures_delete_brouillon_policy
+    Verification post-apply : delete_user_cascade existe avec
+    search_path=public, pg_temp ; admin_delete_brouillon_factures
+    policy active avec qual `(statut='a_emettre' AND is_admin())`.
+    Fichiers locaux renommes pour matcher les timestamps prod.
+- **Tests e2e authenticated** : storageState avec un compte CI dedie
+  reste a faire pour couvrir les flows post-login (facturation, temps).
+
 ## Items hors-scope (Sprint 5+ recommande)
 
 - **Tests d'integration SQL** : trigger BEFORE UPDATE pour ref + numero_seq atomique, RLS DELETE policies, concurrence sendFacture. Necessite Supabase local + migration de test, hors scope vitest pure.

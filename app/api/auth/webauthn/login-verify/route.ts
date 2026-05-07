@@ -9,12 +9,45 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveRP } from '@/lib/webauthn/config';
 import { consumeChallenge } from '@/lib/webauthn/challenge-store';
+import { checkRateLimit } from '@/lib/utils/rate-limit';
+import { logger } from '@/lib/utils/logger';
 
 interface VerifyBody {
   response: AuthenticationResponseJSON;
 }
 
+/** Extrait l IP client depuis les headers Vercel (x-forwarded-for premier segment). */
+function getClientIp(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]?.trim() ?? 'unknown';
+  return req.headers.get('x-real-ip') ?? 'unknown';
+}
+
 export async function POST(req: Request) {
+  // Rate limit avant tout : empeche le brute force sur des credentialId
+  // (assertions WebAuthn de bonne forme mais credentialId invente). Cle
+  // par IP uniquement car aucun email n est connu a ce stade.
+  // Budget : 10 tentatives par IP / 5 min - laxiste pour les vrais
+  // utilisateurs (re-tentative apres pop-up annulee ok), serre pour un
+  // brute force.
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit('webauthn-login', ip, {
+    limit: 10,
+    windowSeconds: 5 * 60,
+  });
+  if (rl.limited) {
+    logger.warn('webauthn.login-verify', 'rate limit hit', { ip });
+    return NextResponse.json(
+      {
+        error: `Trop de tentatives. Reessayez dans ${rl.retryAfter ?? 60}s.`,
+      },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rl.retryAfter ?? 60) },
+      },
+    );
+  }
+
   const cookieStore = await cookies();
   const sessionId = cookieStore.get('webauthn_session')?.value;
   if (!sessionId) {
@@ -53,6 +86,13 @@ export async function POST(req: Request) {
       counter: Number(cred.counter),
       transports: (cred.transports ?? []) as AuthenticatorTransportFuture[],
     },
+    // requireUserVerification: false pour back-compat avec les passkeys
+    // existants enregistres sans UV (USB keys sans PIN, Touch ID en mode
+    // presence-seule). La couche d encouragement est cote registration:
+    // generateRegistrationOptions / generateAuthenticationOptions emettent
+    // userVerification: 'preferred', donc l'authenticator FERA UV s il en
+    // est capable. Setter `true` ici exclurait des authenticators
+    // legitimes - trade-off documente en sprint 5 #7.
     requireUserVerification: false,
   });
 

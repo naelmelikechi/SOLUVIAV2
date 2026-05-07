@@ -198,6 +198,26 @@ export function FactureDetailActions({
           factureRef={facture.ref ?? ''}
           factureOrigineId={facture.id}
           montantHtDefault={facture.montant_ht}
+          contrats={Array.from(
+            new Map(
+              (facture.lignes ?? [])
+                .filter((l) => l.contrat_id)
+                .map((l) => [
+                  l.contrat_id as string,
+                  {
+                    contratId: l.contrat_id as string,
+                    ref: l.contrat?.ref ?? null,
+                    apprenant: [
+                      l.contrat?.apprenant_prenom,
+                      l.contrat?.apprenant_nom,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+                      .trim(),
+                  },
+                ]),
+            ).values(),
+          )}
           open={avoirOpen}
           onOpenChange={setAvoirOpen}
         />

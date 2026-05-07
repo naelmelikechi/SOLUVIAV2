@@ -10,7 +10,7 @@ import { env } from '@/lib/env';
 // Redis indisponible. A brancher sur une instance Upstash (integration
 // Vercel Marketplace) en prod pour activer effectivement la limite.
 
-type LimiterKey = 'login' | 'password-reset';
+type LimiterKey = 'login' | 'password-reset' | 'webauthn-login';
 
 function buildLimiter(
   key: LimiterKey,

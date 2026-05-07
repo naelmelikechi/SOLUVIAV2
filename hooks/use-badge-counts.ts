@@ -2,6 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import {
+  currentMondayLocalISO,
+  currentFridayLocalISO,
+} from '@/lib/utils/dates';
 
 export interface BadgeCounts {
   facturesEnRetard: number;
@@ -20,26 +24,8 @@ const INITIAL_COUNTS: BadgeCounts = {
 // ---------------------------------------------------------------------------
 // Date helpers
 // ---------------------------------------------------------------------------
-
-/** Returns the Monday of the current week as YYYY-MM-DD. */
-function getMondayISO(): string {
-  const now = new Date();
-  const day = now.getDay(); // 0 = Sun, 1 = Mon, …
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diff);
-  return monday.toISOString().slice(0, 10);
-}
-
-/** Returns the Friday of the current week as YYYY-MM-DD. */
-function getFridayISO(): string {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = day === 0 ? -2 : 5 - day;
-  const friday = new Date(now);
-  friday.setDate(now.getDate() + diff);
-  return friday.toISOString().slice(0, 10);
-}
+// Les helpers sont dans lib/utils/dates.ts pour eviter le piege TZ documente
+// dans ce fichier (toISOString = UTC, qui shift d'un jour cote Europe/Paris).
 
 /**
  * Returns the number of business days (Mon-Fri) elapsed this week, including
@@ -70,8 +56,8 @@ async function fetchTempsCount(): Promise<number> {
   const res = await supabaseClient()
     .from('saisies_temps')
     .select('date')
-    .gte('date', getMondayISO())
-    .lte('date', getFridayISO());
+    .gte('date', currentMondayLocalISO())
+    .lte('date', currentFridayLocalISO());
   const uniqueDays = new Set((res.data ?? []).map((s) => s.date));
   return Math.max(0, getBusinessDaysElapsed() - uniqueDays.size);
 }

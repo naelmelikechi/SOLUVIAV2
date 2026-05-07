@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireUser } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
+import { lastDayOfNextMonthUtcISO } from '@/lib/utils/dates';
 import {
   aggregateProjetEcheances,
   parseJalons,
@@ -204,10 +205,9 @@ export async function createFactures(
     const montantTva = Math.round(totalHt * tauxTva) / 100;
     const montantTtc = Math.round((totalHt + montantTva) * 100) / 100;
 
-    // Date echeance = end of next month
-    const today = new Date();
-    const dateEcheance = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-    const dateEcheanceStr = dateEcheance.toISOString().split('T')[0]!;
+    // Date echeance = end of next month (UTC strict pour ne pas dependre du
+    // fuseau du runtime - voir lib/utils/dates.ts).
+    const dateEcheanceStr = lastDayOfNextMonthUtcISO();
 
     // INSERT facture en statut 'a_emettre' (brouillon).
     // Pas de ref/numero_seq attribues a ce stade : le trigger BEFORE INSERT
@@ -464,9 +464,7 @@ export async function createFactureFromEvents(params: {
     return { success: false, error: 'Montant total nul ou négatif' };
   }
 
-  const today = new Date();
-  const dateEcheance = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-  const dateEcheanceStr = dateEcheance.toISOString().split('T')[0]!;
+  const dateEcheanceStr = lastDayOfNextMonthUtcISO();
 
   // 7. INSERT brouillon
   const { data: facture, error: insertError } = await supabase
@@ -621,15 +619,16 @@ export async function createBlankBrouillon(params: {
   const montantTtc = Math.round((totalHt + montantTva) * 100) / 100;
 
   const today = new Date();
-  const dateEcheance = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+  const dateEmissionStr = today.toISOString().split('T')[0]!;
+  const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
 
   const { data: facture, error: insertError } = await supabase
     .from('factures')
     .insert({
       projet_id: projetId,
       client_id: projet.client_id,
-      date_emission: today.toISOString().split('T')[0]!,
-      date_echeance: dateEcheance.toISOString().split('T')[0]!,
+      date_emission: dateEmissionStr,
+      date_echeance: dateEcheanceStr,
       mois_concerne: today.toISOString().slice(0, 7),
       montant_ht: totalHt,
       taux_tva: tauxTva,

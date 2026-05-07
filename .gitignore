@@ -43,3 +43,9 @@ supabase/.branches/
 _local/
 **/wipe-backup-*/
 .claude/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

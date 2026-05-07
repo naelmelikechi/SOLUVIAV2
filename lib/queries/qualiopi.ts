@@ -157,8 +157,51 @@ export async function getReferentiel(clientId: string): Promise<{
         client.listDeliverables(i.id).then((delivs) => ({ id: i.id, delivs })),
       ),
     );
+    const deliverablesRaw = new Map<number, QualityDeliverable[]>();
     for (const { id, delivs } of deliverablesAll) {
-      deliverablesByIndicator.set(id, delivs);
+      deliverablesRaw.set(id, delivs);
+    }
+
+    // Dedup global avec heuristique de prefixe.
+    //
+    // Cas reels observes sur HEOL :
+    //  - LIV-C1-100 (id=21) est expose sous IND-01, IND-02 et IND-03 du
+    //    criterion C1. SOLUVIA le comptait 3 fois (3 livrables) la ou Eduvia
+    //    UI l'attribue a IND-01 seulement.
+    //  - LIV-HQ-PSH-002 (id=103) est expose sous IND-26 (criterion C6) ET
+    //    sous IND-HQ-01 (criterion HQ). Eduvia UI l'attribue a HQ.
+    //
+    // L'API publique Eduvia ne donne aucun champ "primary criterion/indicator"
+    // (objet retourne strictement {id, code, title, recurrence, indicator_id}).
+    // On utilise donc le prefixe du code livrable (`LIV-{PREFIX}-...`) pour
+    // determiner le criterion proprietaire : LIV-HQ-* -> HQ, LIV-C6-* -> C6.
+    // Si le prefixe ne matche aucun criterion, on retombe sur first-wins.
+    //
+    // Resultat : total et repartition par criterion identiques a l'UI Eduvia.
+    const criterionByPrefix = new Map(criteria.map((c) => [c.prefix, c.id]));
+    const ownerCriterionId = (code: string): number | null => {
+      const parts = code.split('-');
+      if (parts.length < 2) return null;
+      return criterionByPrefix.get(parts[1]!) ?? null;
+    };
+    const seen = new Set<number>();
+    for (const c of criteria) {
+      const inds = indicatorsByCriterion.get(c.id) ?? [];
+      for (const i of inds) {
+        const raw = deliverablesRaw.get(i.id) ?? [];
+        const unique: QualityDeliverable[] = [];
+        for (const d of raw) {
+          if (seen.has(d.id)) continue;
+          // Si le code identifie un proprietaire different du criterion en
+          // cours, on saute : le livrable sera attribue a son criterion natif
+          // quand l'iteration y arrivera.
+          const owner = ownerCriterionId(d.code);
+          if (owner !== null && owner !== c.id) continue;
+          seen.add(d.id);
+          unique.push(d);
+        }
+        deliverablesByIndicator.set(i.id, unique);
+      }
     }
 
     return { criteria, indicatorsByCriterion, deliverablesByIndicator };

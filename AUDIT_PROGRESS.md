@@ -127,12 +127,18 @@ les triggers gapless, e2e Playwright sur les flows critiques).
 
 - **Encryption legacy fallback** (#13) : garde 7 jours d observation
   Sentry. Retrait conditionne au compteur a 0.
-- **Deux migrations 20260506160000** (collision timestamp documentee
-  dans AUDIT_EXTRAS.md) : `db push` echoue sur fresh install. A
-  renommer dans une fenetre maintenance.
-- **Migration prod a appliquer** : 20260507120000_delete_user_cascade.sql
-  - 20260507130000_factures_delete_brouillon_policy.sql AVANT deploy.
-    Sinon deleteUser et deleteBrouillon plantent / silent no-op.
+- **Deux migrations 20260506160000** (collision timestamp local
+  uniquement, pas en prod - prod a 20260506103843 et 20260506161233 :
+  noms locaux mal dates vs prod). Documentee dans AUDIT_EXTRAS.md, a
+  renommer pour aligner avec prod si on veut pouvoir refaire un
+  fresh init proprement.
+- **Migrations APPLIQUEES en prod via Supabase MCP (2026-05-07)** :
+  - 20260507113954_delete_user_cascade
+  - 20260507114004_factures_delete_brouillon_policy
+    Verification post-apply : delete_user_cascade existe avec
+    search_path=public, pg_temp ; admin_delete_brouillon_factures
+    policy active avec qual `(statut='a_emettre' AND is_admin())`.
+    Fichiers locaux renommes pour matcher les timestamps prod.
 - **Tests e2e authenticated** : storageState avec un compte CI dedie
   reste a faire pour couvrir les flows post-login (facturation, temps).
 

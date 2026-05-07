@@ -21,7 +21,11 @@
 -- toucher aux tables, mais verifie d'abord le role du caller.
 
 CREATE OR REPLACE FUNCTION delete_user_cascade(p_user_id UUID)
-RETURNS VOID AS $$
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
   v_caller_role TEXT;
 BEGIN
@@ -53,9 +57,10 @@ BEGIN
   -- 3. Public profile (l'auth.users est supprimee separement).
   DELETE FROM users WHERE id = p_user_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Grant execute uniquement aux roles utilises par Supabase. RLS sur les
 -- tables touchees + le role-check interne assurent l'autorisation reelle.
 REVOKE ALL ON FUNCTION delete_user_cascade(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION delete_user_cascade(UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION delete_user_cascade(UUID) TO authenticated;

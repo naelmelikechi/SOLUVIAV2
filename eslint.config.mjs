@@ -27,16 +27,23 @@ const eslintConfig = defineConfig([
       ],
       // React hooks discipline
       'react-hooks/exhaustive-deps': 'error',
-      // a11y : promus en error sur ce qui est facile a respecter
-      // (alt-text, aria-* malformes, anchors). Gardes en warn sur ceux qui
-      // demandent des refactos plus larges (click-events-have-key-events).
+      // a11y rules promues en error (Sprint 4 : on durcit progressivement).
+      // no-noninteractive-element-interactions reste warn car cas legitimes
+      // (iframes externes, tooltips presentationnels).
       'jsx-a11y/alt-text': 'error',
       'jsx-a11y/aria-props': 'error',
       'jsx-a11y/aria-role': 'error',
+      'jsx-a11y/aria-unsupported-elements': 'error',
       'jsx-a11y/anchor-has-content': 'error',
       'jsx-a11y/anchor-is-valid': 'error',
-      'jsx-a11y/click-events-have-key-events': 'warn',
+      'jsx-a11y/click-events-have-key-events': 'error',
+      'jsx-a11y/heading-has-content': 'error',
+      'jsx-a11y/img-redundant-alt': 'error',
+      'jsx-a11y/no-redundant-roles': 'error',
+      'jsx-a11y/role-has-required-aria-props': 'error',
+      'jsx-a11y/role-supports-aria-props': 'error',
       'jsx-a11y/no-noninteractive-element-interactions': 'warn',
+      'jsx-a11y/no-static-element-interactions': 'warn',
     },
   },
   // Override default ignores of eslint-config-next.

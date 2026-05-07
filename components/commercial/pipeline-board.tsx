@@ -512,6 +512,7 @@ export function PipelineBoard({
           )}
         >
           <span
+            role="presentation"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
             className="flex items-center justify-center"

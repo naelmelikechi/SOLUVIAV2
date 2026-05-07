@@ -166,15 +166,19 @@ export function NotificationsPageClient({
                 isUnread && 'border-l-primary border-l-4',
                 notification.lien && 'hover:bg-muted/50 cursor-pointer',
               )}
-              onClick={() => handleNavigate(notification)}
-              role={notification.lien ? 'link' : undefined}
-              tabIndex={notification.lien ? 0 : undefined}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleNavigate(notification);
-                }
-              }}
+              {...(notification.lien
+                ? {
+                    onClick: () => handleNavigate(notification),
+                    role: 'link',
+                    tabIndex: 0,
+                    onKeyDown: (e: React.KeyboardEvent) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleNavigate(notification);
+                      }
+                    },
+                  }
+                : {})}
             >
               {/* Icon */}
               <div
@@ -209,7 +213,11 @@ export function NotificationsPageClient({
               </div>
 
               {/* Actions */}
+              {/* role="presentation" : conteneur visuel uniquement, le stop
+                  propagation est un detail d'implementation pour eviter que
+                  le clic des Buttons internes declenche la navigation parent. */}
               <div
+                role="presentation"
                 className="flex shrink-0 items-center gap-1"
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}

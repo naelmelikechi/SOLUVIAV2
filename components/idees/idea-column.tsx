@@ -71,7 +71,14 @@ export function IdeaColumn({
   const highlight = isOver && isValidDropTarget;
 
   return (
+    // role="region" : zone de depot drag-and-drop. aria-label decrit le statut.
+    // Le clavier ne peut pas dragger (limitation native HTML5 DnD) mais un
+    // menu deroulant "Changer de statut" existe sur chaque ligne pour assurer
+    // l'accessibilite clavier.
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
+      role="region"
+      aria-label={`Colonne ${statut}`}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}

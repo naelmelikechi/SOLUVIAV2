@@ -143,7 +143,15 @@ export function DataTable<TData, TValue>({
                           header.getContext(),
                         )}
                     {header.column.getCanResize() && (
+                      // Separator semantique pour redimensionnement de colonne.
+                      // role="separator" est non-interactif au sens ARIA mais
+                      // recoit des event listeners (drag) - le pattern est
+                      // accepte (cf. WAI-ARIA Authoring Practices "Separator").
+                      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
                       <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label={`Redimensionner la colonne ${header.column.id}`}
                         onMouseDown={header.getResizeHandler()}
                         onTouchStart={header.getResizeHandler()}
                         className={`hover:bg-primary absolute top-0 right-0 h-full w-1 cursor-col-resize touch-none transition-colors select-none ${

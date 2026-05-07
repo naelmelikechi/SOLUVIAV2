@@ -128,6 +128,7 @@ export function ProspectRow({
       )}
     >
       <span
+        role="presentation"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         className="flex items-center justify-center"
@@ -209,6 +210,7 @@ export function ProspectRow({
       </div>
 
       <span
+        role="presentation"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >

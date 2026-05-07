@@ -719,7 +719,8 @@
 <!-- ================================================================= -->
 <section>
   <h2><span class="num">8</span> Integration Odoo</h2>
-  <p>Odoo n'est pas encore en production. Cette section decrit le flux prevu et les endpoints a implementer.</p>
+  <p><strong>Etat 2026-05-07</strong> — Integration en production sur <code>soluvia.odoo.com</code> (Odoo Enterprise SaaS 19.1, db <code>soluvia</code>, user <code>iladj@mysoluvia.com</code>). Le client JSON-RPC vit dans <code>lib/odoo/client.ts</code>, l'orchestration dans <code>lib/odoo/sync.ts</code>, le cron dans <code>app/api/sync/odoo/route.ts</code>.</p>
+  <p><strong>Tenant partage avec FINANCES-WISEMANH</strong> — l'application financiere du groupe (FINANCES-WISEMANH, repo separe) lit le meme tenant Odoo : <code>account.bank.statement.line</code>, <code>account.analytic.line</code>, <code>account.analytic.account</code>. Ces modeles sont disjoints des modeles ecrits par SOLUVIA (<code>account.move</code>, <code>account.payment</code>) - aucun conflit fonctionnel. Le tenant heberge 6 res.company (SOLUVIA, KS Campus, Campus Excellence, Eduvia, Digivia, Wisemanh) et 68 codes analytiques cross-company dans le plan "Project". Quand tu rotates la cle API, mets a jour <strong>les 2 endroits</strong> : env vars Vercel SOLUVIA + connexion FINANCES-WISEMANH.</p>
 
   <h3>Flux SOLUVIA &rarr; Odoo (push facture)</h3>
   <div class="mockup">

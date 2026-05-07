@@ -6,10 +6,44 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
 import './globals.css';
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://soluvia.vercel.app';
+
 export const metadata: Metadata = {
-  title: 'SOLUVIA',
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: 'SOLUVIA',
+    template: '%s · SOLUVIA',
+  },
   description:
     'Plateforme de pilotage stratégique pour organismes de formation',
+  applicationName: 'SOLUVIA',
+  // SaaS authentifie : pas de pages produit a indexer. Les seules pages
+  // publiques sont login / mentions / politique - suffisamment generiques.
+  // robots.ts override par segment si besoin.
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'fr_FR',
+    url: siteUrl,
+    siteName: 'SOLUVIA',
+    title: 'SOLUVIA',
+    description:
+      'Plateforme de pilotage stratégique pour organismes de formation',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'SOLUVIA',
+    description:
+      'Plateforme de pilotage stratégique pour organismes de formation',
+  },
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

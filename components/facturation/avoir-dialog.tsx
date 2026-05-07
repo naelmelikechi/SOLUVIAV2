@@ -38,10 +38,28 @@ const MOTIFS_AVOIR = [
   'Compensation',
 ] as const;
 
+/**
+ * Un contrat distinct present dans les lignes de la facture origine.
+ * Sert au selecteur "lier l avoir a ce contrat" quand l origine couvre
+ * plusieurs contrats. Voir #6.
+ */
+export interface AvoirContratOption {
+  contratId: string;
+  ref: string | null;
+  apprenant: string;
+}
+
 interface AvoirDialogProps {
   factureRef: string;
   factureOrigineId: string;
   montantHtDefault: number;
+  /**
+   * Contrats distincts presents dans les lignes de la facture origine.
+   * - Si 1 seul : auto-selectionne, pas d UI dediee.
+   * - Si plusieurs : un Select apparait pour lier l avoir au contrat
+   *   concerne (rupture anticipee = un contrat precis).
+   */
+  contrats: AvoirContratOption[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -50,6 +68,7 @@ export function AvoirDialog({
   factureRef,
   factureOrigineId,
   montantHtDefault,
+  contrats,
   open,
   onOpenChange,
 }: AvoirDialogProps) {
@@ -59,6 +78,9 @@ export function AvoirDialog({
   );
   const [note, setNote] = useState<string>('');
   const [dateRupture, setDateRupture] = useState<string>('');
+  const [contratId, setContratId] = useState<string>(
+    contrats.length === 1 ? (contrats[0]?.contratId ?? '') : '',
+  );
   const [breakdown, setBreakdown] = useState<ProrataBreakdownItem[] | null>(
     null,
   );
@@ -116,6 +138,12 @@ export function AvoirDialog({
         toast.error('Date de rupture requise');
         return;
       }
+      // Un avoir = lie a un contrat. Si l origine en couvre plusieurs,
+      // l UI affiche un select et exige une selection explicite (#6).
+      if (contrats.length > 1 && !contratId) {
+        toast.error('Sélectionnez le contrat concerné par l’avoir');
+        return;
+      }
 
       const finalNote =
         motif === MOTIF_RUPTURE
@@ -130,6 +158,7 @@ export function AvoirDialog({
           motif: motif.trim(),
           montant: montantValue,
           note: finalNote || undefined,
+          contratId: contratId || undefined,
         });
         if (result.success) {
           toast.success(
@@ -140,6 +169,9 @@ export function AvoirDialog({
           setMontantHt(montantHtDefault.toString());
           setNote('');
           setDateRupture('');
+          setContratId(
+            contrats.length === 1 ? (contrats[0]?.contratId ?? '') : '',
+          );
           setBreakdown(null);
         } else {
           toast.error(result.error ?? 'Erreur lors de la création');
@@ -153,6 +185,8 @@ export function AvoirDialog({
       dateRupture,
       note,
       factureOrigineId,
+      contratId,
+      contrats,
       onOpenChange,
     ],
   );
@@ -186,6 +220,33 @@ export function AvoirDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Contrat concerne (uniquement si origine multi-contrat) */}
+          {contrats.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="contrat_avoir">Contrat concerné</Label>
+              <Select
+                value={contratId}
+                onValueChange={(v) => setContratId(v ?? '')}
+              >
+                <SelectTrigger className="w-full" id="contrat_avoir">
+                  <SelectValue placeholder="Sélectionner un contrat" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contrats.map((c) => (
+                    <SelectItem key={c.contratId} value={c.contratId}>
+                      {c.apprenant || '-'}
+                      {c.ref ? ` · ${c.ref}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                Un avoir est lié à un contrat (rupture anticipée, ajustement
+                contrat). Sélectionnez celui concerné.
+              </p>
+            </div>
+          )}
 
           {/* Date de rupture (rupture uniquement) */}
           {motif === MOTIF_RUPTURE && (

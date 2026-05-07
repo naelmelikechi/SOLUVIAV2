@@ -204,6 +204,69 @@ export async function createAvoir(params: {
     return { success: false, error: 'Un avoir existe déjà sur cette facture' };
   }
 
+  // ---------------------------------------------------------------------
+  // Selection du contrat lie a l avoir (#6).
+  // ---------------------------------------------------------------------
+  // Spec metier confirmee : un avoir = lie a UN contrat (typiquement
+  // rupture anticipee, fin avant terme, etc). Avant le fix on prenait
+  // arbitrairement le PREMIER contrat des lignes origine, ce qui rendait
+  // l avoir comptablement faux quand la facture origine couvrait N contrats.
+  //
+  // Resolution :
+  // - Si la facture origine a 1 seul contrat distinct : auto-deduit
+  // - Sinon : contratId requis, et doit appartenir aux lignes origine
+  const { data: origineLignesAll } = await supabase
+    .from('facture_lignes')
+    .select(
+      `contrat_id, contrat:contrats!facture_lignes_contrat_id_fkey(ref, apprenant_nom, apprenant_prenom)`,
+    )
+    .eq('facture_id', factureOrigineId);
+
+  const origineContratIds = Array.from(
+    new Set((origineLignesAll ?? []).map((l) => l.contrat_id).filter(Boolean)),
+  ) as string[];
+
+  if (origineContratIds.length === 0) {
+    return {
+      success: false,
+      error:
+        "Facture origine sans ligne attachee a un contrat - impossible d'emettre l avoir.",
+    };
+  }
+
+  let resolvedContratId: string;
+  if (parsed.data.contratId) {
+    if (!origineContratIds.includes(parsed.data.contratId)) {
+      return {
+        success: false,
+        error: 'Le contrat selectionne n appartient pas a la facture origine.',
+      };
+    }
+    resolvedContratId = parsed.data.contratId;
+  } else if (origineContratIds.length === 1) {
+    resolvedContratId = origineContratIds[0]!;
+  } else {
+    return {
+      success: false,
+      error: `La facture origine couvre ${origineContratIds.length} contrats. Selectionnez celui concerne par l avoir.`,
+    };
+  }
+
+  // Pour l audit + la description : retrouve l info apprenant du contrat resolu.
+  const ligneContrat = (origineLignesAll ?? []).find(
+    (l) => l.contrat_id === resolvedContratId,
+  )?.contrat;
+  const apprenant = [
+    ligneContrat?.apprenant_prenom,
+    ligneContrat?.apprenant_nom,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const contratLabel = ligneContrat?.ref
+    ? `${ligneContrat.ref}${apprenant ? ` (${apprenant})` : ''}`
+    : apprenant || 'contrat';
+
   // Calculate amounts (negative)
   const montantHt = -Math.abs(montant);
   const montantTva = Math.round(montantHt * origine.taux_tva) / 100;
@@ -240,21 +303,20 @@ export async function createAvoir(params: {
     };
   }
 
-  // Fetch first contrat_id from origin facture lignes (required by schema)
-  const { data: origineLignes } = await supabase
-    .from('facture_lignes')
-    .select('contrat_id')
-    .eq('facture_id', factureOrigineId)
-    .limit(1)
-    .maybeSingle();
+  // Insere une ligne d avoir lie au contrat resolu (vs ancien code qui
+  // prenait arbitrairement le premier ligne -> bug comptable).
+  const { error: ligneError } = await supabase.from('facture_lignes').insert({
+    facture_id: avoir.id,
+    contrat_id: resolvedContratId,
+    description: `Avoir sur ${origine.ref} - ${motif} - ${contratLabel}`,
+    montant_ht: montantHt,
+  });
 
-  if (origineLignes?.contrat_id) {
-    await supabase.from('facture_lignes').insert({
-      facture_id: avoir.id,
-      contrat_id: origineLignes.contrat_id,
-      description: `Avoir sur ${origine.ref} - ${motif}`,
-      montant_ht: montantHt,
-    });
+  if (ligneError) {
+    // Rollback : un avoir sans ligne est mal forme. On supprime puisqu il
+    // est encore en statut 'a_emettre' (pas de numero_seq consomme).
+    await supabase.from('factures').delete().eq('id', avoir.id);
+    return { success: false, error: ligneError.message };
   }
 
   // Audit log : brouillon d'avoir cree, ref final attribue a l'envoi
@@ -265,6 +327,7 @@ export async function createAvoir(params: {
     {
       motif,
       montant: montantHt,
+      contratId: resolvedContratId,
     },
     user.id,
   );

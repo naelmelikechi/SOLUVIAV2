@@ -65,10 +65,12 @@ export async function getCurrentUser() {
   if (!authUser) return null;
 
   // Full select - requires migrations 00041 (avatar_mode) + 00042 (telephone).
+  // Inclut aussi les flags pipeline_access / can_validate_ideas / can_ship_ideas
+  // utilises par le layout dashboard cote serveur (sprint 5 #3).
   const full = await supabase
     .from('users')
     .select(
-      'id, email, nom, prenom, role, telephone, avatar_mode, avatar_seed, avatar_regen_date',
+      'id, email, nom, prenom, role, telephone, avatar_mode, avatar_seed, avatar_regen_date, pipeline_access, can_validate_ideas, can_ship_ideas',
     )
     .eq('id', authUser.id)
     .single();
@@ -83,6 +85,9 @@ export async function getCurrentUser() {
         | 'random'
         | 'frozen'
         | null,
+      pipeline_access: full.data.pipeline_access ?? false,
+      can_validate_ideas: full.data.can_validate_ideas ?? false,
+      can_ship_ideas: full.data.can_ship_ideas ?? false,
     };
   }
 
@@ -101,7 +106,30 @@ export async function getCurrentUser() {
     ...legacy.data,
     telephone: null as string | null,
     avatar_mode: null as 'daily' | 'random' | 'frozen' | null,
+    pipeline_access: false,
+    can_validate_ideas: false,
+    can_ship_ideas: false,
   };
+}
+
+/**
+ * Compte les projets clients (non internes) ou l user est cdp ou backup_cdp.
+ * Sert a deriver le statut "unassigned_collaborator" dans le layout dashboard.
+ */
+export async function getCurrentUserActiveProjetsCount(): Promise<number> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const { count } = await supabase
+    .from('projets')
+    .select('id', { count: 'exact', head: true })
+    .eq('archive', false)
+    .eq('est_interne', false)
+    .or(`cdp_id.eq.${user.id},backup_cdp_id.eq.${user.id}`);
+  return count ?? 0;
 }
 
 export type CurrentUser = NonNullable<

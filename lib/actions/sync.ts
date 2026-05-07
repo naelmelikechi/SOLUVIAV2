@@ -53,6 +53,7 @@ export async function triggerOdooSync(): Promise<{
       'system',
       undefined,
       results as unknown as Record<string, Json>,
+      user.id,
     );
 
     return { success: true, results };
@@ -86,6 +87,7 @@ export async function triggerEduviaSync(): Promise<{
       'system',
       undefined,
       results as unknown as Record<string, Json>,
+      user.id,
     );
 
     return { success: true, results };

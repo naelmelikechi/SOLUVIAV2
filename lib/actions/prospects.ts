@@ -119,7 +119,7 @@ export async function updateProspectStage(
     return { success: false, error: error.message };
   }
 
-  logAudit('prospect_stage_updated', 'prospect', id, { stage });
+  logAudit('prospect_stage_updated', 'prospect', id, { stage }, user.id);
   revalidatePath('/commercial/pipeline');
   return { success: true };
 }
@@ -152,7 +152,7 @@ export async function updateProspectAssignment(
     return { success: false, error: error.message };
   }
 
-  logAudit('prospect_assigned', 'prospect', id, { commercialId });
+  logAudit('prospect_assigned', 'prospect', id, { commercialId }, user.id);
   revalidatePath('/commercial/pipeline');
   return { success: true };
 }
@@ -200,10 +200,16 @@ export async function bulkUpdateProspects(
     return { success: false, error: error.message };
   }
 
-  logAudit('prospects_bulk_updated', 'prospect', undefined, {
-    count: ids.length,
-    patch,
-  });
+  logAudit(
+    'prospects_bulk_updated',
+    'prospect',
+    undefined,
+    {
+      count: ids.length,
+      patch,
+    },
+    user.id,
+  );
   revalidatePath('/commercial/pipeline');
   return { success: true, updated: ids.length };
 }
@@ -234,7 +240,7 @@ export async function addProspectNote(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('note_added', 'prospect', prospectId);
+  logAudit('note_added', 'prospect', prospectId, undefined, user.id);
   revalidatePath('/commercial/pipeline');
   return { success: true };
 }
@@ -304,7 +310,13 @@ export async function convertProspectToClient(
     .update({ client_id: client.id })
     .eq('id', id);
 
-  logAudit('prospect_converted', 'prospect', id, { clientId: client.id });
+  logAudit(
+    'prospect_converted',
+    'prospect',
+    id,
+    { clientId: client.id },
+    user.id,
+  );
   revalidatePath('/commercial/pipeline');
   revalidatePath('/admin/clients');
   return { success: true, clientId: client.id };
@@ -556,11 +568,17 @@ export async function importProspectsFromExcel(formData: FormData): Promise<{
     }
   }
 
-  logAudit('prospects_imported', 'prospect', undefined, {
-    created,
-    updated,
-    skipped,
-  });
+  logAudit(
+    'prospects_imported',
+    'prospect',
+    undefined,
+    {
+      created,
+      updated,
+      skipped,
+    },
+    user.id,
+  );
   revalidatePath('/commercial/pipeline');
   return { success: true, created, updated, skipped };
 }

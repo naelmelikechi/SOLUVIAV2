@@ -112,10 +112,16 @@ export async function uploadClientDocument(
     };
   }
 
-  logAudit('document_uploaded', 'client_document', clientId, {
-    nom_fichier: file.name,
-    type_document: typeDocument,
-  });
+  logAudit(
+    'document_uploaded',
+    'client_document',
+    clientId,
+    {
+      nom_fichier: file.name,
+      type_document: typeDocument,
+    },
+    user.id,
+  );
 
   revalidatePath(`/admin/clients/${clientId}`);
 
@@ -183,10 +189,16 @@ export async function uploadProjetDocument(
     };
   }
 
-  logAudit('document_uploaded', 'projet_document', projetId, {
-    nom_fichier: file.name,
-    type_document: typeDocument,
-  });
+  logAudit(
+    'document_uploaded',
+    'projet_document',
+    projetId,
+    {
+      nom_fichier: file.name,
+      type_document: typeDocument,
+    },
+    user.id,
+  );
 
   revalidatePath(`/projets/${projetRef}`);
 
@@ -223,7 +235,7 @@ export async function deleteClientDocument(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const { data: doc, error: fetchError } = await supabase
     .from('client_documents')
@@ -250,9 +262,15 @@ export async function deleteClientDocument(
     return { success: false, error: 'Erreur lors de la suppression' };
   }
 
-  logAudit('document_deleted', 'client_document', documentId, {
-    nom_fichier: doc.nom_fichier,
-  });
+  logAudit(
+    'document_deleted',
+    'client_document',
+    documentId,
+    {
+      nom_fichier: doc.nom_fichier,
+    },
+    user.id,
+  );
 
   revalidatePath(`/admin/clients/${clientId}`);
 
@@ -265,7 +283,7 @@ export async function deleteProjetDocument(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const { data: doc, error: fetchError } = await supabase
     .from('projet_documents')
@@ -292,9 +310,15 @@ export async function deleteProjetDocument(
     return { success: false, error: 'Erreur lors de la suppression' };
   }
 
-  logAudit('document_deleted', 'projet_document', documentId, {
-    nom_fichier: doc.nom_fichier,
-  });
+  logAudit(
+    'document_deleted',
+    'projet_document',
+    documentId,
+    {
+      nom_fichier: doc.nom_fichier,
+    },
+    user.id,
+  );
 
   revalidatePath(`/projets/${projetRef}`);
 

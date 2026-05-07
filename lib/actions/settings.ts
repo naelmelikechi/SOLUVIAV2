@@ -35,11 +35,17 @@ export async function updateProfile(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('profile_updated', 'user', undefined, {
-    prenom,
-    nom,
-    telephone: tel,
-  });
+  logAudit(
+    'profile_updated',
+    'user',
+    undefined,
+    {
+      prenom,
+      nom,
+      telephone: tel,
+    },
+    authUser.id,
+  );
 
   revalidatePath('/parametres-compte');
   revalidatePath('/equipe');
@@ -55,7 +61,7 @@ export async function updatePassword(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   if (newPassword.length < 8) {
     return {
@@ -68,7 +74,7 @@ export async function updatePassword(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('password_changed', 'user');
+  logAudit('password_changed', 'user', undefined, undefined, user.id);
 
   return { success: true };
 }
@@ -107,7 +113,13 @@ export async function setAvatarDaily(): Promise<AvatarActionResult> {
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('avatar_mode_changed', 'user', undefined, { mode: 'daily' });
+  logAudit(
+    'avatar_mode_changed',
+    'user',
+    undefined,
+    { mode: 'daily' },
+    authUser.id,
+  );
 
   revalidatePath('/parametres-compte');
   return { success: true, mode: 'daily', seed: null };
@@ -146,7 +158,7 @@ export async function rollRandomAvatar(): Promise<AvatarActionResult> {
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('avatar_random_rolled', 'user', undefined, { seed });
+  logAudit('avatar_random_rolled', 'user', undefined, { seed }, authUser.id);
 
   revalidatePath('/parametres-compte');
   return { success: true, mode: 'random', seed, regenDate: today };
@@ -187,7 +199,13 @@ export async function freezeCurrentAvatar(): Promise<AvatarActionResult> {
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('avatar_frozen', 'user', undefined, { seed: seedToFreeze });
+  logAudit(
+    'avatar_frozen',
+    'user',
+    undefined,
+    { seed: seedToFreeze },
+    authUser.id,
+  );
 
   revalidatePath('/parametres-compte');
   return { success: true, mode: 'frozen', seed: seedToFreeze };
@@ -221,10 +239,16 @@ export async function attemptUnlockFrozenAvatar(
   const b = Buffer.from(expected);
   const matches = a.length === b.length && timingSafeEqual(a, b);
 
-  logAudit('avatar_unlock_attempted', 'user', undefined, {
-    success: matches,
-    attempt_length: attempt.length,
-  });
+  logAudit(
+    'avatar_unlock_attempted',
+    'user',
+    undefined,
+    {
+      success: matches,
+      attempt_length: attempt.length,
+    },
+    authUser.id,
+  );
 
   if (!matches) {
     return {
@@ -240,7 +264,7 @@ export async function attemptUnlockFrozenAvatar(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('avatar_unlocked', 'user');
+  logAudit('avatar_unlocked', 'user', undefined, undefined, authUser.id);
 
   revalidatePath('/parametres-compte');
   return { success: true, mode: 'daily', seed: null };

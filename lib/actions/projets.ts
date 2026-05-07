@@ -25,7 +25,7 @@ export async function createProjet(data: {
 
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   // Validate CDP != backup CDP
   if (data.backupCdpId && data.backupCdpId === data.cdpId) {
@@ -56,7 +56,7 @@ export async function createProjet(data: {
     };
   }
 
-  logAudit('projet_created', 'projet', projet.id);
+  logAudit('projet_created', 'projet', projet.id, undefined, user.id);
 
   revalidatePath('/projets');
 
@@ -83,7 +83,7 @@ export async function updateProjetTauxCommission(
 
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const rounded = Math.round(tauxCommission * 100) / 100;
 
@@ -105,9 +105,15 @@ export async function updateProjetTauxCommission(
     };
   }
 
-  logAudit('projet_taux_commission_updated', 'projet', projetId, {
-    tauxCommission: rounded,
-  });
+  logAudit(
+    'projet_taux_commission_updated',
+    'projet',
+    projetId,
+    {
+      tauxCommission: rounded,
+    },
+    user.id,
+  );
 
   revalidatePath('/projets');
   if (updated?.ref) {
@@ -130,7 +136,7 @@ export async function updateProjetBillingMode(
 
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const { data: updated, error } = await supabase
     .from('projets')
@@ -150,7 +156,13 @@ export async function updateProjetBillingMode(
     };
   }
 
-  logAudit('projet_billing_mode_changed', 'projet', projetId, { mode });
+  logAudit(
+    'projet_billing_mode_changed',
+    'projet',
+    projetId,
+    { mode },
+    user.id,
+  );
 
   revalidatePath('/projets');
   if (updated?.ref) {
@@ -165,7 +177,7 @@ export async function duplicateProjet(
 ): Promise<{ success: boolean; ref?: string; error?: string }> {
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   // Fetch the original projet
   const { data: original, error: fetchError } = await supabase
@@ -207,9 +219,15 @@ export async function duplicateProjet(
     };
   }
 
-  logAudit('projet_duplicated', 'projet', newProjet.id, {
-    sourceRef: original.ref ?? '',
-  });
+  logAudit(
+    'projet_duplicated',
+    'projet',
+    newProjet.id,
+    {
+      sourceRef: original.ref ?? '',
+    },
+    user.id,
+  );
 
   revalidatePath('/projets');
 

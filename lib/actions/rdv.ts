@@ -47,7 +47,13 @@ export async function createRdvFormateur(
     return { success: false, error: error?.message ?? 'Erreur' };
   }
 
-  logAudit('rdv_formateur_created', 'rdv_formateur', rdv.id);
+  logAudit(
+    'rdv_formateur_created',
+    'rdv_formateur',
+    rdv.id,
+    undefined,
+    user.id,
+  );
   revalidatePath(`/projets/[ref]`, 'page');
   return { success: true, id: rdv.id };
 }
@@ -58,7 +64,7 @@ export async function updateRdvFormateurStatut(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const update: { statut: StatutRdv; date_realisee?: string | null } = {
     statut,
@@ -75,7 +81,13 @@ export async function updateRdvFormateurStatut(
     .eq('id', id);
 
   if (error) return { success: false, error: error.message };
-  logAudit('rdv_formateur_statut_updated', 'rdv_formateur', id, { statut });
+  logAudit(
+    'rdv_formateur_statut_updated',
+    'rdv_formateur',
+    id,
+    { statut },
+    user.id,
+  );
   revalidatePath(`/projets/[ref]`, 'page');
   return { success: true };
 }
@@ -85,11 +97,11 @@ export async function deleteRdvFormateur(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const { error } = await supabase.from('rdv_formateurs').delete().eq('id', id);
   if (error) return { success: false, error: error.message };
-  logAudit('rdv_formateur_deleted', 'rdv_formateur', id);
+  logAudit('rdv_formateur_deleted', 'rdv_formateur', id, undefined, user.id);
   revalidatePath(`/projets/[ref]`, 'page');
   return { success: true };
 }
@@ -126,7 +138,13 @@ export async function createRdvCommercial(
     return { success: false, error: error?.message ?? 'Erreur' };
   }
 
-  logAudit('rdv_commercial_created', 'rdv_commercial', rdv.id);
+  logAudit(
+    'rdv_commercial_created',
+    'rdv_commercial',
+    rdv.id,
+    undefined,
+    user.id,
+  );
   revalidatePath('/commercial/pipeline');
   return { success: true, id: rdv.id };
 }
@@ -137,7 +155,7 @@ export async function updateRdvCommercialStatut(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const update: { statut: StatutRdv; date_realisee?: string | null } = {
     statut,
@@ -154,7 +172,13 @@ export async function updateRdvCommercialStatut(
     .eq('id', id);
 
   if (error) return { success: false, error: error.message };
-  logAudit('rdv_commercial_statut_updated', 'rdv_commercial', id, { statut });
+  logAudit(
+    'rdv_commercial_statut_updated',
+    'rdv_commercial',
+    id,
+    { statut },
+    user.id,
+  );
   revalidatePath('/commercial/pipeline');
   return { success: true };
 }
@@ -191,7 +215,7 @@ export async function deleteRdvCommercial(
     .delete()
     .eq('id', id);
   if (error) return { success: false, error: error.message };
-  logAudit('rdv_commercial_deleted', 'rdv_commercial', id);
+  logAudit('rdv_commercial_deleted', 'rdv_commercial', id, undefined, user.id);
   revalidatePath('/commercial/pipeline');
   return { success: true };
 }

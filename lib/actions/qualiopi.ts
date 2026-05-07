@@ -35,10 +35,16 @@ export async function assignIndicatorResponsible(params: {
     logger.error(SCOPE, 'assignIndicatorResponsible failed', { error });
     return { success: false, error: error.message };
   }
-  logAudit('qualiopi_assignment', 'qualite_assignments', undefined, {
-    indicator_id: params.indicatorId,
-    user_id: params.userId,
-  });
+  logAudit(
+    'qualiopi_assignment',
+    'qualite_assignments',
+    undefined,
+    {
+      indicator_id: params.indicatorId,
+      user_id: params.userId,
+    },
+    user.id,
+  );
   revalidatePath(`/qualiopi`);
   return { success: true };
 }

@@ -224,10 +224,16 @@ export async function createAvoir(params: {
   }
 
   // Audit log : brouillon d'avoir cree, ref final attribue a l'envoi
-  logAudit('brouillon_avoir_created', 'facture', avoir.id, {
-    motif,
-    montant: montantHt,
-  });
+  logAudit(
+    'brouillon_avoir_created',
+    'facture',
+    avoir.id,
+    {
+      motif,
+      montant: montantHt,
+    },
+    user.id,
+  );
 
   revalidatePath('/facturation');
   revalidatePath(`/facturation/${origine.ref}`);

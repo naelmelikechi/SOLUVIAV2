@@ -80,7 +80,13 @@ export async function proposeIdea(data: {
     return { success: false, error: error?.message ?? 'Erreur' };
   }
 
-  logAudit('idea_proposed', 'idee', idee.id, { titre: titreCheck.value });
+  logAudit(
+    'idea_proposed',
+    'idee',
+    idee.id,
+    { titre: titreCheck.value },
+    user.id,
+  );
   revalidatePath('/idees');
   return { success: true, id: idee.id };
 }
@@ -128,7 +134,7 @@ export async function updateProposedIdea(
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('idea_updated', 'idee', id);
+  logAudit('idea_updated', 'idee', id, undefined, user.id);
   revalidatePath('/idees');
   return { success: true };
 }
@@ -209,7 +215,7 @@ export async function validateIdea(
     existing.titre,
     id,
   );
-  logAudit('idea_validated', 'idee', id);
+  logAudit('idea_validated', 'idee', id, undefined, user.id);
   revalidatePath('/idees');
   return { success: true };
 }
@@ -264,7 +270,7 @@ export async function rejectIdea(
     id,
     motifCheck.value,
   );
-  logAudit('idea_rejected', 'idee', id, { motif: motifCheck.value });
+  logAudit('idea_rejected', 'idee', id, { motif: motifCheck.value }, user.id);
   revalidatePath('/idees');
   return { success: true };
 }
@@ -316,7 +322,7 @@ export async function markIdeaImplemented(
     existing.titre,
     id,
   );
-  logAudit('idea_shipped', 'idee', id);
+  logAudit('idea_shipped', 'idee', id, undefined, user.id);
   revalidatePath('/idees');
   return { success: true };
 }
@@ -367,7 +373,7 @@ export async function reopenIdea(
     .eq('id', id);
   if (error) return { success: false, error: error.message };
 
-  logAudit('idea_reopened', 'idee', id, { from: existing.statut });
+  logAudit('idea_reopened', 'idee', id, { from: existing.statut }, user.id);
   revalidatePath('/idees');
   return { success: true };
 }
@@ -406,7 +412,7 @@ export async function revertImplementedIdea(
     .eq('id', id);
   if (error) return { success: false, error: error.message };
 
-  logAudit('idea_reverted_to_validated', 'idee', id);
+  logAudit('idea_reverted_to_validated', 'idee', id, undefined, user.id);
   revalidatePath('/idees');
   return { success: true };
 }
@@ -457,7 +463,7 @@ export async function reopenAndEditIdea(
     .eq('id', id);
   if (error) return { success: false, error: error.message };
 
-  logAudit('idea_reopened_with_edit', 'idee', id);
+  logAudit('idea_reopened_with_edit', 'idee', id, undefined, user.id);
   revalidatePath('/idees');
   return { success: true };
 }
@@ -482,7 +488,13 @@ export async function archiveIdea(
     .eq('id', id);
   if (error) return { success: false, error: error.message };
 
-  logAudit(archive ? 'idea_archived' : 'idea_unarchived', 'idee', id);
+  logAudit(
+    archive ? 'idea_archived' : 'idea_unarchived',
+    'idee',
+    id,
+    undefined,
+    user.id,
+  );
   revalidatePath('/idees');
   return { success: true };
 }

@@ -10,12 +10,12 @@ export async function sendFactureEmailAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const result = await sendEmailForFacture(factureId, supabase);
 
   if (result.success) {
-    logAudit('email_sent', 'facture', factureId);
+    logAudit('email_sent', 'facture', factureId, undefined, user.id);
 
     // Revalidate facture detail pages
     const { data: facture } = await supabase
@@ -37,13 +37,13 @@ export async function sendRelanceEmailAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const { sendRelanceEmail } = await import('@/lib/email/client');
   const result = await sendRelanceEmail(factureId, supabase);
 
   if (result.success) {
-    logAudit('relance_sent', 'facture', factureId);
+    logAudit('relance_sent', 'facture', factureId, undefined, user.id);
 
     const { data: facture } = await supabase
       .from('factures')

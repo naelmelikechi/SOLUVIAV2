@@ -266,7 +266,13 @@ export async function createFactures(
 
     createdIds.push(facture.id);
 
-    logAudit('brouillon_created', 'facture', facture.id, { mois: moisLabel });
+    logAudit(
+      'brouillon_created',
+      'facture',
+      facture.id,
+      { mois: moisLabel },
+      user.id,
+    );
   }
 
   revalidatePath('/facturation');
@@ -293,7 +299,7 @@ export async function deleteBrouillon(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const { data: facture, error: fetchError } = await supabase
     .from('factures')
@@ -333,7 +339,7 @@ export async function deleteBrouillon(
     return { success: false, error: deleteError.message };
   }
 
-  logAudit('brouillon_deleted', 'facture', factureId, {});
+  logAudit('brouillon_deleted', 'facture', factureId, {}, user.id);
   revalidatePath('/facturation');
   return { success: true };
 }
@@ -534,11 +540,17 @@ export async function createFactureFromEvents(params: {
     return { success: false, error: lignesError.message };
   }
 
-  logAudit('manual_brouillon_created', 'facture', facture.id, {
-    eventCount: resolved.length,
-    montantHt: totalHt,
-    types: Array.from(new Set(resolved.map((e) => e.type))),
-  });
+  logAudit(
+    'manual_brouillon_created',
+    'facture',
+    facture.id,
+    {
+      eventCount: resolved.length,
+      montantHt: totalHt,
+      types: Array.from(new Set(resolved.map((e) => e.type))),
+    },
+    user.id,
+  );
 
   revalidatePath('/facturation');
   revalidatePath(`/projets/${live.projetRef}`);
@@ -660,11 +672,17 @@ export async function createBlankBrouillon(params: {
     return { success: false, error: lignesError.message };
   }
 
-  logAudit('blank_brouillon_created', 'facture', facture.id, {
-    projetId,
-    lignesCount: lignes.length,
-    montantHt: totalHt,
-  });
+  logAudit(
+    'blank_brouillon_created',
+    'facture',
+    facture.id,
+    {
+      projetId,
+      lignesCount: lignes.length,
+      montantHt: totalHt,
+    },
+    user.id,
+  );
 
   revalidatePath('/facturation');
   revalidatePath(`/projets/${projet.ref}`);

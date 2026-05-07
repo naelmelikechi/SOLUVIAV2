@@ -17,7 +17,7 @@ export async function addManualPayment(params: {
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   // Fetch facture to validate status and get montant_ttc + ref
   const { data: facture, error: fetchError } = await supabase
@@ -73,11 +73,17 @@ export async function addManualPayment(params: {
   }
 
   // Audit log
-  logAudit('paiement_created', 'paiement', factureId, {
-    montant,
-    date_reception: dateReception,
-    saisie_manuelle: true,
-  });
+  logAudit(
+    'paiement_created',
+    'paiement',
+    factureId,
+    {
+      montant,
+      date_reception: dateReception,
+      saisie_manuelle: true,
+    },
+    user.id,
+  );
 
   revalidatePath('/facturation');
   revalidatePath(`/facturation/${facture.ref}`);

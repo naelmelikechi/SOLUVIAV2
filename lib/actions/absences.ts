@@ -79,7 +79,7 @@ export async function createAbsenceAction(
     return { success: false, error: error.message };
   }
 
-  logAudit('absence_created', 'absence', created.id);
+  logAudit('absence_created', 'absence', created.id, undefined, user.id);
   revalidatePath('/temps');
 
   return { success: true, id: created.id };
@@ -129,7 +129,7 @@ export async function updateAbsenceAction(
     return { success: false, error: error.message };
   }
 
-  logAudit('absence_updated', 'absence', id);
+  logAudit('absence_updated', 'absence', id, undefined, user.id);
   revalidatePath('/temps');
 
   return { success: true };
@@ -140,7 +140,7 @@ export async function deleteAbsenceAction(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const { error } = await supabase.from('absences').delete().eq('id', id);
 
@@ -149,7 +149,7 @@ export async function deleteAbsenceAction(
     return { success: false, error: error.message };
   }
 
-  logAudit('absence_deleted', 'absence', id);
+  logAudit('absence_deleted', 'absence', id, undefined, user.id);
   revalidatePath('/temps');
 
   return { success: true };

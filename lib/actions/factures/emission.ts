@@ -18,7 +18,7 @@ export async function sendFacture(
 ): Promise<{ success: boolean; ref?: string; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   // Verrou + verification
   const { data: facture, error: fetchError } = await supabase
@@ -74,10 +74,16 @@ export async function sendFacture(
     };
   }
 
-  logAudit('facture_sent', 'facture', updated.id, {
-    ref: updated.ref,
-    statut: updated.statut,
-  });
+  logAudit(
+    'facture_sent',
+    'facture',
+    updated.id,
+    {
+      ref: updated.ref,
+      statut: updated.statut,
+    },
+    user.id,
+  );
 
   // Email fire-and-forget : si Resend echoue, on ne casse pas la facture
   // (facture deja en 'emise' avec ref, l'utilisateur peut renvoyer manuellement).

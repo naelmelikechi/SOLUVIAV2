@@ -28,9 +28,15 @@ export async function setProjetEcheancierTemplate(params: {
     logger.error(SCOPE, 'set template failed', { error });
     return { success: false, error: error.message };
   }
-  logAudit('projet_echeancier_template', 'projet', params.projetId, {
-    template_id: params.templateId,
-  });
+  logAudit(
+    'projet_echeancier_template',
+    'projet',
+    params.projetId,
+    {
+      template_id: params.templateId,
+    },
+    auth.user.id,
+  );
   revalidatePath('/projets');
   return { success: true };
 }
@@ -66,9 +72,15 @@ export async function createEcheancierTemplate(params: {
     logger.error(SCOPE, 'createTemplate failed', { error });
     return { success: false, error: error.message };
   }
-  logAudit('echeancier_template_created', 'echeanciers_templates', data.id, {
-    nom: params.nom,
-  });
+  logAudit(
+    'echeancier_template_created',
+    'echeanciers_templates',
+    data.id,
+    {
+      nom: params.nom,
+    },
+    auth.user.id,
+  );
   revalidatePath('/admin/parametres');
   return { success: true, id: data.id };
 }
@@ -96,7 +108,13 @@ export async function updateEcheancierTemplate(params: {
     })
     .eq('id', params.id);
   if (error) return { success: false, error: error.message };
-  logAudit('echeancier_template_updated', 'echeanciers_templates', params.id);
+  logAudit(
+    'echeancier_template_updated',
+    'echeanciers_templates',
+    params.id,
+    undefined,
+    auth.user.id,
+  );
   revalidatePath('/admin/parametres');
   return { success: true };
 }
@@ -122,7 +140,13 @@ export async function setEcheancierTemplateDefault(
     .eq('id', id);
   if (setErr) return { success: false, error: setErr.message };
 
-  logAudit('echeancier_template_set_default', 'echeanciers_templates', id);
+  logAudit(
+    'echeancier_template_set_default',
+    'echeanciers_templates',
+    id,
+    undefined,
+    auth.user.id,
+  );
   revalidatePath('/admin/parametres');
   revalidatePath('/projets');
   return { success: true };
@@ -144,6 +168,8 @@ export async function archiveEcheancierTemplate(
     archive ? 'echeancier_template_archived' : 'echeancier_template_restored',
     'echeanciers_templates',
     id,
+    undefined,
+    auth.user.id,
   );
   revalidatePath('/admin/parametres');
   return { success: true };
@@ -175,6 +201,8 @@ export async function resolveAjustement(params: {
     params.action === 'emitted' ? 'ajustement_emitted' : 'ajustement_ignored',
     'facturation_ajustements_pending',
     params.id,
+    undefined,
+    auth.user.id,
   );
   revalidatePath('/facturation');
   return { success: true };
@@ -206,9 +234,15 @@ export async function setProjetEcheancierOverride(params: {
       logger.error(SCOPE, 'set override failed', { error });
       return { success: false, error: error.message };
     }
-    logAudit('projet_echeancier_override', 'projet', params.projetId, {
-      jalons: params.jalons,
-    } as unknown as Record<string, Json>);
+    logAudit(
+      'projet_echeancier_override',
+      'projet',
+      params.projetId,
+      {
+        jalons: params.jalons,
+      } as unknown as Record<string, Json>,
+      auth.user.id,
+    );
     revalidatePath('/projets');
     return {
       success: true,
@@ -223,7 +257,13 @@ export async function setProjetEcheancierOverride(params: {
     .update({ echeancier_override: null })
     .eq('id', params.projetId);
   if (error) return { success: false, error: error.message };
-  logAudit('projet_echeancier_override_cleared', 'projet', params.projetId);
+  logAudit(
+    'projet_echeancier_override_cleared',
+    'projet',
+    params.projetId,
+    undefined,
+    auth.user.id,
+  );
   revalidatePath('/projets');
   return { success: true };
 }

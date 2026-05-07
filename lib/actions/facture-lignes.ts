@@ -93,7 +93,7 @@ export async function addLigneToBrouillon(
 ): Promise<{ success: boolean; ligneId?: string; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const check = await assertBrouillon(params.factureId);
   if (!check.ok) return { success: false, error: check.error };
@@ -150,11 +150,17 @@ export async function addLigneToBrouillon(
 
   await recomputeFactureTotaux(params.factureId);
 
-  logAudit('facture_ligne_added', 'facture', params.factureId, {
-    ligneId: ligne.id,
-    contratId: params.contratId,
-    montant: montantHtSigned,
-  });
+  logAudit(
+    'facture_ligne_added',
+    'facture',
+    params.factureId,
+    {
+      ligneId: ligne.id,
+      contratId: params.contratId,
+      montant: montantHtSigned,
+    },
+    user.id,
+  );
 
   revalidatePath('/facturation');
   if (check.ref) revalidatePath(`/facturation/${check.ref}`);
@@ -173,7 +179,7 @@ export async function updateLigneInBrouillon(
 ): Promise<{ success: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   // Charge la ligne pour acceder a la facture et verifier le statut
   const { data: ligne, error: fetchError } = await supabase
@@ -224,10 +230,16 @@ export async function updateLigneInBrouillon(
     await recomputeFactureTotaux(ligne.facture_id);
   }
 
-  logAudit('facture_ligne_updated', 'facture', ligne.facture_id, {
-    ligneId: params.ligneId,
-    updates,
-  });
+  logAudit(
+    'facture_ligne_updated',
+    'facture',
+    ligne.facture_id,
+    {
+      ligneId: params.ligneId,
+      updates,
+    },
+    user.id,
+  );
 
   revalidatePath('/facturation');
   if (check.ref) revalidatePath(`/facturation/${check.ref}`);
@@ -240,7 +252,7 @@ export async function removeLigneFromBrouillon(
 ): Promise<{ success: boolean; eventFreed?: boolean; error?: string }> {
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   // Charge la ligne pour stats + verification statut
   const { data: ligne, error: fetchError } = await supabase
@@ -276,10 +288,16 @@ export async function removeLigneFromBrouillon(
   const eventFreed =
     ligne.event_type !== null && ligne.event_source_id !== null;
 
-  logAudit('facture_ligne_removed', 'facture', ligne.facture_id, {
-    ligneId,
-    eventFreed,
-  });
+  logAudit(
+    'facture_ligne_removed',
+    'facture',
+    ligne.facture_id,
+    {
+      ligneId,
+      eventFreed,
+    },
+    user.id,
+  );
 
   revalidatePath('/facturation');
   if (check.ref) revalidatePath(`/facturation/${check.ref}`);

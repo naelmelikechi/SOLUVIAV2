@@ -1,0 +1,75 @@
+name: SQL pgTAP tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/sql-tests.yml'
+
+concurrency:
+  group: sql-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pgtap:
+    name: pgTAP integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Supabase CLI : on en a besoin pour `supabase start` qui spin up
+      # Postgres + applique les migrations en ordre. Cache binaire global
+      # pour eviter le download a chaque run.
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Demarre la stack locale (Postgres 17 + auth + studio + ...).
+      # Les migrations sous supabase/migrations/ sont appliquees a l init.
+      # On EVITE le seed (donnees demo) car il a des refs FK qui demandent
+      # des users prealables, hors scope des tests d invariants. Les tests
+      # pgTAP creent leurs propres fixtures via TEMP TABLE.
+      - name: Move seed away (skip seed for pgTAP)
+        run: mv supabase/seed.sql supabase/seed.sql.bak
+
+      - name: Start Supabase
+        run: supabase start --workdir . --ignore-health-check
+
+      # Installe pgtap dans la base de test (pas inclu par defaut sur
+      # l image Postgres Supabase).
+      - name: Install pgtap extension
+        run: |
+          PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+            -c "CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;"
+
+      # Lance chaque fichier .sql sous supabase/tests/ et fail si un test
+      # rate. On compte les "ok N" pour confirmer que les assertions ont
+      # bien tourne (pgTAP imprime "not ok" sur fail, exit code reste 0).
+      - name: Run pgTAP suite
+        run: |
+          set -euo pipefail
+          fail=0
+          for f in supabase/tests/0*.sql; do
+            echo "::group::$f"
+            out=$(PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f "$f" 2>&1)
+            echo "$out"
+            if echo "$out" | grep -qE "^ not ok |ERROR:"; then
+              echo "::error::$f a echoue"
+              fail=1
+            fi
+            ok_count=$(echo "$out" | grep -cE "^ ok [0-9]+" || true)
+            echo "::notice::$f : $ok_count assertions ok"
+            echo "::endgroup::"
+          done
+          if [ "$fail" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Stop Supabase (cleanup)
+        if: always()
+        run: supabase stop || true

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getEmetteurInfo } from '@/lib/queries/parametres';
+import { lastDayOfNextMonthUtcISO } from '@/lib/utils/dates';
 
 export const maxDuration = 60;
 
@@ -83,12 +84,7 @@ export async function GET(
 
   const today = new Date();
   const dateEmission = today.toISOString().split('T')[0]!;
-  const dateEcheanceDate = new Date(
-    today.getFullYear(),
-    today.getMonth() + 2,
-    0,
-  );
-  const dateEcheance = dateEcheanceDate.toISOString().split('T')[0]!;
+  const dateEcheance = lastDayOfNextMonthUtcISO(today);
 
   const emetteur = await getEmetteurInfo();
 

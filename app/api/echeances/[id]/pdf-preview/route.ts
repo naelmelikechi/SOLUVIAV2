@@ -5,6 +5,7 @@ import { getEmetteurInfo } from '@/lib/queries/parametres';
 import type { FactureDetail } from '@/lib/queries/factures';
 import { FacturePdf } from '@/components/facturation/facture-pdf';
 import { createElement, type ReactElement } from 'react';
+import { lastDayOfNextMonthUtcISO } from '@/lib/utils/dates';
 
 /**
  * Draft PDF preview for a pending échéance.
@@ -99,12 +100,7 @@ export async function GET(
 
   const today = new Date();
   const dateEmission = today.toISOString().split('T')[0]!;
-  const dateEcheanceDate = new Date(
-    today.getFullYear(),
-    today.getMonth() + 2,
-    0,
-  );
-  const dateEcheanceStr = dateEcheanceDate.toISOString().split('T')[0]!;
+  const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
 
   // Shape a draft FactureDetail. `ref` is a placeholder, numero_seq is 0.
   const draftFacture = {

@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import {
@@ -81,6 +82,7 @@ export async function saveSaisieTemps(
       .eq('date', parsed.data.date);
 
     if (error) return { success: false, error: error.message };
+    revalidatePath('/temps');
     return { success: true };
   }
 
@@ -96,6 +98,7 @@ export async function saveSaisieTemps(
   );
 
   if (error) return { success: false, error: error.message };
+  revalidatePath('/temps');
   return { success: true };
 }
 
@@ -157,6 +160,7 @@ export async function saveSaisieTempsAxes(
     if (insertError) return { success: false, error: insertError.message };
   }
 
+  revalidatePath('/temps');
   return { success: true };
 }
 
@@ -274,5 +278,6 @@ export async function copyPreviousWeek(
   if (insertError)
     return { success: false, copied: 0, error: insertError.message };
 
+  revalidatePath('/temps');
   return { success: true, copied: rowsToInsert.length };
 }

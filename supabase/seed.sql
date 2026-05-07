@@ -131,7 +131,7 @@ INSERT INTO projets (id, client_id, typologie_id, cdp_id, statut, date_debut, ta
 -- ----------------------------------------------------------
 -- Contrats (2-3 par projet, 15 total) - ref auto-generated
 -- ----------------------------------------------------------
-INSERT INTO contrats (id, eduvia_id, projet_id, apprenant_nom, apprenant_prenom, formation_titre, date_debut, date_fin, contract_state, montant_prise_en_charge, duree_mois) VALUES
+INSERT INTO contrats (id, eduvia_id, projet_id, apprenant_nom, apprenant_prenom, formation_titre, date_debut, date_fin, contract_state, npec_amount, duree_mois) VALUES
   -- Projet 1 (Heol-APP): 3 contrats
   ('c0100000-0000-0000-0000-000000000001', 90001, 'b1000000-0000-0000-0000-000000000001',
    'Kerlouegan', 'Yann', 'Developpeur Web Full Stack', '2025-01-15', '2026-01-14', 'actif', 12000.00, 12),

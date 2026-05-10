@@ -7,7 +7,14 @@ import { logger } from '@/lib/utils/logger';
 // engagement OU sur reglement OPCO, jamais les deux pour un meme contrat).
 //
 // Type 'engagement'   : 1 event par contrat dont contract_state='ENGAGE',
-//                       source_id = contrats.id, montant_brut = npec_amount
+//                       source_id = contrats.id,
+//                       montant_brut = SUM(eduvia_invoice_steps.total_amount)
+//                       WHERE step_number=1 AND invoice_state IS NOT NULL.
+//                       Cela correspond a la metrique "engages" cote Eduvia
+//                       (verifie numeriquement : 111 564,92 EUR sur HEOL).
+//                       Pas le NPEC contractuel total : on facture la commission
+//                       sur le montant deja emis a l OPCO, pas sur la valeur
+//                       faciale du contrat.
 // Type 'opco_step'    : 1 event par step dont invoice_state='REGLE',
 //                       source_id = eduvia_invoice_steps.id (UUID PK
 //                       cote SOLUVIA), montant_brut = total_amount
@@ -129,6 +136,28 @@ export async function getBillableEvents(
     .in('contrat_id', contratIds)
     .or('invoice_state.eq.REGLE,paid_at.not.is.null');
 
+  // 3-bis. Base de la commission "engagement" par contrat : somme des
+  // step_number=1 ayant un invoice_state (TRANSMIS ou REGLE = bordereau emis
+  // a l OPCO). Certains contrats ont plusieurs entrees step 1 (ancien step
+  // sans invoice_state + nouveau apres modification du contrat) : on ne
+  // somme QUE celles emises pour matcher la metrique Eduvia.
+  const { data: step1Rows } = await supabase
+    .from('eduvia_invoice_steps')
+    .select('contrat_id, total_amount, invoice_state')
+    .in('contrat_id', contratIds)
+    .eq('step_number', 1)
+    .not('invoice_state', 'is', null);
+
+  const engagementBaseByContrat = new Map<string, number>();
+  for (const r of step1Rows ?? []) {
+    if (!r.contrat_id) continue;
+    engagementBaseByContrat.set(
+      r.contrat_id,
+      (engagementBaseByContrat.get(r.contrat_id) ?? 0) +
+        Number(r.total_amount ?? 0),
+    );
+  }
+
   // 4. Lignes de facture deja existantes pour ces events (idempotence map).
   //
   // On recupere TOUTES les lignes (live + avoirs) puis on calcule le statut
@@ -206,7 +235,12 @@ export async function getBillableEvents(
     const billedTypes = eventTypesByContrat.get(c.id);
 
     // -- Event engagement -----------------------------------------------
-    if (c.contract_state === 'ENGAGE' && Number(c.npec_amount ?? 0) > 0) {
+    // Base : montant emis cote OPCO (step 1 avec invoice_state non-null),
+    // pas le NPEC contractuel total. Si pas de step 1 emis, brut = 0 et on
+    // skip l event (pas d engagement a facturer cote Soluvia tant que
+    // l OPCO n a pas recu le bordereau).
+    const brut = engagementBaseByContrat.get(c.id) ?? 0;
+    if (c.contract_state === 'ENGAGE' && brut > 0) {
       const billed = billedByEventSource.get(c.id);
       const lockedByOpco = billedTypes?.get('opco_step');
       const status: BillableEvent['status'] = billed
@@ -214,7 +248,6 @@ export async function getBillableEvents(
         : lockedByOpco
           ? 'locked'
           : 'available';
-      const brut = Number(c.npec_amount ?? 0);
       events.push({
         type: 'engagement',
         source_id: c.id,

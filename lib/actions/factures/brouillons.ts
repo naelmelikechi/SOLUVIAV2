@@ -526,9 +526,15 @@ export async function createFactureFromEvents(params: {
   //
   // Convention metier (mode billing_mode='manual', actuellement HEOL) :
   // la commission Soluvia est exprimee TTC dans le contrat client.
-  // Concretement : `montant_commissionne` (= NPEC * taux/100) represente le
+  // Concretement : `montant_commissionne` (= base * taux/100) represente le
   // total TTC, TVA INCLUSE. On derive HT/TVA a rebours pour que la facture
-  // affiche bien Total TTC = 50% du NPEC, comme attendu par le client.
+  // affiche bien Total TTC = montant attendu par le client.
+  //
+  // La "base" depend du type d event (cf. billable-events.ts) :
+  //   - 'engagement'  : SUM(eduvia_invoice_steps.total_amount) WHERE
+  //                     step_number=1 AND invoice_state IS NOT NULL
+  //                     (= metrique "engages" cote Eduvia)
+  //   - 'opco_step'   : eduvia_invoice_steps.total_amount du step regle
   const tauxTva = 20;
   const totalTtc =
     Math.round(resolved.reduce((s, e) => s + e.montant_commissionne, 0) * 100) /

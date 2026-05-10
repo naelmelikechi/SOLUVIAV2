@@ -129,44 +129,73 @@ export async function getBillableEvents(
     .in('contrat_id', contratIds)
     .or('invoice_state.eq.REGLE,paid_at.not.is.null');
 
-  // 4. Lignes de facture deja existantes pour ces events (idempotence map)
-  //    On filtre est_avoir=false (= lignes live, donc verrouillees).
+  // 4. Lignes de facture deja existantes pour ces events (idempotence map).
+  //
+  // On recupere TOUTES les lignes (live + avoirs) puis on calcule le statut
+  // effectif : un event est "billed" SSI il a une ligne live (est_avoir=false)
+  // ET qu aucun avoir compensateur (meme event_source_id, est_avoir=true)
+  // ne l annule. Sans cette logique, un avoir total ne libere jamais le
+  // contrat pour une refacturation, alors que c est precisement son but.
   const { data: existingLignes } = await supabase
     .from('facture_lignes')
     .select(
       `
-      event_type, event_source_id, contrat_id,
+      event_type, event_source_id, contrat_id, est_avoir,
       facture:factures!facture_lignes_facture_id_fkey(id, ref, statut)
     `,
     )
     .in('contrat_id', contratIds)
-    .not('event_type', 'is', null)
-    .eq('est_avoir', false);
+    .not('event_type', 'is', null);
+
+  // Group par event_source_id : { live: Line, avoir: Line }
+  type LineRef = {
+    contrat_id: string | null;
+    event_type: string;
+    facture: { id: string; ref: string | null; statut: string };
+  };
+  const slotsBySource = new Map<string, { live?: LineRef; avoir?: LineRef }>();
+  for (const l of existingLignes ?? []) {
+    if (!l.event_type || !l.event_source_id || !l.facture) continue;
+    const slot = slotsBySource.get(l.event_source_id) ?? {};
+    const ref: LineRef = {
+      contrat_id: l.contrat_id,
+      event_type: l.event_type,
+      facture: {
+        id: l.facture.id,
+        ref: l.facture.ref ?? null,
+        statut: l.facture.statut,
+      },
+    };
+    if (l.est_avoir) slot.avoir = ref;
+    else slot.live = ref;
+    slotsBySource.set(l.event_source_id, slot);
+  }
 
   // Index : event_source_id (clef unique) -> billed ref
   const billedByEventSource = new Map<string, BilledRef>();
-  // Index : contrat_id -> set des event_type deja factures live (pour la
-  // regle d'exclusion engagement <-> opco_step)
+  // Index : contrat_id -> set des event_type deja factures live ET non
+  // annules par avoir (regle d'exclusion engagement <-> opco_step).
   const eventTypesByContrat = new Map<
     string,
     Map<EventType, BilledRef> // type -> ref pour l'affichage
   >();
 
-  for (const l of existingLignes ?? []) {
-    if (!l.event_type || !l.event_source_id || !l.facture) continue;
+  for (const [eventSourceId, { live, avoir }] of slotsBySource) {
+    // Avoir compensateur sur le meme event = libere le contrat
+    if (!live || avoir) continue;
     const ref: BilledRef = {
-      facture_id: l.facture.id,
-      facture_ref: l.facture.ref ?? null,
-      facture_statut: l.facture.statut,
+      facture_id: live.facture.id,
+      facture_ref: live.facture.ref,
+      facture_statut: live.facture.statut,
     };
-    billedByEventSource.set(l.event_source_id, ref);
-    if (l.contrat_id) {
-      let m = eventTypesByContrat.get(l.contrat_id);
+    billedByEventSource.set(eventSourceId, ref);
+    if (live.contrat_id) {
+      let m = eventTypesByContrat.get(live.contrat_id);
       if (!m) {
         m = new Map();
-        eventTypesByContrat.set(l.contrat_id, m);
+        eventTypesByContrat.set(live.contrat_id, m);
       }
-      m.set(l.event_type as EventType, ref);
+      m.set(live.event_type as EventType, ref);
     }
   }
 

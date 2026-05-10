@@ -220,14 +220,28 @@ export function useBadgeCounts(): BadgeCounts {
           { event: 'DELETE', schema: 'public', table: 'saisies_temps' },
           () => debouncedRefresh('temps', refreshTemps),
         )
+        // intercontrat : narrow aux changements qui peuvent affecter le
+        // count. Seuls les projets clients non archives entrent dans le
+        // calcul (lib/queries cote fetchIntercontratCount), et seuls les
+        // users role=cdp sont candidats. Filtrer reduit le bruit WS.
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'projets' },
+          {
+            event: '*',
+            schema: 'public',
+            table: 'projets',
+            filter: 'est_interne=eq.false',
+          },
           () => debouncedRefresh('intercontrat', refreshIntercontrat),
         )
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'users' },
+          {
+            event: '*',
+            schema: 'public',
+            table: 'users',
+            filter: 'role=eq.cdp',
+          },
           () => debouncedRefresh('intercontrat', refreshIntercontrat),
         )
         .subscribe();

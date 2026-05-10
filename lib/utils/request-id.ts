@@ -47,23 +47,3 @@ export async function getRequestId(): Promise<string | null> {
   if (!headers) return null;
   return headers.get('x-vercel-id') ?? headers.get('x-request-id') ?? null;
 }
-
-/**
- * Version synchrone qui tente headers() de maniere synchrone (certaines
- * versions de Next la rendent dispo synchroniquement via getter). Toujours
- * retourne null sans throw si le contexte n'est pas disponible.
- *
- * A utiliser dans le logger qui doit rester synchrone. Pour le code
- * applicatif, prefere getRequestId().
- */
-export function getRequestIdSync(): string | null {
-  if (typeof window !== 'undefined') return null;
-  if (!cachedHeadersFn) return null;
-  try {
-    const result = cachedHeadersFn();
-    if (result instanceof Promise) return null;
-    return result.get('x-vercel-id') ?? result.get('x-request-id') ?? null;
-  } catch {
-    return null;
-  }
-}

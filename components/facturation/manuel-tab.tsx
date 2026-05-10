@@ -232,7 +232,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
           icon={FileText}
           title="Aucun projet en mode facturation manuelle"
           description={
-            'Configure un projet en « manuel » depuis sa fiche pour pouvoir facturer manuellement.'
+            'Configure un projet en mode "manuel" depuis sa fiche pour pouvoir facturer manuellement.'
           }
         />
       </Card>

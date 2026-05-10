@@ -523,14 +523,21 @@ export async function createFactureFromEvents(params: {
   const taux = Number(projet.taux_commission ?? live.tauxCommission);
 
   // 6. Calcule montants
-  const totalHt =
+  //
+  // Convention metier (mode billing_mode='manual', actuellement HEOL) :
+  // la commission Soluvia est exprimee TTC dans le contrat client.
+  // Concretement : `montant_commissionne` (= NPEC * taux/100) represente le
+  // total TTC, TVA INCLUSE. On derive HT/TVA a rebours pour que la facture
+  // affiche bien Total TTC = 50% du NPEC, comme attendu par le client.
+  const tauxTva = 20;
+  const totalTtc =
     Math.round(resolved.reduce((s, e) => s + e.montant_commissionne, 0) * 100) /
     100;
-  const tauxTva = 20;
-  const montantTva = Math.round(totalHt * tauxTva) / 100;
-  const montantTtc = Math.round((totalHt + montantTva) * 100) / 100;
+  const totalHt = Math.round((totalTtc / (1 + tauxTva / 100)) * 100) / 100;
+  const montantTva = Math.round((totalTtc - totalHt) * 100) / 100;
+  const montantTtc = totalTtc;
 
-  if (totalHt <= 0) {
+  if (totalTtc <= 0) {
     return { success: false, error: 'Montant total nul ou négatif' };
   }
 
@@ -572,11 +579,16 @@ export async function createFactureFromEvents(params: {
         : `Règlement OPCO #${e.step_number ?? '?'}`;
     const idLabel = e.contract_number ?? e.contrat_ref ?? '-';
     const apprenant = `${e.apprenant_prenom} ${e.apprenant_nom}`.trim();
+    // Coherence : montant_commissionne est TTC (cf. note totaux ci-dessus).
+    // On stocke le HT par ligne pour que SUM(facture_lignes.montant_ht) ==
+    // factures.montant_ht (sinon les rapports/reconciliations cassent).
+    const ligneHt =
+      Math.round((e.montant_commissionne / (1 + tauxTva / 100)) * 100) / 100;
     return {
       facture_id: facture.id,
       contrat_id: e.contrat_id,
       description: `Commission ${taux}% - ${typeLabel} - ${apprenant} - ${idLabel}`,
-      montant_ht: e.montant_commissionne,
+      montant_ht: ligneHt,
       mois_relatif: e.step_number ?? 0,
       quote_part: taux / 100,
       npec_snapshot: e.montant_brut,

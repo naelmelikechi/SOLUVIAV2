@@ -324,7 +324,7 @@ export function FacturationPageClient({
           side="right"
           className="flex !w-[min(800px,95vw)] flex-col gap-0 p-0 data-[side=right]:sm:max-w-[min(800px,95vw)]"
         >
-          <SheetHeader className="border-border flex flex-row items-center justify-between border-b p-4">
+          <SheetHeader className="border-border flex flex-row items-center justify-between border-b p-4 pr-12">
             <SheetTitle>{previewTitle}</SheetTitle>
             {previewDownloadUrl && (
               <a

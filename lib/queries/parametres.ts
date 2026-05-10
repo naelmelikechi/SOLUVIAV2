@@ -84,6 +84,12 @@ export interface EmetteurInfo {
   adresse: string;
   siret: string;
   tva: string;
+  // Coordonnees bancaires - optionnelles : si absentes, le PDF n affiche
+  // pas la section "Modalites de paiement" / RIB.
+  iban?: string | null;
+  bic?: string | null;
+  banque?: string | null;
+  titulaire_compte?: string | null;
 }
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
@@ -91,19 +97,34 @@ const EMETTEUR_FALLBACK: EmetteurInfo = {
   adresse: '27 Rue Jacqueline Cochran, 79000 Niort',
   siret: '994 241 537 00012',
   tva: 'FR37994241537',
+  iban: null,
+  bic: null,
+  banque: null,
+  titulaire_compte: null,
 };
 
 export async function getEmetteurInfo(): Promise<EmetteurInfo> {
   try {
     const params = await getParametresByCategorie('entreprise');
-    const map = new Map(params.map((p) => [p.cle, p.valeur]));
+    // Les cles en BD sont prefixees par la categorie (ex: entreprise.iban).
+    // On fournit les deux formes (avec et sans prefixe) pour rester
+    // compatible si la convention evolue.
+    const get = (k: string) => {
+      const row = params.find(
+        (p) => p.cle === k || p.cle === `entreprise.${k}`,
+      );
+      return row?.valeur ?? null;
+    };
 
     return {
-      raison_sociale:
-        map.get('raison_sociale') ?? EMETTEUR_FALLBACK.raison_sociale,
-      adresse: map.get('adresse') ?? EMETTEUR_FALLBACK.adresse,
-      siret: map.get('siret') ?? EMETTEUR_FALLBACK.siret,
-      tva: map.get('tva') ?? EMETTEUR_FALLBACK.tva,
+      raison_sociale: get('raison_sociale') ?? EMETTEUR_FALLBACK.raison_sociale,
+      adresse: get('adresse') ?? EMETTEUR_FALLBACK.adresse,
+      siret: get('siret') ?? EMETTEUR_FALLBACK.siret,
+      tva: get('tva') ?? get('tva_intracommunautaire') ?? EMETTEUR_FALLBACK.tva,
+      iban: get('iban'),
+      bic: get('bic'),
+      banque: get('banque'),
+      titulaire_compte: get('titulaire_compte'),
     };
   } catch (err) {
     logger.warn('queries.parametres', 'getEmetteurInfo fallback used', {

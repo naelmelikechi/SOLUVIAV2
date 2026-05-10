@@ -16,7 +16,11 @@ const cspDirectives = [
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io https://va.vercel-scripts.com https://vitals.vercel-insights.com",
   "frame-src 'self' https://*.eduvia.app",
-  "frame-ancestors 'none'",
+  // 'self' (et non 'none') : la sheet d apercu de brouillon de facture
+  // utilise un <iframe> meme-origine pour rendre le PDF, ce que 'none'
+  // bloquait (Chrome: "app.mysoluvia.com n autorise pas la connexion").
+  // X-Frame-Options: SAMEORIGIN reste actif comme defense en profondeur.
+  "frame-ancestors 'self'",
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",

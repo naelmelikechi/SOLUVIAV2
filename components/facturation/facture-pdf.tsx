@@ -8,6 +8,10 @@ const EMETTEUR_FALLBACK: EmetteurInfo = {
   adresse: '27 Rue Jacqueline Cochran, 79000 Niort',
   siret: '994 241 537 00012',
   tva: 'FR37994241537',
+  iban: null,
+  bic: null,
+  banque: null,
+  titulaire_compte: null,
 };
 
 const styles = StyleSheet.create({
@@ -146,6 +150,26 @@ const styles = StyleSheet.create({
     color: '#b45309',
     fontFamily: 'Helvetica-Bold',
     fontSize: 12,
+  },
+  paymentBox: {
+    marginTop: 18,
+    padding: 12,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 4,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    marginTop: 3,
+  },
+  paymentLabel: {
+    width: 70,
+    color: '#6b7280',
+  },
+  paymentValue: {
+    flex: 1,
+    fontFamily: 'Helvetica-Bold',
   },
 });
 
@@ -300,13 +324,53 @@ export function FacturePdf({
           </View>
         </View>
 
+        {/* Modalites de paiement / RIB */}
+        {(EMETTEUR.iban || EMETTEUR.bic) && (
+          <View style={styles.paymentBox} wrap={false}>
+            <Text style={styles.label}>Modalités de paiement</Text>
+            <Text style={{ marginTop: 4 }}>
+              Règlement par virement bancaire sous 30 jours fin de mois.
+            </Text>
+            <Text style={{ marginTop: 2, color: '#6b7280' }}>
+              Merci d&apos;indiquer la référence{' '}
+              <Text style={styles.bold}>{facture.ref}</Text> lors du virement.
+            </Text>
+            {EMETTEUR.titulaire_compte && (
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Titulaire</Text>
+                <Text style={styles.paymentValue}>
+                  {EMETTEUR.titulaire_compte}
+                </Text>
+              </View>
+            )}
+            {EMETTEUR.banque && (
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>Banque</Text>
+                <Text style={styles.paymentValue}>{EMETTEUR.banque}</Text>
+              </View>
+            )}
+            {EMETTEUR.iban && (
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>IBAN</Text>
+                <Text style={styles.paymentValue}>{EMETTEUR.iban}</Text>
+              </View>
+            )}
+            {EMETTEUR.bic && (
+              <View style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>BIC</Text>
+                <Text style={styles.paymentValue}>{EMETTEUR.bic}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Footer */}
-        <View style={styles.footer}>
+        <View style={styles.footer} fixed>
           <Text>
-            Conditions de paiement : 30 jours fin de mois. En cas de retard de
-            paiement, une pénalité égale à 3 fois le taux d&apos;intérêt légal
-            sera appliquée, ainsi qu&apos;une indemnité forfaitaire de 40 € pour
-            frais de recouvrement. Pas d&apos;escompte pour paiement anticipé.
+            En cas de retard de paiement, une pénalité égale à 3 fois le taux
+            d&apos;intérêt légal sera appliquée, ainsi qu&apos;une indemnité
+            forfaitaire de 40 € pour frais de recouvrement. Pas d&apos;escompte
+            pour paiement anticipé.
           </Text>
           <Text style={{ marginTop: 4 }}>
             {EMETTEUR.raison_sociale} - SIRET {EMETTEUR.siret} - TVA{' '}

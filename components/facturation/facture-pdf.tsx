@@ -17,6 +17,10 @@ const EMETTEUR_FALLBACK: EmetteurInfo = {
 const styles = StyleSheet.create({
   page: {
     padding: 40,
+    // Footer en position absolute (bottom: 40, hauteur ~50). Sans
+    // paddingBottom, le contenu coule par-dessus le footer (chevauchement
+    // observe en prod sur facture multi-pages). On reserve l espace.
+    paddingBottom: 100,
     fontSize: 9,
     fontFamily: 'Helvetica',
     color: '#1a1a1a',
@@ -174,11 +178,17 @@ const styles = StyleSheet.create({
 });
 
 function formatEur(n: number): string {
+  // Helvetica embarquee dans @react-pdf/renderer ne contient pas le NNBSP
+  // (U+202F) que Intl.NumberFormat fr-FR utilise comme separateur de
+  // milliers - il est rendu en glyphe fallback ressemblant a un slash
+  // ("3/132,00 €" au lieu de "3 132,00 €"). On normalise en espace simple.
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 2,
-  }).format(n);
+  })
+    .format(n)
+    .replace(/[  ]/g, ' ');
 }
 
 interface FacturePdfProps {

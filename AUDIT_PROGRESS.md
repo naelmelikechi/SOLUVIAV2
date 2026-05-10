@@ -311,10 +311,87 @@ npx tsc --noEmit    clean
 npm run test        154/154 passing
 ```
 
-### Reste a faire (sprint 9)
-
-- Couverture vitest sur lib/queries/\* et lib/eduvia/sync, lib/odoo/sync.
-- Test pgTAP de concurrence sendFacture (necessite pg_isolation/pgbench).
-- Application en prod des migrations 20260507144228 + 20260507144229.
-
 **Note honnete : 9.7/10** apres sprint 8.
+
+## Sprint 9 - Tests filet de securite (2026-05-10, meme branche)
+
+Couverture vitest sur les modules critiques jusqu ici a 0% : sync
+multi-tenant Eduvia, sync push/pull Odoo, queries du dashboard et
+des factures. Plus pgTAP supplementaire pour les invariants
+concurrence du trigger gapless.
+
+### Approche
+
+3 agents en parallele sur des fichiers de tests non-overlap, plus
+pgTAP redige en main session. Pattern de mocking calque sur
+`__tests__/factures-gapless.test.ts` (chainable Supabase builder via
+RecordedOp + vi.mock pour logger/audit/cache).
+
+### Couverture vitest ajoutee
+
+| Fichier                               | Tests       | Source |
+| ------------------------------------- | ----------- | ------ |
+| `__tests__/eduvia-sync.test.ts`       | 12 + 1 skip | agent  |
+| `__tests__/odoo-sync.test.ts`         | 7           | agent  |
+| `__tests__/dashboard-queries.test.ts` | 7           | agent  |
+| `__tests__/factures-queries.test.ts`  | 8 + 2 skip  | agent  |
+
+**Total : 34 nouveaux tests vitest, 154 -> 188 passants.**
+
+Paths couverts notables :
+
+- **Eduvia** : pre-check `/status` (auth invalide, pas authentifie),
+  isolation multi-tenant (apprenants ne se melangent pas entre clients),
+  upsert idempotent avec `onConflict: 'eduvia_id,source_client_id'`,
+  decryptApiKey throw, last_sync_at update, RLS error global.
+- **Odoo** : push success + erreur API, idempotence
+  (`is('odoo_id', null)`), pull paiements avec match `odoo_id`, statut
+  `partial` (mig 20260504110000), checkpoint `since` filtre
+  `('success','partial')`, panne pullPayments geree proprement.
+- **Dashboard** : forme attendue, filtres `is_demo=false` +
+  `archive=false`, empty state, fallback `saisies_temps`, contract
+  states actifs, invoice status breakdown.
+- **Factures queries** : getFactureByRef, contrats actifs avec defaut
+  tauxCommission=10, tri numero_seq DESC, brouillons, echeances pending.
+
+### pgTAP nouveau test - 04_gapless_concurrency_invariants.sql (8 assertions)
+
+Couvre les invariants que le test 01 ne couvrait pas :
+
+1. **LOCK introspection** : verifie statiquement que la function
+   `assign_facture_ref_on_send` contient `LOCK TABLE factures IN SHARE
+ROW EXCLUSIVE MODE` (la seule protection contre les race conditions
+   `MAX(numero_seq)+1` concurrentes).
+2. **Stress sequentiel 30 envois** : sequence parfaitement contigue.
+3. **Envoi dans le desordre** : numero_seq suit l ordre d UPDATE
+   (envoi), pas l ordre d INSERT (creation brouillon).
+4. **Rollback transactionnel** : un savepoint qui rollback le UPDATE
+   ne consomme pas de numero_seq (gapless preserve).
+5. **Avoir** : transition a_emettre -> avoir attribue aussi
+   numero_seq + ref.
+6. **Re-update facture emise** : transition emise -> payee ne
+   reattribue pas un nouveau numero (idempotence).
+
+La concurrence "vraie" via 2 sessions PG simultanees reste hors-scope :
+pgbench en CI demande un setup distinct. La verification statique du
+LOCK + le stress sequentiel attrapent les regressions du code de la
+function elle-meme.
+
+### Verifications finales sprint 9
+
+```
+npm run lint        0 errors, 0 warnings
+npx tsc --noEmit    clean
+npm run test        188 passed | 3 skipped (191), 19 fichiers
+```
+
+### Reste a faire (sprint 10 ou ops)
+
+- Application en prod des migrations 20260507144228 + 20260507144229
+  (audit_logs append-only + indexes created_at).
+- Setup pgbench dans CI pour test concurrence reelle (optionnel,
+  haut de gamme).
+- Couverture vitest etendue aux 23 modules `lib/queries/*` restants
+  (faible priorite : queries simples, peu de logique).
+
+**Note honnete : 9.8/10** apres sprint 9.

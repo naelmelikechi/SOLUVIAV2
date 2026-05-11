@@ -408,10 +408,25 @@ export async function convertProspectToClient(
     };
   }
 
-  await supabase
+  const { error: linkError } = await supabase
     .from('prospects')
     .update({ client_id: client.id })
     .eq('id', parsed.data.id);
+  if (linkError) {
+    // Le client est cree mais le prospect n est pas lie : etat partiellement
+    // incoherent (admin verra le client dans la liste mais le prospect reste
+    // 'signe' sans client_id). On loggue mais on ne fail pas l action - le
+    // client a ete cree avec succes, l user peut relier manuellement.
+    logger.warn(
+      'actions.prospects',
+      'convertProspectToClient link prospect failed',
+      {
+        prospectId: parsed.data.id,
+        clientId: client.id,
+        error: linkError,
+      },
+    );
+  }
 
   logAudit(
     'prospect_converted',

@@ -48,16 +48,19 @@ export default async function ProjetDetailPage({
   params: Promise<{ ref: string }>;
 }) {
   const { ref } = await params;
-  const projet = await getProjetByRef(ref);
+  const supabase = await createClient();
+  // Projet + auth en parallele : independants. notFound n est verifie
+  // qu apres pour ne pas perdre le round-trip auth si projet existe.
+  const [projet, authUserRes] = await Promise.all([
+    getProjetByRef(ref),
+    supabase.auth.getUser(),
+  ]);
 
   if (!projet) {
     notFound();
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  const authUser = authUserRes.data.user;
   const { data: currentUser } = authUser
     ? await supabase.from('users').select('role').eq('id', authUser.id).single()
     : { data: null };

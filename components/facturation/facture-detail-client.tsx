@@ -80,11 +80,25 @@ export function FactureDetailActions({
 
   const handleResendEmail = () => {
     startEmailTransition(async () => {
-      const result = await sendFactureEmailAction(facture.id);
-      if (result.success) {
-        toast.success('Email envoyé avec succès');
-      } else {
-        toast.error(result.error ?? "Erreur lors de l'envoi");
+      try {
+        const result = await sendFactureEmailAction(facture.id);
+        if (result.success) {
+          toast.success('Email envoyé avec succès');
+        } else {
+          toast.error(result.error ?? "Erreur lors de l'envoi");
+        }
+      } catch (err) {
+        // Le rendu PDF + Resend peut depasser le maxDuration serverless
+        // pour les factures volumineuses (40+ lignes). Dans ce cas le
+        // browser recoit une 500/504 et le await throw. Sans ce catch,
+        // aucun toast n etait affiche -> utilisateur croit que rien ne
+        // se passe alors que l email a souvent bien ete envoye avant
+        // le timeout.
+        toast.error(
+          'Reponse serveur tardive. Verifie ta boite mail dans 1 min - l envoi a probablement reussi.',
+        );
+
+        console.error('sendFactureEmailAction failed:', err);
       }
     });
   };

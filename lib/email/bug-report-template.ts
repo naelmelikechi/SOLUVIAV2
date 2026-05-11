@@ -11,7 +11,7 @@ const SEVERITY_COLORS: Record<string, { bg: string; fg: string }> = {
 const SEVERITY_LABELS: Record<string, string> = {
   low: 'Faible',
   medium: 'Moyenne',
-  high: 'Elevee',
+  high: 'Élevée',
   critical: 'Critique',
 };
 
@@ -69,7 +69,7 @@ export function buildBugReportEmailHtml(params: BugReportEmailParams): string {
   const sentryEventId = escapeHtml(params.sentryEventId ?? '-');
   const dashboardUrl = escapeHtml(params.dashboardUrl);
   const perceivedSeverity = escapeHtml(
-    params.perceivedSeverity ?? 'non precisee',
+    params.perceivedSeverity ?? 'non précisée',
   );
 
   const viewportStr = params.viewport
@@ -83,7 +83,7 @@ export function buildBugReportEmailHtml(params: BugReportEmailParams): string {
       ? `<pre style="margin:0;padding:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;color:#374151;">${escapeHtml(
           JSON.stringify(params.consoleErrors, null, 2).slice(0, 4000),
         )}</pre>`
-      : '<p style="margin:0;font-size:13px;color:#6b7280;">Aucune erreur JS recente capturee.</p>';
+      : '<p style="margin:0;font-size:13px;color:#6b7280;">Aucune erreur JS récente capturée.</p>';
 
   let triageBlock = '';
   if (params.triage) {
@@ -110,7 +110,7 @@ export function buildBugReportEmailHtml(params: BugReportEmailParams): string {
           <p style="margin:0;font-size:14px;color:#1a1a1a;line-height:1.6;">${escapeHtml(params.triage.summary)}</p>
           ${
             hypothesesHtml
-              ? `<p style="margin:12px 0 0;font-size:12px;font-weight:bold;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;">Hypotheses</p>${hypothesesHtml}`
+              ? `<p style="margin:12px 0 0;font-size:12px;font-weight:bold;color:#6b7280;letter-spacing:0.5px;text-transform:uppercase;">Hypothèses</p>${hypothesesHtml}`
               : ''
           }
         </td></tr>
@@ -140,8 +140,11 @@ export function buildBugReportEmailHtml(params: BugReportEmailParams): string {
   }
 
   const screenshotBlock =
-    shotBlock(params.autoScreenshotUrl, 'Capture automatique') +
-    shotBlock(params.extraScreenshotUrl, 'Capture supplémentaire');
+    shotBlock(params.autoScreenshotUrl, 'Capture de la page') +
+    shotBlock(
+      params.extraScreenshotUrl,
+      params.autoScreenshotUrl ? 'Capture supplémentaire' : 'Capture',
+    );
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -171,7 +174,7 @@ export function buildBugReportEmailHtml(params: BugReportEmailParams): string {
 
         <tr>
           <td style="padding:28px 32px;">
-            <h1 style="margin:0 0 20px;font-size:18px;color:#1a1a1a;">Nouveau bug signale</h1>
+            <h1 style="margin:0 0 20px;font-size:18px;color:#1a1a1a;">Nouveau bug signalé</h1>
 
             ${triageBlock}
 
@@ -182,10 +185,10 @@ export function buildBugReportEmailHtml(params: BugReportEmailParams): string {
 
             ${screenshotBlock}
 
-            <p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">Reporte par</p>
+            <p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">Reporté par</p>
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;font-size:13px;color:#1a1a1a;">
               <tr><td style="padding:3px 0;color:#6b7280;width:140px;">Utilisateur</td><td style="padding:3px 0;">${userEmail} <span style="color:#9ca3af;">(${userRole})</span></td></tr>
-              <tr><td style="padding:3px 0;color:#6b7280;">Severite ressentie</td><td style="padding:3px 0;">${perceivedSeverity}</td></tr>
+              <tr><td style="padding:3px 0;color:#6b7280;">Sévérité ressentie</td><td style="padding:3px 0;">${perceivedSeverity}</td></tr>
               <tr><td style="padding:3px 0;color:#6b7280;">Page</td><td style="padding:3px 0;word-break:break-all;"><a href="${pageUrl}" style="color:#2563eb;text-decoration:none;">${pageUrl}</a></td></tr>
             </table>
 
@@ -196,7 +199,7 @@ export function buildBugReportEmailHtml(params: BugReportEmailParams): string {
               <tr><td style="padding:3px 0;color:#6b7280;">Sentry event</td><td style="padding:3px 0;font-family:monospace;font-size:11px;">${sentryEventId}</td></tr>
             </table>
 
-            <p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">Erreurs console (dernieres 10)</p>
+            <p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">Erreurs console (dernières 10)</p>
             <div style="margin:0 0 24px;">${consoleErrorsHtml}</div>
 
             <p style="margin:0;">
@@ -207,7 +210,7 @@ export function buildBugReportEmailHtml(params: BugReportEmailParams): string {
 
         <tr>
           <td style="background-color:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb;">
-            <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5;">Email automatique - bug report SOLUVIA. Ne pas repondre directement.</p>
+            <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5;">Email automatique - bug report SOLUVIA. Ne pas répondre directement.</p>
           </td>
         </tr>
       </table>

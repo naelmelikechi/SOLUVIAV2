@@ -56,6 +56,7 @@ export default async function DashboardLayout({
         pipeline_access: user.pipeline_access,
         can_validate_ideas: user.can_validate_ideas,
         can_ship_ideas: user.can_ship_ideas,
+        onboarding_completed_at: user.onboarding_completed_at ?? null,
       }}
       showUnassignedBanner={showUnassignedBanner}
     >

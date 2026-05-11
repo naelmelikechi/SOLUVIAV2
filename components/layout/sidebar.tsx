@@ -266,6 +266,7 @@ export function Sidebar({
                 href={item.href}
                 title={collapsed ? item.label : undefined}
                 onClick={mobile ? onClose : undefined}
+                data-tour={item.href}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
                   collapsed && 'justify-center',
@@ -325,6 +326,7 @@ export function Sidebar({
                   href={item.href}
                   title={collapsed ? item.label : undefined}
                   onClick={mobile ? onClose : undefined}
+                  data-tour={item.href}
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
                     collapsed && 'justify-center',

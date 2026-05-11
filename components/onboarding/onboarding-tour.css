@@ -1,0 +1,99 @@
+/*
+ * Override des styles driver.js pour matcher nos tokens shadcn/tailwind.
+ * driver.js applique ses styles via la classe .driver-popover (et variantes).
+ */
+
+.driver-popover {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow:
+    0 10px 38px -10px rgba(22, 23, 24, 0.35),
+    0 10px 20px -15px rgba(22, 23, 24, 0.2);
+  font-family: var(--font-sans);
+  padding: 1rem 1.25rem;
+  max-width: 360px;
+}
+
+.driver-popover-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--foreground);
+}
+
+.driver-popover-description {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.driver-popover-progress-text {
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.driver-popover-footer {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.driver-popover-navigation-btns {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.driver-popover-prev-btn,
+.driver-popover-next-btn {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-shadow: none;
+  cursor: pointer;
+}
+
+.driver-popover-prev-btn {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border);
+}
+
+.driver-popover-prev-btn:hover,
+.driver-popover-next-btn:hover {
+  filter: brightness(1.05);
+}
+
+.driver-popover-close-btn {
+  color: var(--muted-foreground);
+  font-size: 1rem;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+.driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--popover);
+}
+.driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--popover);
+}
+.driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--popover);
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--popover);
+}
+
+/* L overlay (fond noir transparent) doit cohabiter avec nos modaux */
+.driver-overlay {
+  z-index: 60;
+}

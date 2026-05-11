@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { updateBugReportAction } from '@/lib/actions/bug-reports';
 import type { BugReportRow } from '@/lib/queries/bug-reports';
+import { ScreenshotCard } from './screenshot-card';
 
 const SEVERITY_VARIANT: Record<string, string> = {
   low: 'bg-blue-100 text-blue-800',
@@ -146,43 +147,14 @@ export function BugDetail({
         </Card>
 
         {autoScreenshotUrl && (
-          <Card className="p-4">
-            <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
-              Capture automatique
-            </p>
-            <a
-              href={autoScreenshotUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={autoScreenshotUrl}
-                alt="Capture automatique de la page"
-                className="border-border max-w-full rounded-md border"
-              />
-            </a>
-          </Card>
+          <ScreenshotCard url={autoScreenshotUrl} label="Capture de la page" />
         )}
 
         {extraScreenshotUrl && (
-          <Card className="p-4">
-            <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
-              Capture supplémentaire
-            </p>
-            <a
-              href={extraScreenshotUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={extraScreenshotUrl}
-                alt="Capture supplémentaire"
-                className="border-border max-w-full rounded-md border"
-              />
-            </a>
-          </Card>
+          <ScreenshotCard
+            url={extraScreenshotUrl}
+            label="Capture supplémentaire"
+          />
         )}
 
         <Card className="p-4">

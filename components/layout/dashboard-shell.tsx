@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/shared/command-palette';
-import { OnboardingDialog } from '@/components/shared/onboarding';
+import { OnboardingTour } from '@/components/onboarding/onboarding-tour';
 import { UnassignedBanner } from '@/components/layout/unassigned-banner';
 import { BugReportLauncher } from '@/components/bug-report/bug-report-launcher';
 import { useBadgeCounts } from '@/hooks/use-badge-counts';
@@ -25,6 +25,7 @@ export interface DashboardShellUser {
   pipeline_access: boolean;
   can_validate_ideas: boolean;
   can_ship_ideas: boolean;
+  onboarding_completed_at: string | null;
 }
 
 interface DashboardShellProps {
@@ -99,7 +100,10 @@ export function DashboardShell({
       )}
 
       <CommandPalette />
-      <OnboardingDialog />
+      <OnboardingTour
+        role={user.role}
+        completedAt={user.onboarding_completed_at}
+      />
       <BugReportLauncher />
     </div>
   );

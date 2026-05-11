@@ -36,6 +36,7 @@ import {
   attemptUnlockFrozenAvatar,
 } from '@/lib/actions/settings';
 import { isAdmin as checkIsAdmin } from '@/lib/utils/roles';
+import { RelaunchTourCard } from '@/components/settings/relaunch-tour-card';
 import {
   canRollRandomToday,
   resolveAvatarSeed,
@@ -430,6 +431,11 @@ export function SettingsPageClient({
 
       {/* ── Passkeys ── */}
       {passkeysSection}
+
+      {/* ── Visite guidee (CDP / commercial uniquement) ── */}
+      {(user.role === 'cdp' || user.role === 'commercial') && (
+        <RelaunchTourCard />
+      )}
 
       {/* ── Preferences ── */}
       <Card>

@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared/data-table';
 import { Badge } from '@/components/ui/badge';
-import { formatDate } from '@/lib/utils/formatters';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import type { BugReportRow } from '@/lib/queries/bug-reports';
 
 const SEVERITY_VARIANT: Record<string, string> = {
@@ -49,11 +50,17 @@ export function BugsTable({ reports }: { reports: BugReportRow[] }) {
     {
       accessorKey: 'created_at',
       header: 'Date',
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-xs">
-          {formatDate(row.original.created_at)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const d = new Date(row.original.created_at);
+        return (
+          <div className="text-muted-foreground text-xs">
+            <div>{format(d, 'd MMM yyyy', { locale: fr })}</div>
+            <div className="text-[10px] opacity-70">
+              {format(d, 'HH:mm', { locale: fr })}
+            </div>
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'user_email',

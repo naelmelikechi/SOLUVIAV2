@@ -38,8 +38,13 @@ export type AuthErr = {
 };
 
 /**
- * Verifie qu'un user est authentifie. Retourne { supabase, user } ou
+ * Verifie qu'un user est authentifie ET actif. Retourne { supabase, user } ou
  * { ok: false, error } pretent a etre relayes au client.
+ *
+ * Le check `actif` ferme la faille : avant, un user desactive via le dialog
+ * admin (users.actif = false) restait reconnu par toutes les Server Actions
+ * jusqu a expiration de sa session Supabase. Maintenant tout passage par un
+ * guard rejette immediatement.
  */
 export async function requireUser(): Promise<BaseAuthOk | AuthErr> {
   const supabase = await createClient();
@@ -49,6 +54,20 @@ export async function requireUser(): Promise<BaseAuthOk | AuthErr> {
   if (!user) {
     return { ok: false, error: 'Non authentifié' };
   }
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('actif')
+    .eq('id', user.id)
+    .single();
+
+  // Si le profil public.users n existe pas (auth orphelin pendant une
+  // reconciliation manuelle), on refuse. actif null = profil incomplet,
+  // on traite comme desactive par defaut.
+  if (!profile || profile.actif === false) {
+    return { ok: false, error: 'Compte désactivé' };
+  }
+
   return { ok: true, supabase, user };
 }
 

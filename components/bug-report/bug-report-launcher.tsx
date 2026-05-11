@@ -55,6 +55,7 @@ export function BugReportLauncher() {
         title="Signaler un bug"
         onClick={handleOpen}
         disabled={capturing}
+        data-tour="bug-report"
         className="fixed right-4 bottom-4 z-40 size-10 rounded-full shadow-lg"
       >
         <Bug className="size-4" />

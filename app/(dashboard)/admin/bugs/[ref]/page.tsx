@@ -36,11 +36,18 @@ export default async function BugDetailPage({
     }
   }
 
-  // Auto vient des nouveaux reports ; fallback sur screenshot_path
-  // (retro-compat lignes pre-migration). Extra est independant.
+  // Auto = capture native de la page (nouveaux reports).
+  // Extra = capture additionnelle ajoutee par l'user (paste/upload).
+  // Legacy = screenshot_path d'un report pre-migration, affichage seulement
+  // si aucun des deux nouveaux champs n'est rempli (sinon doublon).
+  const hasAutoOrExtra = !!(
+    bug.auto_screenshot_path || bug.extra_screenshot_path
+  );
   const [autoScreenshotUrl, extraScreenshotUrl] = await Promise.all([
-    sign(bug.auto_screenshot_path),
-    sign(bug.extra_screenshot_path ?? bug.screenshot_path),
+    sign(
+      bug.auto_screenshot_path ?? (hasAutoOrExtra ? null : bug.screenshot_path),
+    ),
+    sign(bug.extra_screenshot_path),
   ]);
 
   return (

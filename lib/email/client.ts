@@ -240,13 +240,24 @@ export async function sendInvitationEmail(params: {
   inviteePrenom?: string;
   role: string;
   tempPassword: string;
+  /**
+   * 'invite' (defaut) : premiere invitation, copy "vous a invite".
+   * 'reset' : reset password admin, copy "votre mot de passe a ete reinitialise".
+   * Le template et le subject s adaptent.
+   */
+  kind?: 'invite' | 'reset';
 }): Promise<{ success: boolean; error?: string }> {
-  const html = buildInvitationEmailHtml(params);
+  const kind = params.kind ?? 'invite';
+  const html = buildInvitationEmailHtml({ ...params, kind });
+  const subject =
+    kind === 'reset'
+      ? `Votre mot de passe SOLUVIA a ete reinitialise`
+      : `${params.inviterName} vous invite sur SOLUVIA`;
 
   return sendEmail({
     from: `${params.inviterName} via SOLUVIA <contact@mysoluvia.com>`,
     to: params.to,
-    subject: `${params.inviterName} vous invite sur SOLUVIA`,
+    subject,
     html,
   });
 }
@@ -256,6 +267,7 @@ function buildInvitationEmailHtml(params: {
   inviteePrenom?: string;
   role: string;
   tempPassword: string;
+  kind: 'invite' | 'reset';
 }): string {
   // Escape tous les inputs user-controlled. inviterName/inviteePrenom viennent
   // d'un formulaire admin, role d'une enum verifiee mais escape par defense en
@@ -266,6 +278,10 @@ function buildInvitationEmailHtml(params: {
   const role = escapeHtml(params.role);
   const tempPassword = escapeHtml(params.tempPassword);
   const greeting = inviteePrenom ? `Bonjour ${inviteePrenom},` : 'Bonjour,';
+  const intro =
+    params.kind === 'reset'
+      ? `Un administrateur (<strong>${inviterName}</strong>) a réinitialisé votre mot de passe SOLUVIA. Voici votre nouveau mot de passe temporaire.`
+      : `<strong>${inviterName}</strong> vous a invité(e) à rejoindre SOLUVIA en tant que <strong>${role}</strong>.`;
   return `
 <!DOCTYPE html>
 <html>
@@ -279,7 +295,7 @@ function buildInvitationEmailHtml(params: {
     <div style="padding:32px;">
       <h2 style="margin:0 0 16px;font-size:18px;color:#1a2e1a;">${greeting}</h2>
       <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">
-        <strong>${inviterName}</strong> vous a invité(e) à rejoindre SOLUVIA en tant que <strong>${role}</strong>.
+        ${intro}
       </p>
       <p style="margin:0 0 8px;color:#2d4a2d;font-size:14px;line-height:1.6;">
         Voici vos identifiants de connexion :

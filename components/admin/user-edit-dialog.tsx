@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash2 } from 'lucide-react';
+import { Trash2, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   updateUserRole,
@@ -28,6 +28,7 @@ import {
   updateUserProfile,
   updateUserPipelineAccess,
   updateUserIdeasPermissions,
+  resetUserPassword,
 } from '@/lib/actions/users';
 import { Checkbox } from '@/components/ui/checkbox';
 import { isAdmin } from '@/lib/utils/roles';
@@ -67,6 +68,8 @@ export function UserEditDialog({
   const [isPending, startTransition] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetPending, setResetPending] = useState(false);
 
   const [prevUserId, setPrevUserId] = useState<string | null>(null);
   if (user && user.id !== prevUserId) {
@@ -84,7 +87,7 @@ export function UserEditDialog({
     function handleSave() {
       if (!user) return;
       startTransition(async () => {
-        const newRole = role as 'admin' | 'cdp';
+        const newRole = role as 'admin' | 'cdp' | 'commercial';
         const newActif = actif === 'true';
 
         const nameChanged =
@@ -137,6 +140,9 @@ export function UserEditDialog({
               result.error ?? 'Erreur lors de la mise à jour du statut',
             );
             return;
+          }
+          if (result.warnings) {
+            for (const w of result.warnings) toast.warning(w);
           }
         }
 
@@ -226,6 +232,7 @@ export function UserEditDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="cdp">CDP</SelectItem>
+                <SelectItem value="commercial">Commercial</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
@@ -257,10 +264,14 @@ export function UserEditDialog({
                 description={
                   isAdmin(role)
                     ? 'Accès implicite pour les administrateurs.'
-                    : 'Autorise cet utilisateur à voir et gérer le pipeline commercial.'
+                    : role === 'commercial'
+                      ? 'Accès implicite pour les commerciaux.'
+                      : 'Autorise cet utilisateur à voir et gérer le pipeline commercial.'
                 }
-                checked={isAdmin(role) ? true : pipelineAccess}
-                disabled={isAdmin(role)}
+                checked={
+                  isAdmin(role) || role === 'commercial' ? true : pipelineAccess
+                }
+                disabled={isAdmin(role) || role === 'commercial'}
                 onChange={setPipelineAccess}
               />
               <PermissionRow
@@ -292,18 +303,31 @@ export function UserEditDialog({
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
-          {callerRole === 'superadmin' && (
+          <div className="flex flex-wrap gap-2">
+            {callerRole === 'superadmin' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400"
+                onClick={() => setDeleteOpen(true)}
+                disabled={isPending || deletePending || resetPending}
+              >
+                <Trash2 className="mr-1.5 h-4 w-4" />
+                Supprimer
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
-              className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400"
-              onClick={() => setDeleteOpen(true)}
-              disabled={isPending || deletePending}
+              onClick={() => setResetOpen(true)}
+              disabled={isPending || deletePending || resetPending}
             >
-              <Trash2 className="mr-1.5 h-4 w-4" />
-              Supprimer
+              <KeyRound className="mr-1.5 h-4 w-4" />
+              {user.derniere_connexion
+                ? 'Reinitialiser le mot de passe'
+                : "Renvoyer l'invitation"}
             </Button>
-          )}
+          </div>
           <div className="flex gap-2">
             <Button
               variant="ghost"
@@ -337,6 +361,43 @@ export function UserEditDialog({
             onOpenChange(false);
           } else {
             toast.error(result.error ?? 'Erreur lors de la suppression');
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title={
+          user.derniere_connexion
+            ? 'Reinitialiser le mot de passe'
+            : "Renvoyer l'invitation"
+        }
+        description={
+          user.derniere_connexion
+            ? `Un nouveau mot de passe temporaire sera genere pour ${user.prenom} ${user.nom} et envoye par email a ${user.email}. Sa session actuelle restera valide jusqu a deconnexion.`
+            : `Un nouveau mot de passe temporaire sera envoye a ${user.email}.`
+        }
+        confirmText={
+          user.derniere_connexion ? 'Reinitialiser' : "Renvoyer l'invitation"
+        }
+        isPending={resetPending}
+        onConfirm={async () => {
+          setResetPending(true);
+          const result = await resetUserPassword(user.id);
+          setResetPending(false);
+          if (result.success) {
+            toast.success(
+              user.derniere_connexion
+                ? 'Mot de passe reinitialise'
+                : 'Invitation renvoyee',
+            );
+            if (result.warnings) {
+              for (const w of result.warnings) toast.warning(w);
+            }
+            setResetOpen(false);
+          } else {
+            toast.error(result.error ?? 'Erreur lors de la reinitialisation');
           }
         }}
       />

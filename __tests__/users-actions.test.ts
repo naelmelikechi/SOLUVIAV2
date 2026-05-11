@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
     .mockResolvedValue({ data: { user: { id: 'new-user-id' } }, error: null });
   const adminDeleteUser = vi.fn().mockResolvedValue({ error: null });
   const adminSignOut = vi.fn().mockResolvedValue({ error: null });
+  const adminUpdateUserById = vi.fn().mockResolvedValue({ error: null });
 
   const adminClient = {
     from: adminFrom,
@@ -35,6 +36,7 @@ const mocks = vi.hoisted(() => {
         createUser: adminCreateUser,
         deleteUser: adminDeleteUser,
         signOut: adminSignOut,
+        updateUserById: adminUpdateUserById,
       },
     },
   };
@@ -58,6 +60,7 @@ const mocks = vi.hoisted(() => {
     adminCreateUser,
     adminDeleteUser,
     adminSignOut,
+    adminUpdateUserById,
     getAuth: () => authState,
     setAuth: (v: unknown) => {
       authState = v;
@@ -95,6 +98,7 @@ import {
   toggleUserActive,
   deleteUser,
   inviteUser,
+  resetUserPassword,
 } from '@/lib/actions/users';
 
 // Helpers : raccourci pour reconfigurer le chain Supabase server/admin.
@@ -114,6 +118,10 @@ function setSelectSingle(table: 'users', row: unknown) {
   });
 }
 
+// Etat du pre-check duplicate dans inviteUser : null = pas de duplicate.
+// Les tests peuvent reassigner avant l'appel pour simuler un email existant.
+let duplicateRow: { id: string; actif: boolean } | null = null;
+
 beforeEach(() => {
   // resetAllMocks (vs clearAllMocks) vide les queues mockResolvedValueOnce
   // qui sinon fuient entre tests (ex. un test deleteUser qui queue un
@@ -127,14 +135,34 @@ beforeEach(() => {
     role: 'superadmin',
   });
   setSelectSingle('users', { role: 'cdp' });
+  duplicateRow = null;
   mocks.adminInsert.mockResolvedValue({ error: null });
-  mocks.adminFrom.mockReturnValue({ insert: mocks.adminInsert });
+  // adminClient.from('users') doit supporter :
+  //  - .select('id, actif').eq('email', x).maybeSingle()  (pre-check duplicate)
+  //  - .insert(row)                                       (creation)
+  mocks.adminFrom.mockImplementation(() => ({
+    insert: mocks.adminInsert,
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        maybeSingle: vi
+          .fn()
+          .mockImplementation(async () => ({
+            data: duplicateRow,
+            error: null,
+          })),
+      }),
+      in: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+      }),
+    }),
+  }));
   mocks.adminCreateUser.mockResolvedValue({
     data: { user: { id: 'new-user-id' } },
     error: null,
   });
   mocks.adminDeleteUser.mockResolvedValue({ error: null });
   mocks.adminSignOut.mockResolvedValue({ error: null });
+  mocks.adminUpdateUserById.mockResolvedValue({ error: null });
   mocks.supabaseRpc.mockResolvedValue({ error: null });
 });
 
@@ -347,5 +375,76 @@ describe('inviteUser', () => {
     expect(res.error).toBe('Email already registered');
     expect(mocks.adminInsert).not.toHaveBeenCalled();
     expect(mocks.adminDeleteUser).not.toHaveBeenCalled();
+  });
+
+  it('rejette si l email existe deja (actif)', async () => {
+    duplicateRow = { id: 'existing', actif: true };
+    const res = await inviteUser('dup@b.fr', 'cdp', 'X', 'Y');
+    expect(res.success).toBe(false);
+    expect(res.error).toContain('existe déjà');
+    expect(mocks.adminCreateUser).not.toHaveBeenCalled();
+  });
+
+  it('rejette avec un message specifique si l email existe mais est desactive', async () => {
+    duplicateRow = { id: 'existing', actif: false };
+    const res = await inviteUser('dup@b.fr', 'cdp', 'X', 'Y');
+    expect(res.success).toBe(false);
+    expect(res.error).toContain('désactivé');
+    expect(mocks.adminCreateUser).not.toHaveBeenCalled();
+  });
+
+  it('normalise l email (trim + lowercase)', async () => {
+    const res = await inviteUser('  FOO@BAR.FR  ', 'cdp', 'X', 'Y');
+    expect(res.success).toBe(true);
+    // createUser doit avoir recu la version normalisee
+    expect(mocks.adminCreateUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'foo@bar.fr' }),
+    );
+  });
+
+  it('invite un commercial avec pipeline_access=true force', async () => {
+    const res = await inviteUser('com@x.fr', 'commercial', 'Cyril', 'Ven');
+    expect(res.success).toBe(true);
+    expect(mocks.adminInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ role: 'commercial', pipeline_access: true }),
+    );
+  });
+});
+
+describe('resetUserPassword', () => {
+  it('refuse de reinitialiser son propre mot de passe', async () => {
+    mocks.setAuth({
+      ok: true,
+      supabase: mocks.supabase,
+      user: { id: VALID_UUID } as User,
+      role: 'admin',
+    });
+    const res = await resetUserPassword(VALID_UUID);
+    expect(res.success).toBe(false);
+    expect(res.error).toContain('Mot de passe oublie');
+  });
+
+  it('refuse les UUID invalides', async () => {
+    const res = await resetUserPassword('not-a-uuid');
+    expect(res.success).toBe(false);
+  });
+
+  it('un admin ne peut pas reinit le password d un admin', async () => {
+    mocks.setAuth({
+      ok: true,
+      supabase: mocks.supabase,
+      user: { id: CALLER_UUID } as User,
+      role: 'admin',
+    });
+    setSelectSingle('users', {
+      email: 'x@y.fr',
+      prenom: 'X',
+      nom: 'Y',
+      role: 'admin',
+      derniere_connexion: null,
+    });
+    const res = await resetUserPassword(OTHER_UUID);
+    expect(res.success).toBe(false);
+    expect(res.error).toContain('superadmin');
   });
 });

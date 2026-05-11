@@ -53,12 +53,15 @@ export function InviteUserDialog({
       startTransition(async () => {
         const result = await inviteUser(
           email,
-          role as 'admin' | 'cdp',
+          role as 'admin' | 'cdp' | 'commercial',
           prenom.trim(),
           nom.trim(),
         );
         if (result.success) {
           toast.success(`Invitation envoyée à ${prenom} ${nom}`);
+          if (result.warnings) {
+            for (const w of result.warnings) toast.warning(w);
+          }
           onOpenChange(false);
           setEmail('');
           setPrenom('');
@@ -125,6 +128,7 @@ export function InviteUserDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="cdp">CDP</SelectItem>
+                <SelectItem value="commercial">Commercial</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>

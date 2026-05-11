@@ -4,21 +4,46 @@ import { randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireAdmin, requireSuperAdmin } from '@/lib/auth/guards';
+import {
+  canAssignRole,
+  canDeleteUser,
+  canInviteRole,
+  canManageUser,
+  canResetUserCredentials,
+} from '@/lib/auth/permissions';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isSuperAdmin } from '@/lib/utils/roles';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
 
+type ActionResult = {
+  success: boolean;
+  error?: string;
+  /**
+   * Avertissements non-bloquants remontes au caller (ex. email non envoye,
+   * notif fan-out KO). L UI peut afficher un toast.warning en plus du
+   * toast.success. Avant : ces erreurs etaient silencieusement loguees et
+   * l'admin n avait aucun signal.
+   */
+  warnings?: string[];
+};
+
 const InviteUserSchema = z.object({
-  email: z.string().email('Adresse email invalide').max(254),
-  role: z.enum(['admin', 'cdp'], 'Role invalide (admin ou cdp)'),
+  // trim + lowercase pour eviter "Foo@BAR.fr" vs "foo@bar.fr" qui crashent
+  // sur la contrainte UNIQUE (case-sensitive cote Postgres).
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('Adresse email invalide')
+    .max(254),
+  role: z.enum(['admin', 'cdp', 'commercial'], 'Role invalide'),
   prenom: z.string().min(1, 'Prenom requis').max(100),
   nom: z.string().min(1, 'Nom requis').max(100),
 });
 
 const UpdateUserRoleSchema = z.object({
   userId: z.string().uuid('userId doit etre un UUID'),
-  role: z.enum(['admin', 'cdp', 'superadmin'], 'Role invalide'),
+  role: z.enum(['admin', 'cdp', 'superadmin', 'commercial'], 'Role invalide'),
 });
 
 const UpdateUserProfileSchema = z.object({
@@ -30,13 +55,48 @@ const UpdateUserProfileSchema = z.object({
 const UserIdSchema = z.string().uuid('userId doit etre un UUID');
 
 // ---------------------------------------------------------------------------
+// Helpers locaux
+// ---------------------------------------------------------------------------
+
+function generateTempPassword(): string {
+  // randomBytes est crypto-secure (vs Math.random predictible si l'attaquant
+  // a un autre output du meme process Node).
+  return `Soluvia-${randomBytes(12).toString('base64url')}`;
+}
+
+/**
+ * Retry exponentiel pour les operations Supabase Auth qui peuvent fail
+ * temporairement (rate-limit, blip reseau). N est pas une fortification de
+ * securite - juste une amelioration UX.
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 3,
+  baseMs = 200,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        const delay = baseMs * Math.pow(3, i);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+// ---------------------------------------------------------------------------
 // updateUserRole - change a user's role (with hierarchy guards)
 // ---------------------------------------------------------------------------
 
 export async function updateUserRole(
   userId: string,
-  role: 'admin' | 'cdp' | 'superadmin',
-): Promise<{ success: boolean; error?: string }> {
+  role: 'admin' | 'cdp' | 'superadmin' | 'commercial',
+): Promise<ActionResult> {
   const parsed = UpdateUserRoleSchema.safeParse({ userId, role });
   if (!parsed.success) {
     return {
@@ -49,7 +109,6 @@ export async function updateUserRole(
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
 
-  // Cannot change own role
   if (authUser.id === userId) {
     return {
       success: false,
@@ -57,35 +116,33 @@ export async function updateUserRole(
     };
   }
 
-  // Fetch target user's current role
   const { data: target } = await supabase
     .from('users')
     .select('role')
     .eq('id', userId)
     .single();
 
-  // Hierarchy guards:
-  // - Only superadmin can assign 'superadmin' or 'admin' roles
-  // - Only superadmin can modify another admin or superadmin
-  // - Admin can only manage CDPs
-  if (!isSuperAdmin(callerRole)) {
-    if (role === 'superadmin' || role === 'admin') {
-      return {
-        success: false,
-        error: 'Seul un superadmin peut attribuer ce rôle',
-      };
-    }
-    if (target?.role === 'admin' || target?.role === 'superadmin') {
-      return {
-        success: false,
-        error: 'Seul un superadmin peut modifier un administrateur',
-      };
-    }
+  if (!canAssignRole(callerRole, role)) {
+    return {
+      success: false,
+      error: 'Seul un superadmin peut attribuer ce rôle',
+    };
   }
+  if (!canManageUser(callerRole, target?.role)) {
+    return {
+      success: false,
+      error: 'Seul un superadmin peut modifier un administrateur',
+    };
+  }
+
+  // Si on bascule vers commercial, on garantit l acces pipeline (un commercial
+  // sans pipeline est inutilisable - le pipeline est SA raison d etre).
+  const updates: { role: typeof role; pipeline_access?: boolean } = { role };
+  if (role === 'commercial') updates.pipeline_access = true;
 
   const { error } = await supabase
     .from('users')
-    .update({ role })
+    .update(updates)
     .eq('id', userId);
 
   if (error) return { success: false, error: error.message };
@@ -104,7 +161,7 @@ export async function updateUserProfile(
   userId: string,
   prenom: string,
   nom: string,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<ActionResult> {
   const parsed = UpdateUserProfileSchema.safeParse({ userId, prenom, nom });
   if (!parsed.success) {
     return {
@@ -143,7 +200,7 @@ export async function updateUserProfile(
 export async function updateUserPipelineAccess(
   userId: string,
   pipelineAccess: boolean,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<ActionResult> {
   if (!UserIdSchema.safeParse(userId).success) {
     return { success: false, error: 'userId doit etre un UUID' };
   }
@@ -177,7 +234,7 @@ export async function updateUserPipelineAccess(
 export async function updateUserIdeasPermissions(
   userId: string,
   permissions: { canValidateIdeas: boolean; canShipIdeas: boolean },
-): Promise<{ success: boolean; error?: string }> {
+): Promise<ActionResult> {
   if (!UserIdSchema.safeParse(userId).success) {
     return { success: false, error: 'userId doit etre un UUID' };
   }
@@ -214,7 +271,7 @@ export async function updateUserIdeasPermissions(
 export async function toggleUserActive(
   userId: string,
   actif: boolean,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<ActionResult> {
   if (!UserIdSchema.safeParse(userId).success) {
     return { success: false, error: 'userId doit etre un UUID' };
   }
@@ -230,16 +287,12 @@ export async function toggleUserActive(
     };
   }
 
-  // Admin cannot deactivate another admin or superadmin
   const { data: target } = await supabase
     .from('users')
     .select('role')
     .eq('id', userId)
     .single();
-  if (
-    !isSuperAdmin(callerRole) &&
-    (target?.role === 'admin' || target?.role === 'superadmin')
-  ) {
+  if (!canManageUser(callerRole, target?.role)) {
     return {
       success: false,
       error: 'Seul un superadmin peut modifier un administrateur',
@@ -253,43 +306,50 @@ export async function toggleUserActive(
 
   if (error) return { success: false, error: error.message };
 
-  // Si on passe a inactif, revoque immediatement les sessions actives
-  // cote Supabase Auth - sinon le user peut continuer a naviguer jusqu a
-  // ce qu il rafraichisse une page (auth.getUser dans le proxy est en
-  // cache 5min, et meme apres, son cookie reste valide jusqu a expiration
-  // du JWT). Best-effort : on log mais on ne fait pas echouer l'action.
+  const warnings: string[] = [];
+
+  // Si on passe a inactif, revoque immediatement les sessions actives. Avec
+  // retry exponentiel (3 tentatives) car un blip reseau ne doit pas laisser
+  // un user desactive connecte jusqu a expiration du JWT (~1h). Si tout fail,
+  // on warn le caller mais on ne fail pas l action - le proxy.ts re-check
+  // users.actif a chaque refresh de session (5 min max).
   if (!actif) {
     try {
       const adminClient = createAdminClient();
-      await adminClient.auth.admin.signOut(userId, 'global');
+      await withRetry(() => adminClient.auth.admin.signOut(userId, 'global'));
     } catch (err) {
-      logger.warn('actions.users', 'signOut global failed', {
+      logger.warn('actions.users', 'signOut global failed apres retry', {
         userId,
         error: err instanceof Error ? err.message : String(err),
       });
+      warnings.push(
+        'Le compte a ete desactive mais sa session actuelle pourrait persister jusqu a 5 minutes.',
+      );
     }
   }
 
   logAudit('user_toggled', 'user', userId, { actif }, authUser.id);
 
   revalidatePath('/admin/utilisateurs');
-  return { success: true };
+  return warnings.length > 0 ? { success: true, warnings } : { success: true };
 }
 
 // ---------------------------------------------------------------------------
 // deleteUser - superadmin-only: permanently delete a user
 // ---------------------------------------------------------------------------
 
-export async function deleteUser(
-  userId: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function deleteUser(userId: string): Promise<ActionResult> {
   if (!UserIdSchema.safeParse(userId).success) {
     return { success: false, error: 'userId doit etre un UUID' };
   }
 
   const auth = await requireSuperAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase, user: authUser } = auth;
+  const { supabase, user: authUser, role: callerRole } = auth;
+
+  if (!canDeleteUser(callerRole)) {
+    return { success: false, error: 'Accès refusé' };
+  }
 
   if (authUser.id === userId) {
     return {
@@ -298,18 +358,13 @@ export async function deleteUser(
     };
   }
 
-  // Get target info for audit (avant suppression cote DB).
   const { data: target } = await supabase
     .from('users')
     .select('email, nom, prenom, role')
     .eq('id', userId)
     .single();
 
-  // 1. Suppression atomique cote DB via RPC delete_user_cascade (sprint 5 #5).
-  //    Avant : 7 DELETE/UPDATE sequentiels sans transaction - si l'un cassait
-  //    au milieu, on avait un user partiellement supprime (notifs gone mais
-  //    public.users intact). La fonction Postgres encapsule tout dans une
-  //    transaction implicite plpgsql.
+  // Suppression atomique cote DB (transaction plpgsql).
   const { error: cascadeError } = await supabase.rpc('delete_user_cascade', {
     p_user_id: userId,
   });
@@ -324,10 +379,9 @@ export async function deleteUser(
     };
   }
 
-  // 2. Suppression de l'auth user. ICI on VERIFIE l erreur (avant : ignoree
-  //    silencieusement, donc un auth.users orphelin pouvait empecher la
-  //    reinvitation avec le meme email). Procedure de reconciliation manuelle
-  //    documentee dans docs/RUNBOOKS.md.
+  // Suppression auth.users : si fail, profil deja parti -> orphelin bloquant
+  // une re-invitation avec le meme email. Le CRON cleanup-auth-orphans le
+  // recuperera mais on remonte au caller pour traitement immediat.
   const adminClient = createAdminClient();
   const { error: authErr } = await adminClient.auth.admin.deleteUser(userId);
   if (authErr) {
@@ -364,10 +418,10 @@ export async function deleteUser(
 
 export async function inviteUser(
   email: string,
-  role: 'admin' | 'cdp',
+  role: 'admin' | 'cdp' | 'commercial',
   prenom?: string,
   nom?: string,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<ActionResult> {
   const parsed = InviteUserSchema.safeParse({
     email: email?.trim(),
     role,
@@ -381,24 +435,19 @@ export async function inviteUser(
     };
   }
 
-  // Readable temp password - user will change it in Mon compte. randomBytes
-  // est crypto-secure (vs Math.random predictible si l'attaquant a un autre
-  // output du meme process Node).
-  const password = `Soluvia-${randomBytes(12).toString('base64url')}`;
+  const password = generateTempPassword();
 
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
 
-  // Only superadmin can invite admins
-  if (role === 'admin' && !isSuperAdmin(callerRole)) {
+  if (!canInviteRole(callerRole, parsed.data.role)) {
     return {
       success: false,
       error: 'Seul un superadmin peut inviter un administrateur',
     };
   }
 
-  // Use admin client for auth operations (requires SUPABASE_SERVICE_ROLE_KEY)
   let adminClient;
   try {
     adminClient = createAdminClient();
@@ -409,7 +458,24 @@ export async function inviteUser(
     };
   }
 
-  // Get inviter's name for the email
+  // Pre-check duplicate dans public.users (case-insensitive grace au lowercase
+  // applique par le schema zod). Avant : on filait directement a createUser
+  // qui retournait un message Supabase peu explicite ("User already registered")
+  // et laissait l user dans le doute sur le statut existant.
+  const { data: existing } = await adminClient
+    .from('users')
+    .select('id, actif')
+    .eq('email', parsed.data.email)
+    .maybeSingle();
+  if (existing) {
+    return {
+      success: false,
+      error: existing.actif
+        ? 'Un utilisateur avec cet email existe déjà'
+        : 'Cet email existe mais le compte est désactivé. Réactivez-le plutôt que de réinviter.',
+    };
+  }
+
   const { data: inviter } = await supabase
     .from('users')
     .select('prenom, nom')
@@ -419,13 +485,12 @@ export async function inviteUser(
     ? `${inviter.prenom} ${inviter.nom}`.trim()
     : 'Un administrateur';
 
-  // Create user with password (no magic link needed)
   const { data: newUser, error: createError } =
     await adminClient.auth.admin.createUser({
       email: parsed.data.email,
       password,
       email_confirm: true,
-      user_metadata: { role },
+      user_metadata: { role: parsed.data.role },
     });
 
   if (createError) {
@@ -436,36 +501,58 @@ export async function inviteUser(
     return { success: false, error: 'Erreur inattendue lors de la création' };
   }
 
-  // Send invitation email with temporary password via Resend
+  const warnings: string[] = [];
+
+  // Envoi email d invitation. Si fail : on log + on retient un warning, mais
+  // on continue (l admin peut transmettre le tempPassword manuellement).
   try {
     const { sendInvitationEmail } = await import('@/lib/email/client');
-    await sendInvitationEmail({
+    const result = await sendInvitationEmail({
       to: parsed.data.email,
       inviterName,
       inviteePrenom: parsed.data.prenom,
-      role: role === 'admin' ? 'Administrateur' : 'Chef de projet',
+      role:
+        parsed.data.role === 'admin'
+          ? 'Administrateur'
+          : parsed.data.role === 'commercial'
+            ? 'Commercial'
+            : 'Chef de projet',
       tempPassword: password,
     });
-  } catch {
-    // Email failed but user was created - admin can share credentials manually
+    if (!result.success) {
+      logger.error('actions.users', 'invitation email send failed', {
+        to: parsed.data.email,
+        error: result.error,
+      });
+      warnings.push(
+        "L'invitation a été créée mais l'email n'a pas été envoyé. Transmettez le mot de passe temporaire manuellement.",
+      );
+    }
+  } catch (err) {
+    logger.error('actions.users', 'invitation email threw', {
+      to: parsed.data.email,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    warnings.push(
+      "L'invitation a été créée mais l'email n'a pas pu être envoyé.",
+    );
   }
 
-  // Insert the user row with prenom/nom
+  // Pour les commerciaux, on force pipeline_access=true (sans ca, le user
+  // verrait le menu pipeline mais aurait 403 sur chaque action - bug perçu).
   const { error: insertError } = await adminClient.from('users').insert({
     id: newUser.user.id,
     email: parsed.data.email,
     nom: parsed.data.nom,
     prenom: parsed.data.prenom,
-    role,
+    role: parsed.data.role,
     actif: true,
+    pipeline_access: parsed.data.role === 'commercial' ? true : false,
   });
 
   if (insertError) {
-    // Rollback : on a deja cree l auth.user, mais l INSERT public.users a
-    // echoue. Sans cleanup, l auth.user reste orphelin et bloque toute
-    // re-invitation avec le meme email (createUser retournerait "already
-    // exists"). On supprime l auth.user et on log si le cleanup echoue
-    // (cas necessitant le runbook).
+    // Rollback : auth.user deja cree mais INSERT public.users a fail.
+    // Sans cleanup -> orphelin qui bloque toute re-invitation avec le meme email.
     const rollback = await adminClient.auth.admin.deleteUser(newUser.user.id);
     if (rollback.error) {
       logger.error('actions.users', 'inviteUser rollback failed', {
@@ -485,15 +572,12 @@ export async function inviteUser(
     'user_invited',
     'user',
     newUser.user.id,
-    { email, role },
+    { email: parsed.data.email, role: parsed.data.role },
     authUser.id,
   );
 
-  // Notification fan-out aux admins quand on invite un CDP : ils sauront
-  // qu un nouveau collaborateur attend une affectation projet. La notif
-  // se resout automatiquement (trigger SQL) quand le user recoit son
-  // premier projet client.
-  if (role === 'cdp') {
+  // Fan-out notifs aux admins quand on invite un CDP. Si fail : warning UI.
+  if (parsed.data.role === 'cdp') {
     const { data: adminsRows } = await adminClient
       .from('users')
       .select('id')
@@ -515,18 +599,137 @@ export async function inviteUser(
         .from('notifications')
         .insert(notifs);
       if (notifsError) {
-        // Best-effort : le user est cree, l invitation est partie. Si la
-        // notif fan-out fail, les admins manqueront l alerte mais ils
-        // verront le collab apparaitre dans /admin/intercontrat.
         logger.warn('actions.users', 'invite cdp notifs failed', {
           newUserId: newUser.user.id,
           adminsCount: admins.length,
           error: notifsError,
         });
+        warnings.push(
+          "Les autres admins n'ont pas reçu de notification (ils verront le collaborateur dans /admin/intercontrat).",
+        );
       }
     }
   }
 
   revalidatePath('/admin/utilisateurs');
-  return { success: true };
+  return warnings.length > 0 ? { success: true, warnings } : { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// resetUserPassword - admin-only: regenere un mot de passe temporaire et
+// renvoie un email a l user (sert a la fois pour "renvoyer l invitation"
+// et "reset password admin" - meme mecanisme, le wording de l email s adapte).
+// ---------------------------------------------------------------------------
+
+export async function resetUserPassword(userId: string): Promise<ActionResult> {
+  if (!UserIdSchema.safeParse(userId).success) {
+    return { success: false, error: 'userId doit etre un UUID' };
+  }
+
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user: authUser, role: callerRole } = auth;
+
+  if (authUser.id === userId) {
+    return {
+      success: false,
+      error:
+        'Vous ne pouvez pas reinitialiser votre propre mot de passe ici (utilisez Mot de passe oublie).',
+    };
+  }
+
+  const { data: target } = await supabase
+    .from('users')
+    .select('email, prenom, nom, role, derniere_connexion')
+    .eq('id', userId)
+    .single();
+  if (!target) {
+    return { success: false, error: 'Utilisateur introuvable' };
+  }
+
+  if (!canResetUserCredentials(callerRole, target.role)) {
+    return {
+      success: false,
+      error:
+        'Seul un superadmin peut reinitialiser le mot de passe d un administrateur',
+    };
+  }
+
+  const adminClient = createAdminClient();
+  const password = generateTempPassword();
+
+  const { error: updateErr } = await adminClient.auth.admin.updateUserById(
+    userId,
+    { password },
+  );
+  if (updateErr) {
+    logger.error('actions.users', 'updateUserById password failed', {
+      userId,
+      error: updateErr.message,
+    });
+    return { success: false, error: updateErr.message };
+  }
+
+  const { data: inviter } = await supabase
+    .from('users')
+    .select('prenom, nom')
+    .eq('id', authUser.id)
+    .single();
+  const inviterName = inviter
+    ? `${inviter.prenom} ${inviter.nom}`.trim()
+    : 'Un administrateur';
+
+  // 'invite' si l user n a jamais ouvert son compte, 'reset' sinon.
+  // Le template adapte greeting + subject (cf. lib/email/client.ts).
+  const kind: 'invite' | 'reset' = target.derniere_connexion
+    ? 'reset'
+    : 'invite';
+  const warnings: string[] = [];
+
+  try {
+    const { sendInvitationEmail } = await import('@/lib/email/client');
+    const result = await sendInvitationEmail({
+      to: target.email,
+      inviterName,
+      inviteePrenom: target.prenom,
+      role:
+        target.role === 'admin'
+          ? 'Administrateur'
+          : target.role === 'commercial'
+            ? 'Commercial'
+            : target.role === 'superadmin'
+              ? 'Superadmin'
+              : 'Chef de projet',
+      tempPassword: password,
+      kind,
+    });
+    if (!result.success) {
+      logger.error('actions.users', 'reset email send failed', {
+        to: target.email,
+        error: result.error,
+      });
+      warnings.push(
+        'Mot de passe reinitialise mais l email n a pas ete envoye. Transmettez-le manuellement.',
+      );
+    }
+  } catch (err) {
+    logger.error('actions.users', 'reset email threw', {
+      to: target.email,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    warnings.push(
+      'Mot de passe reinitialise mais l email n a pas pu etre envoye.',
+    );
+  }
+
+  logAudit(
+    kind === 'reset' ? 'user_password_reset' : 'user_reinvited',
+    'user',
+    userId,
+    { email: target.email },
+    authUser.id,
+  );
+
+  revalidatePath('/admin/utilisateurs');
+  return warnings.length > 0 ? { success: true, warnings } : { success: true };
 }

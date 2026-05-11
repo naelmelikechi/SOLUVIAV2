@@ -1,9 +1,14 @@
 'use client';
 
+import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ColumnDef } from '@tanstack/react-table';
+import { Check, RotateCcw, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { DataTable } from '@/components/shared/data-table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { updateBugReportAction } from '@/lib/actions/bug-reports';
 import type { BugReportRow } from '@/lib/queries/bug-reports';
 
 const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
@@ -45,6 +50,84 @@ const SEVERITY_LABEL: Record<string, string> = {
   high: 'Élevée',
   critical: 'Critique',
 };
+
+type BugStatus = 'nouveau' | 'en_cours' | 'resolu' | 'wontfix';
+
+function isOpen(status: string): boolean {
+  return status === 'nouveau' || status === 'en_cours';
+}
+
+function BugRowActions({ bug }: { bug: BugReportRow }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const updateStatus = (status: BugStatus, successMessage: string) => {
+    startTransition(async () => {
+      const res = await updateBugReportAction({
+        id: bug.id,
+        status,
+        resolutionNotes: bug.resolution_notes ?? null,
+      });
+      if (res.success) {
+        toast.success(successMessage);
+        router.refresh();
+      } else {
+        toast.error(res.error ?? 'Erreur lors de la mise à jour');
+      }
+    });
+  };
+
+  if (isOpen(bug.status)) {
+    return (
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-green-700 hover:bg-green-50 hover:text-green-800"
+          title="Fermer (résolu)"
+          disabled={isPending}
+          onClick={(e) => {
+            e.stopPropagation();
+            updateStatus('resolu', 'Bug fermé');
+          }}
+        >
+          <Check className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+          title="Refuser (wontfix)"
+          disabled={isPending}
+          onClick={(e) => {
+            e.stopPropagation();
+            updateStatus('wontfix', 'Bug refusé');
+          }}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+        title="Rouvrir"
+        disabled={isPending}
+        onClick={(e) => {
+          e.stopPropagation();
+          updateStatus('nouveau', 'Bug rouvert');
+        }}
+      >
+        <RotateCcw className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
 
 export function BugsTable({ reports }: { reports: BugReportRow[] }) {
   const router = useRouter();
@@ -122,6 +205,12 @@ export function BugsTable({ reports }: { reports: BugReportRow[] }) {
           {STATUS_LABEL[row.original.status] ?? row.original.status}
         </Badge>
       ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => <BugRowActions bug={row.original} />,
+      enableSorting: false,
     },
   ];
 

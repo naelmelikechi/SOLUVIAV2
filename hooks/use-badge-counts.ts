@@ -105,7 +105,9 @@ async function fetchIntercontratCount(): Promise<number> {
 }
 
 /**
- * Compte les bugs au statut "nouveau" non archives. RLS limite l acces
+ * Compte les bugs "ouverts" (status nouveau OU en_cours) non archives.
+ * Aligne avec l'onglet "Ouverts" de /admin/bugs : un bug reste dans le
+ * badge tant qu'il n'est pas ferme (resolu/wontfix). RLS limite l acces
  * a admin/superadmin ; pour les autres le count remonte 0 (et le badge
  * n'est pas affiche dans la sidebar car l'item Bugs est adminOnly).
  */
@@ -113,7 +115,7 @@ async function fetchBugsCount(): Promise<number> {
   const res = await supabaseClient()
     .from('bug_reports')
     .select('id', { count: 'exact', head: true })
-    .eq('status', 'nouveau')
+    .in('status', ['nouveau', 'en_cours'])
     .eq('archive', false);
   return res.count ?? 0;
 }
@@ -276,8 +278,9 @@ export function useBadgeCounts(): BadgeCounts {
           () => debouncedRefresh('intercontrat', refreshIntercontrat),
         )
         // bug_reports : un nouveau bug (INSERT) ou un changement de statut
-        // (UPDATE) peut modifier le compte des "nouveau". RLS empeche les
-        // non-admin de recevoir des events, donc safe a abonner globalement.
+        // (UPDATE) peut modifier le compte des "ouverts" (nouveau + en_cours).
+        // RLS empeche les non-admin de recevoir des events, donc safe a
+        // abonner globalement.
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'bug_reports' },

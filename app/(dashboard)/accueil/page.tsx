@@ -24,30 +24,37 @@ export default async function AccueilPage() {
 
   const supabase = await createClient();
 
-  // Heures internes saisies (lifetime) pour cocher la checklist
-  const { count: saisiesCount } = await supabase
-    .from('saisies_temps')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id);
-
-  // Heures internes cumulees ce mois-ci par categorie
   const monthStart = new Date();
   monthStart.setDate(1);
   const monthStartIso = monthStart.toISOString().split('T')[0]!;
 
-  const { data: heuresMois } = await supabase
-    .from('saisies_temps')
-    .select(
-      `
-      heures,
-      projet:projets!saisies_temps_projet_id_fkey (
-        est_interne,
-        categorie_interne
+  // 3 lectures independantes : on parallelise pour reduire la latence
+  // d affichage de la page d accueil (chemin critique apres login).
+  const [saisiesCountRes, heuresMoisRes, wikiUrl] = await Promise.all([
+    // Heures internes saisies (lifetime) pour cocher la checklist
+    supabase
+      .from('saisies_temps')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    // Heures internes cumulees ce mois-ci par categorie
+    supabase
+      .from('saisies_temps')
+      .select(
+        `
+        heures,
+        projet:projets!saisies_temps_projet_id_fkey (
+          est_interne,
+          categorie_interne
+        )
+      `,
       )
-    `,
-    )
-    .eq('user_id', user.id)
-    .gte('date', monthStartIso);
+      .eq('user_id', user.id)
+      .gte('date', monthStartIso),
+    getParametreValeur('onboarding_wiki_url'),
+  ]);
+
+  const saisiesCount = saisiesCountRes.count;
+  const heuresMois = heuresMoisRes.data;
 
   const heuresParCategorie: Record<string, number> = {};
   let heuresMoisTotal = 0;
@@ -64,7 +71,6 @@ export default async function AccueilPage() {
 
   const profilComplet = !!user.telephone && user.telephone.trim().length > 0;
   const aSaisiTemps = (saisiesCount ?? 0) > 0;
-  const wikiUrl = await getParametreValeur('onboarding_wiki_url');
 
   return (
     <AccueilPageClient

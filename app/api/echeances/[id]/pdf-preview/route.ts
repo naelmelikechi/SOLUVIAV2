@@ -31,20 +31,27 @@ export async function GET(
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
 
-  const { data: echeance, error } = await supabase
-    .from('echeances')
-    .select(
-      `
-      id, mois_concerne, date_emission_prevue, montant_prevu_ht,
-      projet:projets!echeances_projet_id_fkey(
-        id, ref, taux_commission,
-        client:clients!projets_client_id_fkey(id, trigramme, raison_sociale, siret, adresse)
+  // echeance + emetteur en parallele : emetteur est une lecture parametres
+  // independante. On accepte de payer getEmetteurInfo si echeance.error
+  // pour gagner ~50-100ms sur le chemin nominal (rendu PDF chronique).
+  const [echeanceRes, emetteur] = await Promise.all([
+    supabase
+      .from('echeances')
+      .select(
+        `
+        id, mois_concerne, date_emission_prevue, montant_prevu_ht,
+        projet:projets!echeances_projet_id_fkey(
+          id, ref, taux_commission,
+          client:clients!projets_client_id_fkey(id, trigramme, raison_sociale, siret, adresse)
+        )
+      `,
       )
-    `,
-    )
-    .eq('id', id)
-    .single();
+      .eq('id', id)
+      .single(),
+    getEmetteurInfo(),
+  ]);
 
+  const { data: echeance, error } = echeanceRes;
   if (error || !echeance) {
     return NextResponse.json(
       { error: 'Échéance introuvable' },
@@ -130,8 +137,6 @@ export async function GET(
       : null,
     lignes,
   } as unknown as FactureDetail;
-
-  const emetteur = await getEmetteurInfo();
 
   const buffer = await renderFacturePdfBuffer({
     facture: draftFacture,

@@ -56,7 +56,12 @@ export function buildBugReportEmailSubject(
     : '';
   const summary = params.triage?.summary ?? params.comment.slice(0, 80);
   const cleanSummary = summary.replace(/\s+/g, ' ').trim().slice(0, 90);
-  return `[${params.ref}] ${sevLabel}${catLabel} ${cleanSummary}`.trim();
+  // Concat avec espace seulement si sevLabel ou catLabel est non-vide,
+  // pour eviter le double-espace `[BUG-0001]  summary` quand pas de triage.
+  const prefix = [`[${params.ref}]`, `${sevLabel}${catLabel}`]
+    .filter(Boolean)
+    .join(' ');
+  return `${prefix} ${cleanSummary}`.trim();
 }
 
 export function buildBugReportEmailHtml(params: BugReportEmailParams): string {

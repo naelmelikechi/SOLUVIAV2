@@ -461,6 +461,23 @@ export async function inviteUser(
   });
 
   if (insertError) {
+    // Rollback : on a deja cree l auth.user, mais l INSERT public.users a
+    // echoue. Sans cleanup, l auth.user reste orphelin et bloque toute
+    // re-invitation avec le meme email (createUser retournerait "already
+    // exists"). On supprime l auth.user et on log si le cleanup echoue
+    // (cas necessitant le runbook).
+    const rollback = await adminClient.auth.admin.deleteUser(newUser.user.id);
+    if (rollback.error) {
+      logger.error('actions.users', 'inviteUser rollback failed', {
+        userId: newUser.user.id,
+        insertError: insertError.message,
+        rollbackError: rollback.error.message,
+      });
+      return {
+        success: false,
+        error: `Création échouée et nettoyage incomplet (orphelin auth.users à supprimer manuellement, voir docs/RUNBOOKS.md) : ${insertError.message}`,
+      };
+    }
     return { success: false, error: insertError.message };
   }
 

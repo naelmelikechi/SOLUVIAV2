@@ -38,6 +38,46 @@ export type AuthErr = {
 };
 
 /**
+ * Resout supabase + auth.user + profil public.users (role+actif) en une
+ * passe. Utilise en interne par les 3 guards pour eviter 2 round-trips
+ * (avant : requireAdmin appelait requireUser, qui fetch actif, puis fetch
+ * role - deux SELECT separes).
+ */
+async function loadAuthProfile(): Promise<
+  | {
+      ok: true;
+      supabase: SupabaseServerClient;
+      user: User;
+      profile: { role: string; actif: boolean };
+    }
+  | AuthErr
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: 'Non authentifié' };
+  }
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role, actif')
+    .eq('id', user.id)
+    .single();
+  // Profil public.users absent (auth orphelin pendant une reconciliation
+  // manuelle) ou actif=false : on refuse.
+  if (!profile || profile.actif === false) {
+    return { ok: false, error: 'Compte désactivé' };
+  }
+  return {
+    ok: true,
+    supabase,
+    user,
+    profile: { role: profile.role, actif: profile.actif },
+  };
+}
+
+/**
  * Verifie qu'un user est authentifie ET actif. Retourne { supabase, user } ou
  * { ok: false, error } pretent a etre relayes au client.
  *
@@ -47,28 +87,9 @@ export type AuthErr = {
  * guard rejette immediatement.
  */
 export async function requireUser(): Promise<BaseAuthOk | AuthErr> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return { ok: false, error: 'Non authentifié' };
-  }
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('actif')
-    .eq('id', user.id)
-    .single();
-
-  // Si le profil public.users n existe pas (auth orphelin pendant une
-  // reconciliation manuelle), on refuse. actif null = profil incomplet,
-  // on traite comme desactive par defaut.
-  if (!profile || profile.actif === false) {
-    return { ok: false, error: 'Compte désactivé' };
-  }
-
-  return { ok: true, supabase, user };
+  const auth = await loadAuthProfile();
+  if (!auth.ok) return auth;
+  return { ok: true, supabase: auth.supabase, user: auth.user };
 }
 
 /**
@@ -78,20 +99,17 @@ export async function requireUser(): Promise<BaseAuthOk | AuthErr> {
 export async function requireAdmin(): Promise<
   AuthOk<{ role: string }> | AuthErr
 > {
-  const auth = await requireUser();
+  const auth = await loadAuthProfile();
   if (!auth.ok) return auth;
-  const { supabase, user } = auth;
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if (!isAdmin(caller?.role)) {
+  if (!isAdmin(auth.profile.role)) {
     return { ok: false, error: 'Accès refusé - réservé aux admins' };
   }
-  return { ok: true, supabase, user, role: caller!.role };
+  return {
+    ok: true,
+    supabase: auth.supabase,
+    user: auth.user,
+    role: auth.profile.role,
+  };
 }
 
 /**
@@ -101,18 +119,15 @@ export async function requireAdmin(): Promise<
 export async function requireSuperAdmin(): Promise<
   AuthOk<{ role: string }> | AuthErr
 > {
-  const auth = await requireUser();
+  const auth = await loadAuthProfile();
   if (!auth.ok) return auth;
-  const { supabase, user } = auth;
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if (!isSuperAdmin(caller?.role)) {
+  if (!isSuperAdmin(auth.profile.role)) {
     return { ok: false, error: 'Accès refusé - réservé aux superadmins' };
   }
-  return { ok: true, supabase, user, role: caller!.role };
+  return {
+    ok: true,
+    supabase: auth.supabase,
+    user: auth.user,
+    role: auth.profile.role,
+  };
 }

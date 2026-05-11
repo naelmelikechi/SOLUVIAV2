@@ -69,18 +69,24 @@ export async function detectNpecChangeAjustement(
   contratId: string,
   npecActuel: number,
 ): Promise<number> {
-  const { data: contrat, error: contratErr } = await supabase
-    .from('contrats')
-    .select('id, projet_id, projets!inner(taux_commission)')
-    .eq('id', contratId)
-    .maybeSingle();
+  // contrat + billedLines en parallele : les 2 dependent juste de contratId.
+  // Si contrat fail, on a paye loadBilledLines pour rien (cas rare).
+  const [contratRes, billedLines] = await Promise.all([
+    supabase
+      .from('contrats')
+      .select('id, projet_id, projets!inner(taux_commission)')
+      .eq('id', contratId)
+      .maybeSingle(),
+    loadBilledLines(supabase, contratId),
+  ]);
+
+  const { data: contrat, error: contratErr } = contratRes;
   if (contratErr || !contrat) return 0;
 
   const projet = contrat.projets as { taux_commission: number | null } | null;
   const tauxActuel = Number(projet?.taux_commission ?? 0);
   if (tauxActuel <= 0) return 0;
 
-  const billedLines = await loadBilledLines(supabase, contratId);
   if (billedLines.length === 0) return 0;
 
   const result = computeDerivance(npecActuel, tauxActuel, billedLines);
@@ -147,15 +153,19 @@ export async function detectRuptureAjustement(
   contratId: string,
   dateRupture: string,
 ): Promise<number> {
-  const { data: contrat, error: contratErr } = await supabase
-    .from('contrats')
-    .select('id, projet_id, date_debut, duree_mois')
-    .eq('id', contratId)
-    .maybeSingle();
+  // contrat + billedLines en parallele : independants.
+  const [contratRes, billedLines] = await Promise.all([
+    supabase
+      .from('contrats')
+      .select('id, projet_id, date_debut, duree_mois')
+      .eq('id', contratId)
+      .maybeSingle(),
+    loadBilledLines(supabase, contratId),
+  ]);
+
+  const { data: contrat, error: contratErr } = contratRes;
   if (contratErr || !contrat) return 0;
   if (!contrat.date_debut || !contrat.duree_mois) return 0;
-
-  const billedLines = await loadBilledLines(supabase, contratId);
 
   // 1. Calcule l'avoir pro-rata sur factures emises
   let deltaHt = 0;

@@ -1,6 +1,6 @@
 'use client';
 
-import type { ColumnDef, FilterFn, Row } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import type { ProjetListEnriched } from '@/lib/queries/projets';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
@@ -11,25 +11,7 @@ import {
   STATUT_PROJET_LABELS,
   STATUT_PROJET_COLORS,
 } from '@/lib/utils/constants';
-import { matchesSearch } from '@/lib/utils/search';
-
-const textFilterFn: FilterFn<ProjetListEnriched> = (
-  row: Row<ProjetListEnriched>,
-  columnId: string,
-  filterValue: unknown,
-) => {
-  const cell = row.getValue(columnId);
-  if (cell == null) return false;
-  // Toolbar multi-select passes an array of allowed values - keep array semantic
-  if (Array.isArray(filterValue)) {
-    return filterValue.length === 0 || filterValue.includes(cell);
-  }
-  // Header text search passes a string
-  if (typeof filterValue === 'string') {
-    return matchesSearch(String(cell), filterValue);
-  }
-  return false;
-};
+import { textFilterFn } from '@/lib/utils/table-filters';
 
 export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   {

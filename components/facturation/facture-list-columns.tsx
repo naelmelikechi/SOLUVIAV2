@@ -12,6 +12,7 @@ import {
   STATUT_FACTURE_LABELS,
   STATUT_FACTURE_COLORS,
 } from '@/lib/utils/constants';
+import { textFilterFn } from '@/lib/utils/table-filters';
 
 export function createFactureListColumns(
   onPreview: (ref: string) => void,
@@ -19,8 +20,14 @@ export function createFactureListColumns(
   return [
     {
       accessorKey: 'ref',
+      enableColumnFilter: true,
+      filterFn: textFilterFn,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="N° Facture" />
+        <DataTableColumnHeader
+          column={column}
+          title="N° Facture"
+          filterVariant="text"
+        />
       ),
       cell: ({ row }) => (
         <span className="font-mono text-sm font-bold text-[var(--warning)]">
@@ -30,17 +37,29 @@ export function createFactureListColumns(
     },
     {
       id: 'projet',
-      accessorFn: (row) => row.projet?.ref,
+      accessorFn: (row) => row.projet?.ref ?? '',
+      enableColumnFilter: true,
+      filterFn: textFilterFn,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Projet" />
+        <DataTableColumnHeader
+          column={column}
+          title="Projet"
+          filterVariant="text"
+        />
       ),
       cell: ({ row }) => <ProjectRef ref_={row.original.projet?.ref ?? ''} />,
     },
     {
       id: 'client',
-      accessorFn: (row) => row.client?.raison_sociale,
+      accessorFn: (row) => row.client?.raison_sociale ?? '',
+      enableColumnFilter: true,
+      filterFn: textFilterFn,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Client" />
+        <DataTableColumnHeader
+          column={column}
+          title="Client"
+          filterVariant="text"
+        />
       ),
       cell: ({ row }) => (
         <span className="text-sm">
@@ -113,7 +132,7 @@ export function createFactureListColumns(
           />
         );
       },
-      filterFn: (row, id, value) => value.includes(row.getValue(id)),
+      filterFn: textFilterFn,
     },
     {
       id: 'actions',

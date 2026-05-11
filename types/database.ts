@@ -2412,6 +2412,7 @@ export type Database = {
           jours_conges_payes: number | null;
           jours_rtt: number | null;
           nom: string;
+          onboarding_completed_at: string | null;
           pipeline_access: boolean;
           prenom: string;
           primes_annuelles: number | null;
@@ -2437,6 +2438,7 @@ export type Database = {
           jours_conges_payes?: number | null;
           jours_rtt?: number | null;
           nom: string;
+          onboarding_completed_at?: string | null;
           pipeline_access?: boolean;
           prenom: string;
           primes_annuelles?: number | null;
@@ -2462,6 +2464,7 @@ export type Database = {
           jours_conges_payes?: number | null;
           jours_rtt?: number | null;
           nom?: string;
+          onboarding_completed_at?: string | null;
           pipeline_access?: boolean;
           prenom?: string;
           primes_annuelles?: number | null;

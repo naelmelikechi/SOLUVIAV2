@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 // Content-Security-Policy : applique uniquement en prod. En dev, Next.js
 // utilise eval() pour HMR + des origines variables, ce qui rend une CSP
@@ -70,4 +71,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry: tunnelRoute proxie les envelopes via /monitoring (meme-origine),
+// ce qui contourne les bloqueurs de pub qui filtrent *.ingest.sentry.io
+// et evite les erreurs ERR_BLOCKED_BY_CLIENT en console.
+export default withSentryConfig(nextConfig, {
+  tunnelRoute: '/monitoring',
+  silent: !process.env.CI,
+});

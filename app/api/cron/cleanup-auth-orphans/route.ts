@@ -30,25 +30,18 @@ export async function GET(request: Request) {
 
   const supabase = createAdminClient();
 
-  // RPC ajoutee par la migration 20260512040000_auth_orphans_view.sql.
-  // Les types Supabase generes ne la connaissent pas encore -> cast manuel.
-  type Orphan = { id: string; email: string; created_at: string };
-  const rpcRes = (await supabase.rpc(
-    'list_auth_orphans' as never,
-    { p_older_than_hours: OLDER_THAN_HOURS } as never,
-  )) as {
-    data: Orphan[] | null;
-    error: { message: string } | null;
-  };
+  const { data: orphans, error: listError } = await supabase.rpc(
+    'list_auth_orphans',
+    { p_older_than_hours: OLDER_THAN_HOURS },
+  );
 
-  if (rpcRes.error) {
+  if (listError) {
     logger.error('cron.cleanup_auth_orphans', 'list_auth_orphans failed', {
-      error: rpcRes.error,
+      error: listError,
     });
-    return NextResponse.json({ error: rpcRes.error.message }, { status: 500 });
+    return NextResponse.json({ error: listError.message }, { status: 500 });
   }
 
-  const orphans = rpcRes.data;
   const rows = (orphans ?? []).slice(0, BATCH_LIMIT);
   if (rows.length === 0) {
     return NextResponse.json({ ok: true, deleted: 0 });

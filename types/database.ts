@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: '14.5';
   };
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
   public: {
     Tables: {
       absences: {
@@ -2538,6 +2563,14 @@ export type Database = {
       has_validate_ideas_access: { Args: never; Returns: boolean };
       is_admin: { Args: never; Returns: boolean };
       is_commercial: { Args: never; Returns: boolean };
+      list_auth_orphans: {
+        Args: { p_older_than_hours?: number };
+        Returns: {
+          created_at: string;
+          email: string;
+          id: string;
+        }[];
+      };
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { '': string }; Returns: string[] };
     };
@@ -2690,6 +2723,9 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       absence_type: ['conges', 'maladie'],

@@ -316,12 +316,21 @@ export async function getTeamWeekSummary(
 ): Promise<TeamMemberSummary[]> {
   const supabase = await createClient();
 
-  // Fetch all saisies_temps for the given dates (admin sees all via RLS)
-  const { data: saisies, error: saisiesError } = await supabase
-    .from('saisies_temps')
-    .select('user_id, date, heures')
-    .in('date', weekDates);
+  // saisies + users actifs en parallele (independants).
+  const [saisiesRes, usersRes] = await Promise.all([
+    // Admin sees all via RLS
+    supabase
+      .from('saisies_temps')
+      .select('user_id, date, heures')
+      .in('date', weekDates),
+    supabase
+      .from('users')
+      .select('id, nom, prenom')
+      .eq('actif', true)
+      .order('nom'),
+  ]);
 
+  const { data: saisies, error: saisiesError } = saisiesRes;
   if (saisiesError) {
     logger.error('queries.temps', 'getTeamWeekSummary failed (saisies)', {
       error: saisiesError,
@@ -333,12 +342,7 @@ export async function getTeamWeekSummary(
     );
   }
 
-  // Fetch all active users
-  const { data: users, error: usersError } = await supabase
-    .from('users')
-    .select('id, nom, prenom')
-    .eq('actif', true)
-    .order('nom');
+  const { data: users, error: usersError } = usersRes;
 
   if (usersError) {
     logger.error('queries.temps', 'getTeamWeekSummary failed (users)', {

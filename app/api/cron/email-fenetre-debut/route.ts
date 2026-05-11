@@ -35,18 +35,26 @@ export async function GET(request: Request) {
       'email-fenetre-debut',
       format(dateFinFenetre, 'yyyy-MM'),
       async () => {
-        // Fetch pending echeances grouped by CDP
-        const { data: echeances, error: echError } = await supabase
-          .from('echeances')
-          .select(
-            `
+        // Echeances pending + users actifs en parallele.
+        const [echeancesRes, usersRes] = await Promise.all([
+          supabase
+            .from('echeances')
+            .select(
+              `
         id,
         projet:projets!echeances_projet_id_fkey(cdp_id, backup_cdp_id)
       `,
-          )
-          .is('facture_id', null)
-          .eq('validee', false);
+            )
+            .is('facture_id', null)
+            .eq('validee', false),
+          supabase
+            .from('users')
+            .select('id, email, prenom, role')
+            .eq('actif', true)
+            .in('role', ['admin', 'superadmin', 'cdp']),
+        ]);
 
+        const { data: echeances, error: echError } = echeancesRes;
         if (echError) throw new Error(echError.message);
 
         const countByCdp = new Map<string, number>();
@@ -56,13 +64,7 @@ export async function GET(request: Request) {
           countByCdp.set(cdpId, (countByCdp.get(cdpId) ?? 0) + 1);
         }
 
-        // Fetch all active users (admins + CDPs)
-        const { data: users } = await supabase
-          .from('users')
-          .select('id, email, prenom, role')
-          .eq('actif', true)
-          .in('role', ['admin', 'superadmin', 'cdp']);
-
+        const { data: users } = usersRes;
         if (!users || users.length === 0) {
           return { sent: 0 };
         }

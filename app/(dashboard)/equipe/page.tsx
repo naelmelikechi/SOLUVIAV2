@@ -17,13 +17,13 @@ export const metadata: Metadata = { title: 'Équipe - SOLUVIA' };
 export const dynamic = 'force-dynamic';
 
 export default async function EquipePage() {
-  const user = await getCurrentUser();
-  if (!user) redirect('/login');
-
-  const [members, messages] = await Promise.all([
+  // user + members + messages en parallele : independants.
+  const [user, members, messages] = await Promise.all([
+    getCurrentUser(),
     getEquipeWithProjets(),
     getRecentTeamMessages(),
   ]);
+  if (!user) redirect('/login');
 
   return (
     <div className="space-y-8">

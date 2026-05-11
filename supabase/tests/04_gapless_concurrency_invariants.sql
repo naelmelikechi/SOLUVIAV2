@@ -191,12 +191,27 @@ SELECT is(
 );
 
 -- ----- Assertion 5 : avoir consomme aussi un numero ----------------------
+--
+-- Le constraint chk_avoir_motif exige (est_avoir=true) =>
+-- (avoir_motif IS NOT NULL AND facture_origine_id IS NOT NULL).
+-- On cree donc d abord une facture origine emise, puis un avoir qui la
+-- reference.
 
+-- Facture origine (emise) qui servira de cible a l avoir
+CREATE TEMP TABLE _avoir_origine (facture_id UUID);
+INSERT INTO _avoir_origine SELECT pg_temp.create_brouillon();
+UPDATE factures SET statut = 'emise'
+WHERE id = (SELECT facture_id FROM _avoir_origine);
+
+-- Brouillon qui deviendra l avoir
 CREATE TEMP TABLE _avoir (facture_id UUID);
-INSERT INTO _avoir (facture_id)
-SELECT pg_temp.create_brouillon();
+INSERT INTO _avoir SELECT pg_temp.create_brouillon();
 
-UPDATE factures SET statut = 'avoir', est_avoir = true
+UPDATE factures SET
+  statut = 'avoir',
+  est_avoir = true,
+  avoir_motif = 'Test gapless avoir',
+  facture_origine_id = (SELECT facture_id FROM _avoir_origine)
 WHERE id = (SELECT facture_id FROM _avoir);
 
 SELECT isnt(

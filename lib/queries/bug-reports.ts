@@ -16,9 +16,9 @@ export async function getBugReports(filter: BugFilter = 'open') {
     .limit(200);
 
   if (filter === 'open') {
-    query = query.in('status', OPEN_STATUSES as unknown as string[]);
+    query = query.in('status', [...OPEN_STATUSES]);
   } else if (filter === 'closed') {
-    query = query.in('status', CLOSED_STATUSES as unknown as string[]);
+    query = query.in('status', [...CLOSED_STATUSES]);
   }
 
   const { data, error } = await query;
@@ -43,12 +43,12 @@ export async function getBugReportCounts(): Promise<{
       .from('bug_reports')
       .select('id', { count: 'exact', head: true })
       .eq('archive', false)
-      .in('status', OPEN_STATUSES as unknown as string[]),
+      .in('status', [...OPEN_STATUSES]),
     supabase
       .from('bug_reports')
       .select('id', { count: 'exact', head: true })
       .eq('archive', false)
-      .in('status', CLOSED_STATUSES as unknown as string[]),
+      .in('status', [...CLOSED_STATUSES]),
     supabase
       .from('bug_reports')
       .select('id', { count: 'exact', head: true })

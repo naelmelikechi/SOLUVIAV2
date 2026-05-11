@@ -24,14 +24,14 @@ const STATUS_VARIANT: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   nouveau: 'Nouveau',
   en_cours: 'En cours',
-  resolu: 'Resolu',
+  resolu: 'Résolu',
   wontfix: 'Wontfix',
 };
 
 const SEVERITY_LABEL: Record<string, string> = {
   low: 'Faible',
   medium: 'Moyenne',
-  high: 'Elevee',
+  high: 'Élevée',
   critical: 'Critique',
 };
 
@@ -69,7 +69,7 @@ export function BugsTable({ reports }: { reports: BugReportRow[] }) {
     },
     {
       accessorKey: 'ai_severity',
-      header: 'Severite IA',
+      header: 'Sévérité IA',
       cell: ({ row }) => {
         const sev = row.original.ai_severity;
         if (!sev)
@@ -83,7 +83,7 @@ export function BugsTable({ reports }: { reports: BugReportRow[] }) {
     },
     {
       accessorKey: 'ai_category',
-      header: 'Categorie',
+      header: 'Catégorie',
       cell: ({ row }) => (
         <span className="text-xs capitalize">
           {row.original.ai_category ?? '-'}
@@ -92,7 +92,7 @@ export function BugsTable({ reports }: { reports: BugReportRow[] }) {
     },
     {
       accessorKey: 'ai_summary',
-      header: 'Resume',
+      header: 'Résumé',
       cell: ({ row }) => (
         <span className="line-clamp-2 max-w-md text-xs">
           {row.original.ai_summary ?? row.original.comment.slice(0, 100)}

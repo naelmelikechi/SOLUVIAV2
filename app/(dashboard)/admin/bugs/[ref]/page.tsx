@@ -23,18 +23,25 @@ export default async function BugDetailPage({
   const bug = await getBugReportByRef(ref);
   if (!bug) notFound();
 
-  let screenshotUrl: string | null = null;
-  if (bug.screenshot_path) {
+  async function sign(path: string | null | undefined): Promise<string | null> {
+    if (!path) return null;
     try {
       const admin = createAdminClient();
       const signed = await admin.storage
         .from('bug-screenshots')
-        .createSignedUrl(bug.screenshot_path, 3600);
-      screenshotUrl = signed.data?.signedUrl ?? null;
+        .createSignedUrl(path, 3600);
+      return signed.data?.signedUrl ?? null;
     } catch {
-      screenshotUrl = null;
+      return null;
     }
   }
+
+  // Auto vient des nouveaux reports ; fallback sur screenshot_path
+  // (retro-compat lignes pre-migration). Extra est independant.
+  const [autoScreenshotUrl, extraScreenshotUrl] = await Promise.all([
+    sign(bug.auto_screenshot_path),
+    sign(bug.extra_screenshot_path ?? bug.screenshot_path),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -47,12 +54,16 @@ export default async function BugDetailPage({
         <div>
           <h1 className="font-mono text-lg">{bug.ref}</h1>
           <p className="text-muted-foreground text-xs">
-            Signale le {new Date(bug.created_at).toLocaleString('fr-FR')} par{' '}
+            Signalé le {new Date(bug.created_at).toLocaleString('fr-FR')} par{' '}
             {bug.user_email}
           </p>
         </div>
       </div>
-      <BugDetail bug={bug} screenshotUrl={screenshotUrl} />
+      <BugDetail
+        bug={bug}
+        autoScreenshotUrl={autoScreenshotUrl}
+        extraScreenshotUrl={extraScreenshotUrl}
+      />
     </div>
   );
 }

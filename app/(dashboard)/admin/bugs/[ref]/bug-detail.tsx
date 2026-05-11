@@ -20,14 +20,14 @@ const SEVERITY_VARIANT: Record<string, string> = {
 const SEVERITY_LABEL: Record<string, string> = {
   low: 'Faible',
   medium: 'Moyenne',
-  high: 'Elevee',
+  high: 'Élevée',
   critical: 'Critique',
 };
 
 const STATUS_OPTIONS = [
   { value: 'nouveau', label: 'Nouveau' },
   { value: 'en_cours', label: 'En cours' },
-  { value: 'resolu', label: 'Resolu' },
+  { value: 'resolu', label: 'Résolu' },
   { value: 'wontfix', label: 'Wontfix' },
 ] as const;
 
@@ -35,10 +35,15 @@ type Status = (typeof STATUS_OPTIONS)[number]['value'];
 
 interface BugDetailProps {
   bug: BugReportRow;
-  screenshotUrl: string | null;
+  autoScreenshotUrl: string | null;
+  extraScreenshotUrl: string | null;
 }
 
-export function BugDetail({ bug, screenshotUrl }: BugDetailProps) {
+export function BugDetail({
+  bug,
+  autoScreenshotUrl,
+  extraScreenshotUrl,
+}: BugDetailProps) {
   const [status, setStatus] = useState<Status>(bug.status as Status);
   const [resolutionNotes, setResolutionNotes] = useState(
     bug.resolution_notes ?? '',
@@ -67,9 +72,9 @@ export function BugDetail({ bug, screenshotUrl }: BugDetailProps) {
         resolutionNotes: resolutionNotes.trim() || null,
       });
       if (res.success) {
-        toast.success('Bug mis a jour');
+        toast.success('Bug mis à jour');
       } else {
-        toast.error(res.error ?? 'Erreur lors de la mise a jour');
+        toast.error(res.error ?? 'Erreur lors de la mise à jour');
       }
     });
   };
@@ -98,7 +103,7 @@ export function BugDetail({ bug, screenshotUrl }: BugDetailProps) {
             {hypotheses.length > 0 && (
               <>
                 <p className="text-muted-foreground mt-4 mb-1 text-xs font-semibold tracking-wide uppercase">
-                  Hypotheses
+                  Hypothèses
                 </p>
                 <ul className="list-disc space-y-1 pl-5 text-sm">
                   {hypotheses.map((h, i) => (
@@ -113,7 +118,7 @@ export function BugDetail({ bug, screenshotUrl }: BugDetailProps) {
         {bug.ai_status === 'failed' && bug.ai_error && (
           <Card className="border-destructive/50 bg-destructive/5 p-4">
             <p className="text-destructive text-xs font-semibold tracking-wide uppercase">
-              Analyse IA echouee
+              Analyse IA échouée
             </p>
             <p className="mt-1 text-sm">{bug.ai_error}</p>
           </Card>
@@ -132,7 +137,7 @@ export function BugDetail({ bug, screenshotUrl }: BugDetailProps) {
           <p className="text-sm whitespace-pre-wrap">{bug.comment}</p>
           {bug.perceived_severity && (
             <p className="text-muted-foreground mt-3 text-xs">
-              Severite ressentie:{' '}
+              Sévérité ressentie :{' '}
               <span className="font-medium capitalize">
                 {bug.perceived_severity}
               </span>
@@ -140,16 +145,40 @@ export function BugDetail({ bug, screenshotUrl }: BugDetailProps) {
           )}
         </Card>
 
-        {screenshotUrl && (
+        {autoScreenshotUrl && (
           <Card className="p-4">
             <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
-              Screenshot
+              Capture automatique
             </p>
-            <a href={screenshotUrl} target="_blank" rel="noopener noreferrer">
+            <a
+              href={autoScreenshotUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={screenshotUrl}
-                alt="Screenshot du bug"
+                src={autoScreenshotUrl}
+                alt="Capture automatique de la page"
+                className="border-border max-w-full rounded-md border"
+              />
+            </a>
+          </Card>
+        )}
+
+        {extraScreenshotUrl && (
+          <Card className="p-4">
+            <p className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+              Capture supplémentaire
+            </p>
+            <a
+              href={extraScreenshotUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={extraScreenshotUrl}
+                alt="Capture supplémentaire"
                 className="border-border max-w-full rounded-md border"
               />
             </a>
@@ -217,13 +246,13 @@ export function BugDetail({ bug, screenshotUrl }: BugDetailProps) {
           </div>
           <div className="mt-4">
             <Label htmlFor="resolution-notes" className="text-xs">
-              Notes de resolution
+              Notes de résolution
             </Label>
             <Textarea
               id="resolution-notes"
               value={resolutionNotes}
               onChange={(e) => setResolutionNotes(e.target.value)}
-              placeholder="Ce qui a ete fait, le commit/PR, ce qui reste..."
+              placeholder="Ce qui a été fait, le commit/PR, ce qui reste..."
               className="mt-1.5 min-h-24"
               maxLength={2000}
             />

@@ -220,10 +220,12 @@ export type Database = {
           ai_status: string;
           ai_summary: string | null;
           archive: boolean;
+          auto_screenshot_path: string | null;
           comment: string;
           console_errors: Json | null;
           created_at: string;
           extra_context: Json | null;
+          extra_screenshot_path: string | null;
           id: string;
           page_url: string;
           perceived_severity: string | null;
@@ -250,10 +252,12 @@ export type Database = {
           ai_status?: string;
           ai_summary?: string | null;
           archive?: boolean;
+          auto_screenshot_path?: string | null;
           comment: string;
           console_errors?: Json | null;
           created_at?: string;
           extra_context?: Json | null;
+          extra_screenshot_path?: string | null;
           id?: string;
           page_url: string;
           perceived_severity?: string | null;
@@ -280,10 +284,12 @@ export type Database = {
           ai_status?: string;
           ai_summary?: string | null;
           archive?: boolean;
+          auto_screenshot_path?: string | null;
           comment?: string;
           console_errors?: Json | null;
           created_at?: string;
           extra_context?: Json | null;
+          extra_screenshot_path?: string | null;
           id?: string;
           page_url?: string;
           perceived_severity?: string | null;

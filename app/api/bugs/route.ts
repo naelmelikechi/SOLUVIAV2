@@ -50,6 +50,50 @@ function getAppUrl(): string {
   return 'http://localhost:3000';
 }
 
+function validateScreenshot(file: unknown): NextResponse | null {
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (file.size > MAX_SCREENSHOT_BYTES) {
+    return NextResponse.json(
+      { error: 'Screenshot trop volumineux (max 5 Mo)' },
+      { status: 400 },
+    );
+  }
+  if (!ALLOWED_MIME.has(file.type)) {
+    return NextResponse.json(
+      { error: 'Format de screenshot non supporté' },
+      { status: 400 },
+    );
+  }
+  return null;
+}
+
+async function uploadScreenshot(
+  admin: ReturnType<typeof createAdminClient>,
+  file: File,
+  userId: string,
+  bugId: string,
+  kind: 'auto' | 'extra',
+): Promise<string | null> {
+  const ext =
+    file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
+  const path = `${userId}/${bugId}-${kind}.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { error } = await admin.storage
+    .from('bug-screenshots')
+    .upload(path, buffer, {
+      contentType: file.type,
+      upsert: true,
+    });
+  if (error) {
+    logger.warn('bug-report', `Upload ${kind} screenshot échoué`, {
+      bugId,
+      error,
+    });
+    return null;
+  }
+  return path;
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -60,7 +104,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Charge le role + email (snapshot pour le report)
   const { data: userRow } = await supabase
     .from('users')
     .select('email, role')
@@ -71,19 +114,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'User not found' }, { status: 403 });
   }
 
-  // Rate limit: 5 reports / heure / user
   const rl = await checkRateLimit('bug-report', authUser.id, {
     limit: 5,
     windowSeconds: 3600,
   });
   if (rl.limited) {
     return NextResponse.json(
-      { error: 'Trop de signalements, reessayez plus tard.' },
+      { error: 'Trop de signalements, réessayez plus tard.' },
       { status: 429, headers: { 'Retry-After': String(rl.retryAfter ?? 60) } },
     );
   }
 
-  // Parse multipart
   let formData: FormData;
   try {
     formData = await request.formData();
@@ -105,23 +146,12 @@ export async function POST(request: Request) {
     );
   }
 
-  // Screenshot optionnel
-  const screenshot = formData.get('screenshot');
-  let screenshotPath: string | null = null;
-  if (screenshot instanceof File && screenshot.size > 0) {
-    if (screenshot.size > MAX_SCREENSHOT_BYTES) {
-      return NextResponse.json(
-        { error: 'Screenshot trop volumineux (max 5 Mo)' },
-        { status: 400 },
-      );
-    }
-    if (!ALLOWED_MIME.has(screenshot.type)) {
-      return NextResponse.json(
-        { error: 'Format de screenshot non supporte' },
-        { status: 400 },
-      );
-    }
-  }
+  const autoFile = formData.get('auto_screenshot');
+  const extraFile = formData.get('extra_screenshot');
+  const autoErr = validateScreenshot(autoFile);
+  if (autoErr) return autoErr;
+  const extraErr = validateScreenshot(extraFile);
+  if (extraErr) return extraErr;
 
   if (!env.SUPABASE_SERVICE_ROLE_KEY) {
     logger.error('bug-report', 'SUPABASE_SERVICE_ROLE_KEY manquant');
@@ -133,7 +163,6 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // Insert d'abord pour avoir l'id, puis upload screenshot avec path = {user_id}/{bug_id}
   const { data: inserted, error: insertError } = await admin
     .from('bug_reports')
     .insert({
@@ -153,42 +182,36 @@ export async function POST(request: Request) {
     .single();
 
   if (insertError || !inserted) {
-    logger.error('bug-report', 'Insert echoue', { error: insertError });
+    logger.error('bug-report', 'Insert échoué', { error: insertError });
     return NextResponse.json(
-      { error: 'Echec creation du report' },
+      { error: 'Échec création du report' },
       { status: 500 },
     );
   }
 
-  // Upload screenshot (apres insert: on a l'id)
-  if (screenshot instanceof File && screenshot.size > 0) {
-    const ext =
-      screenshot.type.split('/')[1] === 'jpeg'
-        ? 'jpg'
-        : screenshot.type.split('/')[1];
-    const path = `${authUser.id}/${inserted.id}.${ext}`;
-    const buffer = Buffer.from(await screenshot.arrayBuffer());
-    const { error: uploadError } = await admin.storage
-      .from('bug-screenshots')
-      .upload(path, buffer, {
-        contentType: screenshot.type,
-        upsert: true,
-      });
-    if (uploadError) {
-      logger.warn('bug-report', 'Upload screenshot echoue', {
-        bugId: inserted.id,
-        error: uploadError,
-      });
-    } else {
-      screenshotPath = path;
-      await admin
-        .from('bug_reports')
-        .update({ screenshot_path: screenshotPath })
-        .eq('id', inserted.id);
-    }
+  // Upload des screenshots en parallèle
+  const [autoPath, extraPath] = await Promise.all([
+    autoFile instanceof File && autoFile.size > 0
+      ? uploadScreenshot(admin, autoFile, authUser.id, inserted.id, 'auto')
+      : Promise.resolve(null),
+    extraFile instanceof File && extraFile.size > 0
+      ? uploadScreenshot(admin, extraFile, authUser.id, inserted.id, 'extra')
+      : Promise.resolve(null),
+  ]);
+
+  if (autoPath || extraPath) {
+    await admin
+      .from('bug_reports')
+      .update({
+        auto_screenshot_path: autoPath,
+        extra_screenshot_path: extraPath,
+        // screenshot_path conserve la "premiere" image dispo pour
+        // retro-compat des lignes existantes / templates email.
+        screenshot_path: autoPath ?? extraPath,
+      })
+      .eq('id', inserted.id);
   }
 
-  // Process asynchrone (IA + email) - la reponse 200 part avant
   waitUntil(
     processBugReport({
       bugId: inserted.id,
@@ -196,9 +219,10 @@ export async function POST(request: Request) {
       payload,
       userEmail: userRow.email ?? authUser.email ?? 'unknown',
       userRole: userRow.role ?? 'unknown',
-      screenshotPath,
+      autoScreenshotPath: autoPath,
+      extraScreenshotPath: extraPath,
     }).catch((err) => {
-      logger.error('bug-report', 'processBugReport echec', {
+      logger.error('bug-report', 'processBugReport échec', {
         bugId: inserted.id,
         error: err,
       });
@@ -214,28 +238,35 @@ interface ProcessParams {
   payload: Payload;
   userEmail: string;
   userRole: string;
-  screenshotPath: string | null;
+  autoScreenshotPath: string | null;
+  extraScreenshotPath: string | null;
+}
+
+async function signFor(
+  admin: ReturnType<typeof createAdminClient>,
+  path: string | null,
+  ttlSeconds: number,
+): Promise<string | null> {
+  if (!path) return null;
+  const signed = await admin.storage
+    .from('bug-screenshots')
+    .createSignedUrl(path, ttlSeconds);
+  return signed.data?.signedUrl ?? null;
 }
 
 async function processBugReport(p: ProcessParams) {
   const admin = createAdminClient();
 
-  // Signed URL pour l'IA (1h) si screenshot present
-  let aiScreenshotUrl: string | null = null;
-  let emailScreenshotUrl: string | null = null;
-  if (p.screenshotPath) {
-    const aiSigned = await admin.storage
-      .from('bug-screenshots')
-      .createSignedUrl(p.screenshotPath, 3600);
-    aiScreenshotUrl = aiSigned.data?.signedUrl ?? null;
+  // L'IA recoit en priorite l'auto-capture (montre la page reelle) ; si
+  // absente, fallback sur l'extra. Pas besoin d'envoyer les deux a l'IA.
+  const aiScreenshotPath = p.autoScreenshotPath ?? p.extraScreenshotPath;
+  const aiScreenshotUrl = await signFor(admin, aiScreenshotPath, 3600);
 
-    const emailSigned = await admin.storage
-      .from('bug-screenshots')
-      .createSignedUrl(p.screenshotPath, 7 * 24 * 3600);
-    emailScreenshotUrl = emailSigned.data?.signedUrl ?? null;
-  }
+  const [autoEmailUrl, extraEmailUrl] = await Promise.all([
+    signFor(admin, p.autoScreenshotPath, 7 * 24 * 3600),
+    signFor(admin, p.extraScreenshotPath, 7 * 24 * 3600),
+  ]);
 
-  // IA
   let triage = null as Awaited<ReturnType<typeof triageBugReport>> | null;
   let aiError: string | null = null;
   let aiStatus: 'done' | 'failed' | 'skipped' = 'skipped';
@@ -256,14 +287,13 @@ async function processBugReport(p: ProcessParams) {
     } catch (err) {
       aiError = err instanceof Error ? err.message : String(err);
       aiStatus = 'failed';
-      logger.warn('bug-report', 'Triage IA echec', {
+      logger.warn('bug-report', 'Triage IA échec', {
         bugId: p.bugId,
         error: aiError,
       });
     }
   }
 
-  // Update DB avec resultat IA
   await admin
     .from('bug_reports')
     .update({
@@ -277,7 +307,6 @@ async function processBugReport(p: ProcessParams) {
     })
     .eq('id', p.bugId);
 
-  // Email admin
   const adminEmail = env.ADMIN_BUG_REPORT_EMAIL ?? 'naelmelikechi7@gmail.com';
   const appUrl = getAppUrl();
   const dashboardUrl = `${appUrl}/admin/bugs/${p.ref}`;
@@ -293,7 +322,8 @@ async function processBugReport(p: ProcessParams) {
     viewport: p.payload.viewport,
     consoleErrors: p.payload.consoleErrors,
     sentryEventId: p.payload.sentryEventId,
-    screenshotSignedUrl: emailScreenshotUrl,
+    autoScreenshotUrl: autoEmailUrl,
+    extraScreenshotUrl: extraEmailUrl,
     triage,
     aiError,
     dashboardUrl,

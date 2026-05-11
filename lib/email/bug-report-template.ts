@@ -38,7 +38,8 @@ export interface BugReportEmailParams {
   viewport: { width?: number; height?: number; dpr?: number } | null;
   consoleErrors: unknown;
   sentryEventId: string | null;
-  screenshotSignedUrl: string | null;
+  autoScreenshotUrl: string | null;
+  extraScreenshotUrl: string | null;
   triage: Triage | null;
   aiError: string | null;
   dashboardUrl: string;
@@ -118,22 +119,29 @@ export function buildBugReportEmailHtml(params: BugReportEmailParams): string {
     triageBlock = `
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background-color:#fef2f2;border:1px solid #fecaca;border-radius:6px;">
         <tr><td style="padding:12px 20px;">
-          <p style="margin:0;font-size:13px;color:#991b1b;"><strong>Analyse IA echouee:</strong> ${escapeHtml(params.aiError)}</p>
+          <p style="margin:0;font-size:13px;color:#991b1b;"><strong>Analyse IA échouée :</strong> ${escapeHtml(params.aiError)}</p>
         </td></tr>
       </table>`;
   }
 
-  const screenshotBlock = params.screenshotSignedUrl
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+  function shotBlock(url: string | null, label: string): string {
+    if (!url) return '';
+    const safeUrl = escapeHtml(url);
+    const safeLabel = escapeHtml(label);
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
         <tr><td>
-          <p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">Screenshot</p>
-          <a href="${escapeHtml(params.screenshotSignedUrl)}" style="display:inline-block;text-decoration:none;">
-            <img src="${escapeHtml(params.screenshotSignedUrl)}" alt="Screenshot" style="display:block;max-width:100%;border:1px solid #e5e7eb;border-radius:6px;" />
+          <p style="margin:0 0 8px;font-size:12px;font-weight:bold;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">${safeLabel}</p>
+          <a href="${safeUrl}" style="display:inline-block;text-decoration:none;">
+            <img src="${safeUrl}" alt="${safeLabel}" style="display:block;max-width:100%;border:1px solid #e5e7eb;border-radius:6px;" />
           </a>
-          <p style="margin:6px 0 0;font-size:11px;color:#9ca3af;">Lien valide 7 jours - <a href="${escapeHtml(params.screenshotSignedUrl)}" style="color:#6b7280;">ouvrir en taille reelle</a></p>
+          <p style="margin:6px 0 0;font-size:11px;color:#9ca3af;">Lien valide 7 jours - <a href="${safeUrl}" style="color:#6b7280;">ouvrir en taille réelle</a></p>
         </td></tr>
-      </table>`
-    : '';
+      </table>`;
+  }
+
+  const screenshotBlock =
+    shotBlock(params.autoScreenshotUrl, 'Capture automatique') +
+    shotBlock(params.extraScreenshotUrl, 'Capture supplémentaire');
 
   return `<!DOCTYPE html>
 <html lang="fr">

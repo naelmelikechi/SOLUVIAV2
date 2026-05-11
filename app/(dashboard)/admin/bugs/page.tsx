@@ -17,8 +17,8 @@ export default async function AdminBugsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Bugs signales"
-        description="Rapports envoyes par les utilisateurs avec analyse IA."
+        title="Bugs signalés"
+        description="Rapports envoyés par les utilisateurs avec analyse IA."
       />
       <BugsTable reports={reports} />
     </div>

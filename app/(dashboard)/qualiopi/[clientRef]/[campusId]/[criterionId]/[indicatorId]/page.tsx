@@ -30,8 +30,7 @@ export default async function IndicatorPage({
   }>;
   searchParams: Promise<{ d?: string }>;
 }) {
-  const p = await params;
-  const sp = await searchParams;
+  const [p, sp] = await Promise.all([params, searchParams]);
   const campusId = Number(p.campusId);
   const criterionId = Number(p.criterionId);
   const indicatorId = Number(p.indicatorId);

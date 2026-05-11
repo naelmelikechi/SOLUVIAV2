@@ -24,8 +24,8 @@ export default async function QualiopiCampusPage({
   params,
   searchParams,
 }: PageProps) {
-  const { clientRef, campusId: campusIdStr } = await params;
-  const { filter = 'all' } = await searchParams;
+  const [{ clientRef, campusId: campusIdStr }, { filter = 'all' }] =
+    await Promise.all([params, searchParams]);
   const campusId = Number(campusIdStr);
   if (Number.isNaN(campusId)) notFound();
 

@@ -62,22 +62,34 @@ export async function GET(request: Request) {
       );
     }
 
-    // 3. Create notifications (idempotent: skip if one already exists for that facture)
+    // 3. Create notifications (idempotent: skip if one already exists).
+    //    Avant : N+1 query (1 SELECT count par facture). Maintenant : 1 SELECT
+    //    pre-fetch toutes les notifs facture_retard existantes pour les liens
+    //    concernes, puis lookup dans un Set.
     let notificationsCreated = 0;
+
+    const candidateLinks = overdueFactures
+      .map((f) => (f.ref ? `/facturation/${f.ref}` : null))
+      .filter((l): l is string => l !== null);
+
+    const existingLinks = new Set<string>();
+    if (candidateLinks.length > 0) {
+      const { data: existingNotifs } = await supabase
+        .from('notifications')
+        .select('lien')
+        .eq('type', 'facture_retard')
+        .in('lien', candidateLinks);
+      for (const n of existingNotifs ?? []) {
+        if (n.lien) existingLinks.add(n.lien);
+      }
+    }
 
     for (const facture of overdueFactures) {
       const cdpId = facture.projet?.cdp_id;
       if (!cdpId || !facture.ref) continue;
 
-      // Check if notification already exists for this facture (idempotent)
-      const { count: existingCount } = await supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', cdpId)
-        .eq('type', 'facture_retard')
-        .eq('lien', `/facturation/${facture.ref}`);
-
-      if (existingCount && existingCount > 0) continue;
+      const lien = `/facturation/${facture.ref}`;
+      if (existingLinks.has(lien)) continue;
 
       const { error: notifError } = await supabase
         .from('notifications')
@@ -86,7 +98,7 @@ export async function GET(request: Request) {
           user_id: cdpId,
           titre: 'Facture en retard',
           message: `La facture ${facture.ref} est en retard de paiement depuis le ${facture.date_echeance}`,
-          lien: `/facturation/${facture.ref}`,
+          lien,
         });
 
       if (!notifError) {

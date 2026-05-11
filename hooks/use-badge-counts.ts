@@ -6,6 +6,7 @@ import {
   currentMondayLocalISO,
   currentFridayLocalISO,
 } from '@/lib/utils/dates';
+import { logger } from '@/lib/utils/logger';
 
 export interface BadgeCounts {
   facturesEnRetard: number;
@@ -156,46 +157,61 @@ export function useBadgeCounts(): BadgeCounts {
   const mountedRef = useRef(true);
   const channelIdRef = useRef(`sidebar-badges-${++channelCounter}`);
 
-  // Targeted updaters - only re-fetch the count that changed
+  // Targeted updaters - only re-fetch the count that changed.
+  // Les .catch() evitent les unhandled promise rejections si le client
+  // Supabase rejette (panne reseau). Le badge garde son ancienne valeur,
+  // pas de crash UI.
   const refreshAll = useCallback(() => {
-    fetchAllBadgeCounts().then((next) => {
-      if (mountedRef.current) setCounts(next);
-    });
+    fetchAllBadgeCounts()
+      .then((next) => {
+        if (mountedRef.current) setCounts(next);
+      })
+      .catch((err) => logger.warn('badge-counts', err));
   }, []);
 
   const refreshFactures = useCallback(() => {
-    fetchFacturesCount().then((v) => {
-      if (mountedRef.current)
-        setCounts((prev) => ({ ...prev, facturesEnRetard: v }));
-    });
+    fetchFacturesCount()
+      .then((v) => {
+        if (mountedRef.current)
+          setCounts((prev) => ({ ...prev, facturesEnRetard: v }));
+      })
+      .catch((err) => logger.warn('badge-counts.factures', err));
   }, []);
 
   const refreshNotifications = useCallback(() => {
-    fetchNotificationsCount().then((v) => {
-      if (mountedRef.current)
-        setCounts((prev) => ({ ...prev, notifications: v }));
-    });
+    fetchNotificationsCount()
+      .then((v) => {
+        if (mountedRef.current)
+          setCounts((prev) => ({ ...prev, notifications: v }));
+      })
+      .catch((err) => logger.warn('badge-counts.notifications', err));
   }, []);
 
   const refreshTemps = useCallback(() => {
-    fetchTempsCount().then((v) => {
-      if (mountedRef.current)
-        setCounts((prev) => ({ ...prev, tempsNonSaisi: v }));
-    });
+    fetchTempsCount()
+      .then((v) => {
+        if (mountedRef.current)
+          setCounts((prev) => ({ ...prev, tempsNonSaisi: v }));
+      })
+      .catch((err) => logger.warn('badge-counts.temps', err));
   }, []);
 
   const refreshIntercontrat = useCallback(() => {
-    fetchIntercontratCount().then((v) => {
-      if (mountedRef.current)
-        setCounts((prev) => ({ ...prev, intercontrat: v }));
-    });
+    fetchIntercontratCount()
+      .then((v) => {
+        if (mountedRef.current)
+          setCounts((prev) => ({ ...prev, intercontrat: v }));
+      })
+      .catch((err) => logger.warn('badge-counts.intercontrat', err));
   }, []);
 
   const refreshBugs = useCallback(() => {
-    fetchBugsCount().then((v) => {
-      if (mountedRef.current)
-        setCounts((prev) => ({ ...prev, bugsNouveaux: v }));
-    });
+    fetchBugsCount()
+      .then((v) => {
+        if (mountedRef.current)
+          setCounts((prev) => ({ ...prev, bugsNouveaux: v }));
+      })
+      .catch((err) => logger.warn('badge-counts.bugs', err));
   }, []);
 
   useEffect(() => {

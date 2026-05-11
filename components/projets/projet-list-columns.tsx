@@ -1,6 +1,6 @@
 'use client';
 
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, FilterFn, Row } from '@tanstack/react-table';
 import Link from 'next/link';
 import type { ProjetListEnriched } from '@/lib/queries/projets';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
@@ -11,6 +11,17 @@ import {
   STATUT_PROJET_LABELS,
   STATUT_PROJET_COLORS,
 } from '@/lib/utils/constants';
+import { matchesSearch } from '@/lib/utils/search';
+
+const textFilterFn: FilterFn<ProjetListEnriched> = (
+  row: Row<ProjetListEnriched>,
+  columnId: string,
+  filterValue: string,
+) => {
+  const cell = row.getValue(columnId);
+  if (cell == null) return false;
+  return matchesSearch(String(cell), filterValue);
+};
 
 export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   {
@@ -23,9 +34,13 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     id: 'client',
-    accessorFn: (row) => row.client?.raison_sociale,
+    accessorFn: (row) => row.client?.raison_sociale ?? '',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Client" />
+      <DataTableColumnHeader
+        column={column}
+        title="Client"
+        filterVariant="text"
+      />
     ),
     cell: ({ row }) => {
       const client = row.original.client;
@@ -41,12 +56,14 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
         </Link>
       );
     },
+    enableColumnFilter: true,
+    filterFn: textFilterFn,
   },
   {
     id: 'cdp',
-    accessorFn: (row) => row.cdp?.prenom,
+    accessorFn: (row) => (row.cdp ? `${row.cdp.prenom} ${row.cdp.nom}` : ''),
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="CDP" />
+      <DataTableColumnHeader column={column} title="CDP" filterVariant="text" />
     ),
     cell: ({ row }) => {
       const cdp = row.original.cdp;
@@ -62,6 +79,8 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
         </Link>
       );
     },
+    enableColumnFilter: true,
+    filterFn: textFilterFn,
   },
   {
     accessorKey: 'statut',
@@ -82,14 +101,19 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     id: 'typologie',
-    accessorFn: (row) => row.typologie?.code,
+    accessorFn: (row) => row.typologie?.code ?? '',
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Typologie" />
+      <DataTableColumnHeader
+        column={column}
+        title="Typologie"
+        filterVariant="text"
+      />
     ),
     cell: ({ row }) => (
       <span className="text-sm">{row.original.typologie?.libelle}</span>
     ),
-    filterFn: (row, id, value) => value.includes(row.getValue(id)),
+    enableColumnFilter: true,
+    filterFn: textFilterFn,
   },
   {
     accessorKey: 'taux_commission',

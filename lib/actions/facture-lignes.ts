@@ -61,15 +61,16 @@ const RemoveLigneSchema = uuidSchema('ligneId');
 
 async function recomputeFactureTotaux(factureId: string): Promise<void> {
   const supabase = await createClient();
-  const { data: lignes } = await supabase
-    .from('facture_lignes')
-    .select('montant_ht')
-    .eq('facture_id', factureId);
-  const { data: facture } = await supabase
-    .from('factures')
-    .select('taux_tva')
-    .eq('id', factureId)
-    .single();
+  // lignes + facture en parallele : independants.
+  const [lignesRes, factureRes] = await Promise.all([
+    supabase
+      .from('facture_lignes')
+      .select('montant_ht')
+      .eq('facture_id', factureId),
+    supabase.from('factures').select('taux_tva').eq('id', factureId).single(),
+  ]);
+  const lignes = lignesRes.data;
+  const facture = factureRes.data;
 
   const totalHt =
     Math.round(
@@ -79,7 +80,7 @@ async function recomputeFactureTotaux(factureId: string): Promise<void> {
   const montantTva = Math.round(totalHt * tauxTva) / 100;
   const montantTtc = Math.round((totalHt + montantTva) * 100) / 100;
 
-  await supabase
+  const { error: updateError } = await supabase
     .from('factures')
     .update({
       montant_ht: totalHt,
@@ -87,6 +88,14 @@ async function recomputeFactureTotaux(factureId: string): Promise<void> {
       montant_ttc: montantTtc,
     })
     .eq('id', factureId);
+  if (updateError) {
+    // Etat incoherent : les lignes ont change mais le total facture est
+    // stale. L user verra le mauvais montant. On loggue pour detection.
+    logger.warn('actions.facture-lignes', 'recompute totaux failed', {
+      factureId,
+      error: updateError,
+    });
+  }
 }
 
 async function assertBrouillon(factureId: string): Promise<{

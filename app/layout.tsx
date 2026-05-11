@@ -41,9 +41,6 @@ export const metadata: Metadata = {
     description:
       'Plateforme de pilotage stratégique pour organismes de formation',
   },
-  icons: {
-    icon: '/favicon.ico',
-  },
 };
 
 export default function RootLayout({

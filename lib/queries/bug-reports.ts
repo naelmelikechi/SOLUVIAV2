@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/utils/logger';
 
 export type BugFilter = 'open' | 'closed' | 'all';
 
@@ -21,7 +22,13 @@ export async function getBugReports(filter: BugFilter = 'open') {
   }
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    logger.error('queries.bug-reports', 'getBugReports failed', {
+      filter,
+      error,
+    });
+    throw error;
+  }
   return data ?? [];
 }
 

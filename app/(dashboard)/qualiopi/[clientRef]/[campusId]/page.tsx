@@ -238,11 +238,16 @@ export default async function QualiopiCampusPage({
   );
 }
 
+// timeZone explicite : sans cela les workers Vercel (UTC) affichent une
+// date decalee d un jour pour les ISO proches de minuit (ex 2026-05-11T22:00Z
+// rendu "11 mai" cote UTC, "12 mai" cote Paris -> mismatch).
+const DATE_FMT_FR = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: 'Europe/Paris',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
 function formatDateFr(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  return DATE_FMT_FR.format(new Date(iso));
 }

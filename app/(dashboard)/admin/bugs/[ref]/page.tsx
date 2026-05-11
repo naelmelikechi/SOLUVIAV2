@@ -50,6 +50,15 @@ export default async function BugDetailPage({
     sign(bug.extra_screenshot_path),
   ]);
 
+  // Server Component : toLocaleString sans timeZone afficherait l UTC sur
+  // Vercel (workers en UTC). On force Europe/Paris pour rester coherent
+  // avec la liste qui utilise Intl.DateTimeFormat({ timeZone }).
+  const reportedAt = new Intl.DateTimeFormat('fr-FR', {
+    timeZone: 'Europe/Paris',
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(bug.created_at));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -61,8 +70,7 @@ export default async function BugDetailPage({
         <div>
           <h1 className="font-mono text-lg">{bug.ref}</h1>
           <p className="text-muted-foreground text-xs">
-            Signalé le {new Date(bug.created_at).toLocaleString('fr-FR')} par{' '}
-            {bug.user_email}
+            Signalé le {reportedAt} par {bug.user_email}
           </p>
         </div>
       </div>

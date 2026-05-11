@@ -33,29 +33,23 @@ export interface TriageInput {
   screenshotUrl: string | null;
 }
 
-const SYSTEM_PROMPT = `Tu es l'assistant de triage des bugs de SOLUVIA, une application
-de gestion pour organismes de formation francais (CRM, facturation, suivi
-qualite, time tracking, projets de formation, factures vers Odoo,
-synchronisation Eduvia). Les utilisateurs sont des admins ou des chefs de
-projet (CDP). Stack : Next.js 16 + Supabase + TailwindCSS.
-
-A partir du rapport d'un utilisateur, produis un triage structure:
-- severity: severite reelle du bug en partant du commentaire, du screenshot
-  et de la severite ressentie par l'utilisateur. "critical" si bloquant
-  pour tous les users ou perte de donnees; "high" si bloquant pour un
-  user; "medium" si genant mais contournable; "low" si cosmetique.
-- category: categorie principale (ui, data, auth, perf, email, pdf,
-  navigation, permissions, autre).
-- summary: 1-2 phrases qui resument le bug pour un developpeur, en
-  francais, sans em-dash.
-- hypotheses: 1 a 5 hypotheses techniques de cause probable, classees
-  par probabilite. Concis, en francais, en pointant le code/feature
-  suspect quand possible.`;
+// Prompt court pour minimiser le cout token. Le contexte produit est
+// suffisant pour gpt-4o-mini ; pas besoin de detailler la stack ou les
+// regles metier.
+const SYSTEM_PROMPT = `Tu tries les bugs d'une app SaaS francaise (Next.js + Supabase) pour organismes de formation.
+Severite: critical (perte donnees / bloquant tous), high (bloquant 1 user), medium (genant contournable), low (cosmetique).
+Categorie: ui, data, auth, perf, email, pdf, navigation, permissions, autre.
+Summary: 1-2 phrases en francais sans em-dash.
+Hypotheses: 1 a 5 causes techniques probables, concises, classees par probabilite.`;
 
 /**
  * Analyse un bug report (commentaire + screenshot + contexte) et retourne
  * un triage structure. Lance si OPENAI_API_KEY absent ou si l'appel echoue.
- * L'appelant gere les erreurs et marque ai_status = 'failed' / 'skipped'.
+ *
+ * Optimisation tokens : on envoie l'image en `detail: low` (OpenAI la
+ * redimensionne a 512x512 et facture forfait ~85 tokens au lieu de
+ * ~1000+ en `high`). Suffisant pour identifier le contexte visuel
+ * d'un bug. Cout : ~$0.0003 / requete.
  */
 export async function triageBugReport(input: TriageInput): Promise<Triage> {
   if (!env.OPENAI_API_KEY) {
@@ -64,29 +58,42 @@ export async function triageBugReport(input: TriageInput): Promise<Triage> {
 
   const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
 
+  // Console errors : on tronque agressivement pour ne pas exploser les
+  // tokens si l'app a un boucle qui spam des erreurs.
   const consoleErrorsStr =
     input.consoleErrors && Array.isArray(input.consoleErrors)
-      ? JSON.stringify(input.consoleErrors).slice(0, 2000)
+      ? JSON.stringify(input.consoleErrors).slice(0, 800)
       : 'aucune';
 
+  // Comment tronque a 1500 chars (au-dela : rare, et l'IA n'a pas besoin
+  // de plus pour faire un triage utile).
+  const trimmedComment = input.comment.slice(0, 1500);
+
   const userText = [
-    `Role: ${input.userRole}`,
     `Page: ${input.pageUrl}`,
-    `User-Agent: ${input.userAgent ?? 'inconnu'}`,
-    `Sentry event id: ${input.sentryEventId ?? 'aucun'}`,
     `Severite ressentie: ${input.perceivedSeverity ?? 'non precisee'}`,
-    `Erreurs console recentes: ${consoleErrorsStr}`,
+    `Erreurs console: ${consoleErrorsStr}`,
     '',
-    `Commentaire de l'utilisateur:`,
-    input.comment,
+    `Commentaire utilisateur:`,
+    trimmedComment,
   ].join('\n');
 
-  const userContent: Array<
-    { type: 'text'; text: string } | { type: 'image'; image: URL }
-  > = [{ type: 'text', text: userText }];
+  type ImagePart = {
+    type: 'image';
+    image: URL;
+    providerOptions?: { openai?: { imageDetail?: 'low' | 'high' | 'auto' } };
+  };
+  type TextPart = { type: 'text'; text: string };
+  const userContent: Array<TextPart | ImagePart> = [
+    { type: 'text', text: userText },
+  ];
 
   if (input.screenshotUrl) {
-    userContent.push({ type: 'image', image: new URL(input.screenshotUrl) });
+    userContent.push({
+      type: 'image',
+      image: new URL(input.screenshotUrl),
+      providerOptions: { openai: { imageDetail: 'low' } },
+    });
   }
 
   const { object } = await generateObject({

@@ -35,8 +35,12 @@ import {
   freezeCurrentAvatar,
   attemptUnlockFrozenAvatar,
 } from '@/lib/actions/settings';
-import { isAdmin as checkIsAdmin } from '@/lib/utils/roles';
+import {
+  isAdmin as checkIsAdmin,
+  isSuperAdmin as checkIsSuperAdmin,
+} from '@/lib/utils/roles';
 import { RelaunchTourCard } from '@/components/settings/relaunch-tour-card';
+import { PreviewTourCard } from '@/components/settings/preview-tour-card';
 import {
   canRollRandomToday,
   resolveAvatarSeed,
@@ -436,6 +440,9 @@ export function SettingsPageClient({
       {(user.role === 'cdp' || user.role === 'commercial') && (
         <RelaunchTourCard />
       )}
+
+      {/* ── Preview tour (superadmin uniquement) ── */}
+      {checkIsSuperAdmin(user.role) && <PreviewTourCard />}
 
       {/* ── Preferences ── */}
       <Card>

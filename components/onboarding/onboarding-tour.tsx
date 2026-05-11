@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getTourForRole, type TourStep } from './tour-steps';
 import 'driver.js/dist/driver.css';
 import './onboarding-tour.css';
@@ -14,14 +14,15 @@ interface OnboardingTourProps {
    * au montage.
    */
   completedAt: string | null;
-  /**
-   * Si true, force le declenchement du tour (bouton Refaire la visite).
-   * Le parent doit reset ce flag apres usage.
-   */
-  forceStart?: boolean;
-  /** Callback apres start consomme (reset du forceStart cote parent). */
-  onStartConsumed?: () => void;
 }
+
+/**
+ * Mode preview : un superadmin (ou admin) peut declencher le tour d'un autre
+ * role via le param d'URL `?tour-preview=cdp|commercial`. Pas de POST de
+ * completion a la fin : c est uniquement une simulation.
+ */
+const PREVIEW_PARAM = 'tour-preview';
+const PREVIEW_ROLES = new Set(['cdp', 'commercial']);
 
 /**
  * Attend qu un selecteur soit present dans le DOM. Utilise apres une
@@ -48,26 +49,31 @@ function waitForElement(selector: string, timeoutMs = 2500): Promise<void> {
   });
 }
 
-export function OnboardingTour({
-  role,
-  completedAt,
-  forceStart,
-  onStartConsumed,
-}: OnboardingTourProps) {
+export function OnboardingTour({ role, completedAt }: OnboardingTourProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const pathnameRef = useRef(pathname);
   const startedRef = useRef(false);
+
+  // Mode preview pour superadmin/admin : ?tour-preview=cdp ou commercial
+  const previewRoleRaw = searchParams.get(PREVIEW_PARAM);
+  const previewRole =
+    previewRoleRaw && PREVIEW_ROLES.has(previewRoleRaw) ? previewRoleRaw : null;
+  const isPreview = previewRole !== null;
+  const effectiveRole = previewRole ?? role;
 
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
 
   useEffect(() => {
-    const steps = getTourForRole(role);
+    const steps = getTourForRole(effectiveRole);
     if (!steps) return;
 
-    const shouldStart = forceStart || (!completedAt && !startedRef.current);
+    // En mode preview, on (re)lance a chaque changement de param meme si
+    // le tour vient juste de tourner. Sinon, lance une fois si pas encore fait.
+    const shouldStart = isPreview || (!completedAt && !startedRef.current);
     if (!shouldStart) return;
     startedRef.current = true;
 
@@ -109,8 +115,17 @@ export function OnboardingTour({
           driverObj.destroy();
         },
         onDestroyed: () => {
+          // Mode preview : ne pas marquer comme complete (ce serait set
+          // onboarding_completed_at sur le superadmin testeur). On nettoie
+          // juste le param d URL pour permettre une relance.
+          if (isPreview) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete(PREVIEW_PARAM);
+            router.replace(url.pathname + url.search);
+            startedRef.current = false;
+            return;
+          }
           markComplete();
-          if (onStartConsumed) onStartConsumed();
         },
       });
 
@@ -126,7 +141,7 @@ export function OnboardingTour({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, completedAt, forceStart]);
+  }, [effectiveRole, completedAt, isPreview]);
 
   return null;
 }

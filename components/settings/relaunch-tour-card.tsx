@@ -30,11 +30,11 @@ export function RelaunchTourCard() {
 
     if (!res.ok) {
       toast.error(
-        'Impossible de relancer la visite. Reessaie dans un instant.',
+        'Impossible de relancer la visite. Réessaie dans un instant.',
       );
       return;
     }
-    toast.success('Visite relancee, direction l accueil...');
+    toast.success('Visite relancée, direction l’accueil...');
     router.push('/accueil');
     router.refresh();
   }
@@ -44,10 +44,10 @@ export function RelaunchTourCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Compass className="h-5 w-5" />
-          Visite guidee
+          Visite guidée
         </CardTitle>
         <CardDescription>
-          Revois le tour de decouverte de Soluvia quand tu veux.
+          Revois le tour de découverte de Soluvia quand tu veux.
         </CardDescription>
       </CardHeader>
       <CardContent>

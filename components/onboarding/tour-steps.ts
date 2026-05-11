@@ -22,9 +22,9 @@ export interface TourStep {
 
 const COMMON_OUTRO: TourStep = {
   popover: {
-    title: 'C est tout pour la visite !',
+    title: 'C’est tout pour la visite !',
     description:
-      'Astuce : tape ⌘K (ou Ctrl+K) n importe ou pour naviguer rapidement. Tu peux relancer cette visite depuis Mon compte > Visite guidee.',
+      'Astuce : tape ⌘K (ou Ctrl+K) n’importe où pour naviguer rapidement. Tu peux relancer cette visite depuis Mon compte > Visite guidée.',
   },
 };
 
@@ -34,7 +34,7 @@ export const CDP_TOUR: TourStep[] = [
     popover: {
       title: 'Bienvenue dans Soluvia',
       description:
-        'Voici un rapide tour de ton espace de travail. On va parcourir les modules cles que tu utiliseras au quotidien. Tu peux passer la visite a tout moment.',
+        'Voici un rapide tour de ton espace de travail. On va parcourir les modules clés que tu utiliseras au quotidien. Tu peux passer la visite à tout moment.',
     },
   },
   {
@@ -53,7 +53,7 @@ export const CDP_TOUR: TourStep[] = [
     popover: {
       title: 'Page Projets',
       description:
-        'Filtre par client, statut, CDP. Clique sur une ligne pour ouvrir la fiche complete du projet.',
+        'Filtre par client, statut, CDP. Clique sur une ligne pour ouvrir la fiche complète du projet.',
       side: 'right',
       align: 'start',
     },
@@ -63,7 +63,7 @@ export const CDP_TOUR: TourStep[] = [
     popover: {
       title: 'Saisie des temps',
       description:
-        'Ta feuille de temps hebdomadaire. Auto-save apres 2 secondes, pas besoin de bouton enregistrer.',
+        'Ta feuille de temps hebdomadaire. Auto-save après 2 secondes, pas besoin de bouton enregistrer.',
       side: 'right',
       align: 'start',
     },
@@ -74,7 +74,7 @@ export const CDP_TOUR: TourStep[] = [
     popover: {
       title: 'Page Temps',
       description:
-        'Saisis tes heures par jour et par projet. Tu seras notifie en debut de semaine si une saisie manque.',
+        'Saisis tes heures par jour et par projet. Tu seras notifié en début de semaine si une saisie manque.',
       side: 'right',
       align: 'start',
     },
@@ -84,7 +84,7 @@ export const CDP_TOUR: TourStep[] = [
     popover: {
       title: 'Facturation',
       description:
-        'Emission et suivi des factures. Le badge rouge indique les factures en retard de paiement.',
+        'Émission et suivi des factures. Le badge rouge indique les factures en retard de paiement.',
       side: 'right',
       align: 'start',
     },
@@ -94,7 +94,7 @@ export const CDP_TOUR: TourStep[] = [
     popover: {
       title: 'Signaler un bug',
       description:
-        'Un comportement bizarre ? Ce bouton capture l ecran et envoie le contexte technique aux admins.',
+        'Un comportement bizarre ? Ce bouton capture l’écran et envoie le contexte technique aux admins.',
       side: 'left',
       align: 'end',
     },
@@ -108,7 +108,7 @@ export const COMMERCIAL_TOUR: TourStep[] = [
     popover: {
       title: 'Bienvenue dans Soluvia',
       description:
-        'Voici un rapide tour de ton espace commercial. On va parcourir les modules cles. Tu peux passer la visite a tout moment.',
+        'Voici un rapide tour de ton espace commercial. On va parcourir les modules clés. Tu peux passer la visite à tout moment.',
     },
   },
   {
@@ -116,7 +116,7 @@ export const COMMERCIAL_TOUR: TourStep[] = [
     popover: {
       title: 'Pipeline',
       description:
-        'Tes opportunites commerciales par etape. Glisse-depose pour faire avancer une affaire.',
+        'Tes opportunités commerciales par étape. Glisse-dépose pour faire avancer une affaire.',
       side: 'right',
       align: 'start',
     },
@@ -127,7 +127,7 @@ export const COMMERCIAL_TOUR: TourStep[] = [
     popover: {
       title: 'Page Pipeline',
       description:
-        'Vue kanban de toutes les affaires en cours. Clique sur une carte pour editer le detail.',
+        'Vue kanban de toutes les affaires en cours. Clique sur une carte pour éditer le détail.',
       side: 'right',
       align: 'start',
     },
@@ -137,7 +137,7 @@ export const COMMERCIAL_TOUR: TourStep[] = [
     popover: {
       title: 'Projets',
       description:
-        'Une fois une affaire gagnee, retrouve le projet correspondant ici pour suivre sa production.',
+        'Une fois une affaire gagnée, retrouve le projet correspondant ici pour suivre sa production.',
       side: 'right',
       align: 'start',
     },
@@ -145,9 +145,9 @@ export const COMMERCIAL_TOUR: TourStep[] = [
   {
     element: '[data-tour="/idees"]',
     popover: {
-      title: 'Idees',
+      title: 'Idées',
       description:
-        'Une suggestion d amelioration ? Partage-la ici, l equipe pourra voter et commenter.',
+        'Une suggestion d’amélioration ? Partage-la ici, l’équipe pourra voter et commenter.',
       side: 'right',
       align: 'start',
     },
@@ -157,7 +157,7 @@ export const COMMERCIAL_TOUR: TourStep[] = [
     popover: {
       title: 'Signaler un bug',
       description:
-        'Un comportement bizarre ? Ce bouton capture l ecran et envoie le contexte technique aux admins.',
+        'Un comportement bizarre ? Ce bouton capture l’écran et envoie le contexte technique aux admins.',
       side: 'left',
       align: 'end',
     },

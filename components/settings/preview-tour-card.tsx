@@ -29,12 +29,11 @@ export function PreviewTourCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FlaskConical className="h-5 w-5" />
-          Tester le tour guide
+          Tester le tour guidé
         </CardTitle>
         <CardDescription>
-          Reserve aux superadmin : simule le parcours d&apos;onboarding
-          d&apos;un role pour le verifier. Ton propre etat onboarding n&apos;est
-          pas modifie.
+          Réservé aux superadmin : simule le parcours d’onboarding d’un rôle
+          pour le vérifier. Ton propre état onboarding n’est pas modifié.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">

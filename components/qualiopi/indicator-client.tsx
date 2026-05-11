@@ -34,7 +34,6 @@ interface IndicatorClientProps {
   campusId: number;
   criterionId: number;
   indicatorId: number;
-  indicatorCode: string;
   deliverables: Array<{
     deliverable: QualityDeliverable;
     status: QualityDeliverableStatus | undefined;
@@ -62,7 +61,6 @@ export function IndicatorClient({
   campusId,
   criterionId,
   indicatorId,
-  indicatorCode,
   deliverables,
   selectedDeliverableId,
   selectedEvidences,
@@ -76,8 +74,6 @@ export function IndicatorClient({
     const base = `/qualiopi/${clientRef}/${campusId}/${criterionId}/${indicatorId}`;
     router.push(deliverableId ? `${base}?d=${deliverableId}` : base);
   }
-
-  void indicatorCode;
 
   const selectedDeliverable = deliverables.find(
     (d) => d.deliverable.id === selectedDeliverableId,

@@ -145,7 +145,6 @@ export default async function IndicatorPage({
         campusId={campusId}
         criterionId={criterionId}
         indicatorId={indicator.id}
-        indicatorCode={indicator.code}
         deliverables={deliverablesWithStatus}
         selectedDeliverableId={selectedDeliverable?.id ?? null}
         selectedEvidences={selectedEvidences}

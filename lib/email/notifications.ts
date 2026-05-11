@@ -1,8 +1,11 @@
 import { sendEmail } from '@/lib/email/_send';
 import { formatDate } from '@/lib/utils/formatters';
+import { getAppUrl } from '@/lib/utils/app-url';
 
 const FROM = 'SOLUVIA <contact@mysoluvia.com>';
-const APP_URL = 'https://app.mysoluvia.com';
+// getAppUrl() utilise VERCEL_PROJECT_PRODUCTION_URL en prod (= app.mysoluvia.com)
+// Centralise la source de verite cf. lib/utils/app-url.ts.
+const APP_URL = getAppUrl();
 
 type SendResult = { success: boolean; error?: string };
 

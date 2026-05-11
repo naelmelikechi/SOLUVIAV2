@@ -18,18 +18,20 @@ export interface AjustementPending {
   projet: {
     id: string;
     ref: string | null;
-    nom: string | null;
   } | null;
 }
 
 export async function listAjustementsPending(): Promise<AjustementPending[]> {
   const supabase = await createClient();
+  // Note: projets n a pas de colonne 'nom' (que 'ref'). Le code demandait
+  // historiquement (id, ref, nom) -> erreur 42703 a chaque load /facturation
+  // (440+ events Sentry).
   const { data, error } = await supabase
     .from('facturation_ajustements_pending')
     .select(
       `id, type, delta_ht, motif, detail, created_at,
        contrat:contrats(id, apprenant_nom, apprenant_prenom, contract_number, npec_amount),
-       projet:projets(id, ref, nom)`,
+       projet:projets(id, ref)`,
     )
     .is('resolved_at', null)
     .order('created_at', { ascending: false });

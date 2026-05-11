@@ -30,16 +30,30 @@ export interface EquipeMember {
 export async function getEquipeWithProjets(): Promise<EquipeMember[]> {
   const supabase = await createClient();
 
-  // Full select - requires migrations 00041 (avatar_mode) + 00042 (telephone).
-  // Fall back to legacy schema if those columns are missing.
-  const fullUsers = await supabase
-    .from('users')
-    .select(
-      'id, email, nom, prenom, telephone, avatar_mode, avatar_seed, avatar_regen_date',
-    )
-    .eq('actif', true)
-    .order('prenom', { ascending: true })
-    .order('nom', { ascending: true });
+  // Full select users + projets en parallele (independants).
+  // Le fallback legacy users (migrations 00041/00042 absentes) reste en
+  // serie *si* le full select fail (cas rare).
+  const [fullUsers, projetsResult] = await Promise.all([
+    supabase
+      .from('users')
+      .select(
+        'id, email, nom, prenom, telephone, avatar_mode, avatar_seed, avatar_regen_date',
+      )
+      .eq('actif', true)
+      .order('prenom', { ascending: true })
+      .order('nom', { ascending: true }),
+    supabase
+      .from('projets')
+      .select(
+        `
+        id, ref, cdp_id, backup_cdp_id,
+        client:clients!projets_client_id_fkey(raison_sociale)
+      `,
+      )
+      .eq('archive', false)
+      .eq('est_interne', false)
+      .in('statut', ['actif', 'en_pause']),
+  ]);
 
   const usersResult = fullUsers.error
     ? await supabase
@@ -61,18 +75,6 @@ export async function getEquipeWithProjets(): Promise<EquipeMember[]> {
             : res,
         )
     : fullUsers;
-
-  const projetsResult = await supabase
-    .from('projets')
-    .select(
-      `
-        id, ref, cdp_id, backup_cdp_id,
-        client:clients!projets_client_id_fkey(raison_sociale)
-      `,
-    )
-    .eq('archive', false)
-    .eq('est_interne', false)
-    .in('statut', ['actif', 'en_pause']);
 
   if (usersResult.error) {
     logger.error('queries.equipe', 'getEquipeWithProjets users failed', {

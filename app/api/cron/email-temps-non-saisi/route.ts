@@ -33,21 +33,23 @@ export async function GET(request: Request) {
       'email-temps-non-saisi',
       isoWeekKey(today),
       async () => {
-        // Fetch jours fériés of the current week
-        const { data: feriesRows } = await supabase
-          .from('jours_feries')
-          .select('date')
-          .gte('date', mondayStr)
-          .lte('date', fridayStr);
-        const feries = new Set((feriesRows ?? []).map((r) => r.date));
+        // Feries + users en parallele : independants.
+        const [feriesRes, usersRes] = await Promise.all([
+          supabase
+            .from('jours_feries')
+            .select('date')
+            .gte('date', mondayStr)
+            .lte('date', fridayStr),
+          supabase
+            .from('users')
+            .select('id, email, prenom')
+            .eq('role', 'cdp')
+            .eq('actif', true),
+        ]);
 
-        // Fetch active CDPs
-        const { data: users, error: usersError } = await supabase
-          .from('users')
-          .select('id, email, prenom')
-          .eq('role', 'cdp')
-          .eq('actif', true);
+        const feries = new Set((feriesRes.data ?? []).map((r) => r.date));
 
+        const { data: users, error: usersError } = usersRes;
         if (usersError) throw new Error(usersError.message);
 
         if (!users || users.length === 0) {

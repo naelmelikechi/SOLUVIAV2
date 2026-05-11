@@ -125,25 +125,29 @@ export async function checkDuplicateBilling(params: {
 // ---------------------------------------------------------------------------
 export async function getProjetActiveContratsForFacturation(projetId: string) {
   const supabase = await createClient();
-  const { data: projet } = await supabase
-    .from('projets')
-    .select(
-      'id, ref, taux_commission, billing_mode, client_id, client:clients!projets_client_id_fkey(id, raison_sociale)',
-    )
-    .eq('id', projetId)
-    .maybeSingle();
-  if (!projet) return null;
-
-  const { data: contrats } = await supabase
-    .from('contrats')
-    .select(
-      `id, ref, contract_number, internal_number,
+  // Les 2 queries dependent juste de projetId (deja resolu en argument),
+  // donc parallelisables. Si projet n existe pas, on a paye un fetch
+  // contrats pour rien : marginal vs le gain dans le cas nominal.
+  const [{ data: projet }, { data: contrats }] = await Promise.all([
+    supabase
+      .from('projets')
+      .select(
+        'id, ref, taux_commission, billing_mode, client_id, client:clients!projets_client_id_fkey(id, raison_sociale)',
+      )
+      .eq('id', projetId)
+      .maybeSingle(),
+    supabase
+      .from('contrats')
+      .select(
+        `id, ref, contract_number, internal_number,
        apprenant_nom, apprenant_prenom, formation_titre,
        contract_state, npec_amount, date_debut, duree_mois`,
-    )
-    .eq('projet_id', projetId)
-    .eq('archive', false)
-    .order('apprenant_nom');
+      )
+      .eq('projet_id', projetId)
+      .eq('archive', false)
+      .order('apprenant_nom'),
+  ]);
+  if (!projet) return null;
 
   return {
     projetId: projet.id,

@@ -402,31 +402,53 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                 {deca}
                                 {stepSuffix}
                               </span>
-                              {isLocked && e.locked_by ? (
-                                <Tooltip>
-                                  <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
-                                    <Lock className="h-3 w-3" />
-                                    <span>
-                                      {'Verrouillé'} :{' '}
-                                      {e.type === 'opco_step'
-                                        ? 'engagement à facturer d’abord'
-                                        : 'réglements OPCO déjà facturés'}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent
-                                    side="top"
-                                    className="max-w-xs px-3 py-2"
-                                  >
-                                    <div className="text-xs">
-                                      {e.type === 'opco_step'
-                                        ? 'Verrouillé car l’engagement de ce contrat a déjà été facturé sur '
-                                        : 'Verrouillé car un réglement OPCO de ce contrat a déjà été facturé sur '}
-                                      <span className="font-mono">
-                                        {e.locked_by.facture_ref ?? 'brouillon'}
+                              {isLocked ? (
+                                e.lock_reason === 'missing_deca' ? (
+                                  <Tooltip>
+                                    <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
+                                      <Lock className="h-3 w-3" />
+                                      <span>
+                                        {'Verrouillé'} : DECA manquant
                                       </span>
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="top"
+                                      className="max-w-xs px-3 py-2"
+                                    >
+                                      <div className="text-xs">
+                                        {
+                                          'Le numéro DECA OPCO de ce contrat est absent. Renseignez-le côté Eduvia avant de facturer (sinon le client refuserait la facture).'
+                                        }
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : e.locked_by ? (
+                                  <Tooltip>
+                                    <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
+                                      <Lock className="h-3 w-3" />
+                                      <span>
+                                        {'Verrouillé'} :{' '}
+                                        {e.type === 'opco_step'
+                                          ? 'engagement à facturer d’abord'
+                                          : 'réglements OPCO déjà facturés'}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="top"
+                                      className="max-w-xs px-3 py-2"
+                                    >
+                                      <div className="text-xs">
+                                        {e.type === 'opco_step'
+                                          ? 'Verrouillé car l’engagement de ce contrat a déjà été facturé sur '
+                                          : 'Verrouillé car un réglement OPCO de ce contrat a déjà été facturé sur '}
+                                        <span className="font-mono">
+                                          {e.locked_by.facture_ref ??
+                                            'brouillon'}
+                                        </span>
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : null
                               ) : null}
                               {isBilled && e.billed_on ? (
                                 <Tooltip>

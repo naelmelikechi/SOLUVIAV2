@@ -56,10 +56,20 @@ export interface BillableEvent {
   montant_commissionne: number; // brut * taux_commission / 100
 
   status: 'available' | 'billed' | 'locked';
-  // billed : event deja facture (ligne live)
-  // locked : type oppose deja facture pour ce contrat (regle d'exclusion)
+  // billed       : event deja facture (ligne live)
+  // locked       : ne peut pas etre facture (cf lock_reason)
+  // available    : selectionnable
   billed_on?: BilledRef;
   locked_by?: BilledRef;
+  /**
+   * Raison du verrouillage si status='locked'. Permet a l UI d afficher
+   * le bon badge/tooltip.
+   * - 'opposite_billed' : le type oppose (engagement vs opco_step) est
+   *                       deja facture pour ce contrat (regle d exclusion)
+   * - 'missing_deca'    : contract_number (DECA OPCO) absent, on refuse
+   *                       de facturer pour eviter le rejet client
+   */
+  lock_reason?: 'opposite_billed' | 'missing_deca';
 }
 
 export interface ProjetBillableEvents {
@@ -234,6 +244,9 @@ export async function getBillableEvents(
   for (const c of contrats) {
     const billedTypes = eventTypesByContrat.get(c.id);
 
+    // DECA OPCO absent = on bloque la facturation (client refuserait)
+    const missingDeca = !c.contract_number || c.contract_number.trim() === '';
+
     // -- Event engagement -----------------------------------------------
     // Base : montant emis cote OPCO (step 1 avec invoice_state non-null),
     // pas le NPEC contractuel total. Si pas de step 1 emis, brut = 0 et on
@@ -245,9 +258,17 @@ export async function getBillableEvents(
       const lockedByOpco = billedTypes?.get('opco_step');
       const status: BillableEvent['status'] = billed
         ? 'billed'
-        : lockedByOpco
+        : missingDeca
           ? 'locked'
-          : 'available';
+          : lockedByOpco
+            ? 'locked'
+            : 'available';
+      const lock_reason: BillableEvent['lock_reason'] | undefined =
+        status === 'locked'
+          ? missingDeca
+            ? 'missing_deca'
+            : 'opposite_billed'
+          : undefined;
       events.push({
         type: 'engagement',
         source_id: c.id,
@@ -266,7 +287,8 @@ export async function getBillableEvents(
         montant_commissionne: Math.round(((brut * taux) / 100) * 100) / 100,
         status,
         billed_on: billed,
-        locked_by: lockedByOpco,
+        locked_by: missingDeca ? undefined : lockedByOpco,
+        lock_reason,
       });
     }
 
@@ -279,10 +301,18 @@ export async function getBillableEvents(
       const lockedByEngagement = billedTypes?.get('engagement');
       const status: BillableEvent['status'] = billed
         ? 'billed'
-        : lockedByEngagement
+        : missingDeca
           ? 'locked'
-          : 'available';
-      const brut = Number(s.total_amount ?? 0);
+          : lockedByEngagement
+            ? 'locked'
+            : 'available';
+      const lock_reason: BillableEvent['lock_reason'] | undefined =
+        status === 'locked'
+          ? missingDeca
+            ? 'missing_deca'
+            : 'opposite_billed'
+          : undefined;
+      const brutStep = Number(s.total_amount ?? 0);
       events.push({
         type: 'opco_step',
         source_id: s.id,
@@ -297,11 +327,12 @@ export async function getBillableEvents(
         step_number: s.step_number ?? null,
         step_opening_date: s.opening_date ?? null,
         step_paid_at: s.paid_at ?? null,
-        montant_brut: brut,
-        montant_commissionne: Math.round(((brut * taux) / 100) * 100) / 100,
+        montant_brut: brutStep,
+        montant_commissionne: Math.round(((brutStep * taux) / 100) * 100) / 100,
         status,
         billed_on: billed,
-        locked_by: lockedByEngagement,
+        locked_by: missingDeca ? undefined : lockedByEngagement,
+        lock_reason,
       });
     }
   }

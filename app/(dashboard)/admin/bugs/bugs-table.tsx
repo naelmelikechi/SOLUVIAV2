@@ -110,6 +110,19 @@ function BugRowActions({ bug }: { bug: BugReportRow }) {
     );
   }
 
+  // Bug fermé : Rouvrir + switch latéral résolu↔wontfix sans repasser
+  // par nouveau (utile quand on requalifie un bug ferme).
+  const lateralTarget: BugStatus =
+    bug.status === 'resolu' ? 'wontfix' : 'resolu';
+  const lateralLabel =
+    lateralTarget === 'wontfix' ? 'Marquer wontfix' : 'Marquer résolu';
+  const lateralToast = lateralTarget === 'wontfix' ? 'Bug refusé' : 'Bug fermé';
+  const LateralIcon = lateralTarget === 'wontfix' ? X : Check;
+  const lateralClasses =
+    lateralTarget === 'wontfix'
+      ? 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
+      : 'text-green-700 hover:bg-green-50 hover:text-green-800';
+
   return (
     <div className="flex items-center gap-1">
       <Button
@@ -124,6 +137,19 @@ function BugRowActions({ bug }: { bug: BugReportRow }) {
         }}
       >
         <RotateCcw className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`h-7 w-7 ${lateralClasses}`}
+        title={lateralLabel}
+        disabled={isPending}
+        onClick={(e) => {
+          e.stopPropagation();
+          updateStatus(lateralTarget, lateralToast);
+        }}
+      >
+        <LateralIcon className="h-4 w-4" />
       </Button>
     </div>
   );

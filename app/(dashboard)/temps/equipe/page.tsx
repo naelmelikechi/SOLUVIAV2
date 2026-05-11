@@ -10,13 +10,16 @@ import { TeamRecapClient } from '@/components/temps/team-recap-client';
 export const metadata: Metadata = { title: 'Temps Équipe - SOLUVIA' };
 
 export default async function TempsEquipePage() {
-  const user = await getCurrentUser();
+  const weekDates = getWeekDates(0);
+  // user + teamSummary en parallele. Si non-admin on paye teamSummary
+  // pour rien (cas rare : sidebar gate).
+  const [user, teamSummary] = await Promise.all([
+    getCurrentUser(),
+    getTeamWeekSummary(weekDates),
+  ]);
   if (!isAdmin(user?.role)) {
     redirect('/temps');
   }
-
-  const weekDates = getWeekDates(0);
-  const teamSummary = await getTeamWeekSummary(weekDates);
 
   return (
     <div>

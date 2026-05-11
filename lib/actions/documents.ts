@@ -335,7 +335,18 @@ export async function deleteClientDocument(
     return { success: false, error: 'Document introuvable' };
   }
 
-  await supabase.storage.from('client-documents').remove([doc.storage_path]);
+  const { error: storageError } = await supabase.storage
+    .from('client-documents')
+    .remove([doc.storage_path]);
+  if (storageError) {
+    // Storage echec : on continue le delete DB pour ne pas laisser une row
+    // orpheline. Le fichier reste en storage mais ne sera plus reference.
+    logger.warn('actions.documents', 'storage remove failed', {
+      documentId,
+      storagePath: doc.storage_path,
+      error: storageError,
+    });
+  }
 
   const { error: deleteError } = await supabase
     .from('client_documents')
@@ -396,7 +407,16 @@ export async function deleteProjetDocument(
     return { success: false, error: 'Document introuvable' };
   }
 
-  await supabase.storage.from('project-documents').remove([doc.storage_path]);
+  const { error: storageError } = await supabase.storage
+    .from('project-documents')
+    .remove([doc.storage_path]);
+  if (storageError) {
+    logger.warn('actions.documents', 'storage remove failed', {
+      documentId,
+      storagePath: doc.storage_path,
+      error: storageError,
+    });
+  }
 
   const { error: deleteError } = await supabase
     .from('projet_documents')

@@ -321,12 +321,14 @@ describe('getFacturesList', () => {
     );
     expect(neqStatut?.val).toBe('a_emettre');
 
-    // exclusion clients demo / archives
+    // exclusion clients archives uniquement. Le filtre is_demo a ete retire
+    // (commit 5e90f01) : les clients demo restent visibles dans l onglet
+    // Factures, leur push Odoo en is_draft=true gere le risque comptable.
     expect(
       op!.filters.find(
         (f) => f.col === 'client.is_demo' && f.val === false && f.op === 'eq',
       ),
-    ).toBeDefined();
+    ).toBeUndefined();
     expect(
       op!.filters.find(
         (f) => f.col === 'client.archive' && f.val === false && f.op === 'eq',

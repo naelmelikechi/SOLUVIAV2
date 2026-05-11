@@ -161,17 +161,18 @@ SELECT cmp_ok(
 
 -- ----- Assertion 4 : rollback ne consomme pas de numero_seq --------------
 
-DO $$
-DECLARE
-  v_brouillon UUID;
-BEGIN
-  v_brouillon := pg_temp.create_brouillon();
-  -- savepoint + update + rollback : le numero attribue est rollback aussi
-  SAVEPOINT before_send;
-  UPDATE factures SET statut = 'emise' WHERE id = v_brouillon;
-  ROLLBACK TO SAVEPOINT before_send;
-  -- La facture reste en 'a_emettre', sans ref ni numero_seq
-END $$;
+-- SAVEPOINT + ROLLBACK TO SAVEPOINT ne sont pas autorises dans un bloc
+-- DO/PL/pgSQL (la sous-transaction PL/pgSQL utilise BEGIN/EXCEPTION).
+-- Comme ce script tourne dans une transaction explicite (cf. BEGIN; ligne 18),
+-- on execute au top niveau via une temp table pour passer l UUID.
+CREATE TEMP TABLE _rollback_test (facture_id UUID);
+INSERT INTO _rollback_test SELECT pg_temp.create_brouillon();
+
+SAVEPOINT before_send;
+UPDATE factures SET statut = 'emise'
+  WHERE id = (SELECT facture_id FROM _rollback_test);
+ROLLBACK TO SAVEPOINT before_send;
+-- La facture reste en 'a_emettre', sans ref ni numero_seq
 
 CREATE TEMP TABLE _next_after_rollback (facture_id UUID);
 INSERT INTO _next_after_rollback (facture_id)

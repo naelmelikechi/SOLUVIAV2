@@ -66,27 +66,55 @@ export async function getSaisiesForWeek(
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  // 1. Fetch all active projets the user is assigned to (cdp or backup).
-  //    These are always rendered in the grid, even with no saisies yet (lazy render:
-  //    a DB row is only created when the user actually enters hours > 0).
-  const { data: userProjets, error: projetsError } = await supabase
-    .from('projets')
-    .select(
-      `
-      id,
-      ref,
-      est_interne,
-      categorie_interne,
-      client:clients!projets_client_id_fkey (
-        raison_sociale
+  // 1+2 en parallele : userProjets (referentiel rendu en grid) et saisies
+  //     de la semaine sont independants (les 2 dependent juste de user.id).
+  //     Les projets sont toujours rendus dans la grille (lazy DB row :
+  //     on insere seulement quand l user saisit heures > 0).
+  const [
+    { data: userProjets, error: projetsError },
+    { data: saisies, error: saisiesError },
+  ] = await Promise.all([
+    supabase
+      .from('projets')
+      .select(
+        `
+        id,
+        ref,
+        est_interne,
+        categorie_interne,
+        client:clients!projets_client_id_fkey (
+          raison_sociale
+        )
+      `,
       )
-    `,
-    )
-    .eq('archive', false)
-    .eq('statut', 'actif')
-    .or(`cdp_id.eq.${user.id},backup_cdp_id.eq.${user.id},est_interne.eq.true`)
-    .order('est_interne', { ascending: true })
-    .order('ref', { ascending: true });
+      .eq('archive', false)
+      .eq('statut', 'actif')
+      .or(
+        `cdp_id.eq.${user.id},backup_cdp_id.eq.${user.id},est_interne.eq.true`,
+      )
+      .order('est_interne', { ascending: true })
+      .order('ref', { ascending: true }),
+    supabase
+      .from('saisies_temps')
+      .select(
+        `
+        id,
+        projet_id,
+        date,
+        heures,
+        projet:projets!saisies_temps_projet_id_fkey (
+          ref,
+          est_interne,
+          categorie_interne,
+          client:clients!projets_client_id_fkey (
+            raison_sociale
+          )
+        )
+      `,
+      )
+      .eq('user_id', user.id)
+      .in('date', weekDates),
+  ]);
 
   if (projetsError) {
     logger.error('queries.temps', 'getSaisiesForWeek failed (user projets)', {
@@ -98,28 +126,6 @@ export async function getSaisiesForWeek(
       { cause: projetsError },
     );
   }
-
-  // 2. Fetch saisies for the week
-  const { data: saisies, error: saisiesError } = await supabase
-    .from('saisies_temps')
-    .select(
-      `
-      id,
-      projet_id,
-      date,
-      heures,
-      projet:projets!saisies_temps_projet_id_fkey (
-        ref,
-        est_interne,
-        categorie_interne,
-        client:clients!projets_client_id_fkey (
-          raison_sociale
-        )
-      )
-    `,
-    )
-    .eq('user_id', user.id)
-    .in('date', weekDates);
 
   if (saisiesError) {
     logger.error('queries.temps', 'getSaisiesForWeek failed (saisies)', {

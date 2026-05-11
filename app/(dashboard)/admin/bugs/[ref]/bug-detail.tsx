@@ -7,7 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { updateBugReportAction } from '@/lib/actions/bug-reports';
+import { Mail } from 'lucide-react';
+import {
+  updateBugReportAction,
+  resendBugReportEmailAction,
+} from '@/lib/actions/bug-reports';
 import type { BugReportRow } from '@/lib/queries/bug-reports';
 import { ScreenshotCard } from './screenshot-card';
 
@@ -50,6 +54,7 @@ export function BugDetail({
     bug.resolution_notes ?? '',
   );
   const [pending, startTransition] = useTransition();
+  const [resending, startResending] = useTransition();
 
   const hypotheses = Array.isArray(bug.ai_hypotheses)
     ? (bug.ai_hypotheses as string[])
@@ -64,6 +69,17 @@ export function BugDetail({
     height?: number;
     dpr?: number;
   } | null;
+
+  const handleResendEmail = () => {
+    startResending(async () => {
+      const res = await resendBugReportEmailAction(bug.id);
+      if (res.success) {
+        toast.success('Email renvoyé');
+      } else {
+        toast.error(res.error ?? 'Échec du renvoi');
+      }
+    });
+  };
 
   const handleSave = () => {
     startTransition(async () => {
@@ -229,7 +245,7 @@ export function BugDetail({
               maxLength={2000}
             />
           </div>
-          <div className="mt-4">
+          <div className="mt-4 space-y-2">
             <Button
               type="button"
               onClick={handleSave}
@@ -237,6 +253,17 @@ export function BugDetail({
               className="w-full"
             >
               {pending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleResendEmail}
+              disabled={resending}
+              data-icon="inline-start"
+              className="w-full"
+            >
+              <Mail className="size-3.5" />
+              {resending ? 'Envoi...' : "Renvoyer l'email admin"}
             </Button>
           </div>
         </Card>

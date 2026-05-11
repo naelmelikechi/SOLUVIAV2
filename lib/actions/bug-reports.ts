@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { requireAdmin } from '@/lib/auth/guards';
+import { sendBugReportEmail } from '@/lib/email/bug-report';
 
 const UpdateSchema = z.object({
   id: z.string().uuid(),
@@ -39,4 +40,23 @@ export async function updateBugReportAction(
 
   revalidatePath('/admin/bugs');
   return { success: true };
+}
+
+/**
+ * Rejoue l'envoi de l'email admin pour un bug. Utile quand l'email
+ * initial a echoue (sender invalide, transient Resend...) et qu'on veut
+ * recuperer le mail sans avoir a creer un nouveau bug.
+ */
+export async function resendBugReportEmailAction(
+  bugId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = z.string().uuid().safeParse(bugId);
+  if (!parsed.success) {
+    return { success: false, error: 'ID invalide' };
+  }
+
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  return await sendBugReportEmail(parsed.data);
 }

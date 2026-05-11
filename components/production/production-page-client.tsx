@@ -12,7 +12,10 @@ import {
   ProductionChart,
   type ProductionChartRow,
 } from '@/components/production/production-chart';
-import { buildDisplayData } from '@/components/production/views/build-display-data';
+import {
+  buildDisplayData,
+  type ProductionPerspective,
+} from '@/components/production/views/build-display-data';
 import { MonthlyView } from '@/components/production/views/monthly-view';
 
 // ---------------------------------------------------------------------------
@@ -20,14 +23,27 @@ import { MonthlyView } from '@/components/production/views/monthly-view';
 // ---------------------------------------------------------------------------
 
 export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
-  const [perspective, setPerspective] = useState<'opco' | 'soluvia'>('soluvia');
+  const [perspective, setPerspective] =
+    useState<ProductionPerspective>('soluvia');
 
-  const displayData = useMemo(
-    () => buildDisplayData(data, perspective),
-    [data, perspective],
-  );
+  const displayData = useMemo(() => {
+    if (perspective === 'consolide') return null;
+    return buildDisplayData(data, perspective);
+  }, [data, perspective]);
 
-  const currentMonth = displayData.find((m) => m.isCurrent);
+  const displayDataOpco = useMemo(() => {
+    if (perspective !== 'consolide') return null;
+    return buildDisplayData(data, 'opco');
+  }, [data, perspective]);
+
+  const displayDataSoluvia = useMemo(() => {
+    if (perspective !== 'consolide') return null;
+    return buildDisplayData(data, 'soluvia');
+  }, [data, perspective]);
+
+  // For KPI cards: use OPCO data in consolide mode
+  const kpiSource = perspective === 'consolide' ? displayDataOpco : displayData;
+  const currentMonth = kpiSource?.find((m) => m.isCurrent);
 
   const kpis = [
     {
@@ -77,11 +93,20 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
           >
             SOLUVIA
           </Button>
+          <Button
+            variant={perspective === 'consolide' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setPerspective('consolide')}
+          >
+            Consolidé
+          </Button>
         </div>
         <span className="text-muted-foreground text-xs">
           {perspective === 'soluvia'
             ? 'Commission SOLUVIA sur la production'
-            : 'Montants bruts OPCO'}
+            : perspective === 'opco'
+              ? 'Montants bruts OPCO'
+              : 'OPCO et SOLUVIA côte à côte'}
         </span>
       </div>
 
@@ -107,10 +132,30 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
         ))}
       </div>
 
-      <MonthlyView data={displayData} perspective={perspective} />
+      {perspective === 'consolide' ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <section>
+            <h3 className="text-muted-foreground mb-2 text-sm font-semibold tracking-wider uppercase">
+              OPCO
+            </h3>
+            <MonthlyView data={displayDataOpco!} perspective="opco" />
+          </section>
+          <section>
+            <h3 className="text-muted-foreground mb-2 text-sm font-semibold tracking-wider uppercase">
+              SOLUVIA
+            </h3>
+            <MonthlyView data={displayDataSoluvia!} perspective="soluvia" />
+          </section>
+        </div>
+      ) : (
+        <MonthlyView data={displayData!} perspective={perspective} />
+      )}
 
       <ProductionChart
-        data={displayData.map(
+        data={(perspective === 'consolide'
+          ? displayDataOpco!
+          : displayData!
+        ).map(
           (m): ProductionChartRow => ({
             label: m.label,
             production: m.production,

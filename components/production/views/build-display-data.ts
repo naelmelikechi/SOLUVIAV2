@@ -5,6 +5,8 @@ import type { ProductionRow } from '@/lib/queries/production';
 // Types
 // ---------------------------------------------------------------------------
 
+export type ProductionPerspective = 'opco' | 'soluvia' | 'consolide';
+
 export interface MonthRow {
   mois: string;
   date: Date;
@@ -19,6 +21,33 @@ export interface MonthRow {
   ytd: number;
   isFuture: boolean;
   isCurrent: boolean;
+}
+
+export interface ConsolidatedMonthRow {
+  mois: string;
+  label: string;
+  isCurrent: boolean;
+  isFuture: boolean;
+  opco: {
+    production: number;
+    facture: number;
+    encaisse: number;
+    en_retard: number;
+    raf: number;
+    rae: number;
+    rolling12: number;
+    ytd: number;
+  };
+  soluvia: {
+    production: number;
+    facture: number;
+    encaisse: number;
+    en_retard: number;
+    raf: number;
+    rae: number;
+    rolling12: number;
+    ytd: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +119,44 @@ export function buildDisplayData(
       rae: cumulFacture - cumulEncaisse,
       rolling12,
       ytd,
+    };
+  });
+}
+
+export function buildConsolidatedData(
+  data: ProductionRow[],
+): ConsolidatedMonthRow[] {
+  const opcoRows = buildDisplayData(data, 'opco');
+  const soluviaRows = buildDisplayData(data, 'soluvia');
+  const byMois = new Map<string, MonthRow>();
+  for (const r of soluviaRows) byMois.set(r.mois, r);
+  return opcoRows.map((opco) => {
+    const soluvia = byMois.get(opco.mois)!;
+    return {
+      mois: opco.mois,
+      label: opco.label,
+      isCurrent: opco.isCurrent,
+      isFuture: opco.isFuture,
+      opco: {
+        production: opco.production,
+        facture: opco.facture,
+        encaisse: opco.encaisse,
+        en_retard: opco.en_retard,
+        raf: opco.raf,
+        rae: opco.rae,
+        rolling12: opco.rolling12,
+        ytd: opco.ytd,
+      },
+      soluvia: {
+        production: soluvia.production,
+        facture: soluvia.facture,
+        encaisse: soluvia.encaisse,
+        en_retard: soluvia.en_retard,
+        raf: soluvia.raf,
+        rae: soluvia.rae,
+        rolling12: soluvia.rolling12,
+        ytd: soluvia.ytd,
+      },
     };
   });
 }

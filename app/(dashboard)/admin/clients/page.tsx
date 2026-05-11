@@ -11,12 +11,15 @@ export const metadata: Metadata = { title: 'Clients - SOLUVIA' };
 export const revalidate = 120;
 
 export default async function ClientsPage() {
-  const user = await getCurrentUser();
+  // user + clients en parallele. Si non-admin on paye getClientsList pour
+  // rien (cas rare : sidebar gate).
+  const [user, clients] = await Promise.all([
+    getCurrentUser(),
+    getClientsList(),
+  ]);
   if (!isAdmin(user?.role)) {
     redirect('/projets');
   }
-
-  const clients = await getClientsList();
 
   return (
     <div>

@@ -30,16 +30,16 @@ export default async function AdminBugsPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const user = await getCurrentUser();
-  if (!isAdmin(user?.role)) redirect('/projets');
-
   const { tab } = await searchParams;
   const currentTab = parseTab(tab);
 
-  const [reports, counts] = await Promise.all([
+  // user + reports + counts en parallele.
+  const [user, reports, counts] = await Promise.all([
+    getCurrentUser(),
     getBugReports(currentTab),
     getBugReportCounts(),
   ]);
+  if (!isAdmin(user?.role)) redirect('/projets');
 
   return (
     <div className="space-y-6">

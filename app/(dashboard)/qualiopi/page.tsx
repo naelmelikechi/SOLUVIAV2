@@ -42,7 +42,7 @@ export default async function QualiopiHomePage() {
           {configured.length > 0 && (
             <section>
               <h2 className="text-muted-foreground mb-3 text-sm font-semibold tracking-wide uppercase">
-                CFA configurés ({configured.length})
+                CFA en gestion ({configured.length})
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {configured.map((c) => (

@@ -97,9 +97,13 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
       <DataTableColumnHeader column={column} title="Commission" />
     ),
     cell: ({ row }) => (
-      <span className="text-sm tabular-nums">
+      <Link
+        href={`/projets/${row.original.ref}`}
+        onClick={(e) => e.stopPropagation()}
+        className="text-sm tabular-nums hover:underline"
+      >
         {row.original.taux_commission}%
-      </span>
+      </Link>
     ),
   },
   {

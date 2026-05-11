@@ -3,6 +3,7 @@ import {
   getCurrentUser,
   getCurrentUserActiveProjetsCount,
 } from '@/lib/queries/users';
+import { createClient } from '@/lib/supabase/server';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import {
   deriveCollabStatus,
@@ -34,6 +35,14 @@ export default async function DashboardLayout({
 
   if (!user) {
     redirect('/login');
+  }
+  // Un user desactive (actif=false via le dialog admin) ne doit plus passer.
+  // On signe out cote serveur pour clear le cookie - sinon le proxy verrait
+  // toujours un cookie present et redirigerait /login -> /projets (boucle).
+  if (user.actif === false) {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+    redirect('/login?reason=disabled');
   }
 
   const collabStatus = deriveCollabStatus(

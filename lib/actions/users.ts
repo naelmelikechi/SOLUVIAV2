@@ -253,6 +253,23 @@ export async function toggleUserActive(
 
   if (error) return { success: false, error: error.message };
 
+  // Si on passe a inactif, revoque immediatement les sessions actives
+  // cote Supabase Auth - sinon le user peut continuer a naviguer jusqu a
+  // ce qu il rafraichisse une page (auth.getUser dans le proxy est en
+  // cache 5min, et meme apres, son cookie reste valide jusqu a expiration
+  // du JWT). Best-effort : on log mais on ne fait pas echouer l'action.
+  if (!actif) {
+    try {
+      const adminClient = createAdminClient();
+      await adminClient.auth.admin.signOut(userId, 'global');
+    } catch (err) {
+      logger.warn('actions.users', 'signOut global failed', {
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   logAudit('user_toggled', 'user', userId, { actif }, authUser.id);
 
   revalidatePath('/admin/utilisateurs');

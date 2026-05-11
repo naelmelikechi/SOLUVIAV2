@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
@@ -19,6 +19,12 @@ const INITIAL_STATE = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reason = searchParams.get('reason');
+  const reasonMessage =
+    reason === 'disabled'
+      ? 'Votre compte a été désactivé. Contactez un administrateur.'
+      : null;
   const formRef = useRef<HTMLFormElement>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [errorVisible, setErrorVisible] = useState(true);
@@ -177,6 +183,9 @@ export default function LoginPage() {
 
         {errorVisible && <FormErrorBanner message={state.error} />}
         <FormErrorBanner message={passkeyError} />
+        {!state.error && !passkeyError && (
+          <FormErrorBanner message={reasonMessage} />
+        )}
 
         <Button type="submit" className="w-full" size="lg" disabled={busy}>
           {buttonLabel}

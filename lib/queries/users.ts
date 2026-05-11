@@ -70,7 +70,7 @@ export async function getCurrentUser() {
   const full = await supabase
     .from('users')
     .select(
-      'id, email, nom, prenom, role, telephone, avatar_mode, avatar_seed, avatar_regen_date, pipeline_access, can_validate_ideas, can_ship_ideas, onboarding_completed_at',
+      'id, email, nom, prenom, role, actif, telephone, avatar_mode, avatar_seed, avatar_regen_date, pipeline_access, can_validate_ideas, can_ship_ideas, onboarding_completed_at',
     )
     .eq('id', authUser.id)
     .single();
@@ -80,6 +80,7 @@ export async function getCurrentUser() {
     // `string | null`; downstream code assumes the narrow union from avatar.ts.
     return {
       ...full.data,
+      actif: full.data.actif ?? false,
       avatar_mode: full.data.avatar_mode as
         | 'daily'
         | 'random'
@@ -104,6 +105,7 @@ export async function getCurrentUser() {
   if (!legacy.data) return null;
   return {
     ...legacy.data,
+    actif: true,
     telephone: null as string | null,
     avatar_mode: null as 'daily' | 'random' | 'frozen' | null,
     pipeline_access: false,

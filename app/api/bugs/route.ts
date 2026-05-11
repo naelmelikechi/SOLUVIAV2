@@ -335,10 +335,20 @@ async function processBugReport(p: ProcessParams) {
     comment: p.payload.comment,
   });
 
-  await sendEmail({
-    from: 'SOLUVIA Bugs <bugs@app.mysoluvia.com>',
+  // Utiliser le domaine verifie Resend (cf. lib/email/notifications.ts).
+  // Le sujet [BUG-XXXX] permet de filtrer cote inbox sans avoir un
+  // domaine dedie. Si Resend echoue, on log mais on ne plante pas le
+  // process (le report est deja en base).
+  const emailResult = await sendEmail({
+    from: 'SOLUVIA Bugs <contact@mysoluvia.com>',
     to: adminEmail,
     subject,
     html,
   });
+  if (!emailResult.success) {
+    logger.error('bug-report', 'Email admin echec', {
+      bugId: p.bugId,
+      error: emailResult.error,
+    });
+  }
 }

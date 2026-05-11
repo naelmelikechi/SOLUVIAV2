@@ -124,6 +124,21 @@ export async function POST(req: Request) {
     );
   }
 
+  // Compte desactive : on refuse meme si le passkey est valide. Verifie
+  // ici avant de creer la session - sinon on aurait une session orpheline
+  // qui serait immediatement signOut par le layout dashboard.
+  const { data: profile } = await admin
+    .from('users')
+    .select('actif')
+    .eq('id', cred.user_id)
+    .single();
+  if (!profile || profile.actif === false) {
+    return NextResponse.json(
+      { error: 'Votre compte a été désactivé. Contactez un administrateur.' },
+      { status: 403 },
+    );
+  }
+
   const { data: linkData, error: linkErr } =
     await admin.auth.admin.generateLink({
       type: 'magiclink',

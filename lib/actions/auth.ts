@@ -54,7 +54,10 @@ export async function loginAction(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
   if (error) {
     // On log cote serveur mais on renvoie un message generique pour ne pas
@@ -65,6 +68,27 @@ export async function loginAction(
       requestId,
     });
     return { success: false, error: 'Identifiants invalides.' };
+  }
+
+  // Verifier que le compte n'est pas desactive. Si oui, on signe out la
+  // session qui vient d etre creee et on remonte un message clair.
+  if (data.user) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('actif')
+      .eq('id', data.user.id)
+      .single();
+    if (!profile || profile.actif === false) {
+      await supabase.auth.signOut();
+      logger.info('actions.auth', 'login refused (disabled account)', {
+        email,
+        requestId,
+      });
+      return {
+        success: false,
+        error: 'Votre compte a été désactivé. Contactez un administrateur.',
+      };
+    }
   }
 
   return { success: true };

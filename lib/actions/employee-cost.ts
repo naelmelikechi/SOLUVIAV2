@@ -3,7 +3,8 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { assertAdmin } from '@/lib/queries/employee-cost';
+import { requireAdmin } from '@/lib/auth/guards';
+import { logAudit } from '@/lib/utils/audit';
 import type { EmployeeCostInputs } from '@/lib/utils/employee-cost';
 
 // Bornes raisonnables : un salaire annuel > 1M€ ou des heures > 80/sem
@@ -34,14 +35,9 @@ export async function updateUserCost(
       error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
     };
   }
-  try {
-    await assertAdmin();
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Accès refusé',
-    };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { user: authUser } = auth;
 
   const admin = createAdminClient();
   const { error } = await admin
@@ -60,6 +56,11 @@ export async function updateUserCost(
   if (error) {
     return { success: false, error: error.message };
   }
+
+  // Donnees RH sensibles : on log la modification (sans le detail des valeurs
+  // pour ne pas pousser de salaires en clair dans audit_logs - on logge juste
+  // l'evenement et le target).
+  logAudit('user_cost_updated', 'user', userId, {}, authUser.id);
 
   revalidatePath('/admin/utilisateurs');
   return { success: true };
@@ -81,14 +82,9 @@ export async function updateEmployeeCostDefaults(fields: {
       error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
     };
   }
-  try {
-    await assertAdmin();
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Accès refusé',
-    };
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { user: authUser } = auth;
 
   const admin = createAdminClient();
   const updates: Array<[string, string]> = [
@@ -109,6 +105,14 @@ export async function updateEmployeeCostDefaults(fields: {
       .eq('cle', cle);
     if (error) return { success: false, error: error.message };
   }
+
+  logAudit(
+    'employee_cost_defaults_updated',
+    'parametres',
+    undefined,
+    {},
+    authUser.id,
+  );
 
   revalidatePath('/admin/parametres');
   return { success: true };

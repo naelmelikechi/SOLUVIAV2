@@ -38,7 +38,7 @@ export async function updateBugReportAction(
 
   if (error) return { success: false, error: error.message };
 
-  revalidatePath('/admin/bugs');
+  revalidatePath('/admin/bugs', 'layout');
   return { success: true };
 }
 

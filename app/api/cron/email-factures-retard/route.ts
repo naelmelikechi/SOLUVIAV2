@@ -26,20 +26,28 @@ export async function GET(request: Request) {
       'email-factures-retard',
       isoWeekKey(today),
       async () => {
-        // Fetch overdue invoices + client name
-        const { data: factures, error: facturesError } = await supabase
-          .from('factures')
-          .select(
-            `
+        // Fetch overdue invoices + admins en parallele : independants.
+        const [facturesRes, adminsRes] = await Promise.all([
+          supabase
+            .from('factures')
+            .select(
+              `
         ref, montant_ttc, date_echeance,
         client:clients!factures_client_id_fkey(raison_sociale)
       `,
-          )
-          .eq('statut', 'en_retard')
-          .eq('est_avoir', false)
-          .lt('date_echeance', todayStr)
-          .order('date_echeance', { ascending: true });
+            )
+            .eq('statut', 'en_retard')
+            .eq('est_avoir', false)
+            .lt('date_echeance', todayStr)
+            .order('date_echeance', { ascending: true }),
+          supabase
+            .from('users')
+            .select('email, prenom')
+            .in('role', ['admin', 'superadmin'])
+            .eq('actif', true),
+        ]);
 
+        const { data: factures, error: facturesError } = facturesRes;
         if (facturesError) throw new Error(facturesError.message);
 
         if (!factures || factures.length === 0) {
@@ -55,12 +63,7 @@ export async function GET(request: Request) {
             joursRetard: differenceInDays(today, new Date(f.date_echeance!)),
           }));
 
-        const { data: admins } = await supabase
-          .from('users')
-          .select('email, prenom')
-          .in('role', ['admin', 'superadmin'])
-          .eq('actif', true);
-
+        const { data: admins } = adminsRes;
         if (!admins || admins.length === 0) {
           return { sent: 0, message: 'Aucun admin actif' };
         }

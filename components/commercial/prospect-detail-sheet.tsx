@@ -27,6 +27,7 @@ import {
   Loader2,
   CheckCircle,
   Link as LinkIcon,
+  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -37,8 +38,10 @@ import {
 import {
   updateProspectAssignment,
   convertProspectToClient,
+  deleteProspect,
 } from '@/lib/actions/prospects';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { ProspectNotesSection } from './prospect-notes-section';
 import { ProspectRdvSection } from './prospect-rdv-section';
 import type {
@@ -62,6 +65,7 @@ interface ProspectDetailSheetProps {
   isAdminUser: boolean;
   convertedClient?: { id: string; raison_sociale: string } | null;
   onNotesReload?: () => void;
+  onProspectDeleted?: (prospectId: string) => void;
 }
 
 export function ProspectDetailSheet({
@@ -72,10 +76,13 @@ export function ProspectDetailSheet({
   onOpenChange,
   isAdminUser,
   convertedClient,
+  onProspectDeleted,
 }: ProspectDetailSheetProps) {
   const [selectedCommercial, setSelectedCommercial] = useState<string>('none');
   const [isPending, startTransition] = useTransition();
   const [converting, setConverting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setSelectedCommercial(prospect?.commercial_id ?? 'none');
@@ -117,6 +124,24 @@ export function ProspectDetailSheet({
       }
     } finally {
       setConverting(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!prospect) return;
+    setDeleting(true);
+    try {
+      const result = await deleteProspect(prospect.id);
+      if (result.success) {
+        toast.success('Prospect supprimé');
+        setConfirmDeleteOpen(false);
+        onProspectDeleted?.(prospect.id);
+        onOpenChange(false);
+      } else {
+        toast.error(result.error ?? 'Erreur lors de la suppression');
+      }
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -335,8 +360,40 @@ export function ProspectDetailSheet({
               </Button>
             </section>
           )}
+
+          {/* Zone admin : suppression */}
+          {isAdminUser && (
+            <>
+              <Separator />
+              <section>
+                <h4 className="text-muted-foreground mb-2 text-[11px] font-semibold tracking-wider uppercase">
+                  Zone admin
+                </h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[var(--destructive)] hover:bg-[var(--destructive)]/10 hover:text-[var(--destructive)]"
+                  onClick={() => setConfirmDeleteOpen(true)}
+                  disabled={deleting}
+                >
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Supprimer ce prospect
+                </Button>
+              </section>
+            </>
+          )}
         </div>
       </SheetContent>
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Supprimer ce prospect ?"
+        description={`Le prospect "${prospect.nom}" sera retiré du pipeline. Cette action peut être annulée par un admin via la base de données (archive=true).`}
+        confirmText="Supprimer"
+        variant="destructive"
+        onConfirm={handleDelete}
+        isPending={deleting}
+      />
     </Sheet>
   );
 }

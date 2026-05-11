@@ -725,6 +725,15 @@ export function PipelineBoard({
         convertedClient={selectedClient}
         onOpenChange={(open) => !open && setSelected(null)}
         isAdminUser={isAdmin}
+        onProspectDeleted={(deletedId) => {
+          setGrouped((prev) => {
+            const next = { ...prev };
+            for (const stage of STAGE_PROSPECT_ORDER) {
+              next[stage] = prev[stage].filter((p) => p.id !== deletedId);
+            }
+            return next;
+          });
+        }}
       />
     </div>
   );

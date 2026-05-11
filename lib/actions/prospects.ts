@@ -67,6 +67,10 @@ const ConvertProspectSchema = z.object({
   id: z.string().uuid('Prospect ID doit etre un UUID'),
 });
 
+const DeleteProspectSchema = z.object({
+  id: z.string().uuid('Prospect ID doit etre un UUID'),
+});
+
 async function getCaller() {
   const auth = await requireUser();
   if (!auth.ok) {
@@ -419,6 +423,48 @@ export async function convertProspectToClient(
   revalidatePath('/commercial/pipeline');
   revalidatePath('/admin/clients');
   return { success: true, clientId: client.id };
+}
+
+// ---------------------------------------------------------------------------
+// Delete prospect (admin only, soft delete via archive=true)
+// ---------------------------------------------------------------------------
+
+export async function deleteProspect(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = DeleteProspectSchema.safeParse({ id });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+    };
+  }
+
+  const { supabase, user, role } = await getCaller();
+  if (!user) return { success: false, error: 'Non authentifié' };
+  if (!isAdmin(role)) {
+    return {
+      success: false,
+      error: 'Seuls les admins peuvent supprimer un prospect',
+    };
+  }
+
+  const { error } = await supabase
+    .from('prospects')
+    .update({ archive: true })
+    .eq('id', parsed.data.id);
+
+  if (error) {
+    logger.error('actions.prospects', 'deleteProspect failed', {
+      id: parsed.data.id,
+      error,
+    });
+    return { success: false, error: error.message };
+  }
+
+  logAudit('prospect_deleted', 'prospect', parsed.data.id, undefined, user.id);
+  revalidatePath('/commercial/pipeline');
+  return { success: true };
 }
 
 // ---------------------------------------------------------------------------

@@ -26,27 +26,36 @@ export default async function ClientDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const currentUser = await getCurrentUser();
+  const { id } = await params;
+  // user + client + dependances en parallele. client peut etre null
+  // (notFound), on check apres pour eviter de bloquer les autres queries
+  // sur le check serie.
+  const [
+    currentUser,
+    client,
+    projets,
+    contacts,
+    notes,
+    documents,
+    apiKeys,
+    users,
+  ] = await Promise.all([
+    getCurrentUser(),
+    getClientById(id),
+    getProjetsByClientId(id),
+    getContactsByClientId(id),
+    getNotesByClientId(id),
+    getDocumentsByClientId(id),
+    getClientApiKeys(id),
+    getActiveUsersMinimal(),
+  ]);
+
   if (!isAdmin(currentUser?.role)) {
     redirect('/projets');
   }
-
-  const { id } = await params;
-  const client = await getClientById(id);
-
   if (!client) {
     notFound();
   }
-
-  const [projets, contacts, notes, documents, apiKeys, users] =
-    await Promise.all([
-      getProjetsByClientId(id),
-      getContactsByClientId(id),
-      getNotesByClientId(id),
-      getDocumentsByClientId(id),
-      getClientApiKeys(id),
-      getActiveUsersMinimal(),
-    ]);
 
   return (
     <div>

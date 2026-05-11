@@ -21,12 +21,10 @@ import { EcheanciersSectionWrapper } from '@/components/admin/echeanciers-sectio
 export const metadata: Metadata = { title: 'Paramètres - SOLUVIA' };
 
 export default async function ParametresPage() {
-  const user = await getCurrentUser();
-  if (!isAdmin(user?.role)) {
-    redirect('/projets');
-  }
-
+  // user + 8 queries en parallele. Si non-admin on paye pour rien (cas
+  // rare : sidebar gate).
   const [
+    user,
     entrepriseParams,
     facturationParams,
     typologies,
@@ -36,6 +34,7 @@ export default async function ParametresPage() {
     costDefaults,
     echeancierTemplates,
   ] = await Promise.all([
+    getCurrentUser(),
     getParametresByCategorie('entreprise'),
     getParametresByCategorie('facturation'),
     getTypologies(),
@@ -45,6 +44,9 @@ export default async function ParametresPage() {
     getEmployeeCostDefaults(),
     listEcheancierTemplates(),
   ]);
+  if (!isAdmin(user?.role)) {
+    redirect('/projets');
+  }
 
   // Convert params arrays to key-value maps
   const entreprise = Object.fromEntries(

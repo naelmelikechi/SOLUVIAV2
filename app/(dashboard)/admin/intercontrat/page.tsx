@@ -12,14 +12,16 @@ export const metadata: Metadata = { title: 'Intercontrat - SOLUVIA' };
 export const revalidate = 0;
 
 export default async function IntercontratPage() {
-  const user = await getCurrentUser();
-  if (!isAdmin(user?.role)) {
-    redirect('/projets');
-  }
-
-  const [users, tauxBillable] = await Promise.all([
+  // user + queries en parallele. Si l user n est pas admin on paye 2
+  // queries pour rien (cas rare : sidebar gate).
+  const [currentUser, users, tauxBillable] = await Promise.all([
+    getCurrentUser(),
     getIntercontratUsers(),
     getTauxBillableTeam30j(),
   ]);
+  if (!isAdmin(currentUser?.role)) {
+    redirect('/projets');
+  }
+
   return <IntercontratList data={users} tauxBillable={tauxBillable} />;
 }

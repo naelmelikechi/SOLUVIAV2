@@ -8,15 +8,16 @@ import { UsersDataTable } from '@/components/admin/users-data-table';
 export const metadata: Metadata = { title: 'Utilisateurs - SOLUVIA' };
 
 export default async function UtilisateursPage() {
-  const user = await getCurrentUser();
-  if (!isAdmin(user?.role)) {
-    redirect('/projets');
-  }
-
-  const [users, costDefaults] = await Promise.all([
+  // user + queries en parallele. Si non-admin on paye 2 queries pour
+  // rien (cas rare : sidebar gate).
+  const [user, users, costDefaults] = await Promise.all([
+    getCurrentUser(),
     getUsersList(),
     getEmployeeCostDefaults(),
   ]);
+  if (!isAdmin(user?.role)) {
+    redirect('/projets');
+  }
 
   return (
     <UsersDataTable

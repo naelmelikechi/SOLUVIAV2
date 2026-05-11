@@ -21,7 +21,9 @@ export function PreviewTourCard() {
   const router = useRouter();
 
   function preview(role: 'cdp' | 'commercial') {
-    router.push(`/accueil?tour-preview=${role}`);
+    // On vise /projets (et non /accueil) car /accueil redirige server-side
+    // vers /projets pour tout user assigne, ce qui drop le query param.
+    router.push(`/projets?tour-preview=${role}`);
   }
 
   return (

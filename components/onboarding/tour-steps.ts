@@ -30,7 +30,9 @@ const COMMON_OUTRO: TourStep = {
 
 export const CDP_TOUR: TourStep[] = [
   {
-    route: '/accueil',
+    // Pas de route : le welcome est une popup centree, on demarre la ou
+    // l user est. Evite que /accueil -> redirect /projets fasse perdre le
+    // query param tour-preview pour les superadmin en mode test.
     popover: {
       title: 'Bienvenue dans Soluvia',
       description:
@@ -104,7 +106,6 @@ export const CDP_TOUR: TourStep[] = [
 
 export const COMMERCIAL_TOUR: TourStep[] = [
   {
-    route: '/accueil',
     popover: {
       title: 'Bienvenue dans Soluvia',
       description:

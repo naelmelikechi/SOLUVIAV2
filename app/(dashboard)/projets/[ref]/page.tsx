@@ -61,12 +61,9 @@ export default async function ProjetDetailPage({
   }
 
   const authUser = authUserRes.data.user;
-  const { data: currentUser } = authUser
-    ? await supabase.from('users').select('role').eq('id', authUser.id).single()
-    : { data: null };
-  const userIsAdmin = isAdmin(currentUser?.role);
 
   const [
+    currentUserRes,
     contrats,
     finance,
     temps,
@@ -76,6 +73,9 @@ export default async function ProjetDetailPage({
     echeancierTemplates,
     echeancierConfig,
   ] = await Promise.all([
+    authUser
+      ? supabase.from('users').select('role').eq('id', authUser.id).single()
+      : Promise.resolve({ data: null as { role: string | null } | null }),
     getContratsByProjetId(projet.id),
     getProjetFinance(projet.id),
     getProjetTempsStats(projet.id),
@@ -86,6 +86,7 @@ export default async function ProjetDetailPage({
     getProjetEcheancierConfig(projet.id),
   ]);
 
+  const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
   const apprentisActifs = contrats.filter((c) =>
     isContratActif(c.contract_state),
   ).length;

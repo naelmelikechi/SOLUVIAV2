@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronUp, ExternalLink, HelpCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
@@ -51,7 +50,6 @@ export function NoticeIframe({
   const [open, setOpen] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const router = useRouter();
 
   const url = `${NOTICES_BASE}/${kind}s/${encodeURIComponent(code)}?theme=${theme}&interactive=true`;
 
@@ -69,7 +67,7 @@ export function NoticeIframe({
     }
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [onNavigate, router]);
+  }, [onNavigate]);
 
   return (
     <Card className="mb-4 p-0">

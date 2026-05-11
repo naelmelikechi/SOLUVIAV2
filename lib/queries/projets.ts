@@ -379,19 +379,22 @@ export async function getProjetTempsStats(projetId: string) {
   }
 
   // Breakdown par axe (mois courant uniquement, comme avant)
+  // axeRows + axesDefs en parallele : axesDefs est un referentiel
+  // independant des saisies.
   const saisieIdsMois = saisiesMois.map((s) => s.id);
-  const { data: axeRows } =
+  const [axeRowsRes, axesDefsRes] = await Promise.all([
     saisieIdsMois.length > 0
-      ? await supabase
+      ? supabase
           .from('saisies_temps_axes')
           .select('axe, heures')
           .in('saisie_id', saisieIdsMois)
-      : { data: [] as Array<{ axe: string; heures: number }> };
-
-  const { data: axesDefs } = await supabase
-    .from('axes_temps')
-    .select('code, libelle, couleur')
-    .order('ordre');
+      : Promise.resolve({
+          data: [] as Array<{ axe: string; heures: number }>,
+        }),
+    supabase.from('axes_temps').select('code, libelle, couleur').order('ordre'),
+  ]);
+  const { data: axeRows } = axeRowsRes;
+  const { data: axesDefs } = axesDefsRes;
 
   const axeMap = new Map<string, number>();
   for (const row of axeRows ?? []) {

@@ -86,25 +86,29 @@ function describeAction(
 }
 
 export default async function AuditPage() {
-  const user = await getCurrentUser();
+  const supabase = await createClient();
+  // Parallelise getCurrentUser + audit_logs select : independants. Si user
+  // pas admin on paye le SELECT pour rien (cas rare : la page est gatee
+  // par la sidebar).
+  const [user, full] = await Promise.all([
+    getCurrentUser(),
+    // Full select - requires migration 00041 (avatar_mode). Fall back to legacy
+    // schema without avatar_mode if the column doesn't exist yet on prod.
+    supabase
+      .from('audit_logs')
+      .select(
+        `
+        id, action, entity_type, entity_id, details, created_at,
+        user:users!audit_logs_user_id_fkey(id, nom, prenom, email, avatar_mode, avatar_seed, avatar_regen_date)
+      `,
+      )
+      .order('created_at', { ascending: false })
+      .limit(100),
+  ]);
+
   if (!isAdmin(user?.role)) {
     redirect('/projets');
   }
-
-  const supabase = await createClient();
-
-  // Full select - requires migration 00041 (avatar_mode). Fall back to legacy
-  // schema without avatar_mode if the column doesn't exist yet on prod.
-  const full = await supabase
-    .from('audit_logs')
-    .select(
-      `
-      id, action, entity_type, entity_id, details, created_at,
-      user:users!audit_logs_user_id_fkey(id, nom, prenom, email, avatar_mode, avatar_seed, avatar_regen_date)
-    `,
-    )
-    .order('created_at', { ascending: false })
-    .limit(100);
 
   const logs = full.error
     ? ((

@@ -21,6 +21,7 @@ import {
 } from '@/lib/actions/email';
 import { sendFacture } from '@/lib/actions/factures';
 import type { FactureDetail } from '@/lib/queries/factures';
+import { logger } from '@/lib/utils/logger';
 
 interface FactureDetailActionsProps {
   facture: FactureDetail;
@@ -97,8 +98,9 @@ export function FactureDetailActions({
         toast.error(
           'Reponse serveur tardive. Verifie ta boite mail dans 1 min - l envoi a probablement reussi.',
         );
-
-        console.error('sendFactureEmailAction failed:', err);
+        logger.error('facture-detail-client.resend', err, {
+          factureId: facture.id,
+        });
       }
     });
   };

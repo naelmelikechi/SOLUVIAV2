@@ -1,28 +1,33 @@
 /**
  * Capture la page courante en image PNG (Blob).
  *
- * Utilise `modern-screenshot` qui s'appuie sur SVG foreignObject pour un
- * rendu plus fidele que html2canvas (couleurs OKLCH / Tailwind v4,
- * box-shadows, gradients, blur). Sortie : fond blanc solide pour eviter
- * l'effet "image transparente" delavee dans les viewers d'email/dashboard.
+ * Utilise `html-to-image` (toBlob) avec un pixelRatio x2 pour un rendu
+ * net et fidele (couleurs plus saturees qu'a scale 1). Fond blanc solide
+ * pour eviter l'effet "image semi-transparente" dans les viewers.
  *
- * Retourne null en cas d'echec (CSP, taille, erreur lib). L'appelant
- * affiche un fallback ("Capture echouee, ajoute-en une manuellement").
+ * Retourne null en cas d'echec (CSP, taille, lib). L'appelant affiche
+ * un fallback.
  */
 
 export async function capturePageScreenshot(): Promise<Blob | null> {
   if (typeof window === 'undefined') return null;
   try {
-    const { domToBlob } = await import('modern-screenshot');
-    const blob = await domToBlob(document.body, {
-      type: 'image/png',
+    const { toBlob } = await import('html-to-image');
+    const blob = await toBlob(document.body, {
+      pixelRatio: 2,
       backgroundColor: '#ffffff',
-      // DPR 1 pour rester sous ~1-2 Mo meme sur retina. Suffisant pour debug.
-      scale: 1,
+      cacheBust: true,
+      // On capture la zone visible uniquement, en evitant le scroll complet
+      // (sinon screenshot enorme et peu utile pour un debug).
       width: document.documentElement.clientWidth,
       height: document.documentElement.clientHeight,
+      style: {
+        // Force l'opacite a 1 au niveau racine pour eviter qu'un parent
+        // semi-transparent (transition, animation) ne degrade la capture.
+        opacity: '1',
+      },
     });
-    return blob ?? null;
+    return blob;
   } catch (err) {
     if (typeof console !== 'undefined') {
       console.warn('[bug-report] capturePageScreenshot failed', err);

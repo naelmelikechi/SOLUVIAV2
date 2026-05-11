@@ -64,10 +64,7 @@ export async function getCurrentUser() {
 
   if (!authUser) return null;
 
-  // Full select - requires migrations 00041 (avatar_mode) + 00042 (telephone).
-  // Inclut aussi les flags pipeline_access / can_validate_ideas / can_ship_ideas
-  // utilises par le layout dashboard cote serveur (sprint 5 #3).
-  const full = await supabase
+  const { data } = await supabase
     .from('users')
     .select(
       'id, email, nom, prenom, role, actif, telephone, avatar_mode, avatar_seed, avatar_regen_date, pipeline_access, can_validate_ideas, can_ship_ideas, onboarding_completed_at',
@@ -75,43 +72,17 @@ export async function getCurrentUser() {
     .eq('id', authUser.id)
     .single();
 
-  if (full.data) {
-    // users.avatar_mode is TEXT in the DB (no enum). Supabase types it as
-    // `string | null`; downstream code assumes the narrow union from avatar.ts.
-    return {
-      ...full.data,
-      actif: full.data.actif ?? false,
-      avatar_mode: full.data.avatar_mode as
-        | 'daily'
-        | 'random'
-        | 'frozen'
-        | null,
-      pipeline_access: full.data.pipeline_access ?? false,
-      can_validate_ideas: full.data.can_validate_ideas ?? false,
-      can_ship_ideas: full.data.can_ship_ideas ?? false,
-    };
-  }
+  if (!data) return null;
 
-  // Fallback for prod DBs where migrations 00041/00042 haven't been applied yet.
-  // Select the columns guaranteed by migrations 00003 + 00038 and fill the
-  // missing fields with null so downstream code (which already handles nulls)
-  // keeps working.
-  const legacy = await supabase
-    .from('users')
-    .select('id, email, nom, prenom, role, avatar_seed, avatar_regen_date')
-    .eq('id', authUser.id)
-    .single();
-
-  if (!legacy.data) return null;
+  // users.avatar_mode is TEXT in the DB (no enum). Supabase types it as
+  // `string | null`; downstream code assumes the narrow union from avatar.ts.
   return {
-    ...legacy.data,
-    actif: true,
-    telephone: null as string | null,
-    avatar_mode: null as 'daily' | 'random' | 'frozen' | null,
-    pipeline_access: false,
-    can_validate_ideas: false,
-    can_ship_ideas: false,
-    onboarding_completed_at: null as string | null,
+    ...data,
+    actif: data.actif ?? false,
+    avatar_mode: data.avatar_mode as 'daily' | 'random' | 'frozen' | null,
+    pipeline_access: data.pipeline_access ?? false,
+    can_validate_ideas: data.can_validate_ideas ?? false,
+    can_ship_ideas: data.can_ship_ideas ?? false,
   };
 }
 

@@ -61,16 +61,46 @@ export async function sendFacture(
   }
 
   // Verifie qu'il y a au moins une ligne (eviter d'envoyer un brouillon vide)
-  const { count: lignesCount } = await supabase
+  // + verifie que tous les contrats lies ont leur DECA OPCO (contract_number).
+  // Sans DECA, le client OPCO refuserait la facture - on bloque l'emission et
+  // on demande a l'utilisateur de renseigner le DECA dans Eduvia d'abord.
+  const { data: lignes, error: lignesError } = await supabase
     .from('facture_lignes')
-    .select('id', { count: 'exact', head: true })
+    .select(
+      'id, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom)',
+    )
     .eq('facture_id', factureId);
 
-  if (!lignesCount || lignesCount === 0) {
+  if (lignesError) {
+    return { success: false, error: lignesError.message };
+  }
+
+  if (!lignes || lignes.length === 0) {
     return {
       success: false,
       error:
         'Brouillon sans ligne, impossible d’envoyer. Supprimez-le ou ajoutez une ligne.',
+    };
+  }
+
+  const missingDecaRefs = Array.from(
+    new Set(
+      lignes
+        .filter(
+          (l) =>
+            l.contrat &&
+            (!l.contrat.contract_number ||
+              l.contrat.contract_number.trim() === ''),
+        )
+        .map((l) => l.contrat?.ref)
+        .filter((ref): ref is string => Boolean(ref)),
+    ),
+  );
+
+  if (missingDecaRefs.length > 0) {
+    return {
+      success: false,
+      error: `DECA OPCO manquant sur ${missingDecaRefs.length} contrat${missingDecaRefs.length > 1 ? 's' : ''} : ${missingDecaRefs.join(', ')}. Renseignez le DECA dans Eduvia, attendez la prochaine synchro, puis renvoyez.`,
     };
   }
 

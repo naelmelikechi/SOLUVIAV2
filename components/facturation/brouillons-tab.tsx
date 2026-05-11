@@ -3,7 +3,15 @@
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Download, Eye, Loader2, Send, Trash2, Inbox } from 'lucide-react';
+import {
+  AlertTriangle,
+  Download,
+  Eye,
+  Loader2,
+  Send,
+  Trash2,
+  Inbox,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Table,
@@ -44,6 +52,21 @@ import type { BrouillonItem } from '@/lib/queries/factures';
 
 interface BrouillonsTabProps {
   brouillons: BrouillonItem[];
+}
+
+// Retourne la liste (dedupliquee) des refs contrats sans DECA OPCO presents
+// dans un brouillon. Si non vide, l'emission est bloquee cote serveur et le
+// bouton Envoyer est desactive cote UI.
+function getMissingDecaRefs(b: BrouillonItem): string[] {
+  const refs = new Set<string>();
+  for (const l of b.lignes ?? []) {
+    const c = l.contrat;
+    if (!c) continue;
+    if (!c.contract_number || c.contract_number.trim() === '') {
+      if (c.ref) refs.add(c.ref);
+    }
+  }
+  return Array.from(refs);
 }
 
 export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
@@ -275,6 +298,8 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                   const lignesCount = b.lignes?.length ?? 0;
                   const isSendingRow = isRowPending && rowAction === 'send';
                   const isDeletingRow = isRowPending && rowAction === 'delete';
+                  const missingDecaRefs = getMissingDecaRefs(b);
+                  const hasMissingDeca = missingDecaRefs.length > 0;
 
                   return (
                     <TableRow
@@ -321,7 +346,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                                   size="icon-sm"
                                   aria-label="Envoyer ce brouillon"
                                   onClick={() => handleSendOne(b.id)}
-                                  disabled={bulkPending}
+                                  disabled={bulkPending || hasMissingDeca}
                                 />
                               }
                             >
@@ -331,7 +356,11 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                                 <Send className="h-4 w-4 text-[var(--primary)]" />
                               )}
                             </TooltipTrigger>
-                            <TooltipContent side="top">Envoyer</TooltipContent>
+                            <TooltipContent side="top">
+                              {hasMissingDeca
+                                ? `Envoi bloqué - DECA manquant sur ${missingDecaRefs.length} contrat${missingDecaRefs.length > 1 ? 's' : ''} (${missingDecaRefs.join(', ')})`
+                                : 'Envoyer'}
+                            </TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger
@@ -358,13 +387,33 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                         </div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{clientName}</span>
-                          {b.client?.trigramme ? (
-                            <span className="text-muted-foreground font-mono text-xs">
-                              {b.client.trigramme}
-                            </span>
-                          ) : null}
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{clientName}</span>
+                            {b.client?.trigramme ? (
+                              <span className="text-muted-foreground font-mono text-xs">
+                                {b.client.trigramme}
+                              </span>
+                            ) : null}
+                          </div>
+                          {hasMissingDeca && (
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <span
+                                    aria-label={`DECA manquant sur ${missingDecaRefs.length} contrat${missingDecaRefs.length > 1 ? 's' : ''}`}
+                                    className="inline-flex items-center gap-1 rounded bg-[var(--warning)]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--warning)]"
+                                  />
+                                }
+                              >
+                                <AlertTriangle className="h-3 w-3" />
+                                DECA
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                {`DECA OPCO manquant sur ${missingDecaRefs.length} contrat${missingDecaRefs.length > 1 ? 's' : ''} (${missingDecaRefs.join(', ')}). Renseignez le DECA dans Eduvia, attendez la synchro, puis envoyez.`}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>

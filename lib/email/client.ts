@@ -6,6 +6,7 @@ import { escapeHtml } from '@/lib/utils/escape-html';
 import { buildFactureEmailHtml } from '@/lib/email/templates';
 import { sendEmail } from '@/lib/email/_send';
 import { FacturePdf } from '@/components/facturation/facture-pdf';
+import { getEmetteurInfo, type EmetteurInfo } from '@/lib/queries/parametres';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
@@ -18,6 +19,7 @@ export async function sendFactureEmail(params: {
   montantTtc: number;
   dateEcheance: string;
   pdfBuffer: Buffer;
+  emetteur?: EmetteurInfo;
 }): Promise<{ success: boolean; error?: string }> {
   const subject = params.isAvoir
     ? `Avoir ${params.factureRef} - SOLUVIA`
@@ -87,19 +89,25 @@ export async function sendEmailForFacture(
   }
 
   // 3. Render PDF
-  let origineRef: string | null = null;
-  if (facture.est_avoir && facture.facture_origine_id) {
-    const { data: origine } = await supabase
-      .from('factures')
-      .select('ref')
-      .eq('id', facture.facture_origine_id)
-      .single();
-    origineRef = origine?.ref ?? null;
-  }
+  // Charge l emetteur en parallele de la resolution de l avoir origine.
+  // SANS ca, FacturePdf utilise EMETTEUR_FALLBACK sans IBAN/BIC -> le PDF
+  // attache a l email n affiche PAS la section "Modalites de paiement".
+  const [origineRef, emetteur] = await Promise.all([
+    facture.est_avoir && facture.facture_origine_id
+      ? supabase
+          .from('factures')
+          .select('ref')
+          .eq('id', facture.facture_origine_id)
+          .single()
+          .then(({ data }) => data?.ref ?? null)
+      : Promise.resolve(null as string | null),
+    getEmetteurInfo(),
+  ]);
 
   const element = createElement(FacturePdf, {
     facture,
     origineRef,
+    emetteur,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }) as ReactElement<any>;
   const buffer = await renderToBuffer(element);
@@ -113,6 +121,7 @@ export async function sendEmailForFacture(
     montantTtc: facture.montant_ttc,
     dateEcheance: facture.date_echeance ?? '',
     pdfBuffer,
+    emetteur,
   });
 
   // 5. On success: mark email_envoye

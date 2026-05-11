@@ -12,7 +12,21 @@ const EMETTEUR_FALLBACK: EmetteurInfo = {
   adresse: '27 Rue Jacqueline Cochran, 79000 Niort',
   siret: '994 241 537 00012',
   tva: 'FR37994241537',
+  iban: null,
+  bic: null,
+  banque: null,
+  titulaire_compte: null,
 };
+
+// Formes legales courantes a retirer pour obtenir un nom commercial court.
+// Ex: "S.A.S. SOLUVIA" -> "SOLUVIA", "SARL Toto" -> "Toto". Si la raison
+// sociale ne commence par aucune forme, on renvoie la valeur entiere.
+const LEGAL_FORM_PREFIX =
+  /^(S\.?A\.?S\.?U?|SARL|S\.?A\.?R\.?L\.?|S\.?A\.?|EURL|S\.?C\.?I\.?|SCIC|SNC)\s+/i;
+
+function stripLegalForm(raisonSociale: string): string {
+  return raisonSociale.replace(LEGAL_FORM_PREFIX, '').trim() || raisonSociale;
+}
 
 function formatEur(n: number): string {
   return new Intl.NumberFormat('fr-FR', {
@@ -31,8 +45,7 @@ export function buildFactureEmailHtml(params: {
 }): string {
   const { factureRef, isAvoir, montantTtc, dateEcheance } = params;
   const emetteur = params.emetteur ?? EMETTEUR_FALLBACK;
-  const rawCompanyName =
-    emetteur.raison_sociale.split(' ')[0] ?? emetteur.raison_sociale;
+  const rawCompanyName = stripLegalForm(emetteur.raison_sociale);
 
   const docType = isAvoir ? "l'avoir" : 'la facture';
   const montantFormatted = formatEur(Math.abs(montantTtc));
@@ -47,6 +60,17 @@ export function buildFactureEmailHtml(params: {
   const adresse = escapeHtml(emetteur.adresse);
   const siret = escapeHtml(emetteur.siret);
   const tva = escapeHtml(emetteur.tva);
+  // Coordonnees bancaires : la section "Modalites de paiement" n est
+  // affichee que pour les factures (pas les avoirs) ET seulement si
+  // l IBAN est renseigne en parametres. Sinon le client reste dans le
+  // PDF pour les modalites.
+  const iban = emetteur.iban ? escapeHtml(emetteur.iban) : null;
+  const bic = emetteur.bic ? escapeHtml(emetteur.bic) : null;
+  const banque = emetteur.banque ? escapeHtml(emetteur.banque) : null;
+  const titulaireCompte = emetteur.titulaire_compte
+    ? escapeHtml(emetteur.titulaire_compte)
+    : null;
+  const showRib = !isAvoir && iban !== null;
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -116,6 +140,54 @@ export function buildFactureEmailHtml(params: {
                 </tr>
               </table>
 
+              ${
+                showRib
+                  ? `<!-- Modalites de paiement (RIB) -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:6px;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0 0 12px;font-size:12px;font-weight:bold;color:#6b7280;letter-spacing:1px;text-transform:uppercase;">
+                      Modalités de paiement
+                    </p>
+                    <p style="margin:0 0 12px;font-size:13px;color:#1a1a1a;line-height:1.5;">
+                      Règlement par virement bancaire sous 30 jours fin de mois. Merci d'indiquer la référence <strong>${escapedFactureRef}</strong> lors du virement.
+                    </p>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;color:#1a1a1a;">
+                      ${
+                        titulaireCompte
+                          ? `<tr>
+                        <td style="padding:3px 0;color:#6b7280;width:90px;">Titulaire</td>
+                        <td style="padding:3px 0;font-weight:bold;">${titulaireCompte}</td>
+                      </tr>`
+                          : ''
+                      }
+                      ${
+                        banque
+                          ? `<tr>
+                        <td style="padding:3px 0;color:#6b7280;width:90px;">Banque</td>
+                        <td style="padding:3px 0;font-weight:bold;">${banque}</td>
+                      </tr>`
+                          : ''
+                      }
+                      <tr>
+                        <td style="padding:3px 0;color:#6b7280;width:90px;">IBAN</td>
+                        <td style="padding:3px 0;font-weight:bold;font-family:monospace;">${iban}</td>
+                      </tr>
+                      ${
+                        bic
+                          ? `<tr>
+                        <td style="padding:3px 0;color:#6b7280;width:90px;">BIC</td>
+                        <td style="padding:3px 0;font-weight:bold;font-family:monospace;">${bic}</td>
+                      </tr>`
+                          : ''
+                      }
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              `
+                  : ''
+              }
               <p style="margin:0 0 8px;font-size:15px;color:#1a1a1a;line-height:1.6;">
                 Cordialement,
               </p>
@@ -132,7 +204,7 @@ export function buildFactureEmailHtml(params: {
                 ${fullCompanyName} - ${adresse}
               </p>
               <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;line-height:1.5;">
-                SIRET ${siret} - TVA ${tva}
+                SIRET ${siret} - TVA intracommunautaire ${tva}
               </p>
               <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5;">
                 Cet email a été envoyé automatiquement. Merci de ne pas y répondre directement.

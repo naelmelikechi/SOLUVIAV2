@@ -246,7 +246,9 @@ export function FacturePdf({
             <Text>{adresseLigne1}</Text>
             {adresseLigne2 ? <Text>{adresseLigne2}</Text> : null}
             <Text style={styles.muted}>SIRET {EMETTEUR.siret}</Text>
-            <Text style={styles.muted}>TVA {EMETTEUR.tva}</Text>
+            <Text style={styles.muted}>
+              TVA intracommunautaire {EMETTEUR.tva}
+            </Text>
           </View>
           <View style={styles.headerRight}>
             <Text style={styles.docTitle}>
@@ -415,8 +417,8 @@ export function FacturePdf({
             pour paiement anticipé.
           </Text>
           <Text style={{ marginTop: 4 }}>
-            {EMETTEUR.raison_sociale} - SIRET {EMETTEUR.siret} - TVA{' '}
-            {EMETTEUR.tva}
+            {EMETTEUR.raison_sociale} - SIRET {EMETTEUR.siret} - TVA
+            intracommunautaire {EMETTEUR.tva}
           </Text>
         </View>
       </Page>

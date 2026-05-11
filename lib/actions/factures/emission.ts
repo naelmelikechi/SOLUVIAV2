@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { waitUntil } from '@vercel/functions';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { sendEmailForFacture } from '@/lib/email/client';
@@ -106,15 +107,21 @@ export async function sendFacture(
     user.id,
   );
 
-  // Email fire-and-forget : si Resend echoue, on ne casse pas la facture
-  // (facture deja en 'emise' avec ref, l'utilisateur peut renvoyer manuellement).
-  sendEmailForFacture(updated.id, supabase).catch((err) => {
-    logger.error('actions.factures', 'Email fire-and-forget failed', {
-      factureId: updated.id,
-      factureRef: updated.ref,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
+  // Email post-emission : encapsule dans waitUntil() pour que Vercel laisse
+  // tourner la promesse apres le return du Server Action. Sans cela, la
+  // fonction est tuee des le retour HTTP et l email n est jamais envoye.
+  // En local (hors Vercel) waitUntil() est un no-op et la promesse part en
+  // fire-and-forget classique. Si Resend echoue on n'echoue pas la facture
+  // (deja en 'emise' avec ref, le bouton "Renvoyer par email" reste dispo).
+  waitUntil(
+    sendEmailForFacture(updated.id, supabase).catch((err) => {
+      logger.error('actions.factures', 'Email post-emission failed', {
+        factureId: updated.id,
+        factureRef: updated.ref,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }),
+  );
 
   revalidatePath('/facturation');
   revalidatePath(`/facturation/${updated.ref}`);

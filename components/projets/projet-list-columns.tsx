@@ -16,11 +16,19 @@ import { matchesSearch } from '@/lib/utils/search';
 const textFilterFn: FilterFn<ProjetListEnriched> = (
   row: Row<ProjetListEnriched>,
   columnId: string,
-  filterValue: string,
+  filterValue: unknown,
 ) => {
   const cell = row.getValue(columnId);
   if (cell == null) return false;
-  return matchesSearch(String(cell), filterValue);
+  // Toolbar multi-select passes an array of allowed values - keep array semantic
+  if (Array.isArray(filterValue)) {
+    return filterValue.length === 0 || filterValue.includes(cell);
+  }
+  // Header text search passes a string
+  if (typeof filterValue === 'string') {
+    return matchesSearch(String(cell), filterValue);
+  }
+  return false;
 };
 
 export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [

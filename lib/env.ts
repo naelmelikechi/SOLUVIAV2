@@ -64,6 +64,15 @@ const serverSchema = z
     SENTRY_DSN: z.string().url().optional(),
     NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 
+    // OpenAI - bug report triage (vision-capable). Optional: si absent,
+    // le bug report est cree et envoye en email mais sans synthese IA
+    // (ai_status = 'skipped').
+    OPENAI_API_KEY: z.string().min(1).optional(),
+
+    // Destinataire des emails de bug reports. Si absent, fallback vers
+    // l'admin principal (cf. lib/email/notifications.ts patterns).
+    ADMIN_BUG_REPORT_EMAIL: z.string().email().optional(),
+
     // Upstash Redis - rate limiting for auth endpoints. Les noms longs
     // sont ceux auto-provisionnes par la Vercel Marketplace integration
     // (prefix "UPSTASH_REDIS_REST" applique devant les noms KV standards).
@@ -141,6 +150,8 @@ function parseEnv(): Env {
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY?.trim(),
     RESEND_API_KEY: process.env.RESEND_API_KEY?.trim(),
     EMAIL_OVERRIDE: process.env.EMAIL_OVERRIDE?.trim(),
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY?.trim(),
+    ADMIN_BUG_REPORT_EMAIL: process.env.ADMIN_BUG_REPORT_EMAIL?.trim(),
     GIPHY_API_KEY: process.env.GIPHY_API_KEY?.trim(),
     AVATAR_UNLOCK_SECRET: process.env.AVATAR_UNLOCK_SECRET?.trim(),
     SENTRY_DSN: process.env.SENTRY_DSN?.trim(),

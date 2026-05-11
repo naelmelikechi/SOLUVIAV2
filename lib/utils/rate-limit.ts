@@ -16,7 +16,8 @@ type LimiterKey =
   | 'webauthn-login'
   | 'webauthn-login-options'
   | 'webauthn-register-options'
-  | 'webauthn-register-verify';
+  | 'webauthn-register-verify'
+  | 'bug-report';
 
 function buildLimiter(
   key: LimiterKey,

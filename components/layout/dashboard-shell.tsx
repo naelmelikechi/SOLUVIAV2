@@ -6,6 +6,7 @@ import { Topbar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/shared/command-palette';
 import { OnboardingDialog } from '@/components/shared/onboarding';
 import { UnassignedBanner } from '@/components/layout/unassigned-banner';
+import { BugReportLauncher } from '@/components/bug-report/bug-report-launcher';
 import { useBadgeCounts } from '@/hooks/use-badge-counts';
 
 /**
@@ -99,6 +100,7 @@ export function DashboardShell({
 
       <CommandPalette />
       <OnboardingDialog />
+      <BugReportLauncher />
     </div>
   );
 }

@@ -7,30 +7,10 @@ export type Json =
   | Json[];
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never;
-    };
-    Views: {
-      [_ in never]: never;
-    };
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json;
-          operationName?: string;
-          query?: string;
-          variables?: Json;
-        };
-        Returns: Json;
-      };
-    };
-    Enums: {
-      [_ in never]: never;
-    };
-    CompositeTypes: {
-      [_ in never]: never;
-    };
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: '14.5';
   };
   public: {
     Tables: {
@@ -227,6 +207,99 @@ export type Database = {
           id?: string;
           libelle?: string;
           ordre?: number;
+        };
+        Relationships: [];
+      };
+      bug_reports: {
+        Row: {
+          ai_category: string | null;
+          ai_error: string | null;
+          ai_hypotheses: Json | null;
+          ai_processed_at: string | null;
+          ai_severity: string | null;
+          ai_status: string;
+          ai_summary: string | null;
+          archive: boolean;
+          comment: string;
+          console_errors: Json | null;
+          created_at: string;
+          extra_context: Json | null;
+          id: string;
+          page_url: string;
+          perceived_severity: string | null;
+          ref: string | null;
+          resolution_notes: string | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          screenshot_path: string | null;
+          sentry_event_id: string | null;
+          status: string;
+          updated_at: string;
+          user_agent: string | null;
+          user_email: string;
+          user_id: string | null;
+          user_role: string;
+          viewport: Json | null;
+        };
+        Insert: {
+          ai_category?: string | null;
+          ai_error?: string | null;
+          ai_hypotheses?: Json | null;
+          ai_processed_at?: string | null;
+          ai_severity?: string | null;
+          ai_status?: string;
+          ai_summary?: string | null;
+          archive?: boolean;
+          comment: string;
+          console_errors?: Json | null;
+          created_at?: string;
+          extra_context?: Json | null;
+          id?: string;
+          page_url: string;
+          perceived_severity?: string | null;
+          ref?: string | null;
+          resolution_notes?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          screenshot_path?: string | null;
+          sentry_event_id?: string | null;
+          status?: string;
+          updated_at?: string;
+          user_agent?: string | null;
+          user_email: string;
+          user_id?: string | null;
+          user_role: string;
+          viewport?: Json | null;
+        };
+        Update: {
+          ai_category?: string | null;
+          ai_error?: string | null;
+          ai_hypotheses?: Json | null;
+          ai_processed_at?: string | null;
+          ai_severity?: string | null;
+          ai_status?: string;
+          ai_summary?: string | null;
+          archive?: boolean;
+          comment?: string;
+          console_errors?: Json | null;
+          created_at?: string;
+          extra_context?: Json | null;
+          id?: string;
+          page_url?: string;
+          perceived_severity?: string | null;
+          ref?: string | null;
+          resolution_notes?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          screenshot_path?: string | null;
+          sentry_event_id?: string | null;
+          status?: string;
+          updated_at?: string;
+          user_agent?: string | null;
+          user_email?: string;
+          user_id?: string | null;
+          user_role?: string;
+          viewport?: Json | null;
         };
         Relationships: [];
       };
@@ -2608,9 +2681,6 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       absence_type: ['conges', 'maladie'],

@@ -24,6 +24,7 @@ import {
   Lightbulb,
   LineChart,
   Sparkles,
+  Bug,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -95,6 +96,12 @@ const adminNavItems = [
     href: '/admin/intercontrat',
     label: 'Intercontrat',
     icon: UsersRound,
+    adminOnly: true,
+  },
+  {
+    href: '/admin/bugs',
+    label: 'Bugs',
+    icon: Bug,
     adminOnly: true,
   },
   {

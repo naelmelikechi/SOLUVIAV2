@@ -482,6 +482,12 @@ export async function createFactureFromEvents(params: {
       };
     }
     if (e.status === 'locked') {
+      if (e.lock_reason === 'missing_deca') {
+        return {
+          success: false,
+          error: `Contrat sans numero DECA OPCO : ${e.apprenant_prenom} ${e.apprenant_nom} (${e.contrat_ref ?? e.contrat_id}). Renseignez le DECA cote Eduvia avant de facturer.`,
+        };
+      }
       const opp = e.type === 'engagement' ? 'règlements OPCO' : 'engagement';
       return {
         success: false,
@@ -489,6 +495,23 @@ export async function createFactureFromEvents(params: {
       };
     }
     resolved.push(e);
+  }
+
+  // 3-bis. Defense en profondeur : refuse si DECA manquant sur un event
+  //        resolved (l UI le filtre deja mais protege contre bypass curl
+  //        ou race condition entre sync Eduvia et creation facture).
+  const missingDecaEvents = resolved.filter((e) => {
+    const num = e.contract_number;
+    return !num || num.trim() === '';
+  });
+  if (missingDecaEvents.length > 0) {
+    const refs = missingDecaEvents
+      .map((e) => e.contrat_ref ?? e.contrat_id)
+      .join(', ');
+    return {
+      success: false,
+      error: `Contrat(s) sans numero DECA OPCO : ${refs}. Impossible de facturer avant que le DECA ne soit renseigne cote Eduvia.`,
+    };
   }
 
   // 4. Verifie l'exclusion engagement <-> opco_step DANS la selection

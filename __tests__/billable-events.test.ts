@@ -455,3 +455,158 @@ describe('getBillableEvents - cas limites', () => {
     expect(result!.events).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// DECA manquant
+// ---------------------------------------------------------------------------
+
+describe('getBillableEvents - DECA manquant', () => {
+  it('event engagement est "locked" avec lock_reason "missing_deca" si contract_number null', async () => {
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat({ contract_number: null })] },
+      eduvia_invoice_steps: [
+        { data: [] }, // opco_steps REGLE : aucun
+        {
+          data: [
+            { contrat_id: 'ctr-1', total_amount: 2000, invoice_state: 'REGLE' },
+          ],
+        },
+      ],
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    expect(result!.events).toHaveLength(1);
+    const ev = result!.events[0]!;
+    expect(ev.type).toBe('engagement');
+    expect(ev.status).toBe('locked');
+    expect(ev.lock_reason).toBe('missing_deca');
+    expect(ev.locked_by).toBeUndefined();
+  });
+
+  it('event opco_step est "locked" avec lock_reason "missing_deca" si contract_number vide', async () => {
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: {
+        data: [contrat({ contract_number: '  ', contract_state: 'REGLE' })],
+      },
+      eduvia_invoice_steps: [
+        {
+          data: [
+            {
+              id: 'step-1',
+              contrat_id: 'ctr-1',
+              step_number: 2,
+              opening_date: '2026-01-15',
+              total_amount: 1500,
+              paid_at: '2026-02-01',
+              invoice_state: 'REGLE',
+            },
+          ],
+        },
+        { data: [] }, // step 1 emis : aucun (pas d engagement)
+      ],
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    expect(result!.events).toHaveLength(1);
+    const ev = result!.events[0]!;
+    expect(ev.type).toBe('opco_step');
+    expect(ev.status).toBe('locked');
+    expect(ev.lock_reason).toBe('missing_deca');
+    expect(ev.locked_by).toBeUndefined();
+  });
+
+  it('event reste "available" si contract_number renseigne', async () => {
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat({ contract_number: 'DECA-2026-001' })] },
+      eduvia_invoice_steps: [
+        { data: [] },
+        {
+          data: [
+            { contrat_id: 'ctr-1', total_amount: 3000, invoice_state: 'REGLE' },
+          ],
+        },
+      ],
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    expect(result!.events).toHaveLength(1);
+    const ev = result!.events[0]!;
+    expect(ev.status).toBe('available');
+    expect(ev.lock_reason).toBeUndefined();
+  });
+
+  it('missing_deca prevaut sur opposite_billed (verrou prioritaire)', async () => {
+    // Contrat sans DECA ET avec engagement deja facture.
+    // L opco_step serait normalement lockedByEngagement,
+    // mais missing_deca arrive en premier dans le ternaire.
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat({ contract_number: null })] },
+      eduvia_invoice_steps: [
+        {
+          data: [
+            {
+              id: 'step-1',
+              contrat_id: 'ctr-1',
+              step_number: 2,
+              opening_date: '2026-01-15',
+              total_amount: 1000,
+              paid_at: '2026-02-01',
+              invoice_state: 'REGLE',
+            },
+          ],
+        },
+        {
+          data: [
+            { contrat_id: 'ctr-1', total_amount: 2000, invoice_state: 'REGLE' },
+          ],
+        },
+      ],
+      facture_lignes: {
+        data: [
+          // engagement deja facture
+          {
+            event_type: 'engagement',
+            event_source_id: 'ctr-1',
+            contrat_id: 'ctr-1',
+            est_avoir: false,
+            facture: { id: 'fac-A', ref: 'FAC-HEO-0001', statut: 'emise' },
+          },
+        ],
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    const opco = result!.events.find((e) => e.type === 'opco_step')!;
+    expect(opco.status).toBe('locked');
+    // missing_deca doit prendre le dessus sur opposite_billed
+    expect(opco.lock_reason).toBe('missing_deca');
+    expect(opco.locked_by).toBeUndefined();
+  });
+});

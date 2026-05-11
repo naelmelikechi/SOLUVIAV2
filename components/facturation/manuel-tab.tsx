@@ -429,7 +429,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                       <span>
                                         {'Verrouillé'} :{' '}
                                         {e.type === 'opco_step'
-                                          ? 'engagement à facturer d’abord'
+                                          ? "engagement à facturer d'abord"
                                           : 'réglements OPCO déjà facturés'}
                                       </span>
                                     </TooltipTrigger>
@@ -439,7 +439,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                     >
                                       <div className="text-xs">
                                         {e.type === 'opco_step'
-                                          ? 'Verrouillé car l’engagement de ce contrat a déjà été facturé sur '
+                                          ? "Verrouillé car l'engagement de ce contrat a déjà été facturé sur "
                                           : 'Verrouillé car un réglement OPCO de ce contrat a déjà été facturé sur '}
                                         <span className="font-mono">
                                           {e.locked_by.facture_ref ??

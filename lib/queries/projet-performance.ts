@@ -59,20 +59,12 @@ export async function getProjetPerformance(
   projetId: string,
 ): Promise<ProjetPerformance> {
   const admin = createAdminClient();
-  const defaults = await getEmployeeCostDefaults().catch(() => null);
-  const safeDefaults = defaults ?? {
-    salaire_brut_annuel: 40_000,
-    primes_annuelles: 0,
-    avantages_annuels: 1_800,
-    taux_charges_patronales: 42,
-    heures_hebdo: 35,
-    jours_conges_payes: 25,
-    jours_rtt: 0,
-  };
 
-  // Charge en parallele : contrats + progressions + invoice_steps + factures + saisies + users
-  const [contratsRes, invoiceStepsRes, facturesRes, saisiesRes] =
+  // Charge en parallele : defaults + contrats + progressions + invoice_steps +
+  // factures + saisies. defaults etait avant en serie, gain net.
+  const [defaultsRes, contratsRes, invoiceStepsRes, facturesRes, saisiesRes] =
     await Promise.all([
+      getEmployeeCostDefaults().catch(() => null),
       admin
         .from('contrats')
         .select(
@@ -94,6 +86,16 @@ export async function getProjetPerformance(
         .select('heures, user_id')
         .eq('projet_id', projetId),
     ]);
+
+  const safeDefaults = defaultsRes ?? {
+    salaire_brut_annuel: 40_000,
+    primes_annuelles: 0,
+    avantages_annuels: 1_800,
+    taux_charges_patronales: 42,
+    heures_hebdo: 35,
+    jours_conges_payes: 25,
+    jours_rtt: 0,
+  };
 
   if (contratsRes.error) {
     logger.error('queries.projet-performance', 'contrats fetch failed', {

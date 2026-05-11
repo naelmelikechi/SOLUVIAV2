@@ -16,6 +16,8 @@
  * pour que l'onglet courant soit en haut de la liste de selection.
  */
 
+import { logger } from '@/lib/utils/logger';
+
 interface DisplayMediaConstraintsWithCurrentTab {
   video?: DisplayMediaStreamOptions['video'];
   audio?: DisplayMediaStreamOptions['audio'];
@@ -28,7 +30,7 @@ interface DisplayMediaConstraintsWithCurrentTab {
 export async function capturePageScreenshot(): Promise<Blob | null> {
   if (typeof window === 'undefined') return null;
   if (!navigator.mediaDevices?.getDisplayMedia) {
-    console.warn('[bug-report] getDisplayMedia non supporte');
+    logger.warn('bug-report.capture', 'getDisplayMedia non supporte');
     return null;
   }
 
@@ -58,11 +60,13 @@ export async function capturePageScreenshot(): Promise<Blob | null> {
     const blob = await grabFrame(stream, track);
     return blob;
   } catch (err) {
-    // L'utilisateur a refuse / annule le partage : on log en debug
+    // L'utilisateur a refuse / annule le partage : c est attendu, on ne
+    // forward pas a Sentry pour eviter le bruit. Les autres erreurs sont
+    // remontees comme warn.
     if (err instanceof DOMException && err.name === 'NotAllowedError') {
-      console.info('[bug-report] capture annulee par l utilisateur');
+      logger.info('bug-report.capture', 'capture annulee par l utilisateur');
     } else {
-      console.warn('[bug-report] capture echec', err);
+      logger.warn('bug-report.capture', 'capture echec', { error: err });
     }
     return null;
   } finally {

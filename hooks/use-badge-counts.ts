@@ -12,6 +12,7 @@ export interface BadgeCounts {
   tempsNonSaisi: number;
   notifications: number;
   intercontrat: number;
+  bugsNouveaux: number;
 }
 
 const INITIAL_COUNTS: BadgeCounts = {
@@ -19,6 +20,7 @@ const INITIAL_COUNTS: BadgeCounts = {
   tempsNonSaisi: 0,
   notifications: 0,
   intercontrat: 0,
+  bugsNouveaux: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -102,21 +104,42 @@ async function fetchIntercontratCount(): Promise<number> {
   return candidates.filter((u) => !assigned.has(u.id)).length;
 }
 
+/**
+ * Compte les bugs au statut "nouveau" non archives. RLS limite l acces
+ * a admin/superadmin ; pour les autres le count remonte 0 (et le badge
+ * n'est pas affiche dans la sidebar car l'item Bugs est adminOnly).
+ */
+async function fetchBugsCount(): Promise<number> {
+  const res = await supabaseClient()
+    .from('bug_reports')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'nouveau')
+    .eq('archive', false);
+  return res.count ?? 0;
+}
+
 /** Fetch all badge counts at once (used for initial load). */
 async function fetchAllBadgeCounts(): Promise<BadgeCounts> {
-  const [facturesEnRetard, tempsNonSaisi, notifications, intercontrat] =
-    await Promise.all([
-      fetchFacturesCount(),
-      fetchTempsCount(),
-      fetchNotificationsCount(),
-      fetchIntercontratCount(),
-    ]);
+  const [
+    facturesEnRetard,
+    tempsNonSaisi,
+    notifications,
+    intercontrat,
+    bugsNouveaux,
+  ] = await Promise.all([
+    fetchFacturesCount(),
+    fetchTempsCount(),
+    fetchNotificationsCount(),
+    fetchIntercontratCount(),
+    fetchBugsCount(),
+  ]);
 
   return {
     facturesEnRetard,
     tempsNonSaisi,
     notifications,
     intercontrat,
+    bugsNouveaux,
   };
 }
 
@@ -166,6 +189,13 @@ export function useBadgeCounts(): BadgeCounts {
     });
   }, []);
 
+  const refreshBugs = useCallback(() => {
+    fetchBugsCount().then((v) => {
+      if (mountedRef.current)
+        setCounts((prev) => ({ ...prev, bugsNouveaux: v }));
+    });
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
 
@@ -185,6 +215,7 @@ export function useBadgeCounts(): BadgeCounts {
       notifications: null,
       temps: null,
       intercontrat: null,
+      bugs: null,
     };
     const debouncedRefresh = (key: keyof typeof debouncers, fn: () => void) => {
       if (debouncers[key]) clearTimeout(debouncers[key]!);
@@ -244,6 +275,14 @@ export function useBadgeCounts(): BadgeCounts {
           },
           () => debouncedRefresh('intercontrat', refreshIntercontrat),
         )
+        // bug_reports : un nouveau bug (INSERT) ou un changement de statut
+        // (UPDATE) peut modifier le compte des "nouveau". RLS empeche les
+        // non-admin de recevoir des events, donc safe a abonner globalement.
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'bug_reports' },
+          () => debouncedRefresh('bugs', refreshBugs),
+        )
         .subscribe();
     } catch {
       // Realtime unavailable (e.g. bad API key) - badges still work via initial fetch
@@ -264,6 +303,7 @@ export function useBadgeCounts(): BadgeCounts {
     refreshNotifications,
     refreshTemps,
     refreshIntercontrat,
+    refreshBugs,
   ]);
 
   return counts;

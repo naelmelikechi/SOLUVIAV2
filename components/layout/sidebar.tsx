@@ -139,13 +139,14 @@ interface SidebarProps {
 const badgeConfig: Record<
   string,
   {
-    key: 'facturesEnRetard' | 'tempsNonSaisi' | 'intercontrat';
+    key: 'facturesEnRetard' | 'tempsNonSaisi' | 'intercontrat' | 'bugsNouveaux';
     color: string;
   }
 > = {
   '/facturation': { key: 'facturesEnRetard', color: 'bg-red-500' },
   '/temps': { key: 'tempsNonSaisi', color: 'bg-orange-500' },
   '/admin/intercontrat': { key: 'intercontrat', color: 'bg-amber-500' },
+  '/admin/bugs': { key: 'bugsNouveaux', color: 'bg-red-500' },
 };
 
 const INITIAL_BADGE_COUNTS: BadgeCounts = {
@@ -153,6 +154,7 @@ const INITIAL_BADGE_COUNTS: BadgeCounts = {
   tempsNonSaisi: 0,
   notifications: 0,
   intercontrat: 0,
+  bugsNouveaux: 0,
 };
 
 export function Sidebar({

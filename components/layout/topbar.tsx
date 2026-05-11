@@ -36,6 +36,7 @@ export function Topbar({
     tempsNonSaisi: 0,
     notifications: 0,
     intercontrat: 0,
+    bugsNouveaux: 0,
   },
 }: { onHamburgerClick?: () => void; badgeCounts?: BadgeCounts } = {}) {
   const pathname = usePathname();

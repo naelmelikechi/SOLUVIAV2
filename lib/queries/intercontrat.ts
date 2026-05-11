@@ -42,10 +42,21 @@ export interface TauxBillableEntry {
 export async function getIntercontratUsers(): Promise<IntercontratUser[]> {
   const supabase = await createClient();
 
-  const usersResult = await supabase
-    .from('users')
-    .select('id, email, nom, prenom, role, pipeline_access, created_at, actif')
-    .eq('actif', true);
+  // users + projets en parallele : les 2 sont independants, on les groupe
+  // pour gagner un round-trip.
+  const [usersResult, projetsResult] = await Promise.all([
+    supabase
+      .from('users')
+      .select(
+        'id, email, nom, prenom, role, pipeline_access, created_at, actif',
+      )
+      .eq('actif', true),
+    supabase
+      .from('projets')
+      .select('cdp_id, backup_cdp_id')
+      .eq('archive', false)
+      .eq('est_interne', false),
+  ]);
 
   if (usersResult.error) {
     logger.error('queries.intercontrat', 'fetch users failed', {
@@ -60,13 +71,6 @@ export async function getIntercontratUsers(): Promise<IntercontratUser[]> {
 
   const users = usersResult.data ?? [];
   if (users.length === 0) return [];
-
-  // Compte les projets clients (non internes) par user
-  const projetsResult = await supabase
-    .from('projets')
-    .select('cdp_id, backup_cdp_id')
-    .eq('archive', false)
-    .eq('est_interne', false);
 
   const projetsCountMap = new Map<string, number>();
   for (const p of projetsResult.data ?? []) {

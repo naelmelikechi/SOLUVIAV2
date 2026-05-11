@@ -88,10 +88,10 @@ export function OnboardingTour({ role, completedAt }: OnboardingTourProps) {
         showProgress: true,
         allowClose: true,
         overlayOpacity: 0.6,
-        progressText: 'Etape {{current}} sur {{total}}',
+        progressText: 'Étape {{current}} sur {{total}}',
         nextBtnText: 'Suivant',
-        prevBtnText: 'Precedent',
-        doneBtnText: 'Termine',
+        prevBtnText: 'Précédent',
+        doneBtnText: 'Terminé',
         steps: steps.map((step) => buildDriverStep(step)),
         onNextClick: async () => {
           const idx = driverObj.getActiveIndex();

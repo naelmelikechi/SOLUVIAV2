@@ -116,7 +116,7 @@ export const COMMERCIAL_TOUR: TourStep[] = [
     popover: {
       title: 'Pipeline',
       description:
-        'Tes opportunités commerciales par étape. Glisse-dépose pour faire avancer une affaire.',
+        'Tes opportunités commerciales regroupées par étape. Suis chaque affaire jusqu’à la signature.',
       side: 'right',
       align: 'start',
     },
@@ -127,7 +127,7 @@ export const COMMERCIAL_TOUR: TourStep[] = [
     popover: {
       title: 'Page Pipeline',
       description:
-        'Vue kanban de toutes les affaires en cours. Clique sur une carte pour éditer le détail.',
+        'Vue façon Notion de toutes les affaires en cours, regroupées par stage (Non contacté, R1 validé, R2 validé, Signé). Clique sur une ligne pour ouvrir le détail.',
       side: 'right',
       align: 'start',
     },

@@ -17,6 +17,7 @@ import {
 } from '@/lib/email/bug-report-template';
 import type { Triage } from '@/lib/ai/bug-triage';
 import { env } from '@/lib/env';
+import { getAppUrl } from '@/lib/utils/app-url';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -30,13 +31,6 @@ async function signFor(
     .from('bug-screenshots')
     .createSignedUrl(path, ttlSeconds);
   return signed.data?.signedUrl ?? null;
-}
-
-function getAppUrl(): string {
-  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  if (vercelUrl) return `https://${vercelUrl}`;
-  if (env.VERCEL_ENV === 'production') return 'https://app.mysoluvia.com';
-  return 'http://localhost:3000';
 }
 
 export async function sendBugReportEmail(bugId: string): Promise<{

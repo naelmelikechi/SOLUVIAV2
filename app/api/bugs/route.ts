@@ -12,6 +12,7 @@ import {
 } from '@/lib/email/bug-report-template';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/utils/logger';
+import { getAppUrl } from '@/lib/utils/app-url';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -42,13 +43,6 @@ const PayloadSchema = z.object({
 });
 
 type Payload = z.infer<typeof PayloadSchema>;
-
-function getAppUrl(): string {
-  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  if (vercelUrl) return `https://${vercelUrl}`;
-  if (env.VERCEL_ENV === 'production') return 'https://app.mysoluvia.com';
-  return 'http://localhost:3000';
-}
 
 function validateScreenshot(file: unknown): NextResponse | null {
   if (!(file instanceof File) || file.size === 0) return null;

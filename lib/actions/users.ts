@@ -511,7 +511,19 @@ export async function inviteUser(
         message: `${fullName} vient d etre invite et attend une affectation projet.`,
         lien: '/admin/intercontrat',
       }));
-      await adminClient.from('notifications').insert(notifs);
+      const { error: notifsError } = await adminClient
+        .from('notifications')
+        .insert(notifs);
+      if (notifsError) {
+        // Best-effort : le user est cree, l invitation est partie. Si la
+        // notif fan-out fail, les admins manqueront l alerte mais ils
+        // verront le collab apparaitre dans /admin/intercontrat.
+        logger.warn('actions.users', 'invite cdp notifs failed', {
+          newUserId: newUser.user.id,
+          adminsCount: admins.length,
+          error: notifsError,
+        });
+      }
     }
   }
 

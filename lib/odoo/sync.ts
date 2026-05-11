@@ -500,24 +500,25 @@ async function pullCancellations(
       const writeDate = move.write_date.slice(0, 10);
       const message = `⚠️ Facture ${facture.ref ?? '(sans ref)'} annulee cote Odoo le ${writeDate}. A reviser : creer un avoir Soluvia ou suivre selon contexte.`;
 
-      for (const adminId of adminIds) {
-        const { error: notifErr } = await supabase
-          .from('notifications')
-          .insert({
-            type: 'erreur_sync',
-            user_id: adminId,
-            titre: 'Facture annulee cote Odoo',
-            message,
-            lien: facture.ref ? `/facturation/${facture.ref}` : null,
-          });
+      // Batch insert : meme contenu de notif pour chaque admin, on evite
+      // les N round-trips.
+      const notifsToCreate = adminIds.map((adminId) => ({
+        type: 'erreur_sync' as const,
+        user_id: adminId,
+        titre: 'Facture annulee cote Odoo',
+        message,
+        lien: facture.ref ? `/facturation/${facture.ref}` : null,
+      }));
+      const { error: notifErr } = await supabase
+        .from('notifications')
+        .insert(notifsToCreate);
 
-        if (notifErr) {
-          logger.warn(SCOPE, 'Failed to create cancellation notification', {
-            adminId,
-            facture_id: facture.id,
-            error: notifErr,
-          });
-        }
+      if (notifErr) {
+        logger.warn(SCOPE, 'Failed to create cancellation notifications', {
+          adminCount: adminIds.length,
+          facture_id: facture.id,
+          error: notifErr,
+        });
       }
 
       await logSync(supabase, {

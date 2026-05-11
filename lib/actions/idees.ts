@@ -208,13 +208,23 @@ async function notifyAuthor(
     type === 'idee_rejetee'
       ? `"${ideeTitre}"${extra ? ` - motif : ${extra}` : ''}`
       : `"${ideeTitre}"`;
-  await supabase.from('notifications').insert({
+  const { error } = await supabase.from('notifications').insert({
     user_id: authorId,
     type,
     titre: titleMap[type],
     message,
     lien: `/idees?id=${ideeId}`,
   });
+  if (error) {
+    // Best-effort : un echec ici ne doit pas bloquer le flux principal
+    // (validation/rejet/ship d une idee). On loggue pour Sentry.
+    logger.warn('idees.notifyAuthor', 'failed to insert notification', {
+      authorId,
+      type,
+      ideeId,
+      error,
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

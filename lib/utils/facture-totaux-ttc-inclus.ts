@@ -4,7 +4,10 @@
  *
  * Convention HEOL (billing_mode='manual') : montant_commissionne est TTC.
  *
- * Garantit : SUM(lignesHt) === totalHt (sinon les rapports cassent).
+ * Note arrondi : totalHt est calculé directement depuis totalTtc (single
+ * rounding), tandis que lignesHt arrondit chaque ligne individuellement.
+ * SUM(lignesHt) peut donc différer de totalHt de ±1 centime par tranche
+ * d'arrondi. Les rapports doivent tolérer cet écart (cf. test "ecart d arrondi").
  */
 export function computeFactureTotauxTtcInclus(
   events: { montant_commissionne: number }[],

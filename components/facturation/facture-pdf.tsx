@@ -87,10 +87,11 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 8,
   },
-  colContrat: { width: '18%' },
-  colApprenant: { width: '24%' },
-  colDescription: { width: '38%' },
-  colMontant: { width: '20%', textAlign: 'right' },
+  colDeca: { width: '20%' },
+  colApprenant: { width: '22%' },
+  colDescription: { width: '26%' },
+  colMontantHt: { width: '16%', textAlign: 'right' },
+  colMontantTtc: { width: '16%', textAlign: 'right' },
   // Totals
   totalsContainer: {
     marginTop: 16,
@@ -294,27 +295,39 @@ export function FacturePdf({
 
         {/* Table header */}
         <View style={styles.tableHeader}>
-          <Text style={[styles.colContrat, styles.bold]}>Contrat</Text>
+          <Text style={[styles.colDeca, styles.bold]}>DECA</Text>
           <Text style={[styles.colApprenant, styles.bold]}>Apprenant</Text>
           <Text style={[styles.colDescription, styles.bold]}>Description</Text>
-          <Text style={[styles.colMontant, styles.bold]}>Montant HT</Text>
+          <Text style={[styles.colMontantHt, styles.bold]}>Montant HT</Text>
+          <Text style={[styles.colMontantTtc, styles.bold]}>Montant TTC</Text>
         </View>
 
         {/* Table rows */}
-        {facture.lignes.map((ligne) => (
-          <View key={ligne.id} style={styles.tableRow}>
-            <Text style={styles.colContrat}>{ligne.contrat?.ref ?? ''}</Text>
-            <Text style={styles.colApprenant}>
-              {ligne.contrat
-                ? `${ligne.contrat.apprenant_prenom ?? ''} ${ligne.contrat.apprenant_nom ?? ''}`.trim()
-                : ''}
-            </Text>
-            <Text style={[styles.colDescription, styles.muted]}>
-              {ligne.description}
-            </Text>
-            <Text style={styles.colMontant}>{formatEur(ligne.montant_ht)}</Text>
-          </View>
-        ))}
+        {facture.lignes.map((ligne) => {
+          const ligneTtc =
+            Math.round(ligne.montant_ht * (1 + facture.taux_tva / 100) * 100) /
+            100;
+          // DECA si renseigne, sinon fallback sur la ref interne du contrat.
+          const decaLabel =
+            ligne.contrat?.contract_number ?? ligne.contrat?.ref ?? '';
+          return (
+            <View key={ligne.id} style={styles.tableRow}>
+              <Text style={styles.colDeca}>{decaLabel}</Text>
+              <Text style={styles.colApprenant}>
+                {ligne.contrat
+                  ? `${ligne.contrat.apprenant_prenom ?? ''} ${ligne.contrat.apprenant_nom ?? ''}`.trim()
+                  : ''}
+              </Text>
+              <Text style={[styles.colDescription, styles.muted]}>
+                {ligne.description}
+              </Text>
+              <Text style={styles.colMontantHt}>
+                {formatEur(ligne.montant_ht)}
+              </Text>
+              <Text style={styles.colMontantTtc}>{formatEur(ligneTtc)}</Text>
+            </View>
+          );
+        })}
 
         {/* Totals */}
         <View style={styles.totalsContainer}>

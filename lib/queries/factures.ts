@@ -200,7 +200,7 @@ export async function getFactureByRef(ref: string) {
       statut, est_avoir, avoir_motif, facture_origine_id, email_envoye, created_by,
       projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, siret, adresse),
-      lignes:facture_lignes(id, contrat_id, description, montant_ht, contrat:contrats!facture_lignes_contrat_id_fkey(ref, apprenant_nom, apprenant_prenom))
+      lignes:facture_lignes(id, contrat_id, description, montant_ht, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
     `,
     )
     .eq('ref', ref)
@@ -232,7 +232,7 @@ export async function getFactureById(id: string) {
       statut, est_avoir, avoir_motif, facture_origine_id, email_envoye, created_by,
       projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, siret, adresse),
-      lignes:facture_lignes(id, contrat_id, description, montant_ht, contrat:contrats!facture_lignes_contrat_id_fkey(ref, apprenant_nom, apprenant_prenom))
+      lignes:facture_lignes(id, contrat_id, description, montant_ht, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
     `,
     )
     .eq('id', id)

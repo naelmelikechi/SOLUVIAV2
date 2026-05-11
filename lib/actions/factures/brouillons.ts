@@ -583,8 +583,8 @@ export async function createFactureFromEvents(params: {
       e.type === 'engagement'
         ? 'Engagement contrat'
         : `Règlement OPCO #${e.step_number ?? '?'}`;
-    const idLabel = e.contract_number ?? e.contrat_ref ?? '-';
-    const apprenant = `${e.apprenant_prenom} ${e.apprenant_nom}`.trim();
+    // Description : courte et factuelle. L apprenant et le DECA ont leur
+    // propre colonne dans le PDF, on evite la repetition.
     // Coherence : montant_commissionne est TTC (cf. note totaux ci-dessus).
     // On stocke le HT par ligne pour que SUM(facture_lignes.montant_ht) ==
     // factures.montant_ht (sinon les rapports/reconciliations cassent).
@@ -593,7 +593,7 @@ export async function createFactureFromEvents(params: {
     return {
       facture_id: facture.id,
       contrat_id: e.contrat_id,
-      description: `Commission ${taux}% - ${typeLabel} - ${apprenant} - ${idLabel}`,
+      description: `Commission ${taux}% - ${typeLabel}`,
       montant_ht: ligneHt,
       mois_relatif: e.step_number ?? 0,
       quote_part: taux / 100,

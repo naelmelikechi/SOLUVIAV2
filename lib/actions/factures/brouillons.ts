@@ -94,21 +94,30 @@ export async function createFactures(
   if (!auth.ok) return { success: false, ids: [], error: auth.error };
   const { supabase, user } = auth;
 
-  // 1. Fetch selected echeances with projet + client + echeancier config
-  const { data: echeances, error: fetchError } = await supabase
-    .from('echeances')
-    .select(
-      `
-      id, mois_concerne, montant_prevu_ht,
-      projet:projets!echeances_projet_id_fkey(
-        id, ref, taux_commission, echeancier_template_id, echeancier_override,
-        client:clients!projets_client_id_fkey(id, trigramme)
+  // 1. Fetch selected echeances + templates en parallele : independants.
+  //    Le templates est un referentiel partage, on l aurait fetched de toute
+  //    facon meme si echeances etait vide.
+  const [echeancesRes, templatesRes] = await Promise.all([
+    supabase
+      .from('echeances')
+      .select(
+        `
+        id, mois_concerne, montant_prevu_ht,
+        projet:projets!echeances_projet_id_fkey(
+          id, ref, taux_commission, echeancier_template_id, echeancier_override,
+          client:clients!projets_client_id_fkey(id, trigramme)
+        )
+      `,
       )
-    `,
-    )
-    .in('id', echeanceIds)
-    .is('facture_id', null);
+      .in('id', echeanceIds)
+      .is('facture_id', null),
+    supabase
+      .from('echeanciers_templates')
+      .select('id, nom, jalons, is_default')
+      .eq('archive', false),
+  ]);
 
+  const { data: echeances, error: fetchError } = echeancesRes;
   if (fetchError) return { success: false, ids: [], error: fetchError.message };
   if (!echeances || echeances.length === 0) {
     return {
@@ -118,11 +127,7 @@ export async function createFactures(
     };
   }
 
-  // Templates partages : 1 fetch
-  const { data: templates } = await supabase
-    .from('echeanciers_templates')
-    .select('id, nom, jalons, is_default')
-    .eq('archive', false);
+  const { data: templates } = templatesRes;
 
   // 2. Group echeances by projet_id
   const groups = new Map<

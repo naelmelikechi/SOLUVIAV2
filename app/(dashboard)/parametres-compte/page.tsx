@@ -11,12 +11,15 @@ import { PasskeysSection } from '@/components/settings/passkeys-section';
 export const metadata: Metadata = { title: 'Mon compte - SOLUVIA' };
 
 export default async function ParametresComptePage() {
-  const user = await getCurrentUser();
+  // getCurrentUser + getMyPasskeys utilisent le meme cookie auth donc
+  // independants au niveau requete. Parallelisable.
+  const [user, passkeys] = await Promise.all([
+    getCurrentUser(),
+    getMyPasskeys(),
+  ]);
   if (!user) {
     redirect('/login');
   }
-
-  const passkeys = await getMyPasskeys();
 
   return (
     <div>

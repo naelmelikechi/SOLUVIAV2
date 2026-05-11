@@ -13,6 +13,7 @@ import {
   type ContratEcheancierContext,
 } from '@/lib/echeancier/calc';
 import { getBillableEvents } from '@/lib/queries/billable-events';
+import { computeFactureTotauxTtcInclus } from '@/lib/utils/facture-totaux-ttc-inclus';
 
 // ---------------------------------------------------------------------------
 // Schemas Zod (validation cote serveur, defense en profondeur)
@@ -536,11 +537,8 @@ export async function createFactureFromEvents(params: {
   //                     (= metrique "engages" cote Eduvia)
   //   - 'opco_step'   : eduvia_invoice_steps.total_amount du step regle
   const tauxTva = 20;
-  const totalTtc =
-    Math.round(resolved.reduce((s, e) => s + e.montant_commissionne, 0) * 100) /
-    100;
-  const totalHt = Math.round((totalTtc / (1 + tauxTva / 100)) * 100) / 100;
-  const montantTva = Math.round((totalTtc - totalHt) * 100) / 100;
+  const { totalTtc, totalHt, montantTva, lignesHt } =
+    computeFactureTotauxTtcInclus(resolved, tauxTva);
   const montantTtc = totalTtc;
 
   if (totalTtc <= 0) {
@@ -578,7 +576,7 @@ export async function createFactureFromEvents(params: {
 
   // 8. INSERT lignes avec event_type + event_source_id
   //    L'index UNIQUE partial peut rejeter si race condition - on rollback.
-  const lignes = resolved.map((e) => {
+  const lignes = resolved.map((e, i) => {
     const typeLabel =
       e.type === 'engagement'
         ? 'Engagement contrat'
@@ -588,8 +586,7 @@ export async function createFactureFromEvents(params: {
     // Coherence : montant_commissionne est TTC (cf. note totaux ci-dessus).
     // On stocke le HT par ligne pour que SUM(facture_lignes.montant_ht) ==
     // factures.montant_ht (sinon les rapports/reconciliations cassent).
-    const ligneHt =
-      Math.round((e.montant_commissionne / (1 + tauxTva / 100)) * 100) / 100;
+    const ligneHt = lignesHt[i]!;
     return {
       facture_id: facture.id,
       contrat_id: e.contrat_id,

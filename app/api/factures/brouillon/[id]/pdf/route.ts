@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
-import { renderToBuffer } from '@react-pdf/renderer';
 import {
   getFactureById,
   getFactureRefById,
   type FactureDetail,
 } from '@/lib/queries/factures';
 import { getEmetteurInfo } from '@/lib/queries/parametres';
-import { FacturePdf } from '@/components/facturation/facture-pdf';
+import { renderFacturePdfBuffer } from '@/lib/utils/render-facture-pdf';
 import { createClient } from '@/lib/supabase/server';
-import { createElement, type ReactElement } from 'react';
 
 export const maxDuration = 60;
 
@@ -62,14 +60,12 @@ export async function GET(
     ref: draftRef,
   };
 
-  const element = createElement(FacturePdf, {
+  const buffer = await renderFacturePdfBuffer({
     facture: draftFacture,
     origineRef,
     emetteur,
     isDraft: true,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }) as ReactElement<any>;
-  const buffer = await renderToBuffer(element);
+  });
   const uint8 = new Uint8Array(buffer);
 
   const { searchParams } = new URL(request.url);

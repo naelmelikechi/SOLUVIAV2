@@ -1,11 +1,9 @@
-import { createElement, type ReactElement } from 'react';
-import { renderToBuffer } from '@react-pdf/renderer';
 import { logger } from '@/lib/utils/logger';
 import { formatDate } from '@/lib/utils/formatters';
 import { escapeHtml } from '@/lib/utils/escape-html';
 import { buildFactureEmailHtml } from '@/lib/email/templates';
 import { sendEmail } from '@/lib/email/_send';
-import { FacturePdf } from '@/components/facturation/facture-pdf';
+import { renderFacturePdfBuffer } from '@/lib/utils/render-facture-pdf';
 import { getEmetteurInfo, type EmetteurInfo } from '@/lib/queries/parametres';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
@@ -104,13 +102,11 @@ export async function sendEmailForFacture(
     getEmetteurInfo(),
   ]);
 
-  const element = createElement(FacturePdf, {
+  const buffer = await renderFacturePdfBuffer({
     facture,
     origineRef,
     emetteur,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }) as ReactElement<any>;
-  const buffer = await renderToBuffer(element);
+  });
   const pdfBuffer = Buffer.from(buffer);
 
   // 4. Send email

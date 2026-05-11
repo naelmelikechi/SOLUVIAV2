@@ -39,9 +39,16 @@ import type { MonthRow } from './build-display-data';
 interface MonthlyViewProps {
   data: MonthRow[];
   perspective: 'opco' | 'soluvia';
+  filterProjets?: string[];
+  onProjetsDiscovered?: (refs: string[]) => void;
 }
 
-export function MonthlyView({ data, perspective }: MonthlyViewProps) {
+export function MonthlyView({
+  data,
+  perspective,
+  filterProjets = [],
+  onProjetsDiscovered,
+}: MonthlyViewProps) {
   const [, startTransition] = useTransition();
 
   const [expandedMois, setExpandedMois] = useState<Set<string>>(new Set());
@@ -142,6 +149,9 @@ export function MonthlyView({ data, perspective }: MonthlyViewProps) {
       try {
         const result = await fetchProductionByProjet(mois, clientId);
         setProjetDataByClient((prev) => new Map(prev).set(key, result));
+        if (onProjetsDiscovered && result.length > 0) {
+          onProjetsDiscovered(result.map((p) => p.projetRef).filter(Boolean));
+        }
       } catch {
         toast.error('Erreur lors du chargement des projets');
       } finally {
@@ -308,6 +318,7 @@ export function MonthlyView({ data, perspective }: MonthlyViewProps) {
                   expandedClients={expandedClients}
                   loadingClients={loadingClients}
                   projetDataByClient={projetDataByClient}
+                  filterProjets={filterProjets}
                   onToggleMois={() => toggleMois(row.mois)}
                   onToggleClient={(clientId) =>
                     toggleClient(row.mois, clientId)
@@ -342,6 +353,7 @@ interface ExpandableMonthRowsProps {
   expandedClients: Set<string>;
   loadingClients: Set<string>;
   projetDataByClient: Map<string, ProductionByProjetRow[]>;
+  filterProjets: string[];
   onToggleMois: () => void;
   onToggleClient: (clientId: string) => void;
 }
@@ -357,6 +369,7 @@ function ExpandableMonthRows({
   expandedClients,
   loadingClients,
   projetDataByClient,
+  filterProjets,
   onToggleMois,
   onToggleClient,
 }: ExpandableMonthRowsProps) {
@@ -450,6 +463,7 @@ function ExpandableMonthRows({
                   expandedClients={expandedClients}
                   loadingClients={loadingClients}
                   projetDataByClient={projetDataByClient}
+                  filterProjets={filterProjets}
                   mois={row.mois}
                   onToggleClient={onToggleClient}
                 />
@@ -468,6 +482,7 @@ interface ClientBreakdownTableProps {
   expandedClients: Set<string>;
   loadingClients: Set<string>;
   projetDataByClient: Map<string, ProductionByProjetRow[]>;
+  filterProjets: string[];
   mois: string;
   onToggleClient: (clientId: string) => void;
 }
@@ -510,6 +525,7 @@ function ClientBreakdownTable({
   expandedClients,
   loadingClients,
   projetDataByClient,
+  filterProjets,
   mois,
   onToggleClient,
 }: ClientBreakdownTableProps) {
@@ -540,6 +556,7 @@ function ClientBreakdownTable({
                 isLoading={isLoading}
                 projets={projets}
                 isSoluvia={isSoluvia}
+                filterProjets={filterProjets}
                 onToggle={() => onToggleClient(c.clientId)}
               />
             );
@@ -610,6 +627,7 @@ interface ExpandableClientRowsProps {
   isLoading: boolean;
   projets: ProductionByProjetRow[] | undefined;
   isSoluvia: boolean;
+  filterProjets: string[];
   onToggle: () => void;
 }
 
@@ -619,6 +637,7 @@ function ExpandableClientRows({
   isLoading,
   projets,
   isSoluvia,
+  filterProjets,
   onToggle,
 }: ExpandableClientRowsProps) {
   const view = pickClient(client, isSoluvia);
@@ -675,7 +694,16 @@ function ExpandableClientRows({
                 </div>
               )}
               {!isLoading && projets && projets.length > 0 && (
-                <ProjetBreakdownTable projets={projets} isSoluvia={isSoluvia} />
+                <ProjetBreakdownTable
+                  projets={
+                    filterProjets.length === 0
+                      ? projets
+                      : projets.filter((p) =>
+                          filterProjets.includes(p.projetRef),
+                        )
+                  }
+                  isSoluvia={isSoluvia}
+                />
               )}
             </div>
           </TableCell>

@@ -16,13 +16,15 @@ export default async function IdeesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: currentUser } = await supabase
-    .from('users')
-    .select('role, can_validate_ideas, can_ship_ideas')
-    .eq('id', user.id)
-    .single();
-
-  const grouped = await getIdeesGroupedByStatut();
+  // Profile user + grouped ideas en parallele (independants).
+  const [{ data: currentUser }, grouped] = await Promise.all([
+    supabase
+      .from('users')
+      .select('role, can_validate_ideas, can_ship_ideas')
+      .eq('id', user.id)
+      .single(),
+    getIdeesGroupedByStatut(),
+  ]);
 
   return (
     <div className="flex h-full flex-col">

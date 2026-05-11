@@ -4,9 +4,19 @@ import { useRouter } from 'next/navigation';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared/data-table';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import type { BugReportRow } from '@/lib/queries/bug-reports';
+
+const DATE_FMT = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: 'Europe/Paris',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+const TIME_FMT = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: 'Europe/Paris',
+  hour: '2-digit',
+  minute: '2-digit',
+});
 
 const SEVERITY_VARIANT: Record<string, string> = {
   low: 'bg-blue-100 text-blue-800',
@@ -54,10 +64,8 @@ export function BugsTable({ reports }: { reports: BugReportRow[] }) {
         const d = new Date(row.original.created_at);
         return (
           <div className="text-muted-foreground text-xs">
-            <div>{format(d, 'd MMM yyyy', { locale: fr })}</div>
-            <div className="text-[10px] opacity-70">
-              {format(d, 'HH:mm', { locale: fr })}
-            </div>
+            <div>{DATE_FMT.format(d)}</div>
+            <div className="text-[10px] opacity-70">{TIME_FMT.format(d)}</div>
           </div>
         );
       },

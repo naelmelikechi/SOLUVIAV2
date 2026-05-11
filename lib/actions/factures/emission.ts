@@ -45,7 +45,9 @@ export async function sendFacture(
   // Verrou + verification
   const { data: facture, error: fetchError } = await supabase
     .from('factures')
-    .select('id, statut, est_avoir, montant_ht, montant_ttc')
+    .select(
+      'id, statut, est_avoir, montant_ht, montant_ttc, client:clients!factures_client_id_fkey(id, raison_sociale, is_demo, tva_intracommunautaire, siret)',
+    )
     .eq('id', factureId)
     .single();
 
@@ -57,6 +59,20 @@ export async function sendFacture(
     return {
       success: false,
       error: 'La facture n’est pas un brouillon (déjà envoyée ?)',
+    };
+  }
+
+  // Mention legale obligatoire B2B : TVA intracommunautaire du client
+  // (Art. 242 nonies A I-9 CGI). Skip clients demo (HEOLDEMO etc).
+  if (
+    facture.client &&
+    !facture.client.is_demo &&
+    (!facture.client.tva_intracommunautaire ||
+      facture.client.tva_intracommunautaire.trim() === '')
+  ) {
+    return {
+      success: false,
+      error: `TVA intracommunautaire manquante pour le client ${facture.client.raison_sociale}. Mention obligatoire en B2B (Art. 242 nonies A CGI). Renseignez-la dans la fiche client.`,
     };
   }
 

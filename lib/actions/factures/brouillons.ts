@@ -266,11 +266,16 @@ export async function createFactures(
         ? sortedMois[0]!
         : `${sortedMois[0]} - ${sortedMois[sortedMois.length - 1]}`;
 
-    const totalHt =
-      Math.round(lignes.reduce((s, l) => s + l.montant_ht, 0) * 100) / 100;
+    // Cents entiers : garantit SUM(facture_lignes.montant_ht) == factures.montant_ht.
+    const totalHtCents = lignes.reduce(
+      (s, l) => s + Math.round(l.montant_ht * 100),
+      0,
+    );
     const tauxTva = 20;
-    const montantTva = Math.round(totalHt * tauxTva) / 100;
-    const montantTtc = Math.round((totalHt + montantTva) * 100) / 100;
+    const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
+    const totalHt = totalHtCents / 100;
+    const montantTva = montantTvaCents / 100;
+    const montantTtc = (totalHtCents + montantTvaCents) / 100;
 
     // Date echeance = end of next month (UTC strict pour ne pas dependre du
     // fuseau du runtime - voir lib/utils/dates.ts).
@@ -722,16 +727,20 @@ export async function createBlankBrouillon(params: {
     };
   }
 
-  const totalHt =
-    Math.round(lignes.reduce((s, l) => s + Number(l.montantHt ?? 0), 0) * 100) /
-    100;
-  if (totalHt <= 0) {
+  // Cents entiers : garantit SUM(facture_lignes.montant_ht) == factures.montant_ht.
+  const totalHtCents = lignes.reduce(
+    (s, l) => s + Math.round(Number(l.montantHt ?? 0) * 100),
+    0,
+  );
+  if (totalHtCents <= 0) {
     return { success: false, error: 'Montant total nul ou négatif' };
   }
 
   const tauxTva = 20;
-  const montantTva = Math.round(totalHt * tauxTva) / 100;
-  const montantTtc = Math.round((totalHt + montantTva) * 100) / 100;
+  const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
+  const totalHt = totalHtCents / 100;
+  const montantTva = montantTvaCents / 100;
+  const montantTtc = (totalHtCents + montantTvaCents) / 100;
 
   const today = new Date();
   const dateEmissionStr = today.toISOString().split('T')[0]!;

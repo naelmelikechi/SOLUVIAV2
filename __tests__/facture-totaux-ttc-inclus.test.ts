@@ -56,11 +56,11 @@ describe('computeFactureTotauxTtcInclus', () => {
     expect(result.lignesHt).toEqual([50, 50]);
   });
 
-  it('ecart d arrondi : SUM(lignesHt) peut differer de totalHt de quelques centimes', () => {
+  it('garantie legale : SUM(lignesHt) === totalHt (rebalance dernier centime)', () => {
     // 3 evenements 33.33 + 33.33 + 33.34 = 100 TTC a 20%
-    // totalHt arrondi globalement = 83.33
-    // lignesHt arrondies individuellement = [27.78, 27.78, 27.78] = 83.34
-    // Ecart documente : 1 centime.
+    // totalHtCents = round(10000 / 1.2) = 8333
+    // par-ligne brut = [2778, 2778, 2778] = 8334
+    // rebalance : derniere ligne -1 -> [2778, 2778, 2777] = 8333 ✓
     const result = computeFactureTotauxTtcInclus(
       [
         { montant_commissionne: 33.33 },
@@ -69,11 +69,12 @@ describe('computeFactureTotauxTtcInclus', () => {
       ],
       20,
     );
-    const sumLignes =
-      Math.round(result.lignesHt.reduce((a, b) => a + b, 0) * 100) / 100;
-    expect(Math.abs(sumLignes - result.totalHt)).toBeLessThanOrEqual(
-      0.01 * result.lignesHt.length,
+    const sumLignesCents = result.lignesHt.reduce(
+      (s, h) => s + Math.round(h * 100),
+      0,
     );
+    const totalHtCents = Math.round(result.totalHt * 100);
+    expect(sumLignesCents).toBe(totalHtCents);
   });
 
   it('cas vide : totaux = 0', () => {

@@ -51,6 +51,16 @@ export function NoticeIframe({
   const [loaded, setLoaded] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Reset loaded quand on ferme : sinon a la reouverture, l iframe est
+  // re-mount mais loaded reste true, donc on saute le 'Chargement...'
+  // et l user voit un cadre blanc le temps que la notice recharge.
+  function toggleOpen() {
+    setOpen((prev) => {
+      if (prev) setLoaded(false);
+      return !prev;
+    });
+  }
+
   const url = `${NOTICES_BASE}/${kind}s/${encodeURIComponent(code)}?theme=${theme}&interactive=true`;
 
   useEffect(() => {
@@ -73,7 +83,7 @@ export function NoticeIframe({
     <Card className="mb-4 p-0">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-left transition-colors"
       >
         <span className="flex items-center gap-2 text-sm font-medium">

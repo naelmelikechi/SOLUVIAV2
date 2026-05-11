@@ -1,0 +1,38 @@
+// @vitest-environment jsdom
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
+import { DataTableColumnHeader } from '@/components/shared/data-table/data-table-column-header';
+
+function mockColumn(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    getCanSort: () => true,
+    getIsSorted: () => false,
+    toggleSorting: vi.fn(),
+    getCanFilter: () => true,
+    getFilterValue: () => undefined,
+    setFilterValue: vi.fn(),
+    ...overrides,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
+
+afterEach(() => cleanup());
+
+describe('DataTableColumnHeader', () => {
+  it('rend la loupe quand filterVariant="text"', () => {
+    render(
+      <DataTableColumnHeader
+        column={mockColumn()}
+        title="Client"
+        filterVariant="text"
+      />,
+    );
+    expect(screen.getByLabelText('Filtrer par Client')).toBeInTheDocument();
+  });
+
+  it('ne rend PAS la loupe quand filterVariant absent (retrocompat)', () => {
+    render(<DataTableColumnHeader column={mockColumn()} title="Client" />);
+    expect(screen.queryByLabelText('Filtrer par Client')).toBeNull();
+  });
+});

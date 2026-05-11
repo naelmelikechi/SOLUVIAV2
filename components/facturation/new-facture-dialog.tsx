@@ -157,7 +157,6 @@ export function NewFactureDialog({
     base: LigneState,
     contrat: ProjetForFacturation['contrats'][number],
     taux: number,
-    nextMois: number,
     overrides?: Partial<LigneState>,
   ): LigneState {
     const next: LigneState = { ...base, ...overrides };
@@ -179,7 +178,6 @@ export function NewFactureDialog({
         mois: moisToUse,
       });
     }
-    void nextMois;
     return next;
   }
 
@@ -235,7 +233,7 @@ export function NewFactureDialog({
     setLigneAt(idx, (l) => {
       if (checked) {
         const moisToApply = l.moisEdited ? l.moisRelatif : moisGlobal;
-        return recomputeLigne(l, contrat, taux, moisToApply, {
+        return recomputeLigne(l, contrat, taux, {
           selected: true,
           moisRelatif: moisToApply,
         });
@@ -282,7 +280,7 @@ export function NewFactureDialog({
     if (!contrat) return;
     const taux = projetData.tauxCommission;
     setLigneAt(idx, (l) =>
-      recomputeLigne(l, contrat, taux, value, {
+      recomputeLigne(l, contrat, taux, {
         moisRelatif: value,
         moisEdited: true,
       }),

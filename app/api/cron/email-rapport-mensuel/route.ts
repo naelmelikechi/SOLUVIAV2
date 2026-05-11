@@ -29,26 +29,33 @@ export async function GET(request: Request) {
       'email-rapport-mensuel',
       format(prevStart, 'yyyy-MM'),
       async () => {
-        const [facturesRes, paiementsRes, productionRes] = await Promise.all([
-          supabase
-            .from('factures')
-            .select('montant_ht, statut, est_avoir, date_emission')
-            .gte('date_emission', prevStartStr)
-            .lte('date_emission', prevEndStr),
-          supabase
-            .from('paiements')
-            .select('montant, date_reception')
-            .gte('date_reception', prevStartStr)
-            .lte('date_reception', prevEndStr),
-          supabase
-            .from('production_mensuelle')
-            .select('production_opco, production_soluvia, mois')
-            .eq('mois', prevStartStr),
-        ]);
+        const [facturesRes, paiementsRes, productionRes, adminsRes] =
+          await Promise.all([
+            supabase
+              .from('factures')
+              .select('montant_ht, statut, est_avoir, date_emission')
+              .gte('date_emission', prevStartStr)
+              .lte('date_emission', prevEndStr),
+            supabase
+              .from('paiements')
+              .select('montant, date_reception')
+              .gte('date_reception', prevStartStr)
+              .lte('date_reception', prevEndStr),
+            supabase
+              .from('production_mensuelle')
+              .select('production_opco, production_soluvia, mois')
+              .eq('mois', prevStartStr),
+            supabase
+              .from('users')
+              .select('email, prenom')
+              .in('role', ['admin', 'superadmin'])
+              .eq('actif', true),
+          ]);
 
         const factures = facturesRes.data ?? [];
         const paiements = paiementsRes.data ?? [];
         const productions = productionRes.data ?? [];
+        const admins = adminsRes.data;
 
         const factureHt =
           Math.round(
@@ -84,12 +91,6 @@ export async function GET(request: Request) {
           nbFacturesEmises,
           nbFacturesRetard,
         };
-
-        const { data: admins } = await supabase
-          .from('users')
-          .select('email, prenom')
-          .in('role', ['admin', 'superadmin'])
-          .eq('actif', true);
 
         if (!admins || admins.length === 0) {
           return { sent: 0, message: 'Aucun admin actif' };

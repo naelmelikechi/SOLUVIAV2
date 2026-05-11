@@ -1,4 +1,11 @@
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+  Image,
+} from '@react-pdf/renderer';
 import type { FactureDetail } from '@/lib/queries/factures';
 import type { EmetteurInfo } from '@/lib/queries/parametres';
 import { formatDate } from '@/lib/utils/formatters';
@@ -33,6 +40,12 @@ const styles = StyleSheet.create({
   headerLeft: {},
   headerRight: {
     textAlign: 'right',
+  },
+  logo: {
+    width: 130,
+    height: 26,
+    marginBottom: 8,
+    objectFit: 'contain',
   },
   companyName: {
     fontSize: 16,
@@ -223,7 +236,13 @@ export function FacturePdf({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.companyName}>{EMETTEUR.raison_sociale}</Text>
+            {/* Logo officiel Soluvia. URL absolue car @react-pdf fetch
+                au render-time cote serverless (filesystem read-only). */}
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image
+              src="https://app.mysoluvia.com/logo.png"
+              style={styles.logo}
+            />
             <Text>{adresseLigne1}</Text>
             {adresseLigne2 ? <Text>{adresseLigne2}</Text> : null}
             <Text style={styles.muted}>SIRET {EMETTEUR.siret}</Text>

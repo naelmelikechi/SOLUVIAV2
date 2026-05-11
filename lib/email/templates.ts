@@ -60,16 +60,16 @@ export function buildFactureEmailHtml(params: {
     <tr>
       <td align="center">
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;width:100%;">
-          <!-- Header -->
+          <!-- Header avec logo officiel SOLUVIA -->
           <tr>
-            <td style="background-color:#16a34a;padding:24px 32px;">
+            <td style="background-color:#ffffff;padding:24px 32px;border-bottom:1px solid #e5e7eb;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <span style="font-size:22px;font-weight:bold;color:#ffffff;letter-spacing:1px;">${companyName}</span>
+                    <img src="https://app.mysoluvia.com/logo.png" alt="${companyName}" width="160" height="32" style="display:block;height:32px;width:auto;border:0;outline:none;text-decoration:none;" />
                   </td>
                   <td align="right">
-                    <span style="font-size:13px;color:#dcfce7;">${isAvoir ? 'Avoir' : 'Facture'} ${escapedFactureRef}</span>
+                    <span style="font-size:13px;color:#6b7280;font-weight:500;">${isAvoir ? 'Avoir' : 'Facture'} ${escapedFactureRef}</span>
                   </td>
                 </tr>
               </table>

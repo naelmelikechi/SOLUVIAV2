@@ -15,7 +15,10 @@ export async function getFacturesList() {
       client:clients!factures_client_id_fkey!inner(id, trigramme, raison_sociale, is_demo, archive)
     `,
     )
-    .eq('client.is_demo', false)
+    // Les clients de demo (is_demo=true) restent visibles : utilises pour
+    // les smoke-tests reels et vu que leurs factures sont pushees en
+    // brouillon Odoo (is_draft=true), pas de risque comptable. Pour les
+    // masquer, l UI peut filtrer via le badge is_demo dans la liste.
     .eq('client.archive', false)
     .neq('statut', 'a_emettre') // exclut les brouillons (vus dans onglet dedie)
     .order('numero_seq', { ascending: false });

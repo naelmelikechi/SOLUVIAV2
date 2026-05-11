@@ -62,11 +62,11 @@ export function ClientDocumentsSection({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-20">Actions</TableHead>
                   <TableHead>Nom du fichier</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Par</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -82,6 +82,15 @@ export function ClientDocumentsSection({
                 ) : (
                   filtered.map((doc) => (
                     <TableRow key={doc.id}>
+                      <TableCell>
+                        <ClientDocumentActions
+                          documentId={doc.id}
+                          clientId={clientId}
+                          storagePath={doc.storage_path}
+                          fileName={doc.nom_fichier}
+                          typeDocument={doc.type_document}
+                        />
+                      </TableCell>
                       <TableCell className="text-primary text-sm font-medium">
                         {doc.nom_fichier}
                       </TableCell>
@@ -96,15 +105,6 @@ export function ClientDocumentsSection({
                       </TableCell>
                       <TableCell className="text-sm">
                         {doc.user ? `${doc.user.prenom} ${doc.user.nom}` : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <ClientDocumentActions
-                          documentId={doc.id}
-                          clientId={clientId}
-                          storagePath={doc.storage_path}
-                          fileName={doc.nom_fichier}
-                          typeDocument={doc.type_document}
-                        />
                       </TableCell>
                     </TableRow>
                   ))

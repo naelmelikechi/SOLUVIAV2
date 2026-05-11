@@ -112,11 +112,11 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
                   aria-label="Tout sélectionner"
                 />
               </TableHead>
+              <TableHead className="w-10" />
               <TableHead>Projet</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Mois concerné</TableHead>
               <TableHead className="text-right">Montant HT</TableHead>
-              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -141,22 +141,6 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
                       />
                     </TableCell>
                     <TableCell>
-                      <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
-                        {projetRef}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{clientName}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{echeance.mois_concerne}</span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-mono text-sm tabular-nums">
-                        {formatCurrency(echeance.montant_prevu_ht)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
                       {onPreview && (
                         <Button
                           variant="ghost"
@@ -171,6 +155,22 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
                           <Eye className="h-4 w-4" />
                         </Button>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-primary inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
+                        {projetRef}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{clientName}</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{echeance.mois_concerne}</span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="font-mono text-sm tabular-nums">
+                        {formatCurrency(echeance.montant_prevu_ht)}
+                      </span>
                     </TableCell>
                   </TableRow>
                 );

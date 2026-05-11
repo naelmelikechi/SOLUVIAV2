@@ -19,6 +19,32 @@ export function createFactureListColumns(
 ): ColumnDef<FactureListItem>[] {
   return [
     {
+      id: 'actions',
+      header: () => null,
+      enableSorting: false,
+      enableHiding: false,
+      enableResizing: false,
+      size: 48,
+      cell: ({ row }) => {
+        const ref = row.original.ref;
+        if (!ref) return null;
+        return (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Aperçu PDF"
+            title="Aperçu PDF"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPreview(ref);
+            }}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        );
+      },
+    },
+    {
       accessorKey: 'ref',
       enableColumnFilter: true,
       filterFn: textFilterFn,
@@ -133,30 +159,6 @@ export function createFactureListColumns(
         );
       },
       filterFn: textFilterFn,
-    },
-    {
-      id: 'actions',
-      header: () => null,
-      enableSorting: false,
-      enableHiding: false,
-      cell: ({ row }) => {
-        const ref = row.original.ref;
-        if (!ref) return null;
-        return (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Aperçu PDF"
-            title="Aperçu PDF"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPreview(ref);
-            }}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-        );
-      },
     },
   ];
 }

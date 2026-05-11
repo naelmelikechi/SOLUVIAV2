@@ -66,11 +66,11 @@ export function ProjetDocumentsSection({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-20">Actions</TableHead>
                   <TableHead>Nom du fichier</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Par</TableHead>
-                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -86,6 +86,15 @@ export function ProjetDocumentsSection({
                 ) : (
                   filtered.map((doc) => (
                     <TableRow key={doc.id}>
+                      <TableCell>
+                        <ProjetDocumentActions
+                          documentId={doc.id}
+                          projetRef={projetRef}
+                          storagePath={doc.storage_path}
+                          fileName={doc.nom_fichier}
+                          typeDocument={doc.type_document}
+                        />
+                      </TableCell>
                       <TableCell className="text-primary text-sm font-medium">
                         {doc.nom_fichier}
                       </TableCell>
@@ -100,15 +109,6 @@ export function ProjetDocumentsSection({
                       </TableCell>
                       <TableCell className="text-sm">
                         {doc.user ? `${doc.user.prenom} ${doc.user.nom}` : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <ProjetDocumentActions
-                          documentId={doc.id}
-                          projetRef={projetRef}
-                          storagePath={doc.storage_path}
-                          fileName={doc.nom_fichier}
-                          typeDocument={doc.type_document}
-                        />
                       </TableCell>
                     </TableRow>
                   ))

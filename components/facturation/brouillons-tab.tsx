@@ -247,6 +247,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                     aria-label="Tout sélectionner"
                   />
                 </TableHead>
+                <TableHead className="w-32">Actions</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead>Projet</TableHead>
                 <TableHead>Type</TableHead>
@@ -254,7 +255,6 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                 <TableHead className="text-right">Montant TTC</TableHead>
                 <TableHead className="text-right">Lignes</TableHead>
                 <TableHead>{'Créé le'}</TableHead>
-                <TableHead className="w-32 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -290,58 +290,8 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                           aria-label={`Sélectionner brouillon ${clientName}`}
                         />
                       </TableCell>
-                      <TableCell className="text-sm">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{clientName}</span>
-                          {b.client?.trigramme ? (
-                            <span className="text-muted-foreground font-mono text-xs">
-                              {b.client.trigramme}
-                            </span>
-                          ) : null}
-                        </div>
-                      </TableCell>
                       <TableCell>
-                        {projetRef ? (
-                          <Link
-                            href={`/projets/${projetRef}`}
-                            className="text-primary hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
-                              {projetRef}
-                            </span>
-                          </Link>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">
-                            {'-'}
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {b.est_avoir ? (
-                          <StatusBadge label="Avoir" color="orange" />
-                        ) : (
-                          <StatusBadge label="Facture" color="blue" />
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {b.mois_concerne}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm tabular-nums">
-                        <span
-                          className={b.est_avoir ? 'text-[var(--warning)]' : ''}
-                        >
-                          {formatCurrency(b.montant_ttc)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-right font-mono text-xs tabular-nums">
-                        {lignesCount}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm tabular-nums">
-                        {b.created_at ? formatDate(b.created_at) : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center gap-1">
                           <Tooltip>
                             <TooltipTrigger
                               render={
@@ -406,6 +356,56 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                             </TooltipContent>
                           </Tooltip>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{clientName}</span>
+                          {b.client?.trigramme ? (
+                            <span className="text-muted-foreground font-mono text-xs">
+                              {b.client.trigramme}
+                            </span>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {projetRef ? (
+                          <Link
+                            href={`/projets/${projetRef}`}
+                            className="text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="inline-block rounded bg-[var(--primary-bg)] px-2 py-0.5 font-mono text-xs font-semibold">
+                              {projetRef}
+                            </span>
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">
+                            {'-'}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {b.est_avoir ? (
+                          <StatusBadge label="Avoir" color="orange" />
+                        ) : (
+                          <StatusBadge label="Facture" color="blue" />
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {b.mois_concerne}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm tabular-nums">
+                        <span
+                          className={b.est_avoir ? 'text-[var(--warning)]' : ''}
+                        >
+                          {formatCurrency(b.montant_ttc)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-right font-mono text-xs tabular-nums">
+                        {lignesCount}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm tabular-nums">
+                        {b.created_at ? formatDate(b.created_at) : '-'}
                       </TableCell>
                     </TableRow>
                   );

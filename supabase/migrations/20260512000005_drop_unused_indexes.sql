@@ -1,0 +1,57 @@
+-- DROP 53 indexes flagged unused par pg_stat_user_indexes (idx_scan = 0).
+-- Exclut UNIQUE/PRIMARY. Si un index manquant cause une regression perf,
+-- Postgres le suggerera dans les plans d execution.
+
+DROP INDEX IF EXISTS public.idx_prospects_commercial;
+DROP INDEX IF EXISTS public.idx_prospects_client_id;
+DROP INDEX IF EXISTS public.idx_prospects_stage;
+DROP INDEX IF EXISTS public.idx_prospect_stage_history_changed_by;
+DROP INDEX IF EXISTS public.idx_idees_validee_at;
+DROP INDEX IF EXISTS public.idx_audit_entity;
+DROP INDEX IF EXISTS public.idx_audit_logs_created_at_desc;
+DROP INDEX IF EXISTS public.idx_clients_trigramme;
+DROP INDEX IF EXISTS public.idx_idees_implementee_par;
+DROP INDEX IF EXISTS public.idx_projets_statut;
+DROP INDEX IF EXISTS public.idx_clients_is_demo;
+DROP INDEX IF EXISTS public.idx_projets_typologie_id;
+DROP INDEX IF EXISTS public.idx_eduvia_companies_siret;
+DROP INDEX IF EXISTS public.idx_idees_validee_par;
+DROP INDEX IF EXISTS public.idx_formations_source_client_id;
+DROP INDEX IF EXISTS public.idx_eduvia_invoice_steps_source_client_id;
+DROP INDEX IF EXISTS public.idx_apprenants_contrat_id;
+DROP INDEX IF EXISTS public.idx_apprenants_eduvia_formation_id;
+DROP INDEX IF EXISTS public.idx_idees_auteur;
+DROP INDEX IF EXISTS public.idx_factures_created_by;
+DROP INDEX IF EXISTS public.idx_snapshots_type_scope;
+DROP INDEX IF EXISTS public.idx_contrats_source_client_id;
+DROP INDEX IF EXISTS public.idx_projets_echeancier_template_id;
+DROP INDEX IF EXISTS public.idx_bug_reports_resolved_by;
+DROP INDEX IF EXISTS public.idx_factures_client_id;
+DROP INDEX IF EXISTS public.idx_eduvia_invoice_forecast_steps_source_client_id;
+DROP INDEX IF EXISTS public.bug_reports_user_id_idx;
+DROP INDEX IF EXISTS public.idx_factures_facture_origine_id;
+DROP INDEX IF EXISTS public.idx_odoo_sync_logs_created_at_desc;
+DROP INDEX IF EXISTS public.idx_factures_odoo_id;
+DROP INDEX IF EXISTS public.idx_email_send_log_sent_at;
+DROP INDEX IF EXISTS public.idx_contrats_eduvia_company_id;
+DROP INDEX IF EXISTS public.idx_parametres_updated_by;
+DROP INDEX IF EXISTS public.idx_clients_apporteur;
+DROP INDEX IF EXISTS public.idx_apprenants_source_client_id;
+DROP INDEX IF EXISTS public.idx_notifications_subject_user;
+DROP INDEX IF EXISTS public.idx_facturation_ajustements_pending_resolved_by;
+DROP INDEX IF EXISTS public.idx_client_documents_user_id;
+DROP INDEX IF EXISTS public.idx_rdv_commerciaux_statut;
+DROP INDEX IF EXISTS public.idx_rdv_commerciaux_date_prevue;
+DROP INDEX IF EXISTS public.idx_prospect_notes_user_id;
+DROP INDEX IF EXISTS public.idx_team_messages_user_id;
+DROP INDEX IF EXISTS public.idx_facturation_ajustements_pending_projet_id;
+DROP INDEX IF EXISTS public.idx_rdv_commerciaux_commercial;
+DROP INDEX IF EXISTS public.idx_rdv_formateurs_formateur_id;
+DROP INDEX IF EXISTS public.idx_rdv_formateurs_cdp;
+DROP INDEX IF EXISTS public.idx_projet_documents_user_id;
+DROP INDEX IF EXISTS public.idx_rdv_formateurs_statut;
+DROP INDEX IF EXISTS public.idx_qualite_assignments_created_by;
+DROP INDEX IF EXISTS public.idx_client_notes_user_id;
+DROP INDEX IF EXISTS public.idx_qualite_assignments_user;
+DROP INDEX IF EXISTS public.idx_facturation_ajustements_pending_resolved_facture_id;
+DROP INDEX IF EXISTS public.idx_echeances_facture_id;

@@ -5,14 +5,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/utils/rate-limit';
 import { triageBugReport } from '@/lib/ai/bug-triage';
-import { sendEmail } from '@/lib/email/_send';
-import {
-  buildBugReportEmailHtml,
-  buildBugReportEmailSubject,
-} from '@/lib/email/bug-report-template';
+import { sendBugReportEmail } from '@/lib/email/bug-report';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/utils/logger';
-import { getAppUrl } from '@/lib/utils/app-url';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -256,11 +251,6 @@ async function processBugReport(p: ProcessParams) {
   const aiScreenshotPath = p.autoScreenshotPath ?? p.extraScreenshotPath;
   const aiScreenshotUrl = await signFor(admin, aiScreenshotPath, 3600);
 
-  const [autoEmailUrl, extraEmailUrl] = await Promise.all([
-    signFor(admin, p.autoScreenshotPath, 7 * 24 * 3600),
-    signFor(admin, p.extraScreenshotPath, 7 * 24 * 3600),
-  ]);
-
   let triage = null as Awaited<ReturnType<typeof triageBugReport>> | null;
   let aiError: string | null = null;
   let aiStatus: 'done' | 'failed' | 'skipped' = 'skipped';
@@ -301,44 +291,11 @@ async function processBugReport(p: ProcessParams) {
     })
     .eq('id', p.bugId);
 
-  const adminEmail = env.ADMIN_BUG_REPORT_EMAIL ?? 'naelmelikechi7@gmail.com';
-  const appUrl = getAppUrl();
-  const dashboardUrl = `${appUrl}/admin/bugs/${p.ref}`;
-
-  const html = buildBugReportEmailHtml({
-    ref: p.ref,
-    comment: p.payload.comment,
-    perceivedSeverity: p.payload.perceivedSeverity,
-    userEmail: p.userEmail,
-    userRole: p.userRole,
-    pageUrl: p.payload.pageUrl,
-    userAgent: p.payload.userAgent,
-    viewport: p.payload.viewport,
-    consoleErrors: p.payload.consoleErrors,
-    sentryEventId: p.payload.sentryEventId,
-    autoScreenshotUrl: autoEmailUrl,
-    extraScreenshotUrl: extraEmailUrl,
-    triage,
-    aiError,
-    dashboardUrl,
-  });
-
-  const subject = buildBugReportEmailSubject({
-    ref: p.ref,
-    triage,
-    comment: p.payload.comment,
-  });
-
-  // Utiliser le domaine verifie Resend (cf. lib/email/notifications.ts).
-  // Le sujet [BUG-XXXX] permet de filtrer cote inbox sans avoir un
-  // domaine dedie. Si Resend echoue, on log mais on ne plante pas le
-  // process (le report est deja en base).
-  const emailResult = await sendEmail({
-    from: 'SOLUVIA Bugs <contact@mysoluvia.com>',
-    to: adminEmail,
-    subject,
-    html,
-  });
+  // sendBugReportEmail re-lit le bug en DB (incluant triage qu'on vient
+  // d'ecrire ci-dessus). Cela centralise le rendu email avec le bouton
+  // "Renvoyer l'email admin" sur la page detail. Cout : 1 SELECT * de plus,
+  // negligeable.
+  const emailResult = await sendBugReportEmail(p.bugId);
   if (!emailResult.success) {
     logger.error('bug-report', 'Email admin echec', {
       bugId: p.bugId,

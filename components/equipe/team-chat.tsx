@@ -19,6 +19,7 @@ import { deleteTeamMessage, sendTeamMessage } from '@/lib/actions/team-chat';
 import type { TeamMessage } from '@/lib/queries/team-chat';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { logger } from '@/lib/utils/logger';
 
 const MAX_CONTENU = 2000;
 // Auto-scroll tolerance: if the user is within this many px of the bottom we
@@ -172,7 +173,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
     const last = rows[rows.length - 1];
     if (last) lastSeenAtRef.current = last.created_at;
     // Only keep the info log to see in Vercel runtime logs how often we rescue messages.
-    console.info('[team_chat] delta_fetch_recovered', {
+    logger.info('team_chat', 'delta_fetch_recovered', {
       reason,
       count: rows.length,
     });

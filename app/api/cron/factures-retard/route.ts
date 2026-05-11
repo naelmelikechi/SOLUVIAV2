@@ -15,7 +15,9 @@ export async function GET(request: Request) {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   try {
-    // 1. Find factures that are emise and past due date
+    // 1. Find factures that are emise and past due date.
+    // Skip est_avoir : un avoir ne se paie pas, donc jamais "en retard"
+    // - notification parasite sinon (cf. FAC-HED-0002 flag a tort).
     const { data: overdueFactures, error: fetchError } = await supabase
       .from('factures')
       .select(
@@ -25,6 +27,7 @@ export async function GET(request: Request) {
       `,
       )
       .eq('statut', 'emise')
+      .eq('est_avoir', false)
       .lt('date_echeance', today);
 
     if (fetchError) {

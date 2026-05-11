@@ -16,11 +16,14 @@ export default async function BugDetailPage({
 }: {
   params: Promise<{ ref: string }>;
 }) {
-  const user = await getCurrentUser();
-  if (!isAdmin(user?.role)) redirect('/projets');
-
   const { ref } = await params;
-  const bug = await getBugReportByRef(ref);
+  // user + bug en parallele : independants. On paye getBugReportByRef si
+  // l user n est pas admin (rare, la page est gated par la sidebar).
+  const [user, bug] = await Promise.all([
+    getCurrentUser(),
+    getBugReportByRef(ref),
+  ]);
+  if (!isAdmin(user?.role)) redirect('/projets');
   if (!bug) notFound();
 
   async function sign(path: string | null | undefined): Promise<string | null> {

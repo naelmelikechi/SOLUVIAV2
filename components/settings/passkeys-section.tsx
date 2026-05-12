@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { deletePasskey } from '@/lib/actions/passkeys';
 import type { PasskeyRow } from '@/lib/queries/passkeys';
 import { formatDate } from '@/lib/utils/formatters';
@@ -44,6 +45,10 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
   const [open, setOpen] = useState(false);
   const [deviceName, setDeviceName] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     setSupported(
@@ -97,11 +102,13 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
     }
   };
 
-  const handleDelete = async (id: string, name: string | null) => {
-    if (!confirm(`Supprimer le passkey "${name ?? 'Passkey'}" ?`)) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
     setDeletingId(id);
     const result = await deletePasskey(id);
     setDeletingId(null);
+    setDeleteTarget(null);
     if (result.success) {
       toast.success('Passkey supprimé');
       router.refresh();
@@ -163,7 +170,12 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleDelete(p.id, p.device_name)}
+                  onClick={() =>
+                    setDeleteTarget({
+                      id: p.id,
+                      name: p.device_name ?? 'Passkey',
+                    })
+                  }
                   disabled={deletingId === p.id}
                   aria-label="Supprimer ce passkey"
                 >
@@ -220,6 +232,19 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null);
+          }}
+          title="Supprimer le passkey"
+          description={`Voulez-vous vraiment supprimer le passkey "${deleteTarget?.name ?? 'Passkey'}" ? Cette action est irréversible.`}
+          confirmText="Supprimer"
+          variant="destructive"
+          onConfirm={handleDeleteConfirm}
+          isPending={deletingId !== null}
+        />
       </CardContent>
     </Card>
   );

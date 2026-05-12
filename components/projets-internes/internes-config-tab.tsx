@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { CategorieFormDialog } from './categorie-form-dialog';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { archiveCategorieInterneAction } from '@/app/(dashboard)/projets/internes/actions';
 import { cn } from '@/lib/utils';
 import type {
@@ -22,6 +23,9 @@ export function InternesConfigTab({ categories, projets }: Props) {
   const [filter, setFilter] = useState<'actif' | 'archive'>('actif');
   const [pendingArchiveId, startArchive] = useTransition();
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<CategorieInterne | null>(
+    null,
+  );
 
   // Indexe les projets par categorie pour afficher les heures 12m
   const heuresParCategorie = new Map<string, number>();
@@ -38,14 +42,14 @@ export function InternesConfigTab({ categories, projets }: Props) {
     filter === 'actif' ? !c.archive : c.archive,
   );
 
-  const handleArchive = (cat: CategorieInterne) => {
-    const action = cat.archive ? 'désarchiver' : 'archiver';
-    if (!confirm(`Confirmer ${action} la catégorie "${cat.libelle}" ?`)) return;
-
+  const handleArchiveConfirm = () => {
+    if (!archiveTarget) return;
+    const cat = archiveTarget;
     setArchivingId(cat.id);
     startArchive(async () => {
       const result = await archiveCategorieInterneAction(cat.id, cat.archive);
       setArchivingId(null);
+      setArchiveTarget(null);
 
       if (!result.success) {
         toast.error(result.error);
@@ -160,7 +164,7 @@ export function InternesConfigTab({ categories, projets }: Props) {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => handleArchive(c)}
+                    onClick={() => setArchiveTarget(c)}
                     disabled={pendingArchiveId && archivingId === c.id}
                   >
                     {c.archive ? 'Désarchiver' : 'Archiver'}
@@ -180,6 +184,27 @@ export function InternesConfigTab({ categories, projets }: Props) {
           categorie={editing}
         />
       )}
+
+      <ConfirmDialog
+        open={archiveTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setArchiveTarget(null);
+        }}
+        title={
+          archiveTarget?.archive
+            ? 'Désarchiver la catégorie'
+            : 'Archiver la catégorie'
+        }
+        description={
+          archiveTarget
+            ? `Confirmer ${archiveTarget.archive ? 'désarchiver' : 'archiver'} la catégorie "${archiveTarget.libelle}" ?`
+            : ''
+        }
+        confirmText={archiveTarget?.archive ? 'Désarchiver' : 'Archiver'}
+        variant={archiveTarget?.archive ? 'default' : 'destructive'}
+        onConfirm={handleArchiveConfirm}
+        isPending={archivingId !== null}
+      />
     </div>
   );
 }

@@ -70,7 +70,7 @@ describe('TrinityFunnel', () => {
         productionTrend={0}
       />,
     );
-    expect(screen.getByText(/200,00\s*€.*reste à facturer/i)).toBeDefined();
+    expect(screen.getByText(/200\s*€.*reste à facturer/i)).toBeDefined();
   });
 
   it('masque la card via editMode + onHide', () => {

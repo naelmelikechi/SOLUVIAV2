@@ -2,15 +2,6 @@ import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils/formatters';
 
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 export interface TrinityFunnelProps {
   production: number;
   facture: number;
@@ -100,7 +91,7 @@ export function TrinityFunnel({
         </div>
         <div className="text-muted-foreground mt-1 text-xs">
           {resteAFacturer > 0
-            ? `${formatAmount(resteAFacturer)} reste à facturer`
+            ? `${formatCurrency(resteAFacturer)} reste à facturer`
             : 'tout est facturé'}
         </div>
         <div className="bg-muted/40 mt-3 h-1 overflow-hidden rounded">
@@ -126,7 +117,7 @@ export function TrinityFunnel({
         </div>
         <div className="text-muted-foreground mt-1 text-xs">
           {enAttentePaiement > 0
-            ? `${formatAmount(enAttentePaiement)} en attente de paiement`
+            ? `${formatCurrency(enAttentePaiement)} en attente de paiement`
             : 'tout est encaissé'}
         </div>
         <div className="bg-muted/40 mt-3 h-1 overflow-hidden rounded">

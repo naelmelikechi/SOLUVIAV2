@@ -523,6 +523,14 @@ export async function syncEduviaForClient(
       // emis (invoice_id non null). Endpoint /api/v1/invoices/:id/lines
       // non documente, peut casser sans preavis — on degrade gracieusement
       // avec EndpointNotAvailableError.
+      //
+      // Cap erreurs : on limite a PHASE5_MAX_ERRORS entrees dans result.errors
+      // pour eviter le spam si l'endpoint est down sur beaucoup d'invoices.
+      // Les erreurs excedentaires sont resumees dans une seule ligne finale.
+      const PHASE5_MAX_ERRORS = 10;
+      const phase5StartErrorCount = result.errors.length;
+      let phase5ExtraErrors = 0;
+
       for (const step of steps) {
         if (!step.invoice_id) continue;
         try {
@@ -554,13 +562,44 @@ export async function syncEduviaForClient(
               result.invoice_lines++;
             }
           }
-        } catch (err) {
-          if (!(err instanceof EndpointNotAvailableError)) {
+
+          // I2: Orphan delete - si Eduvia a supprime une ligne entre 2 syncs,
+          // on la supprime de notre DB pour eviter que la base de commission
+          // s'inflate sur des donnees obsoletes.
+          // Cas limite lines.length=0 : apiLineIds=[] -> on passe '(0)' comme
+          // fallback pour que la clause NOT IN matche toutes les lignes (Supabase
+          // ne supporte pas NOT IN sur un tableau vide).
+          const apiLineIds = lines.map((l) => l.id);
+          const notInParam =
+            apiLineIds.length > 0 ? apiLineIds.join(',') : '0';
+          const { error: deleteErr } = await supabase
+            .from('eduvia_invoice_lines')
+            .delete()
+            .eq('source_client_id', clientId)
+            .eq('eduvia_invoice_id', step.invoice_id)
+            .not('eduvia_id', 'in', `(${notInParam})`);
+          if (deleteErr) {
             result.errors.push(
-              `invoice_lines invoice=${step.invoice_id}: ${err instanceof Error ? err.message : String(err)}`,
+              `InvoiceLine orphan cleanup invoice=${step.invoice_id}: ${deleteErr.message}`,
             );
           }
+        } catch (err) {
+          if (!(err instanceof EndpointNotAvailableError)) {
+            if (result.errors.length - phase5StartErrorCount < PHASE5_MAX_ERRORS) {
+              result.errors.push(
+                `invoice_lines invoice=${step.invoice_id}: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            } else {
+              phase5ExtraErrors++;
+            }
+          }
         }
+      }
+
+      if (phase5ExtraErrors > 0) {
+        result.errors.push(
+          `invoice_lines: ${phase5ExtraErrors} autre(s) erreur(s) omise(s)`,
+        );
       }
 
       // Forecast invoice steps

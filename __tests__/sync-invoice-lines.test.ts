@@ -89,6 +89,7 @@ interface TableRules {
     opts?: unknown,
   ) => { data?: unknown; error: unknown };
   update?: () => { error: unknown };
+  delete?: () => { error: unknown };
 }
 
 function buildSupabase(rules: Record<string, TableRules>) {
@@ -131,6 +132,24 @@ function buildSupabase(rules: Record<string, TableRules>) {
     const settle = () => Promise.resolve(rule ? rule() : { error: null });
     const chain: Record<string, unknown> = {
       eq(col: string, val: unknown) {
+        op.filters.push({ col, val });
+        return chain;
+      },
+      then(resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) {
+        return settle().then(resolve, reject);
+      },
+    };
+    return chain;
+  }
+
+  function deleteChain(op: RecordedOp, rule?: TableRules['delete']) {
+    const settle = () => Promise.resolve(rule ? rule() : { error: null });
+    const chain: Record<string, unknown> = {
+      eq(col: string, val: unknown) {
+        op.filters.push({ col, val });
+        return chain;
+      },
+      not(col: string, _operator: string, val: unknown) {
         op.filters.push({ col, val });
         return chain;
       },
@@ -185,6 +204,11 @@ function buildSupabase(rules: Record<string, TableRules>) {
             };
             ops.push(op);
             return Promise.resolve({ error: null });
+          },
+          delete() {
+            const op: RecordedOp = { table, op: 'delete', filters: [] };
+            ops.push(op);
+            return deleteChain(op, tableRules?.delete);
           },
         };
       },
@@ -573,5 +597,113 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
 
     expect(res.invoice_lines).toBe(0);
     expect(res.errors.some((e) => e.includes('eduvia_id=79'))).toBe(true);
+  });
+
+  it('I2: supprime les lignes orphelines quand Eduvia supprime une ligne entre 2 syncs', async () => {
+    // Setup : Eduvia retourne seulement la ligne pedago (id=79, invoice_id=200).
+    // La ligne OLD_LINE (id=999) existait en DB mais n'est plus dans la reponse API.
+    // On attend que la Delete soit emise pour invoice_id=200 excluant eduvia_id=79.
+    fetchListMock.mockImplementation(
+      async (_url: string, _key: string, resource: string) => {
+        if (resource === 'contracts/1/invoice_steps') return [STEP_PEDAGO];
+        if (resource === 'contracts/1/invoice_forecast_steps') return [];
+        return [];
+      },
+    );
+
+    // Eduvia retourne seulement la ligne existante (OLD_LINE est partie)
+    fetchInvoiceLinesMock.mockImplementation(
+      async (_url: string, _key: string, invoiceId: number) => {
+        if (invoiceId === 200) return [LINE_PEDAGO]; // uniquement id=79
+        return [];
+      },
+    );
+
+    const supa = buildSupabase({
+      projets: projetsRule(),
+      contrats: contratsRule(),
+      eduvia_invoice_steps: { upsert: () => ({ error: null }) },
+      eduvia_invoice_forecast_steps: { upsert: () => ({ error: null }) },
+      eduvia_invoice_lines: {
+        upsert: () => ({ error: null }),
+        delete: () => ({ error: null }),
+      },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      supa.client,
+      CLIENT_ID,
+      'heol.eduvia.app',
+      'fake-key',
+    );
+
+    expect(res.errors).toHaveLength(0);
+    expect(res.invoice_lines).toBe(1); // ligne pedago upserée
+
+    // Verify que le delete orphan a ete emis pour eduvia_invoice_lines
+    const deleteOps = supa.ops.filter(
+      (o) => o.op === 'delete' && o.table === 'eduvia_invoice_lines',
+    );
+    expect(deleteOps).toHaveLength(1);
+
+    // Le delete doit filtrer sur source_client_id + eduvia_invoice_id=200
+    const deleteOp = deleteOps[0]!;
+    const clientFilter = deleteOp.filters.find((f) => f.col === 'source_client_id');
+    const invoiceFilter = deleteOp.filters.find((f) => f.col === 'eduvia_invoice_id');
+    expect(clientFilter?.val).toBe(CLIENT_ID);
+    expect(invoiceFilter?.val).toBe(200);
+
+    // Le NOT IN doit exclure l'eduvia_id=79 (la ligne conservee)
+    const notInFilter = deleteOp.filters.find((f) => f.col === 'eduvia_id');
+    expect(notInFilter).toBeDefined();
+    // val est la string "(79)" passee a .not('eduvia_id', 'in', '(79)')
+    expect(String(notInFilter!.val)).toContain('79');
+  });
+
+  it('I2: si Eduvia retourne 0 lignes (all orphans), delete frappe toutes les lignes de l invoice', async () => {
+    fetchListMock.mockImplementation(
+      async (_url: string, _key: string, resource: string) => {
+        if (resource === 'contracts/1/invoice_steps') return [STEP_PEDAGO];
+        if (resource === 'contracts/1/invoice_forecast_steps') return [];
+        return [];
+      },
+    );
+
+    // API retourne tableau vide pour cette invoice
+    fetchInvoiceLinesMock.mockResolvedValue([]);
+
+    const supa = buildSupabase({
+      projets: projetsRule(),
+      contrats: contratsRule(),
+      eduvia_invoice_steps: { upsert: () => ({ error: null }) },
+      eduvia_invoice_forecast_steps: { upsert: () => ({ error: null }) },
+      eduvia_invoice_lines: {
+        upsert: () => ({ error: null }),
+        delete: () => ({ error: null }),
+      },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      supa.client,
+      CLIENT_ID,
+      'heol.eduvia.app',
+      'fake-key',
+    );
+
+    expect(res.errors).toHaveLength(0);
+    expect(res.invoice_lines).toBe(0); // aucune ligne inseree
+
+    // Delete doit quand meme etre emise (avec fallback '0' dans NOT IN)
+    const deleteOps = supa.ops.filter(
+      (o) => o.op === 'delete' && o.table === 'eduvia_invoice_lines',
+    );
+    expect(deleteOps).toHaveLength(1);
+
+    // NOT IN fallback : val doit contenir '0' (toutes les lignes sont orphelines)
+    const notInFilter = deleteOps[0]!.filters.find((f) => f.col === 'eduvia_id');
+    expect(notInFilter).toBeDefined();
+    expect(String(notInFilter!.val)).toContain('0');
   });
 });

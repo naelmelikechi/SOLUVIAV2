@@ -324,7 +324,7 @@ export function UserEditDialog({
             >
               <KeyRound className="mr-1.5 h-4 w-4" />
               {user.derniere_connexion
-                ? 'Reinitialiser le mot de passe'
+                ? 'Réinitialiser le mot de passe'
                 : "Renvoyer l'invitation"}
             </Button>
           </div>
@@ -370,16 +370,16 @@ export function UserEditDialog({
         onOpenChange={setResetOpen}
         title={
           user.derniere_connexion
-            ? 'Reinitialiser le mot de passe'
+            ? 'Réinitialiser le mot de passe'
             : "Renvoyer l'invitation"
         }
         description={
           user.derniere_connexion
-            ? `Un nouveau mot de passe temporaire sera genere pour ${user.prenom} ${user.nom} et envoye par email a ${user.email}. Sa session actuelle restera valide jusqu a deconnexion.`
-            : `Un nouveau mot de passe temporaire sera envoye a ${user.email}.`
+            ? `Un nouveau mot de passe temporaire sera généré pour ${user.prenom} ${user.nom} et envoyé par email à ${user.email}. Sa session actuelle restera valide jusqu'à déconnexion.`
+            : `Un nouveau mot de passe temporaire sera envoyé à ${user.email}.`
         }
         confirmText={
-          user.derniere_connexion ? 'Reinitialiser' : "Renvoyer l'invitation"
+          user.derniere_connexion ? 'Réinitialiser' : "Renvoyer l'invitation"
         }
         isPending={resetPending}
         onConfirm={async () => {

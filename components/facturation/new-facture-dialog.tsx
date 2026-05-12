@@ -391,7 +391,7 @@ export function NewFactureDialog({
             <div className="max-h-80 overflow-y-auto rounded-md border">
               {filteredProjets.length === 0 ? (
                 <p className="text-muted-foreground p-4 text-center text-xs">
-                  {'Aucun projet trouvé.'}
+                  Aucun projet trouvé.
                 </p>
               ) : (
                 <ul className="divide-y">
@@ -495,7 +495,7 @@ export function NewFactureDialog({
                         colSpan={8}
                         className="text-muted-foreground px-2 py-6 text-center"
                       >
-                        {'Aucun contrat actif sur ce projet.'}
+                        Aucun contrat actif sur ce projet.
                       </td>
                     </tr>
                   )}

@@ -127,7 +127,7 @@ export function FactureLignesTable({
               className="gap-1.5"
             >
               <Plus className="h-4 w-4" />
-              {'Ajouter une ligne'}
+              Ajouter une ligne
             </Button>
           )}
         </div>
@@ -192,9 +192,7 @@ export function FactureLignesTable({
                           >
                             <Pencil className="h-4 w-4" />
                           </TooltipTrigger>
-                          <TooltipContent side="top">
-                            {'Modifier'}
-                          </TooltipContent>
+                          <TooltipContent side="top">Modifier</TooltipContent>
                         </Tooltip>
                         <Tooltip>
                           <TooltipTrigger
@@ -209,9 +207,7 @@ export function FactureLignesTable({
                           >
                             <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                           </TooltipTrigger>
-                          <TooltipContent side="top">
-                            {'Supprimer'}
-                          </TooltipContent>
+                          <TooltipContent side="top">Supprimer</TooltipContent>
                         </Tooltip>
                       </div>
                     </TableCell>

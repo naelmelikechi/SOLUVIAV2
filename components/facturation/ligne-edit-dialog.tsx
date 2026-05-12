@@ -318,14 +318,14 @@ function LigneEditDialogInner({
               </Select>
               {projetData && projetData.contrats.length === 0 && (
                 <p className="text-muted-foreground text-xs">
-                  {'Aucun contrat actif sur ce projet.'}
+                  Aucun contrat actif sur ce projet.
                 </p>
               )}
             </div>
 
             {/* Mois relatif */}
             <div className="space-y-2">
-              <Label htmlFor="mois">{'Mois (1 = M+1, 12 = M+12)'}</Label>
+              <Label htmlFor="mois">Mois (1 = M+1, 12 = M+12)</Label>
               <Input
                 id="mois"
                 type="number"

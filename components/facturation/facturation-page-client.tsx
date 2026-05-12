@@ -152,7 +152,7 @@ export function FacturationPageClient({
             disabled={projetsForFacturation.length === 0}
           >
             <Plus className="mr-1.5 h-4 w-4" />
-            {'Nouvelle facture'}
+            Nouvelle facture
           </Button>
         </div>
         <EmptyState
@@ -178,12 +178,12 @@ export function FacturationPageClient({
           disabled={projetsForFacturation.length === 0}
         >
           <Plus className="mr-1.5 h-4 w-4" />
-          {'Nouvelle facture'}
+          Nouvelle facture
         </Button>
       </div>
       <TabsList variant="line">
         <TabsTrigger value={0}>
-          {'Brouillons'}
+          Brouillons
           {brouillons.length > 0 && (
             <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[10px] font-bold text-white">
               {brouillons.length}
@@ -191,7 +191,7 @@ export function FacturationPageClient({
           )}
         </TabsTrigger>
         <TabsTrigger value={1}>
-          {'Échéances'}
+          Échéances
           {echeances.length > 0 && (
             <span className="bg-primary ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white">
               {echeances.length}
@@ -200,20 +200,20 @@ export function FacturationPageClient({
         </TabsTrigger>
         {manualProjets.length > 0 && (
           <TabsTrigger value={2}>
-            {'Manuel'}
+            Manuel
             <span className="text-muted-foreground ml-1.5 text-xs">
               ({manualProjets.length})
             </span>
           </TabsTrigger>
         )}
         <TabsTrigger value={3}>
-          {'Factures'}
+          Factures
           <span className="text-muted-foreground ml-1.5 text-xs">
             ({factures.length})
           </span>
         </TabsTrigger>
         <TabsTrigger value={4}>
-          {'Ajustements'}
+          Ajustements
           {ajustements.length > 0 && (
             <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[10px] font-bold text-white">
               {ajustements.length}

@@ -287,7 +287,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                     colSpan={9}
                     className="text-muted-foreground h-16 text-center text-sm"
                   >
-                    {'Aucun résultat.'}
+                    Aucun résultat.
                   </TableCell>
                 </TableRow>
               ) : (

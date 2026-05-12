@@ -357,7 +357,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                         colSpan={5}
                         className="text-muted-foreground h-16 text-center text-sm"
                       >
-                        Aucun {'é'}v{'é'}nement {'à'} afficher.
+                        Aucun événement à afficher.
                       </TableCell>
                     </TableRow>
                   ) : (

@@ -200,6 +200,7 @@ export function ClientContactsSection({
                         size="icon-sm"
                         onClick={() => handleDelete(c.id, c.nom)}
                         disabled={isPending}
+                        aria-label={`Supprimer ${c.nom}`}
                         className="text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" />

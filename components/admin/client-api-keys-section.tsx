@@ -258,6 +258,7 @@ export function ClientApiKeysSection({
                           size="icon-sm"
                           onClick={() => handleTestConnection(k.id)}
                           disabled={isPending || testingKeyId === k.id}
+                          aria-label="Tester la connexion"
                           title="Tester la connexion"
                           className="text-muted-foreground hover:text-primary"
                         >
@@ -272,6 +273,7 @@ export function ClientApiKeysSection({
                           size="icon-sm"
                           onClick={() => handleToggleActive(k.id, k.is_active)}
                           disabled={isPending}
+                          aria-label={k.is_active ? 'Désactiver' : 'Activer'}
                           title={k.is_active ? 'Désactiver' : 'Activer'}
                           className="text-muted-foreground hover:text-foreground"
                         >
@@ -286,6 +288,7 @@ export function ClientApiKeysSection({
                           size="icon-sm"
                           onClick={() => handleDelete(k.id, k.label)}
                           disabled={isPending}
+                          aria-label="Supprimer cette clé"
                           className="text-muted-foreground hover:text-destructive"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

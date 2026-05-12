@@ -227,6 +227,7 @@ export function NotificationsPageClient({
                     variant="ghost"
                     size="icon-xs"
                     title="Marquer comme lu"
+                    aria-label="Marquer comme lu"
                     disabled={isPending}
                     onClick={() => handleMarkRead(notification.id)}
                   >
@@ -237,6 +238,7 @@ export function NotificationsPageClient({
                   variant="ghost"
                   size="icon-xs"
                   title="Supprimer"
+                  aria-label="Supprimer la notification"
                   disabled={isPending}
                   onClick={() => handleDelete(notification.id)}
                 >

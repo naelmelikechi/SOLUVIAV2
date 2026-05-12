@@ -334,9 +334,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                             >
                               <Eye className="h-4 w-4" />
                             </TooltipTrigger>
-                            <TooltipContent side="top">
-                              {'Aperçu'}
-                            </TooltipContent>
+                            <TooltipContent side="top">Aperçu</TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger

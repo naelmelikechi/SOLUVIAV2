@@ -69,7 +69,7 @@ export function ProjetUploadButton({
         ) : (
           <Upload className="mr-2 h-3.5 w-3.5" />
         )}
-        {uploading ? 'Upload...' : 'Ajouter'}
+        {uploading ? 'Envoi...' : 'Ajouter'}
       </Button>
     </>
   );

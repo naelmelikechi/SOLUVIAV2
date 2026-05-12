@@ -523,12 +523,12 @@ export async function syncEduviaForClient(
       // emis (invoice_id non null). Endpoint /api/v1/invoices/:id/lines
       // non documente, peut casser sans preavis — on degrade gracieusement
       // avec EndpointNotAvailableError.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const supabaseAny = supabase as any; // types regen'd in Task 1.4 - hoisted: cast is loop-invariant
       for (const step of steps) {
         if (!step.invoice_id) continue;
         try {
           const lines = await fetchInvoiceLines(instanceUrl, apiKey, step.invoice_id);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const supabaseAny = supabase as any; // types regen'd in Task 1.4
           for (const line of lines) {
             const { error: lineErr } = await supabaseAny
               .from('eduvia_invoice_lines')
@@ -751,6 +751,7 @@ export async function syncAllEduviaClients(
           progressions: clientResult.progressions,
           invoice_steps: clientResult.invoice_steps,
           invoice_forecast_steps: clientResult.invoice_forecast_steps,
+          invoice_lines: clientResult.invoice_lines,
         });
       }
 
@@ -770,6 +771,7 @@ export async function syncAllEduviaClients(
         progressions: clientResult.progressions,
         invoice_steps: clientResult.invoice_steps,
         invoice_forecast_steps: clientResult.invoice_forecast_steps,
+        invoice_lines: clientResult.invoice_lines,
       });
     } catch (err) {
       syncResult.skippedClients++;

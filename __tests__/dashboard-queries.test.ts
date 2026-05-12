@@ -497,4 +497,28 @@ describe('getDashboardFinancials(periode)', () => {
     const result = await getDashboardFinancials();
     expect(result.totalAFacturer).toBe(0);
   });
+
+  it('echeances query applique les bons filtres (facture_id null, validee false, date <= today)', async () => {
+    const supa = buildSupabase({
+      echeances: { data: [], error: null },
+    });
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      supa.client,
+    );
+    const { getDashboardFinancials } = await import('@/lib/queries/dashboard');
+    await getDashboardFinancials();
+
+    const echeancesOp = supa.ops.find((o) => o.table === 'echeances');
+    expect(echeancesOp).toBeDefined();
+    const filters = echeancesOp!.filters;
+    expect(
+      filters.some((f) => f.col === 'facture_id' && f.op === 'is' && f.val === null),
+    ).toBe(true);
+    expect(
+      filters.some((f) => f.col === 'validee' && f.op === 'eq' && f.val === false),
+    ).toBe(true);
+    expect(
+      filters.some((f) => f.col === 'date_echeance' && f.op === 'lte'),
+    ).toBe(true);
+  });
 });

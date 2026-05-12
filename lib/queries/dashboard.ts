@@ -530,15 +530,13 @@ export async function getDashboardFinancials(
       ? Math.round((distinctEntries / expectedEntries) * 100)
       : 0;
 
+  type EcheanceMontant = { montant_ht: number | null };
+  const echeancesPretes =
+    (echeancesAFacturerRes.data as unknown as EcheanceMontant[]) ?? [];
   const totalAFacturer =
     Math.round(
-      (
-        (echeancesAFacturerRes.data ?? []) as unknown as Array<{
-          montant_ht: number | null;
-        }>
-      ).reduce(
-        (sum: number, e: { montant_ht: number | null }) =>
-          sum + Number(e.montant_ht ?? 0),
+      echeancesPretes.reduce(
+        (sum, e) => sum + Number(e.montant_ht ?? 0),
         0,
       ) * 100,
     ) / 100;

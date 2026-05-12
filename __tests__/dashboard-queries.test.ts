@@ -383,6 +383,13 @@ describe('getDashboardFinancials(periode)', () => {
       ),
     );
     expect(hasDateEmission).toBe(true);
+    const hasDateEmissionLte = factureOps.some((o) =>
+      o.filters.some(
+        (f) =>
+          f.col === 'date_emission' && f.op === 'lte' && f.val === '2026-05-31',
+      ),
+    );
+    expect(hasDateEmissionLte).toBe(true);
   });
 
   it('appends date_paiement filter on paiements when periode given', async () => {
@@ -407,6 +414,13 @@ describe('getDashboardFinancials(periode)', () => {
       ),
     );
     expect(hasDatePaiement).toBe(true);
+    const hasDatePaiementLte = paiementOps.some((o) =>
+      o.filters.some(
+        (f) =>
+          f.col === 'date_paiement' && f.op === 'lte' && f.val === '2026-05-31',
+      ),
+    );
+    expect(hasDatePaiementLte).toBe(true);
   });
 
   it('omits date filters when periode is absent (compat)', async () => {

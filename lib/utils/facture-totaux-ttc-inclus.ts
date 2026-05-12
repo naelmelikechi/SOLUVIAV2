@@ -2,7 +2,7 @@
  * Calcule les totaux d'une facture en mode "TTC inclus" :
  * la commission est exprimee TTC, on derive HT/TVA a rebours.
  *
- * Convention HEOL (billing_mode='manual') : montant_commissionne est TTC.
+ * Convention HEOL : montant_commissionne est TTC.
  *
  * Garantie d'arrondi : SUM(lignesHt) == totalHt exactement (rebalance du
  * dernier centime sur la derniere ligne). Indispensable pour la coherence

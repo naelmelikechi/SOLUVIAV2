@@ -3,9 +3,9 @@ import { logger } from '@/lib/utils/logger';
 import { classifyLineType } from '@/lib/eduvia/line-types';
 
 // ---------------------------------------------------------------------------
-// Billable events : 2 sources de facturation manuelle pour les projets en
-// mode billing_mode='manual' (typiquement HEOL : commission 50% sur
-// engagement OU sur reglement OPCO, jamais les deux pour un meme contrat).
+// Billable events : 2 sources de facturation pour tous les projets avec
+// contrats Eduvia (commission sur engagement OU sur reglement OPCO,
+// jamais les deux pour un meme contrat).
 //
 // Type 'engagement'   : 1 event par contrat dont contract_state='ENGAGE',
 //                       source_id = contrats.id,
@@ -404,9 +404,10 @@ export async function getBillableEvents(
 }
 
 /**
- * Liste les projets en mode billing_mode='manual' pour le selecteur de l'UI.
+ * Liste les projets actifs ayant au moins un contrat Eduvia non archive.
+ * Utilise par le selecteur de projet dans la creation de brouillon.
  */
-export async function listManualProjets(): Promise<
+export async function listBillableProjets(): Promise<
   Array<{ id: string; ref: string; client_raison_sociale: string }>
 > {
   const supabase = await createClient();
@@ -415,23 +416,23 @@ export async function listManualProjets(): Promise<
     .select(
       `
       id, ref,
-      client:clients!projets_client_id_fkey(raison_sociale)
+      client:clients!projets_client_id_fkey(raison_sociale),
+      contrats!contrats_projet_id_fkey(id)
     `,
     )
-    .eq('billing_mode', 'manual')
     .eq('archive', false)
     .order('ref');
 
   if (error) {
-    logger.error('queries.billable-events', 'listManualProjets failed', {
-      error,
-    });
+    logger.error('queries.billable-events', 'listBillableProjets failed', { error });
     return [];
   }
 
-  return (data ?? []).map((p) => ({
-    id: p.id,
-    ref: p.ref ?? '',
-    client_raison_sociale: p.client?.raison_sociale ?? '',
-  }));
+  return (data ?? [])
+    .filter((p) => (p.contrats ?? []).length > 0)
+    .map((p) => ({
+      id: p.id,
+      ref: p.ref ?? '',
+      client_raison_sociale: p.client?.raison_sociale ?? '',
+    }));
 }

@@ -73,7 +73,7 @@ export function CategorieBarChart({ data }: Props) {
               <div className="bg-popover rounded-lg border px-3 py-2 text-xs shadow-md">
                 <div className="font-semibold">{row.libelle}</div>
                 <div className="text-muted-foreground tabular-nums">
-                  {row.heures.toFixed(1)} h — {row.pct.toFixed(1)}%
+                  {row.heures.toFixed(1)} h - {row.pct.toFixed(1)}%
                 </div>
               </div>
             );

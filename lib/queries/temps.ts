@@ -1,18 +1,23 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
-import { getCategorieInterneLabel } from '@/lib/utils/projets-internes';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+export interface CategorieInterneRef {
+  id: string;
+  code: string;
+  libelle: string;
+}
 
 export interface SaisieTemps {
   projet_id: string;
   projet_ref: string;
   projet_label: string;
   est_interne: boolean;
-  categorie_interne: string | null;
+  categorie_interne: CategorieInterneRef | null;
   /** date (ISO) -> heures */
   heures: Record<string, number>;
   /** date -> { axe_code -> heures } */
@@ -23,10 +28,10 @@ function buildProjetLabel(
   ref: string,
   clientName: string,
   estInterne: boolean,
-  categorieInterne: string | null,
+  categorieInterne: CategorieInterneRef | null,
 ): string {
   if (estInterne) {
-    return getCategorieInterneLabel(categorieInterne);
+    return categorieInterne?.libelle ?? 'Interne';
   }
   return clientName ? `${ref} - ${clientName}` : ref;
 }
@@ -56,6 +61,42 @@ export function getWeekDates(weekOffset: number = 0): string[] {
 // getSaisiesForWeek
 // ---------------------------------------------------------------------------
 
+const PROJET_INTERNE_SELECT = `
+  id,
+  ref,
+  est_interne,
+  categorie_interne:categories_internes!projets_categorie_interne_id_fkey (
+    id,
+    code,
+    libelle
+  ),
+  client:clients!projets_client_id_fkey (
+    raison_sociale
+  )
+` as const;
+
+type ProjetJoinShape = {
+  id: string;
+  ref: string | null;
+  est_interne: boolean | null;
+  categorie_interne: CategorieInterneRef | null;
+  client: { raison_sociale: string } | null;
+};
+
+function normalizeCategorie(
+  raw: unknown,
+): CategorieInterneRef | null {
+  if (!raw) return null;
+  // Supabase peut renvoyer un objet ou un tableau selon la cardinalite detectee
+  const obj = Array.isArray(raw) ? raw[0] : raw;
+  if (!obj || typeof obj !== 'object') return null;
+  const r = obj as Record<string, unknown>;
+  if (typeof r.id !== 'string' || typeof r.code !== 'string' || typeof r.libelle !== 'string') {
+    return null;
+  }
+  return { id: r.id, code: r.code, libelle: r.libelle };
+}
+
 export async function getSaisiesForWeek(
   weekDates: string[],
 ): Promise<SaisieTemps[]> {
@@ -66,27 +107,13 @@ export async function getSaisiesForWeek(
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  // 1+2 en parallele : userProjets (referentiel rendu en grid) et saisies
-  //     de la semaine sont independants (les 2 dependent juste de user.id).
-  //     Les projets sont toujours rendus dans la grille (lazy DB row :
-  //     on insere seulement quand l user saisit heures > 0).
   const [
     { data: userProjets, error: projetsError },
     { data: saisies, error: saisiesError },
   ] = await Promise.all([
     supabase
       .from('projets')
-      .select(
-        `
-        id,
-        ref,
-        est_interne,
-        categorie_interne,
-        client:clients!projets_client_id_fkey (
-          raison_sociale
-        )
-      `,
-      )
+      .select(PROJET_INTERNE_SELECT)
       .eq('archive', false)
       .eq('statut', 'actif')
       .or(
@@ -103,12 +130,7 @@ export async function getSaisiesForWeek(
         date,
         heures,
         projet:projets!saisies_temps_projet_id_fkey (
-          ref,
-          est_interne,
-          categorie_interne,
-          client:clients!projets_client_id_fkey (
-            raison_sociale
-          )
+          ${PROJET_INTERNE_SELECT}
         )
       `,
       )
@@ -138,7 +160,6 @@ export async function getSaisiesForWeek(
     );
   }
 
-  // 3. Fetch axes for those saisies
   const saisieIds = (saisies ?? []).map((s) => s.id);
   const { data: axesRows, error: axesError } =
     saisieIds.length > 0
@@ -159,7 +180,6 @@ export async function getSaisiesForWeek(
     );
   }
 
-  // Build a lookup: saisie_id -> { axe -> heures }
   const axesBySaisie: Record<string, Record<string, number>> = {};
   for (const row of axesRows ?? []) {
     if (!axesBySaisie[row.saisie_id]) {
@@ -168,14 +188,13 @@ export async function getSaisiesForWeek(
     axesBySaisie[row.saisie_id]![row.axe] = row.heures;
   }
 
-  // 4. Seed grouped map with ALL user projets (empty heures/axes by default).
   const grouped: Record<string, SaisieTemps> = {};
-  for (const p of userProjets ?? []) {
-    const client = p.client as unknown as { raison_sociale: string } | null;
+  for (const p of (userProjets ?? []) as unknown as ProjetJoinShape[]) {
+    const client = p.client;
     const ref = p.ref ?? '';
     const clientName = client?.raison_sociale ?? '';
     const estInterne = p.est_interne ?? false;
-    const categorieInterne = p.categorie_interne ?? null;
+    const categorieInterne = normalizeCategorie(p.categorie_interne);
     grouped[p.id] = {
       projet_id: p.id,
       projet_ref: ref,
@@ -192,20 +211,14 @@ export async function getSaisiesForWeek(
     };
   }
 
-  // 5. Merge in existing saisies (adds any projet rows not already in userProjets).
   for (const s of saisies ?? []) {
-    const projet = s.projet as unknown as {
-      ref: string | null;
-      est_interne: boolean | null;
-      categorie_interne: string | null;
-      client: { raison_sociale: string } | null;
-    };
+    const projet = s.projet as unknown as ProjetJoinShape;
 
     if (!grouped[s.projet_id]) {
       const ref = projet.ref ?? '';
       const clientName = projet.client?.raison_sociale ?? '';
       const estInterne = projet.est_interne ?? false;
-      const categorieInterne = projet.categorie_interne ?? null;
+      const categorieInterne = normalizeCategorie(projet.categorie_interne);
 
       grouped[s.projet_id] = {
         projet_id: s.projet_id,
@@ -227,7 +240,6 @@ export async function getSaisiesForWeek(
     grouped[s.projet_id]!.axes[s.date] = axesBySaisie[s.id] ?? {};
   }
 
-  // Sort: client projects first (by ref), then internal projects (by ref).
   return Object.values(grouped).sort((a, b) => {
     if (a.est_interne !== b.est_interne) return a.est_interne ? 1 : -1;
     return a.projet_ref.localeCompare(b.projet_ref);
@@ -247,11 +259,6 @@ export interface TeamMemberSummary {
   weekTotal: number;
 }
 
-/**
- * Totaux d'heures travaillees pour l'utilisateur courant : semaine en cours,
- * mois en cours, annee en cours. Sert au header de /temps pour donner un
- * sens global a la fiche.
- */
 export async function getCurrentUserTempsTotals(): Promise<{
   weekTotal: number;
   monthTotal: number;
@@ -275,7 +282,6 @@ export async function getCurrentUserTempsTotals(): Promise<{
   const startOfYear = new Date(annee, 0, 1).toISOString().split('T')[0]!;
   const endOfYear = new Date(annee, 11, 31).toISOString().split('T')[0]!;
 
-  // 1 query annuelle, on slice cote app pour mois/semaine
   const { data: saisies } = await supabase
     .from('saisies_temps')
     .select('date, heures')
@@ -296,8 +302,7 @@ export async function getCurrentUserTempsTotals(): Promise<{
     .filter((r) => r.date >= monthStart && r.date <= monthEnd)
     .reduce((s, r) => s + (r.heures ?? 0), 0);
 
-  // Semaine = lundi -> dimanche autour de today
-  const day = now.getDay() || 7; // 1=Mon..7=Sun
+  const day = now.getDay() || 7;
   const monday = new Date(now);
   monday.setDate(now.getDate() - (day - 1));
   const sunday = new Date(monday);
@@ -316,9 +321,7 @@ export async function getTeamWeekSummary(
 ): Promise<TeamMemberSummary[]> {
   const supabase = await createClient();
 
-  // saisies + users actifs en parallele (independants).
   const [saisiesRes, usersRes] = await Promise.all([
-    // Admin sees all via RLS
     supabase
       .from('saisies_temps')
       .select('user_id, date, heures')
@@ -355,7 +358,6 @@ export async function getTeamWeekSummary(
     );
   }
 
-  // Group saisies by user_id -> date -> total heures
   const userTotals: Record<string, Record<string, number>> = {};
   for (const s of saisies ?? []) {
     if (!userTotals[s.user_id]) {
@@ -365,7 +367,6 @@ export async function getTeamWeekSummary(
       (userTotals[s.user_id]![s.date] ?? 0) + s.heures;
   }
 
-  // Only weekdays for the week total (Mon-Fri = first 5 dates)
   const weekdayDates = weekDates.slice(0, 5);
 
   return (users ?? []).map((u) => {
@@ -400,7 +401,7 @@ export async function getUserProjets(): Promise<
     ref: string;
     label: string;
     est_interne: boolean;
-    categorie_interne: string | null;
+    categorie_interne: CategorieInterneRef | null;
   }[]
 > {
   const supabase = await createClient();
@@ -412,17 +413,7 @@ export async function getUserProjets(): Promise<
 
   const { data, error } = await supabase
     .from('projets')
-    .select(
-      `
-      id,
-      ref,
-      est_interne,
-      categorie_interne,
-      client:clients!projets_client_id_fkey (
-        raison_sociale
-      )
-    `,
-    )
+    .select(PROJET_INTERNE_SELECT)
     .eq('archive', false)
     .eq('statut', 'actif')
     .or(`cdp_id.eq.${user.id},backup_cdp_id.eq.${user.id},est_interne.eq.true`)
@@ -438,11 +429,11 @@ export async function getUserProjets(): Promise<
     );
   }
 
-  return (data ?? []).map((p) => {
-    const client = p.client as unknown as { raison_sociale: string } | null;
+  return ((data ?? []) as unknown as ProjetJoinShape[]).map((p) => {
+    const client = p.client;
     const ref = p.ref ?? '';
     const estInterne = p.est_interne ?? false;
-    const categorieInterne = p.categorie_interne ?? null;
+    const categorieInterne = normalizeCategorie(p.categorie_interne);
     return {
       id: p.id,
       ref,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Download, ClipboardList, Star, Sparkles, Clock } from 'lucide-react';
@@ -14,6 +14,8 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_PROJET_LABELS } from '@/lib/utils/constants';
 import { useFavorites } from '@/hooks/use-favorites';
+
+const INCLUDE_INTERNES_STORAGE_KEY = 'projets:includeInternes';
 
 const PROJET_FILTERS: FilterOption[] = [
   {
@@ -46,6 +48,18 @@ export function ProjetsDataTable({
 }) {
   const router = useRouter();
   const { favorites, toggle, isFavorite } = useFavorites();
+
+  const [includeInternes, setIncludeInternes] = useState(false);
+  useEffect(() => {
+    const stored = localStorage.getItem(INCLUDE_INTERNES_STORAGE_KEY);
+    if (stored === 'true') setIncludeInternes(true);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem(
+      INCLUDE_INTERNES_STORAGE_KEY,
+      includeInternes ? 'true' : 'false',
+    );
+  }, [includeInternes]);
 
   const handleRowClick = (row: ProjetListEnriched) => {
     router.push(`/projets/${row.ref}`);
@@ -101,14 +115,22 @@ export function ProjetsDataTable({
     return [starColumn, ...projetListColumns];
   }, [isFavorite, toggle]);
 
-  // Sort favorites to top, preserving original order within each group
+  // Filtre internes selon le toggle, puis sort favoris en haut.
   const sortedData = useMemo(() => {
-    return [...data].sort((a, b) => {
+    const filtered = includeInternes
+      ? data
+      : data.filter((p) => !p.est_interne);
+    return [...filtered].sort((a, b) => {
       const aFav = favorites.has(a.id) ? 0 : 1;
       const bFav = favorites.has(b.id) ? 0 : 1;
       return aFav - bFav;
     });
-  }, [data, favorites]);
+  }, [data, favorites, includeInternes]);
+
+  const internesCount = useMemo(
+    () => data.filter((p) => p.est_interne).length,
+    [data],
+  );
 
   if (data.length === 0) {
     const isCdp = userRole === 'cdp';
@@ -149,7 +171,18 @@ export function ProjetsDataTable({
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+        {internesCount > 0 && (
+          <label className="text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={includeInternes}
+              onChange={(e) => setIncludeInternes(e.target.checked)}
+              className="h-3.5 w-3.5 cursor-pointer rounded"
+            />
+            Inclure projets internes ({internesCount})
+          </label>
+        )}
         <Button variant="outline" size="sm" onClick={handleExport}>
           <Download className="mr-1.5 h-4 w-4" />
           Export Excel

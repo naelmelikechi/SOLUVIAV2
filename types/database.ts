@@ -334,6 +334,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      categories_internes: {
+        Row: {
+          actif: boolean;
+          archive: boolean;
+          code: string;
+          created_at: string;
+          id: string;
+          libelle: string;
+          ordre: number;
+          updated_at: string;
+        };
+        Insert: {
+          actif?: boolean;
+          archive?: boolean;
+          code: string;
+          created_at?: string;
+          id?: string;
+          libelle: string;
+          ordre?: number;
+          updated_at?: string;
+        };
+        Update: {
+          actif?: boolean;
+          archive?: boolean;
+          code?: string;
+          created_at?: string;
+          id?: string;
+          libelle?: string;
+          ordre?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       client_api_keys: {
         Row: {
           api_key_encrypted: string;
@@ -1855,7 +1888,7 @@ export type Database = {
           archive: boolean;
           backup_cdp_id: string | null;
           billing_mode: string;
-          categorie_interne: string | null;
+          categorie_interne_id: string | null;
           cdp_id: string | null;
           client_id: string;
           created_at: string;
@@ -1875,7 +1908,7 @@ export type Database = {
           archive?: boolean;
           backup_cdp_id?: string | null;
           billing_mode?: string;
-          categorie_interne?: string | null;
+          categorie_interne_id?: string | null;
           cdp_id?: string | null;
           client_id: string;
           created_at?: string;
@@ -1895,7 +1928,7 @@ export type Database = {
           archive?: boolean;
           backup_cdp_id?: string | null;
           billing_mode?: string;
-          categorie_interne?: string | null;
+          categorie_interne_id?: string | null;
           cdp_id?: string | null;
           client_id?: string;
           created_at?: string;
@@ -1917,6 +1950,13 @@ export type Database = {
             columns: ['backup_cdp_id'];
             isOneToOne: false;
             referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'projets_categorie_interne_id_fkey';
+            columns: ['categorie_interne_id'];
+            isOneToOne: false;
+            referencedRelation: 'categories_internes';
             referencedColumns: ['id'];
           },
           {

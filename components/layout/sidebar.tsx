@@ -51,6 +51,11 @@ const mainNavItems: MainNavItem[] = [
     unassignedOnly: true,
   },
   { href: '/projets', label: 'Projets', icon: ClipboardList },
+  {
+    href: '/projets/internes',
+    label: 'Projets internes',
+    icon: Sparkles,
+  },
   { href: '/qualiopi', label: 'Qualité', icon: ShieldCheck },
   { href: '/temps', label: 'Temps', icon: Clock },
   { href: '/production', label: 'Production', icon: TrendingUp },
@@ -257,7 +262,12 @@ export function Sidebar({
             return true;
           })
           .map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            const isActive =
+              item.href === '/projets'
+                ? pathname === '/projets' ||
+                  (pathname.startsWith('/projets/') &&
+                    !pathname.startsWith('/projets/internes'))
+                : pathname.startsWith(item.href);
             const Icon = item.icon;
             const badge = badgeConfig[item.href];
             const count = badge ? badgeCounts[badge.key] : 0;

@@ -79,7 +79,9 @@ export type AppErrorCode =
   // Eduvia Sync
   | 'EDUVIA_SYNC_FAILED'
   // Intercontrat
-  | 'INTERCONTRAT_FETCH_FAILED';
+  | 'INTERCONTRAT_FETCH_FAILED'
+  // Projets internes
+  | 'INTERNES_FETCH_FAILED';
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

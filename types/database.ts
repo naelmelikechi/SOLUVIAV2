@@ -1917,7 +1917,6 @@ export type Database = {
         Row: {
           archive: boolean;
           backup_cdp_id: string | null;
-          billing_mode: string;
           categorie_interne: string | null;
           cdp_id: string | null;
           client_id: string;
@@ -1937,7 +1936,6 @@ export type Database = {
         Insert: {
           archive?: boolean;
           backup_cdp_id?: string | null;
-          billing_mode?: string;
           categorie_interne?: string | null;
           cdp_id?: string | null;
           client_id: string;
@@ -1957,7 +1955,6 @@ export type Database = {
         Update: {
           archive?: boolean;
           backup_cdp_id?: string | null;
-          billing_mode?: string;
           categorie_interne?: string | null;
           cdp_id?: string | null;
           client_id?: string;

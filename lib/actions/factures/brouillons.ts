@@ -576,7 +576,9 @@ export async function createFactureFromEvents(params: {
   // = 0. Un ecart sur un invoice recent doit declencher une investigation.
   {
     const stepInvoiceIds = Array.from(
-      new Set(resolved.flatMap((e) => e._stepInvoiceIds ?? [])),
+      new Set(
+        resolved.flatMap((e) => live.auditInvoiceIdsBySource.get(e.source_id) ?? []),
+      ),
     );
     if (stepInvoiceIds.length > 0) {
       const [{ data: stepsForAudit }, { data: linesForAudit }] = await Promise.all([

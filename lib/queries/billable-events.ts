@@ -76,13 +76,6 @@ export interface BillableEvent {
    */
   lock_reason?: 'opposite_billed' | 'missing_deca' | 'unknown_line_type';
   unknown_line_types?: string[];
-  /**
-   * Liste des invoice_id Eduvia ayant contribue a `montant_brut` pour cet
-   * event. Utilise par l'audit log a la facturation pour comparer la base
-   * lignes PEDAGOGIE vs eduvia_invoice_steps.including_pedagogie_amount.
-   * Champ technique, prefixe `_` pour signaler "interne / pas pour l'UI".
-   */
-  _stepInvoiceIds?: number[];
 }
 
 export interface ProjetBillableEvents {
@@ -91,6 +84,12 @@ export interface ProjetBillableEvents {
   clientRaisonSociale: string;
   tauxCommission: number;
   events: BillableEvent[];
+  /**
+   * Map `event.source_id` -> liste des `eduvia_invoice_id` ayant contribue
+   * a `montant_brut` pour cet event. Utilise UNIQUEMENT par l'audit log
+   * a la facturation (createFactureFromEvents). Non destine a l'UI.
+   */
+  auditInvoiceIdsBySource: Map<string, number[]>;
 }
 
 /**
@@ -162,6 +161,7 @@ export async function getBillableEvents(
       clientRaisonSociale: projet.client?.raison_sociale ?? '',
       tauxCommission: taux,
       events: [],
+      auditInvoiceIdsBySource: new Map(),
     };
   }
 
@@ -307,6 +307,7 @@ export async function getBillableEvents(
 
   // 7. Construction des events
   const events: BillableEvent[] = [];
+  const auditInvoiceIdsBySource = new Map<string, number[]>();
 
   for (const c of contrats) {
     const billedTypes = eventTypesByContrat.get(c.id);
@@ -323,6 +324,7 @@ export async function getBillableEvents(
       const lockedByOpco = billedTypes?.get('opco_step');
       const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByOpco, missingDeca, hasUnknown });
 
+      auditInvoiceIdsBySource.set(c.id, Array.from(agg.engagementInvoiceIds).sort());
       events.push({
         type: 'engagement',
         source_id: c.id,
@@ -344,7 +346,6 @@ export async function getBillableEvents(
         locked_by: !missingDeca && !hasUnknown ? lockedByOpco : undefined,
         lock_reason,
         unknown_line_types: lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
-        _stepInvoiceIds: Array.from(agg.engagementInvoiceIds).sort(),
       });
     }
 
@@ -358,6 +359,7 @@ export async function getBillableEvents(
       const lockedByEngagement = billedTypes?.get('engagement');
       const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByEngagement, missingDeca, hasUnknown });
 
+      auditInvoiceIdsBySource.set(step.id, [invoiceId]);
       events.push({
         type: 'opco_step',
         source_id: step.id,
@@ -379,7 +381,6 @@ export async function getBillableEvents(
         locked_by: !missingDeca && !hasUnknown ? lockedByEngagement : undefined,
         lock_reason,
         unknown_line_types: lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
-        _stepInvoiceIds: [invoiceId],
       });
     }
   }
@@ -400,6 +401,7 @@ export async function getBillableEvents(
     clientRaisonSociale: projet.client?.raison_sociale ?? '',
     tauxCommission: taux,
     events,
+    auditInvoiceIdsBySource,
   };
 }
 

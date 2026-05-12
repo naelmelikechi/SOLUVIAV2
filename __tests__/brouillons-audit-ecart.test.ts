@@ -60,12 +60,11 @@ const mockUser = { id: 'a1b2c3d4-1234-4abc-89ef-000000000099', email: 'admin@tes
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Un event engagement minimal, avec _stepInvoiceIds = [invoiceId] */
+/** Un event engagement minimal (sans _stepInvoiceIds : retire de l'interface) */
 function makeEvent(
   overrides: Partial<{
     source_id: string;
     contrat_id: string;
-    _stepInvoiceIds: number[];
     montant_brut: number;
     montant_commissionne: number;
   }> = {},
@@ -87,7 +86,6 @@ function makeEvent(
     montant_brut: 2504,
     montant_commissionne: 1252,
     status: 'available' as const,
-    _stepInvoiceIds: [100],
     ...overrides,
   };
 }
@@ -190,7 +188,7 @@ describe('createFactureFromEvents - audit log ecart PEDAGOGIE', () => {
     // SUM(lines PEDAGOGIE) = 2504.00
     // ecart attendu = 0.64 -> doit appeler logger.info
 
-    const event = makeEvent({ _stepInvoiceIds: [100] });
+    const event = makeEvent();
 
     vi.mocked(getBillableEvents).mockResolvedValue({
       projetId: PROJET_ID,
@@ -198,6 +196,8 @@ describe('createFactureFromEvents - audit log ecart PEDAGOGIE', () => {
       clientRaisonSociale: 'Heol Formation',
       tauxCommission: 50,
       events: [event],
+      // auditInvoiceIdsBySource: event.source_id (= CONTRAT_ID) -> [100]
+      auditInvoiceIdsBySource: new Map([[CONTRAT_ID, [100]]]),
     });
 
     const supabaseMock = buildSupabase({
@@ -240,7 +240,6 @@ describe('createFactureFromEvents - audit log ecart PEDAGOGIE', () => {
     // ecart = 0 -> logger.info ne doit pas etre appele pour l'audit pedago
 
     const event = makeEvent({
-      _stepInvoiceIds: [200],
       montant_brut: 2666.56,
       montant_commissionne: 1333.28,
     });
@@ -251,6 +250,8 @@ describe('createFactureFromEvents - audit log ecart PEDAGOGIE', () => {
       clientRaisonSociale: 'Heol Formation',
       tauxCommission: 50,
       events: [event],
+      // auditInvoiceIdsBySource: event.source_id (= CONTRAT_ID) -> [200]
+      auditInvoiceIdsBySource: new Map([[CONTRAT_ID, [200]]]),
     });
 
     const supabaseMock = buildSupabase({

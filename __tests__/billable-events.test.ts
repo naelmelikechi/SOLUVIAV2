@@ -493,13 +493,15 @@ describe('getBillableEvents - cas limites', () => {
 
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const result = await getBillableEvents('pjt-1');
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       projetId: 'pjt-1',
       projetRef: '0007-HEO-APP',
       clientRaisonSociale: 'Heol Formation',
       tauxCommission: 50,
       events: [],
     });
+    expect(result?.auditInvoiceIdsBySource).toBeInstanceOf(Map);
+    expect(result?.auditInvoiceIdsBySource.size).toBe(0);
   });
 
   it('contrat NON-ENGAGE sans opco_step paye -> aucun event', async () => {
@@ -842,6 +844,115 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const r = await getBillableEvents('proj-1');
     expect(r?.events[0]?.lock_reason).toBe('missing_deca');
+  });
+
+  it('unknown_line_type prevaut sur opposite_billed', async () => {
+    // Setup : contrat avec DECA present + opco_step deja facture en live
+    // (ce qui verrouillerait normalement l'engagement avec 'opposite_billed'),
+    // MAIS une ligne de line_type inconnu existe aussi sur le contrat.
+    // Resultat attendu : engagement 'locked' avec lock_reason='unknown_line_type'
+    // (prioritaire sur opposite_billed selon resolveLock).
+    const { client } = buildSupabase({
+      projets: {
+        data: {
+          id: 'proj-prio',
+          ref: 'TST-PRIO',
+          taux_commission: 40,
+          client: { id: 'cli-prio', raison_sociale: 'Test Priorite' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-prio',
+            ref: 'CTR-PRIO',
+            contract_number: 'DECA999',
+            internal_number: 'PRIO-1',
+            apprenant_nom: 'Priorite',
+            apprenant_prenom: 'Test',
+            formation_titre: 'F',
+            contract_state: 'ENGAGE',
+            npec_amount: 5000,
+          },
+        ],
+      },
+      eduvia_invoice_lines: {
+        data: [
+          // Ligne PEDAGOGIE step 1 (base engagement)
+          {
+            eduvia_invoice_id: 700,
+            contrat_id: 'ctr-prio',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
+          // Ligne RQTH inconnue sur le meme contrat
+          {
+            eduvia_invoice_id: 700,
+            contrat_id: 'ctr-prio',
+            amount: 50,
+            line_type: 'RQTH',
+          },
+          // Ligne step 2 (opco_step) - PEDAGOGIE
+          {
+            eduvia_invoice_id: 701,
+            contrat_id: 'ctr-prio',
+            amount: 1000,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-prio-1',
+            contrat_id: 'ctr-prio',
+            step_number: 1,
+            eduvia_invoice_id: 700,
+            including_pedagogie_amount: 2000,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+          {
+            id: 'step-prio-2',
+            contrat_id: 'ctr-prio',
+            step_number: 2,
+            eduvia_invoice_id: 701,
+            including_pedagogie_amount: 1000,
+            opening_date: '2026-04-01',
+            paid_at: '2026-05-01',
+            invoice_state: 'REGLE',
+          },
+        ],
+      },
+      facture_lignes: {
+        data: [
+          // opco_step (step-prio-2) deja facture en live -> engagement serait
+          // normalement lockedByOpco (opposite_billed), SAUF que unknown_line_type
+          // est prioritaire.
+          {
+            event_type: 'opco_step',
+            event_source_id: 'step-prio-2',
+            contrat_id: 'ctr-prio',
+            est_avoir: false,
+            facture: { id: 'fac-prio', ref: 'FAC-PRIO-0001', statut: 'emise' },
+          },
+        ],
+      },
+    });
+    vi.mocked(createClient).mockResolvedValueOnce(client as never);
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const r = await getBillableEvents('proj-prio');
+
+    const engagement = r?.events.find((e) => e.type === 'engagement');
+    expect(engagement).toBeDefined();
+    // unknown_line_type doit prendre la priorite sur opposite_billed
+    expect(engagement!.status).toBe('locked');
+    expect(engagement!.lock_reason).toBe('unknown_line_type');
+    expect(engagement!.unknown_line_types).toEqual(['RQTH']);
+    // locked_by doit etre undefined (unknown_line_type masque opposite_billed)
+    expect(engagement!.locked_by).toBeUndefined();
   });
 
   it('opco_step disponible : montant_brut = somme PEDAGOGIE de l invoice (matos exclu)', async () => {

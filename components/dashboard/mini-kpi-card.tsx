@@ -42,10 +42,10 @@ export function MiniKpiCard({
         isClickable && 'hover:border-foreground/20 cursor-pointer',
       )}
     >
-      {editMode && onHide && (
+      {editMode && (
         <button
           type="button"
-          onClick={onHide}
+          onClick={() => onHide?.()}
           aria-label={`Masquer ${label}`}
           className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute top-1 right-1 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px]"
         >

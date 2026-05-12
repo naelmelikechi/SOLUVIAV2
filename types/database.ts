@@ -1016,6 +1016,69 @@ export type Database = {
           },
         ];
       };
+      eduvia_invoice_lines: {
+        Row: {
+          amount: number;
+          contrat_id: string;
+          created_at: string;
+          description: string | null;
+          eduvia_created_at: string | null;
+          eduvia_id: number;
+          eduvia_invoice_id: number;
+          eduvia_updated_at: string | null;
+          id: string;
+          last_synced_at: string;
+          line_type: string;
+          quantity: number;
+          source_client_id: string;
+        };
+        Insert: {
+          amount: number;
+          contrat_id: string;
+          created_at?: string;
+          description?: string | null;
+          eduvia_created_at?: string | null;
+          eduvia_id: number;
+          eduvia_invoice_id: number;
+          eduvia_updated_at?: string | null;
+          id?: string;
+          last_synced_at?: string;
+          line_type: string;
+          quantity?: number;
+          source_client_id: string;
+        };
+        Update: {
+          amount?: number;
+          contrat_id?: string;
+          created_at?: string;
+          description?: string | null;
+          eduvia_created_at?: string | null;
+          eduvia_id?: number;
+          eduvia_invoice_id?: number;
+          eduvia_updated_at?: string | null;
+          id?: string;
+          last_synced_at?: string;
+          line_type?: string;
+          quantity?: number;
+          source_client_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'eduvia_invoice_lines_contrat_id_fkey';
+            columns: ['contrat_id'];
+            isOneToOne: false;
+            referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'eduvia_invoice_lines_source_client_id_fkey';
+            columns: ['source_client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       eduvia_invoice_steps: {
         Row: {
           contrat_id: string;

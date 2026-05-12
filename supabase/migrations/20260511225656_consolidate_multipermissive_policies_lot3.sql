@@ -1,6 +1,8 @@
--- Lot 3 : consolidation des 23 tables restantes avec pattern admin_all_X
--- (ALL is_admin) + cdp_read/pipeline_read/etc. Resultat combine avec lot 2 :
--- multiple_permissive_policies 311 -> 0.
+
+-- Lot 3 : consolidation systematique de toutes les tables avec admin_all_X
+-- (ALL is_admin) + une ou plusieurs cdp/pipeline policies. Le pattern
+-- ALL admin + SELECT autre cree un multi-permissive sur SELECT.
+-- Solution : DROP, recreer 4 cmd-specifiques avec conditions OR'ed.
 
 -- apprenants
 DROP POLICY IF EXISTS admin_all_apprenants ON public.apprenants;
@@ -144,12 +146,15 @@ CREATE POLICY kpi_snapshots_delete ON public.kpi_snapshots FOR DELETE USING (pub
 DROP POLICY IF EXISTS admin_all_notifications ON public.notifications;
 DROP POLICY IF EXISTS cdp_read_notifications ON public.notifications;
 DROP POLICY IF EXISTS cdp_update_notifications ON public.notifications;
-CREATE POLICY notifications_select ON public.notifications FOR SELECT
-  USING (public.is_admin() OR user_id = (SELECT auth.uid()));
+CREATE POLICY notifications_select ON public.notifications FOR SELECT USING (
+  public.is_admin() OR user_id = (SELECT auth.uid())
+);
 CREATE POLICY notifications_insert ON public.notifications FOR INSERT WITH CHECK (public.is_admin());
-CREATE POLICY notifications_update ON public.notifications FOR UPDATE
-  USING (public.is_admin() OR user_id = (SELECT auth.uid()))
-  WITH CHECK (public.is_admin() OR user_id = (SELECT auth.uid()));
+CREATE POLICY notifications_update ON public.notifications FOR UPDATE USING (
+  public.is_admin() OR user_id = (SELECT auth.uid())
+) WITH CHECK (
+  public.is_admin() OR user_id = (SELECT auth.uid())
+);
 CREATE POLICY notifications_delete ON public.notifications FOR DELETE USING (public.is_admin());
 
 -- paiements
@@ -226,8 +231,9 @@ CREATE POLICY projet_documents_delete ON public.projet_documents FOR DELETE USIN
 DROP POLICY IF EXISTS admin_all_prospect_notes ON public.prospect_notes;
 DROP POLICY IF EXISTS pipeline_insert_prospect_notes ON public.prospect_notes;
 DROP POLICY IF EXISTS pipeline_read_prospect_notes ON public.prospect_notes;
-CREATE POLICY prospect_notes_select ON public.prospect_notes FOR SELECT
-  USING (public.is_admin() OR public.has_pipeline_access());
+CREATE POLICY prospect_notes_select ON public.prospect_notes FOR SELECT USING (
+  public.is_admin() OR public.has_pipeline_access()
+);
 CREATE POLICY prospect_notes_insert ON public.prospect_notes FOR INSERT WITH CHECK (
   public.is_admin() OR (public.has_pipeline_access() AND user_id = (SELECT auth.uid()))
 );
@@ -237,8 +243,9 @@ CREATE POLICY prospect_notes_delete ON public.prospect_notes FOR DELETE USING (p
 -- prospect_stage_history
 DROP POLICY IF EXISTS admin_all_prospect_stage_history ON public.prospect_stage_history;
 DROP POLICY IF EXISTS pipeline_read_prospect_stage_history ON public.prospect_stage_history;
-CREATE POLICY prospect_stage_history_select ON public.prospect_stage_history FOR SELECT
-  USING (public.is_admin() OR public.has_pipeline_access());
+CREATE POLICY prospect_stage_history_select ON public.prospect_stage_history FOR SELECT USING (
+  public.is_admin() OR public.has_pipeline_access()
+);
 CREATE POLICY prospect_stage_history_insert ON public.prospect_stage_history FOR INSERT WITH CHECK (public.is_admin());
 CREATE POLICY prospect_stage_history_update ON public.prospect_stage_history FOR UPDATE USING (public.is_admin());
 CREATE POLICY prospect_stage_history_delete ON public.prospect_stage_history FOR DELETE USING (public.is_admin());
@@ -248,12 +255,15 @@ DROP POLICY IF EXISTS admin_all_prospects ON public.prospects;
 DROP POLICY IF EXISTS pipeline_insert_prospects ON public.prospects;
 DROP POLICY IF EXISTS pipeline_read_prospects ON public.prospects;
 DROP POLICY IF EXISTS pipeline_update_prospects ON public.prospects;
-CREATE POLICY prospects_select ON public.prospects FOR SELECT
-  USING (public.is_admin() OR public.has_pipeline_access());
-CREATE POLICY prospects_insert ON public.prospects FOR INSERT
-  WITH CHECK (public.is_admin() OR public.has_pipeline_access());
-CREATE POLICY prospects_update ON public.prospects FOR UPDATE
-  USING (public.is_admin() OR public.has_pipeline_access());
+CREATE POLICY prospects_select ON public.prospects FOR SELECT USING (
+  public.is_admin() OR public.has_pipeline_access()
+);
+CREATE POLICY prospects_insert ON public.prospects FOR INSERT WITH CHECK (
+  public.is_admin() OR public.has_pipeline_access()
+);
+CREATE POLICY prospects_update ON public.prospects FOR UPDATE USING (
+  public.is_admin() OR public.has_pipeline_access()
+);
 CREATE POLICY prospects_delete ON public.prospects FOR DELETE USING (public.is_admin());
 
 -- qualite_assignments
@@ -278,19 +288,20 @@ CREATE POLICY users_insert ON public.users FOR INSERT WITH CHECK (public.is_admi
 CREATE POLICY users_update ON public.users FOR UPDATE USING (public.is_admin() OR id = (SELECT auth.uid()));
 CREATE POLICY users_delete ON public.users FOR DELETE USING (public.is_admin());
 
--- contrats_progressions : split ALL admin en INSERT/UPDATE/DELETE seuls
+-- contrats_progressions : remplace ALL admin par 3 specifiques pour ne pas
+-- chevaucher la SELECT (qui contient deja is_admin OR ...)
 DROP POLICY IF EXISTS contrats_progressions_admin_all ON public.contrats_progressions;
 CREATE POLICY contrats_progressions_insert ON public.contrats_progressions FOR INSERT WITH CHECK (public.is_admin());
 CREATE POLICY contrats_progressions_update ON public.contrats_progressions FOR UPDATE USING (public.is_admin());
 CREATE POLICY contrats_progressions_delete ON public.contrats_progressions FOR DELETE USING (public.is_admin());
 
--- eduvia_invoice_forecast_steps
+-- eduvia_invoice_forecast_steps : meme pattern
 DROP POLICY IF EXISTS eduvia_invoice_forecast_steps_admin_all ON public.eduvia_invoice_forecast_steps;
 CREATE POLICY eduvia_invoice_forecast_steps_insert ON public.eduvia_invoice_forecast_steps FOR INSERT WITH CHECK (public.is_admin());
 CREATE POLICY eduvia_invoice_forecast_steps_update ON public.eduvia_invoice_forecast_steps FOR UPDATE USING (public.is_admin());
 CREATE POLICY eduvia_invoice_forecast_steps_delete ON public.eduvia_invoice_forecast_steps FOR DELETE USING (public.is_admin());
 
--- eduvia_invoice_steps
+-- eduvia_invoice_steps : meme pattern
 DROP POLICY IF EXISTS eduvia_invoice_steps_admin_all ON public.eduvia_invoice_steps;
 CREATE POLICY eduvia_invoice_steps_insert ON public.eduvia_invoice_steps FOR INSERT WITH CHECK (public.is_admin());
 CREATE POLICY eduvia_invoice_steps_update ON public.eduvia_invoice_steps FOR UPDATE USING (public.is_admin());

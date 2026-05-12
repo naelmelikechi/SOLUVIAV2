@@ -1,6 +1,8 @@
+
 -- DROP 53 indexes flagged unused par pg_stat_user_indexes (idx_scan = 0).
--- Exclut UNIQUE/PRIMARY. Si un index manquant cause une regression perf,
--- Postgres le suggerera dans les plans d execution.
+-- Exclus : indexes UNIQUE/PRIMARY (DROP impossible) - filtre dans la query
+-- d'inventaire. Si une feature mensuelle/CRON en utilise un, postgres le
+-- recreera en suggestion via les query plans.
 
 DROP INDEX IF EXISTS public.idx_prospects_commercial;
 DROP INDEX IF EXISTS public.idx_prospects_client_id;

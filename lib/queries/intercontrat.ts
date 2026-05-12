@@ -110,7 +110,9 @@ export async function getIntercontratUsers(): Promise<IntercontratUser[]> {
       heures,
       projet:projets!saisies_temps_projet_id_fkey (
         est_interne,
-        categorie_interne
+        categorie_interne:categories_internes!projets_categorie_interne_id_fkey (
+          code
+        )
       )
     `,
     )
@@ -124,9 +126,12 @@ export async function getIntercontratUsers(): Promise<IntercontratUser[]> {
   for (const row of heuresResult.data ?? []) {
     const projet = row.projet as unknown as {
       est_interne: boolean | null;
-      categorie_interne: string | null;
+      categorie_interne: { code: string } | { code: string }[] | null;
     } | null;
-    if (!projet?.est_interne || !projet.categorie_interne) continue;
+    if (!projet?.est_interne) continue;
+    const catRaw = projet.categorie_interne;
+    const code = Array.isArray(catRaw) ? catRaw[0]?.code : catRaw?.code;
+    if (!code) continue;
 
     const userId = row.user_id;
     const heures = row.heures ?? 0;
@@ -136,8 +141,7 @@ export async function getIntercontratUsers(): Promise<IntercontratUser[]> {
       heuresParUser.set(userId, entry);
     }
     entry.total += heures;
-    entry.byCategorie[projet.categorie_interne] =
-      (entry.byCategorie[projet.categorie_interne] ?? 0) + heures;
+    entry.byCategorie[code] = (entry.byCategorie[code] ?? 0) + heures;
   }
 
   const now = new Date();

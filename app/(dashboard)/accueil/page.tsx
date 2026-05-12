@@ -44,7 +44,9 @@ export default async function AccueilPage() {
         heures,
         projet:projets!saisies_temps_projet_id_fkey (
           est_interne,
-          categorie_interne
+          categorie_interne:categories_internes!projets_categorie_interne_id_fkey (
+            code
+          )
         )
       `,
       )
@@ -61,11 +63,14 @@ export default async function AccueilPage() {
   for (const row of heuresMois ?? []) {
     const projet = row.projet as unknown as {
       est_interne: boolean | null;
-      categorie_interne: string | null;
+      categorie_interne: { code: string } | { code: string }[] | null;
     } | null;
-    if (!projet?.est_interne || !projet.categorie_interne) continue;
-    heuresParCategorie[projet.categorie_interne] =
-      (heuresParCategorie[projet.categorie_interne] ?? 0) + (row.heures ?? 0);
+    if (!projet?.est_interne) continue;
+    const catRaw = projet.categorie_interne;
+    const code = Array.isArray(catRaw) ? catRaw[0]?.code : catRaw?.code;
+    if (!code) continue;
+    heuresParCategorie[code] =
+      (heuresParCategorie[code] ?? 0) + (row.heures ?? 0);
     heuresMoisTotal += row.heures ?? 0;
   }
 

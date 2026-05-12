@@ -258,6 +258,13 @@
   color: #6b7280;
 }
 
+@layer utilities {
+  .num {
+    font-feature-settings: 'tnum', 'zero';
+    font-variant-numeric: tabular-nums slashed-zero;
+  }
+}
+
 /* Print styles */
 @media print {
   aside,

@@ -186,13 +186,13 @@ export function ClientContactsSection({
                       {c.nom}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {c.poste || '\u2014'}
+                      {c.poste || '-'}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {c.email || '\u2014'}
+                      {c.email || '-'}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {c.telephone || '\u2014'}
+                      {c.telephone || '-'}
                     </TableCell>
                     <TableCell>
                       <Button

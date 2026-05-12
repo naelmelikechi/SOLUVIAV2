@@ -234,10 +234,10 @@ export function ClientApiKeysSection({
                 {filtered.map((k) => (
                   <TableRow key={k.id}>
                     <TableCell className="text-sm font-medium">
-                      {k.label || '\u2014'}
+                      {k.label || '-'}
                     </TableCell>
                     <TableCell className="font-mono text-sm">
-                      {k.instance_url || '\u2014'}
+                      {k.instance_url || '-'}
                     </TableCell>
                     <TableCell className="text-muted-foreground font-mono text-xs">
                       {k.api_key_masked}
@@ -249,7 +249,7 @@ export function ClientApiKeysSection({
                       />
                     </TableCell>
                     <TableCell className="text-sm tabular-nums">
-                      {k.last_sync_at ? formatDate(k.last_sync_at) : '\u2014'}
+                      {k.last_sync_at ? formatDate(k.last_sync_at) : '-'}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

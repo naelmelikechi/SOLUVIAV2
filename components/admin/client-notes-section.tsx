@@ -75,7 +75,7 @@ export function ClientNotesSection({
             <div key={note.id} className="border-primary/30 border-l-2 pl-4">
               <div className="text-muted-foreground flex items-center gap-2 text-xs">
                 <span>{formatDateLong(note.created_at)}</span>
-                <span>{'\u2014'}</span>
+                <span>{'-'}</span>
                 <span className="font-medium">
                   {note.user?.prenom} {note.user?.nom}
                 </span>

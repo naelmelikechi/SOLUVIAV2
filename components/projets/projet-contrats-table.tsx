@@ -317,10 +317,10 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                           )}
                         </TableCell>
                         <TableCell className="text-sm tabular-nums">
-                          {c.date_debut ? formatDate(c.date_debut) : '\u2014'}
+                          {c.date_debut ? formatDate(c.date_debut) : '-'}
                         </TableCell>
                         <TableCell className="text-sm tabular-nums">
-                          {c.date_fin ? formatDate(c.date_fin) : '\u2014'}
+                          {c.date_fin ? formatDate(c.date_fin) : '-'}
                         </TableCell>
                         <TableCell>
                           <StatusBadge
@@ -336,12 +336,12 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                         <TableCell className="text-right font-mono text-sm tabular-nums">
                           {c.npec_amount
                             ? formatCurrency(c.npec_amount)
-                            : '\u2014'}
+                            : '-'}
                         </TableCell>
                         <TableCell className="text-right">
                           {(c.invoice_steps ?? []).length === 0 ? (
                             <span className="text-muted-foreground text-xs">
-                              {'\u2014'}
+                              {'-'}
                             </span>
                           ) : (
                             <Tooltip>

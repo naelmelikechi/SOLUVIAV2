@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
+import { classifyLineType } from '@/lib/eduvia/line-types';
 
 // ---------------------------------------------------------------------------
 // Billable events : 2 sources de facturation manuelle pour les projets en
@@ -8,16 +9,16 @@ import { logger } from '@/lib/utils/logger';
 //
 // Type 'engagement'   : 1 event par contrat dont contract_state='ENGAGE',
 //                       source_id = contrats.id,
-//                       montant_brut = SUM(eduvia_invoice_steps.total_amount)
-//                       WHERE step_number=1 AND invoice_state IS NOT NULL.
+//                       montant_brut = SUM(eduvia_invoice_lines.amount
+//                                         WHERE line_type='PEDAGOGIE'
+//                                         AND step_number=1)
 //                       Cela correspond a la metrique "engages" cote Eduvia
 //                       (verifie numeriquement : 111 564,92 EUR sur HEOL).
 //                       Pas le NPEC contractuel total : on facture la commission
 //                       sur le montant deja emis a l OPCO, pas sur la valeur
 //                       faciale du contrat.
-// Type 'opco_step'    : 1 event par step dont invoice_state='REGLE',
-//                       source_id = eduvia_invoice_steps.id (UUID PK
-//                       cote SOLUVIA), montant_brut = total_amount
+// Type 'opco_step'    : 1 event par step dont step_number>1 ET invoice_state
+//                       non-null, montant_brut = SUM(lines PEDAGOGIE du step)
 //
 // L'idempotence est garantie au niveau DB par l'index UNIQUE partiel
 // uq_facture_lignes_event_live qui empeche d'inserer deux fois la meme
@@ -52,7 +53,7 @@ export interface BillableEvent {
   step_opening_date: string | null; // pour opco_step
   step_paid_at: string | null;
 
-  montant_brut: number; // npec ou total_amount
+  montant_brut: number; // SUM(PEDAGOGIE lines)
   montant_commissionne: number; // brut * taux_commission / 100
 
   status: 'available' | 'billed' | 'locked';
@@ -87,7 +88,7 @@ export interface ProjetBillableEvents {
 
 /**
  * Materialise tous les events facturables d'un projet, avec leur statut
- * billed/locked/available. Une seule passe DB grace a 3 SELECTs paralleles +
+ * billed/locked/available. Une seule passe DB grace a 4 SELECTs +
  * jointures cote app.
  */
 export async function getBillableEvents(
@@ -142,38 +143,78 @@ export async function getBillableEvents(
 
   const contratIds = contrats.map((c) => c.id);
 
-  // 3. Tous les opco_steps REGLE (ou paid_at) pour ces contrats
-  const { data: opcoSteps } = await supabase
-    .from('eduvia_invoice_steps')
-    .select(
-      'id, contrat_id, step_number, opening_date, total_amount, paid_at, invoice_state',
-    )
-    .in('contrat_id', contratIds)
-    .or('invoice_state.eq.REGLE,paid_at.not.is.null');
+  // 3. Lignes des bordereaux OPCO emis pour ces contrats.
+  //    Source de verite : eduvia_invoice_lines (whitelist line_type=PEDAGOGIE).
+  //    On joint avec eduvia_invoice_steps pour matcher l'invoice_id au
+  //    step_number (1 = engagement, >1 = opco_step regle).
+  const { data: invoiceLines } = await supabase
+    .from('eduvia_invoice_lines')
+    .select('eduvia_invoice_id, contrat_id, amount, line_type')
+    .in('contrat_id', contratIds);
 
-  // 3-bis. Base de la commission "engagement" par contrat : somme des
-  // step_number=1 ayant un invoice_state (TRANSMIS ou REGLE = bordereau emis
-  // a l OPCO). Certains contrats ont plusieurs entrees step 1 (ancien step
-  // sans invoice_state + nouveau apres modification du contrat) : on ne
-  // somme QUE celles emises pour matcher la metrique Eduvia.
-  const { data: step1Rows } = await supabase
+  // 4. Steps emis (pour savoir quels invoice_id sont en step 1 OPCO).
+  //    NB: on selectionne aussi `id` (UUID PK) car il sert de event_source_id
+  //    pour les events opco_step (cle d'idempotence facture_lignes).
+  const { data: emittedSteps } = await supabase
     .from('eduvia_invoice_steps')
-    .select('contrat_id, total_amount, invoice_state')
+    .select('id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state')
     .in('contrat_id', contratIds)
-    .eq('step_number', 1)
-    .not('invoice_state', 'is', null);
+    .not('invoice_state', 'is', null)
+    .not('eduvia_invoice_id', 'is', null);
 
-  const engagementBaseByContrat = new Map<string, number>();
-  for (const r of step1Rows ?? []) {
-    if (!r.contrat_id) continue;
-    engagementBaseByContrat.set(
-      r.contrat_id,
-      (engagementBaseByContrat.get(r.contrat_id) ?? 0) +
-        Number(r.total_amount ?? 0),
-    );
+  // Index : invoice_id -> step infos (pour retrouver step_number et le step.id)
+  type StepRow = NonNullable<typeof emittedSteps>[number];
+  const stepByInvoiceId = new Map<number, StepRow>();
+  for (const s of emittedSteps ?? []) {
+    if (s.eduvia_invoice_id != null) stepByInvoiceId.set(s.eduvia_invoice_id, s);
   }
 
-  // 4. Lignes de facture deja existantes pour ces events (idempotence map).
+  // 5. Classifier les lignes par contrat. Calculer base engagement, base
+  //    par step opco, et detecter les line_type inconnus.
+  type ContratLignesAgg = {
+    basePedagoEngagement: number;
+    engagementInvoiceIds: Set<number>;
+    basePedagoByStepInvoice: Map<number, number>;
+    stepsByInvoiceId: Map<number, StepRow>;
+    unknownLineTypes: Set<string>;
+  };
+  const aggByContrat = new Map<string, ContratLignesAgg>();
+  for (const cid of contratIds) {
+    aggByContrat.set(cid, {
+      basePedagoEngagement: 0,
+      engagementInvoiceIds: new Set(),
+      basePedagoByStepInvoice: new Map(),
+      stepsByInvoiceId: new Map(),
+      unknownLineTypes: new Set(),
+    });
+  }
+
+  for (const line of invoiceLines ?? []) {
+    if (!line.contrat_id || line.eduvia_invoice_id == null) continue;
+    const agg = aggByContrat.get(line.contrat_id);
+    if (!agg) continue;
+
+    const klass = classifyLineType(line.line_type);
+    if (klass === 'unknown') {
+      agg.unknownLineTypes.add(line.line_type);
+      continue;
+    }
+    if (klass === 'blacklist') continue;
+
+    // whitelist -> entre dans la base
+    const step = stepByInvoiceId.get(line.eduvia_invoice_id);
+    if (!step) continue;
+    if (step.step_number === 1) {
+      agg.basePedagoEngagement += Number(line.amount);
+      agg.engagementInvoiceIds.add(line.eduvia_invoice_id);
+    } else {
+      const prev = agg.basePedagoByStepInvoice.get(line.eduvia_invoice_id) ?? 0;
+      agg.basePedagoByStepInvoice.set(line.eduvia_invoice_id, prev + Number(line.amount));
+      agg.stepsByInvoiceId.set(line.eduvia_invoice_id, step);
+    }
+  }
+
+  // 6. Lignes de facture deja existantes pour ces events (idempotence map).
   //
   // On recupere TOUTES les lignes (live + avoirs) puis on calcule le statut
   // effectif : un event est "billed" SSI il a une ligne live (est_avoir=false)
@@ -243,37 +284,36 @@ export async function getBillableEvents(
     }
   }
 
-  // 5. Construction des events
+  // 7. Construction des events
   const events: BillableEvent[] = [];
 
   for (const c of contrats) {
     const billedTypes = eventTypesByContrat.get(c.id);
-
-    // DECA OPCO absent = on bloque la facturation (client refuserait)
+    const agg = aggByContrat.get(c.id)!;
+    const hasUnknown = agg.unknownLineTypes.size > 0;
     const missingDeca = !c.contract_number || c.contract_number.trim() === '';
+    const unknownTypesList = hasUnknown
+      ? Array.from(agg.unknownLineTypes).sort()
+      : undefined;
 
-    // -- Event engagement -----------------------------------------------
-    // Base : montant emis cote OPCO (step 1 avec invoice_state non-null),
-    // pas le NPEC contractuel total. Si pas de step 1 emis, brut = 0 et on
-    // skip l event (pas d engagement a facturer cote Soluvia tant que
-    // l OPCO n a pas recu le bordereau).
-    const brut = engagementBaseByContrat.get(c.id) ?? 0;
-    if (c.contract_state === 'ENGAGE' && brut > 0) {
+    // Helper : priorite missing_deca > unknown_line_type > opposite_billed.
+    function resolveLock(opts: { billed?: BilledRef; lockedByOther?: BilledRef }): {
+      status: BillableEvent['status'];
+      lock_reason?: BillableEvent['lock_reason'];
+    } {
+      if (opts.billed) return { status: 'billed' };
+      if (missingDeca) return { status: 'locked', lock_reason: 'missing_deca' };
+      if (hasUnknown) return { status: 'locked', lock_reason: 'unknown_line_type' };
+      if (opts.lockedByOther) return { status: 'locked', lock_reason: 'opposite_billed' };
+      return { status: 'available' };
+    }
+
+    // -- Event engagement --------------------------------------------------
+    if (c.contract_state === 'ENGAGE' && agg.basePedagoEngagement > 0) {
       const billed = billedByEventSource.get(c.id);
       const lockedByOpco = billedTypes?.get('opco_step');
-      const status: BillableEvent['status'] = billed
-        ? 'billed'
-        : missingDeca
-          ? 'locked'
-          : lockedByOpco
-            ? 'locked'
-            : 'available';
-      const lock_reason: BillableEvent['lock_reason'] | undefined =
-        status === 'locked'
-          ? missingDeca
-            ? 'missing_deca'
-            : 'opposite_billed'
-          : undefined;
+      const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByOpco });
+
       events.push({
         type: 'engagement',
         source_id: c.id,
@@ -288,39 +328,29 @@ export async function getBillableEvents(
         step_number: null,
         step_opening_date: null,
         step_paid_at: null,
-        montant_brut: brut,
-        montant_commissionne: Math.round(((brut * taux) / 100) * 100) / 100,
+        montant_brut: agg.basePedagoEngagement,
+        montant_commissionne: Math.round(((agg.basePedagoEngagement * taux) / 100) * 100) / 100,
         status,
         billed_on: billed,
-        locked_by: missingDeca ? undefined : lockedByOpco,
+        locked_by: !missingDeca && !hasUnknown ? lockedByOpco : undefined,
         lock_reason,
+        unknown_line_types: unknownTypesList,
       });
     }
 
-    // -- Events opco_step (un par step REGLE / paid_at) -----------------
-    const stepsForContrat = (opcoSteps ?? []).filter(
-      (s) => s.contrat_id === c.id,
-    );
-    for (const s of stepsForContrat) {
-      const billed = billedByEventSource.get(s.id);
+    // -- Events opco_step --------------------------------------------------
+    for (const [invoiceId, basePedago] of agg.basePedagoByStepInvoice) {
+      if (basePedago <= 0) continue;
+      const step = agg.stepsByInvoiceId.get(invoiceId);
+      if (!step) continue;
+
+      const billed = billedByEventSource.get(step.id);
       const lockedByEngagement = billedTypes?.get('engagement');
-      const status: BillableEvent['status'] = billed
-        ? 'billed'
-        : missingDeca
-          ? 'locked'
-          : lockedByEngagement
-            ? 'locked'
-            : 'available';
-      const lock_reason: BillableEvent['lock_reason'] | undefined =
-        status === 'locked'
-          ? missingDeca
-            ? 'missing_deca'
-            : 'opposite_billed'
-          : undefined;
-      const brutStep = Number(s.total_amount ?? 0);
+      const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByEngagement });
+
       events.push({
         type: 'opco_step',
-        source_id: s.id,
+        source_id: step.id,
         contrat_id: c.id,
         contrat_ref: c.ref,
         contract_number: c.contract_number,
@@ -329,15 +359,16 @@ export async function getBillableEvents(
         apprenant_prenom: c.apprenant_prenom ?? '',
         formation_titre: c.formation_titre,
         contract_state: c.contract_state,
-        step_number: s.step_number ?? null,
-        step_opening_date: s.opening_date ?? null,
-        step_paid_at: s.paid_at ?? null,
-        montant_brut: brutStep,
-        montant_commissionne: Math.round(((brutStep * taux) / 100) * 100) / 100,
+        step_number: step.step_number ?? null,
+        step_opening_date: step.opening_date ?? null,
+        step_paid_at: step.paid_at ?? null,
+        montant_brut: basePedago,
+        montant_commissionne: Math.round(((basePedago * taux) / 100) * 100) / 100,
         status,
         billed_on: billed,
-        locked_by: missingDeca ? undefined : lockedByEngagement,
+        locked_by: !missingDeca && !hasUnknown ? lockedByEngagement : undefined,
         lock_reason,
+        unknown_line_types: unknownTypesList,
       });
     }
   }

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Mail, Phone } from 'lucide-react';
+import { Mail, Phone, UsersRound } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { ProjectRef } from '@/components/shared/project-ref';
+import { EmptyState } from '@/components/shared/empty-state';
 import { cn } from '@/lib/utils';
 import type { EquipeMember } from '@/lib/queries/equipe';
 
@@ -38,9 +39,11 @@ export function EquipeGrid({ members }: EquipeGridProps) {
 
   if (members.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Aucun collègue actif pour le moment.
-      </p>
+      <EmptyState
+        icon={UsersRound}
+        title="Aucun collègue actif"
+        description="L’équipe apparaîtra ici dès qu’un collaborateur sera ajouté."
+      />
     );
   }
 

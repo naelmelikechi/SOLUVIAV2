@@ -406,7 +406,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                 e.lock_reason === 'missing_deca' ? (
                                   <Tooltip>
                                     <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
-                                      <Lock className="h-3 w-3" />
+                                      <AlertTriangle className="h-3 w-3" />
                                       <span>
                                         {'Verrouillé'} : DECA manquant
                                       </span>

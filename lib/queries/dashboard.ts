@@ -169,6 +169,7 @@ export interface DashboardFinancials {
   totalFacture: number; // sum of factures.montant_ht (clients reels uniquement)
   totalEncaisse: number; // sum of paiements.montant (clients reels uniquement)
   totalEnRetard: number; // sum factures.montant_ht en retard moins paiements partiels recus
+  totalAFacturer: number; // EUR des echeances pretes a emettre (facture_id null, validee false, date <= today)
   nbApprenantsActifs: number; // count of active contrats
   nbFormationsEnCours: number; // count distinct formations sur contrats actifs
   nbAbandons: number; // count contrats resilie ou ANNULE (synced)
@@ -243,6 +244,7 @@ export async function getDashboardFinancials(
     tempsMonthRes,
     usersRes,
     feriesRes,
+    echeancesAFacturerRes,
   ] = await Promise.all([
     // Factures pour totalFacture (exclut clients demo/archives) - filtre periode optionnel
     facturesQuery,
@@ -298,6 +300,17 @@ export async function getDashboardFinancials(
       .select('date')
       .gte('date', monthStart)
       .lte('date', monthEnd),
+    // Echeances pretes a emettre pour totalAFacturer (cumul a date, non periodise)
+    supabase
+      .from('echeances')
+      .select(
+        'montant_ht, projet:projets!echeances_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+      )
+      .is('facture_id', null)
+      .eq('validee', false)
+      .lte('date_echeance', format(now, 'yyyy-MM-dd'))
+      .eq('projet.client.is_demo', false)
+      .eq('projet.client.archive', false),
   ]);
 
   // Separate query : KPIs operationnels (formations, abandons, pedagogie).
@@ -418,6 +431,12 @@ export async function getDashboardFinancials(
       'getDashboardFinancials failed (feries)',
       { error: feriesRes.error },
     );
+  if (echeancesAFacturerRes.error)
+    logger.error(
+      'queries.dashboard',
+      'getDashboardFinancials failed (echeancesAFacturer)',
+      { error: echeancesAFacturerRes.error },
+    );
 
   const totalFacture = (facturesRes.data ?? []).reduce(
     (sum, f) => sum + f.montant_ht,
@@ -511,11 +530,25 @@ export async function getDashboardFinancials(
       ? Math.round((distinctEntries / expectedEntries) * 100)
       : 0;
 
+  const totalAFacturer =
+    Math.round(
+      (
+        (echeancesAFacturerRes.data ?? []) as unknown as Array<{
+          montant_ht: number | null;
+        }>
+      ).reduce(
+        (sum: number, e: { montant_ht: number | null }) =>
+          sum + Number(e.montant_ht ?? 0),
+        0,
+      ) * 100,
+    ) / 100;
+
   return {
     totalProduction,
     totalFacture,
     totalEncaisse,
     totalEnRetard,
+    totalAFacturer,
     nbApprenantsActifs,
     nbFormationsEnCours,
     nbAbandons,

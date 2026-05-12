@@ -11,7 +11,7 @@ Aujourd'hui, la base de commission HEOL inclut des frais de premier équipement 
 
 **Impact mesuré sur HEOL** (sur la base d'un taux historique de 50% TTC) : 6 invoices "matériel" de 500€ = 3 000€ inclus à tort dans la base, soit **1 500€ TTC overfacturé** sur FAC-HED-0003 (émise 2026-05-11, statut `emise`).
 
-En plus du nettoyage de base, le taux contractuel HEOL passe de **50% à 40% TTC** (cf. "Points à confirmer" sur le caractère rétroactif).
+En plus du nettoyage de base, le **taux de commission Soluvia** HEOL passe de **50% à 40% TTC**. Ce taux s'applique sur les frais pédagogiques que le CFA a facturé à l'OPCO (lignes `PEDAGOGIE` des bordereaux Eduvia). Aucune commission n'est jamais prise sur le matériel informatique / premier équipement (lignes `PREMIEREQUIPEMENT`).
 
 ## Découverte clé
 
@@ -108,7 +108,7 @@ Les steps dont la somme des lignes commissionnables est 0 ne sont pas remontés 
 - `lib/echeancier/calc.ts` : à supprimer (calcul de commission sur échéancier prévisionnel, obsolète).
 - `lib/actions/factures/brouillons.ts` : retirer la branche `billing_mode='auto'`.
 - `types/database.ts` : régénérer après migration.
-- Migration DB : create `eduvia_invoice_lines` + supprimer `projets.billing_mode` + UPDATE HEOL taux_commission (à confirmer rétroactif ou non, cf. Open Questions).
+- Migration DB : create `eduvia_invoice_lines` + supprimer `projets.billing_mode` + UPDATE `projets.taux_commission = 40` pour HEOL.
 
 ## UI
 
@@ -134,17 +134,24 @@ Si on observe l'apparition récurrente de nouveaux types, on évoluera vers une 
 
 ## Hors scope (explicit)
 
-1. **Correction de l'historique HEOL** (FAC-HED-0003 émise à 50% × base sale) : si régularisation commerciale, avoir manuel séparé. Pas couvert par la migration code.
-2. **Sync des champs `contrats.support` et `contrats.support_first_equipment`** : utile pour comprendre l'écart `support < npec_amount` sur 27 contrats HEOL mais hors scope ici. Voir mémoire `project_eduvia_support_field` pour les findings.
-3. **Factures détachées de tout projet/contrat** : chantier B, brainstormé séparément. Voir mémoire `project_facture_libre_todo`.
+1. **Sync des champs `contrats.support` et `contrats.support_first_equipment`** : utile pour comprendre l'écart `support < npec_amount` sur 27 contrats HEOL mais hors scope ici. Voir mémoire `project_eduvia_support_field` pour les findings.
+2. **Factures détachées de tout projet/contrat** : chantier B, brainstormé séparément. Voir mémoire `project_facture_libre_todo`.
 
-## Points à confirmer avant exécution
+## Régularisation historique (décidée 2026-05-12)
 
-1. **Changement de taux 50→40 rétroactif ?**
-   - Option A : seules les futures factures sont à 40%. FAC-HED-0003 reste à 50% (sauf avoir manuel pour les seuls 500€ matériel surtout).
-   - Option B : le taux 40% est le taux contractuel "réel" depuis le début, donc avoir global de régularisation sur FAC-HED-0003 (différence 50→40% sur la base totale, plus l'élimination du matériel).
-   - Décision attendue avant déploiement. Impact financier différent dans les 2 cas.
-2. **Écart `support < npec_amount` sur 27 contrats HEOL** : à clarifier avec HEOL/Eduvia, mais ne bloque pas le présent spec — le calcul lignes par lignes utilise les montants réellement émis par l'OPCO, donc reste correct quelle que soit la réponse.
+On est encore en démo (pas de vraie facturation client), donc on peut tout corriger. Plan :
+
+1. **Avoir total sur FAC-HED-0003** (HT 46 485,33€, TTC 55 782,40€, 41 lignes engagement à 50% × base sale).
+   - FAC-HED-0001 (TTC 3 758,40€) est **déjà** annulée par FAC-HED-0002 (avoir, 2026-05-10), donc rien à faire dessus.
+   - Après l'avoir sur FAC-HED-0003 : tous les contrats engagés sont à nouveau "libres" de facturation (logique d'avoir compensateur, voir `lib/queries/billable-events.ts:213-220`).
+2. **Ré-émission propre** d'une nouvelle facture (FAC-HED-0004 ou suivant) avec la nouvelle règle : 40% × somme des lignes `PEDAGOGIE` = 40% × 108 564,92€ = **43 425,97€ TTC** (au lieu de 55 782,40€ TTC actuel), soit ~12 356€ TTC d'écart corrigé.
+3. **L'UPDATE `taux_commission = 40`** sur HEOL doit être fait **avant** la ré-émission, sinon la nouvelle facture repartirait à 50%.
+
+## Curiosité métier non bloquante
+
+Sur 27 contrats HEOL, le champ Eduvia `support` (non sync en DB) est inférieur au `npec_amount` : l'OPCO finance ~80% du NPEC max au lieu de 100%. Trois hypothèses possibles : règle OPCO normale (convention CFA), donnée NPEC mal saisie côté Eduvia, ou régularisation OPCO à venir.
+
+Aucune des trois ne bloque le présent spec : la commission s'applique sur ce que l'OPCO a réellement émis (les lignes `PEDAGOGIE` synchronisées), pas sur le NPEC notionnel. Si plus tard un complément OPCO arrive, il sera commissionné automatiquement. À éclaircir avec HEOL/Eduvia quand l'occasion se présente. Voir mémoire `project_eduvia_support_field` pour les détails.
 
 ## Tests à écrire
 
@@ -166,6 +173,12 @@ Trois PRs séquentielles pour limiter le blast radius :
 
 Pas de backfill séparé : le sync alimente la table.
 
+**Après le déploiement** (action manuelle, pas une PR) :
+
+4. Avoir total sur FAC-HED-0003 via l'UI factures existante.
+5. Vérifier que les 41 contrats HEOL redeviennent "available" dans la liste billable-events (= leur engagement n'est plus considéré comme facturé).
+6. Re-créer un brouillon engagement HEOL → la facture sortira automatiquement à 40% × base PEDAGOGIE (validation visuelle du résultat attendu : ~43 425,97€ TTC).
+
 ## Métriques de validation post-déploiement
 
 - `SELECT SUM(amount) FROM eduvia_invoice_lines WHERE line_type='PEDAGOGIE' AND ... step 1 émis` sur HEOL → doit donner **108 564,92€**.
@@ -179,4 +192,4 @@ Pas de backfill séparé : le sync alimente la table.
 | L'endpoint `/api/v1/invoices/:id/lines` n'est pas dans l'OpenAPI publique et peut casser sans préavis | moyenne     | Pinger l'équipe Eduvia pour confirmation officielle. Garder `including_pedagogie_amount` en DB comme fallback de calcul.                   |
 | Un nouveau `line_type` apparaît et est silencieusement exclu                                          | moyenne     | Logger un warning à chaque ligne d'un type non whitelisté observé. Alerte Sentry sur ce log → on rajoute le type au moment où il apparaît. |
 | Sync allongé par les N appels API supplémentaires                                                     | faible      | Paralléliser par lots. Mesurer le temps de sync HEOL avant/après.                                                                          |
-| Désaccord sur le caractère rétroactif du 50→40%                                                       | élevée      | À trancher AVANT déploiement (cf. Open Question 1).                                                                                        |
+| Un brouillon en cours utiliserait encore l'ancien taux 50% au moment du déploiement                   | faible      | Vérifier qu'aucun brouillon non émis n'existe avant la PR 3. Sinon le supprimer/regénérer après l'UPDATE.                                  |

@@ -1,16 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
 import type { BadgeColor } from '@/components/shared/status-badge';
-import {
-  ClipboardList,
-  CheckCircle,
-  Clock,
-  TrendingUp,
-  FileText,
-  BarChart3,
-  Users,
-  Building2,
-  Settings,
-} from 'lucide-react';
 
 // Time tracking
 export const MAX_HEURES_JOUR = 7;
@@ -153,31 +141,3 @@ export const AXES_TEMPS = [
   { code: 'qualite', label: 'Qualité', color: '#0891b2' },
   { code: 'commercial', label: 'Commercial', color: '#6366f1' },
 ] as const;
-
-// Navigation
-export interface NavItem {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  adminOnly?: boolean;
-}
-
-export const MAIN_NAV_ITEMS: NavItem[] = [
-  { href: '/projets', label: 'Projets', icon: ClipboardList },
-  { href: '/qualiopi', label: 'Qualité', icon: CheckCircle },
-  { href: '/temps', label: 'Temps', icon: Clock },
-  { href: '/production', label: 'Production', icon: TrendingUp },
-  { href: '/facturation', label: 'Facturation', icon: FileText },
-  { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-];
-
-export const ADMIN_NAV_ITEMS: NavItem[] = [
-  { href: '/admin/clients', label: 'Clients', icon: Building2 },
-  { href: '/admin/utilisateurs', label: 'Utilisateurs', icon: Users },
-  {
-    href: '/admin/parametres',
-    label: 'Paramètres',
-    icon: Settings,
-    adminOnly: true,
-  },
-];

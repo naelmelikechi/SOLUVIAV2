@@ -144,12 +144,10 @@ beforeEach(() => {
     insert: mocks.adminInsert,
     select: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
-        maybeSingle: vi
-          .fn()
-          .mockImplementation(async () => ({
-            data: duplicateRow,
-            error: null,
-          })),
+        maybeSingle: vi.fn().mockImplementation(async () => ({
+          data: duplicateRow,
+          error: null,
+        })),
       }),
       in: vi.fn().mockReturnValue({
         eq: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -421,7 +419,7 @@ describe('resetUserPassword', () => {
     });
     const res = await resetUserPassword(VALID_UUID);
     expect(res.success).toBe(false);
-    expect(res.error).toContain('Mot de passe oublie');
+    expect(res.error).toContain('Mot de passe oublié');
   });
 
   it('refuse les UUID invalides', async () => {

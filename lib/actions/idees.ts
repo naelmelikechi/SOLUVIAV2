@@ -51,11 +51,6 @@ const RejectIdeaSchema = z.object({
 
 const IdeaIdOnlySchema = z.object({ id: ideeIdSchema });
 
-const ArchiveIdeaSchema = z.object({
-  id: ideeIdSchema,
-  archive: z.boolean(),
-});
-
 const ReopenAndEditIdeaSchema = z.object({
   id: ideeIdSchema,
   titre: titreSchema,
@@ -573,47 +568,6 @@ export async function reopenAndEditIdea(
     'idea_reopened_with_edit',
     'idee',
     parsed.data.id,
-    undefined,
-    user.id,
-  );
-  revalidatePath('/idees');
-  return { success: true };
-}
-
-// ---------------------------------------------------------------------------
-// Archive an idea (admin only)
-// ---------------------------------------------------------------------------
-
-export async function archiveIdea(
-  id: string,
-  archive: boolean,
-): Promise<{ success: boolean; error?: string }> {
-  const parsed = ArchiveIdeaSchema.safeParse({ id, archive });
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? 'Données invalides',
-    };
-  }
-  id = parsed.data.id;
-  archive = parsed.data.archive;
-
-  const { supabase, user, role } = await getCaller();
-  if (!user) return { success: false, error: 'Non authentifié' };
-  if (!isAdmin(role)) {
-    return { success: false, error: 'Accès refusé' };
-  }
-
-  const { error } = await supabase
-    .from('idees')
-    .update({ archive })
-    .eq('id', id);
-  if (error) return { success: false, error: error.message };
-
-  logAudit(
-    archive ? 'idea_archived' : 'idea_unarchived',
-    'idee',
-    id,
     undefined,
     user.id,
   );

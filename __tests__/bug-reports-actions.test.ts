@@ -75,7 +75,7 @@ describe('updateBugReportAction', () => {
       status: 'nouveau',
       resolutionNotes: null,
     });
-    expect(res).toEqual({ success: false, error: 'Donnees invalides' });
+    expect(res).toEqual({ success: false, error: 'Données invalides' });
     expect(requireAdmin).not.toHaveBeenCalled();
   });
 

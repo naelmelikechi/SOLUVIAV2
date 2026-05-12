@@ -139,31 +139,3 @@ export function NoticeIframe({
     </Card>
   );
 }
-
-/**
- * Helper standalone pour ouvrir la notice dans un nouvel onglet,
- * sans charger l'iframe (cas ou l'iframe est cassee, ou pour mobile).
- */
-export function NoticeLink({
-  kind,
-  code,
-  className,
-}: {
-  kind: 'indicateur' | 'livrable' | 'critere';
-  code: string;
-  className?: string;
-}) {
-  const url = `${NOTICES_BASE}/${kind}s/${encodeURIComponent(code)}`;
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className={`border-border text-foreground hover:bg-muted inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-3 text-sm font-medium transition-colors ${className ?? ''}`}
-    >
-      <HelpCircle className="h-3.5 w-3.5" />
-      Notice d&apos;aide
-      <ExternalLink className="h-3 w-3" />
-    </a>
-  );
-}

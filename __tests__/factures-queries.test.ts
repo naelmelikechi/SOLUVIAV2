@@ -212,7 +212,6 @@ describe('getProjetActiveContratsForFacturation', () => {
           id: 'p1',
           ref: '0042-DUP-APP',
           taux_commission: 12,
-          billing_mode: 'auto',
           client_id: 'c1',
           client: { id: 'c1', raison_sociale: 'Acme SAS' },
         },
@@ -239,7 +238,6 @@ describe('getProjetActiveContratsForFacturation', () => {
     expect(result).not.toBeNull();
     expect(result!.projetRef).toBe('0042-DUP-APP');
     expect(result!.tauxCommission).toBe(12);
-    expect(result!.billingMode).toBe('auto');
     expect(result!.contrats).toHaveLength(1);
 
     const contratsOp = mock.ops.find((o) => o.table === 'contrats');
@@ -263,7 +261,6 @@ describe('getProjetActiveContratsForFacturation', () => {
           id: 'p1',
           ref: '0001-FOO-APP',
           taux_commission: null,
-          billing_mode: 'manual',
           client_id: 'c1',
           client: { id: 'c1', raison_sociale: 'Foo SARL' },
         },
@@ -280,7 +277,6 @@ describe('getProjetActiveContratsForFacturation', () => {
 
     expect(result).not.toBeNull();
     expect(result!.tauxCommission).toBe(10);
-    expect(result!.billingMode).toBe('manual');
     expect(result!.contrats).toEqual([]);
   });
 });

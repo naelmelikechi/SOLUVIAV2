@@ -4,7 +4,7 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
- * Tests pour lib/queries/billable-events.ts (HEOL / billing_mode=manual).
+ * Tests pour lib/queries/billable-events.ts (HEOL / billable events).
  *
  * Couverture clef demandee dans project_todos_open (2026-05-11) :
  * - Base engagement = somme step_number=1 avec invoice_state non null

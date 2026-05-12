@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { ACTIVE_CONTRACT_STATES } from '@/lib/utils/contrat-states';
 import { computeContractSchedule } from './production';
+import type { Periode } from '@/lib/utils/dashboard-periode';
 import {
   format,
   startOfMonth,
@@ -178,7 +179,9 @@ export interface DashboardFinancials {
   tauxSaisieTemps: number; // % of time entries filled this month
 }
 
-export async function getDashboardFinancials(): Promise<DashboardFinancials> {
+export async function getDashboardFinancials(
+  periode?: Periode,
+): Promise<DashboardFinancials> {
   const supabase = await createClient();
 
   // Run all queries in parallel
@@ -195,7 +198,40 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
   const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
   const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
 
-  const monthKey = format(now, 'yyyy-MM');
+  const monthKey = periode
+    ? periode.from.toISOString().slice(0, 7)
+    : format(now, 'yyyy-MM');
+
+  // Build factures query (filtered by date_emission when periode provided)
+  let facturesQuery = supabase
+    .from('factures')
+    .select(
+      'montant_ht, statut, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+    )
+    .in('statut', ['emise', 'payee', 'en_retard', 'avoir'])
+    .eq('projet.client.is_demo', false)
+    .eq('projet.client.archive', false);
+
+  if (periode) {
+    facturesQuery = facturesQuery
+      .gte('date_emission', periode.from.toISOString().slice(0, 10))
+      .lte('date_emission', periode.to.toISOString().slice(0, 10));
+  }
+
+  // Build paiements query (filtered by date_paiement when periode provided)
+  let paiementsQuery = supabase
+    .from('paiements')
+    .select(
+      'montant, facture:factures!paiements_facture_id_fkey!inner(projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive)))',
+    )
+    .eq('facture.projet.client.is_demo', false)
+    .eq('facture.projet.client.archive', false);
+
+  if (periode) {
+    paiementsQuery = paiementsQuery
+      .gte('date_paiement', periode.from.toISOString().slice(0, 10))
+      .lte('date_paiement', periode.to.toISOString().slice(0, 10));
+  }
 
   const [
     facturesRes,
@@ -208,24 +244,12 @@ export async function getDashboardFinancials(): Promise<DashboardFinancials> {
     usersRes,
     feriesRes,
   ] = await Promise.all([
-    // Factures pour totalFacture (exclut clients demo/archives)
-    supabase
-      .from('factures')
-      .select(
-        'montant_ht, statut, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-      )
-      .in('statut', ['emise', 'payee', 'en_retard', 'avoir'])
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
-    // Paiements pour totalEncaisse (exclut clients demo/archives via facture)
-    supabase
-      .from('paiements')
-      .select(
-        'montant, facture:factures!paiements_facture_id_fkey!inner(projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive)))',
-      )
-      .eq('facture.projet.client.is_demo', false)
-      .eq('facture.projet.client.archive', false),
+    // Factures pour totalFacture (exclut clients demo/archives) - filtre periode optionnel
+    facturesQuery,
+    // Paiements pour totalEncaisse (exclut clients demo/archives via facture) - filtre periode optionnel
+    paiementsQuery,
     // Factures en retard avec leurs paiements pour calculer le vrai net non encaisse
+    // Note: pas de filtre date - cumul a date, encours non-periodise
     supabase
       .from('factures')
       .select(

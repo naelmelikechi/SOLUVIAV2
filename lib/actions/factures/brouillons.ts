@@ -558,8 +558,8 @@ export async function createFactureFromEvents(params: {
 
   // 6. Calcule montants
   //
-  // Convention metier (mode billing_mode='manual', actuellement HEOL) :
-  // la commission Soluvia est exprimee TTC dans le contrat client.
+  // Convention metier (HEOL) : la commission Soluvia est exprimee TTC
+  // dans le contrat client.
   // Concretement : `montant_commissionne` (= base * taux/100) represente le
   // total TTC, TVA INCLUSE. On derive HT/TVA a rebours pour que la facture
   // affiche bien Total TTC = montant attendu par le client.

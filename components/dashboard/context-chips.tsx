@@ -6,6 +6,8 @@ export interface ContextChipsProps {
   enRetard: number;
   aFacturer: number;
   weekHours: number;
+  editMode?: boolean;
+  onHide?: () => void;
 }
 
 type ChipTone = 'danger' | 'info' | 'warn' | 'ok';
@@ -37,6 +39,8 @@ export function ContextChips({
   enRetard,
   aFacturer,
   weekHours,
+  editMode,
+  onHide,
 }: ContextChipsProps) {
   const chips: ChipDef[] = [];
 
@@ -70,21 +74,33 @@ export function ContextChips({
   });
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {chips.map((c) => (
-        <Link
-          key={c.key}
-          href={c.href}
-          className="border-border/60 bg-card hover:border-foreground/20 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors"
+    <div className="relative">
+      {editMode && (
+        <button
+          type="button"
+          onClick={() => onHide?.()}
+          aria-label="Masquer les chips"
+          className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute -top-2 -right-2 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs"
         >
-          <span className={cn('h-1.5 w-1.5 rounded-full', dotTone[c.tone])} />
-          <span className="text-muted-foreground">{c.label}</span>
-          <span className={cn('num font-bold', valueTone[c.tone])}>
-            {c.value}
-          </span>
-          <span className="text-primary font-semibold">{c.cta} ›</span>
-        </Link>
-      ))}
+          ×
+        </button>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {chips.map((c) => (
+          <Link
+            key={c.key}
+            href={c.href}
+            className="border-border/60 bg-card hover:border-foreground/20 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors"
+          >
+            <span className={cn('h-1.5 w-1.5 rounded-full', dotTone[c.tone])} />
+            <span className="text-muted-foreground">{c.label}</span>
+            <span className={cn('num font-bold', valueTone[c.tone])}>
+              {c.value}
+            </span>
+            <span className="text-primary font-semibold">{c.cta} ›</span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

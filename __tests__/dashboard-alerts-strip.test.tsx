@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { AlertsStrip, type Alert } from '@/components/dashboard/alerts-strip';
 
 afterEach(cleanup);
@@ -28,5 +28,12 @@ describe('AlertsStrip', () => {
     ];
     render(<AlertsStrip alerts={alerts} />);
     expect(screen.getByText('7')).toBeDefined();
+  });
+
+  it('affiche le bouton × en editMode', () => {
+    const onHide = vi.fn();
+    render(<AlertsStrip alerts={[]} editMode onHide={onHide} />);
+    fireEvent.click(screen.getByLabelText(/masquer les alertes/i));
+    expect(onHide).toHaveBeenCalledOnce();
   });
 });

@@ -262,7 +262,14 @@ export function DashboardPageClient({
   return (
     <div className="space-y-5">
       {/* ========== Alerts ========== */}
-      {renderIfVisible('alerts', <AlertsStrip alerts={alerts} />)}
+      {renderIfVisible(
+        'alerts',
+        <AlertsStrip
+          alerts={alerts}
+          editMode={editMode}
+          onHide={() => toggle('alerts')}
+        />,
+      )}
 
       {/* ========== Trinity Funnel ========== */}
       {renderIfVisible(
@@ -284,6 +291,8 @@ export function DashboardPageClient({
           enRetard={totalEnRetard}
           aFacturer={totalAFacturer}
           weekHours={weekHours}
+          editMode={editMode}
+          onHide={() => toggle('chips')}
         />,
       )}
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { ContextChips } from '@/components/dashboard/context-chips';
 
 afterEach(cleanup);
@@ -27,5 +27,12 @@ describe('ContextChips', () => {
     render(<ContextChips enRetard={0} aFacturer={0} weekHours={0} />);
     expect(screen.getByText(/Ta semaine/)).toBeDefined();
     expect(screen.getByText(/0h\s*\/\s*35h/)).toBeDefined();
+  });
+
+  it('affiche le bouton × en editMode', () => {
+    const onHide = vi.fn();
+    render(<ContextChips enRetard={0} aFacturer={0} weekHours={10} editMode onHide={onHide} />);
+    fireEvent.click(screen.getByLabelText(/masquer les chips/i));
+    expect(onHide).toHaveBeenCalledOnce();
   });
 });

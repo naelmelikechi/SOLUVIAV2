@@ -1,119 +1,182 @@
-# Spec : base de commission sur part pédagogique uniquement
+# Spec : base de commission HEOL sur lignes pédagogiques
 
-**Date** : 2026-05-12
-**Statut** : **EN PAUSE** (2026-05-12) — en attente clarification HEOL/Eduvia sur l'écart `support` vs `npec_amount` (voir "Questions ouvertes" plus bas)
+**Date** : 2026-05-12 (réécrit après découverte de l'endpoint `/api/v1/invoices/:id/lines`)
+**Statut** : design validé, en attente review du spec écrit
 **Auteur** : Nael Melikechi (via Claude)
-**Chantier lié, hors scope** : [factures libres](./TODO-facture-libre-design.md) (à brainstormer séparément)
-
-## Questions ouvertes bloquant la reprise
-
-L'investigation 2026-05-12 a révélé qu'un champ Eduvia non sync, `contrats.support`, vaut **moins** que `npec_amount` sur 27 des 41 contrats HEOL avec step 1 pédago émis. Concrètement :
-
-- 27 contrats HEOL ont `support ≈ 80% × npec_amount`, donc step 1 OPCO = 40% × support = 32% × npec
-- 11 contrats HEOL ont `support = npec_amount` (cas standard), step 1 OPCO = 40% × support = 40% × npec
-- Les 11 contrats à 100% support sont exactement ceux qui ont (ou peuvent recevoir) un `support_first_equipment = 500€`
-
-**À clarifier avec HEOL/Eduvia avant reprise** :
-
-1. Est-il normal que `support < npec_amount` pour ces 27 contrats ? Convention CFA particulière, retenue OPCO, plafond annuel ?
-2. L'OPCO peut-il émettre un "complément support" pour ces contrats plus tard, ou la base actuelle est-elle figée ?
-3. La règle "commission HEOL = 50% TTC du financement OPCO" s'applique-t-elle sur le `npec_amount` notionnel ou sur le `support` réel ? (impacte le chiffre 1 500€ overbill)
-
-Tant que ces points ne sont pas tranchés, on ne déploie pas la migration. Le calcul `SUM(including_pedagogie_amount)` proposé ci-dessous reste correct dans tous les cas (il exclut bien les 500€ matériel) ; la question est juste **sur quoi appliquer la commission** : sur le `support` actuel (qu'on lit déjà via `including_pedagogie_amount`) ou sur le `npec_amount` complet (qui peut nécessiter une régularisation manuelle).
+**Chantier lié, hors scope** : factures libres (à brainstormer séparément, voir mémoire `project_facture_libre_todo`)
 
 ## Problème
 
-Aujourd'hui, la base de commission HEOL inclut des frais matériel/équipement (500€ par contrat) qui ne devraient pas être commissionnés. Le code (`lib/queries/billable-events.ts:154-169`) somme `eduvia_invoice_steps.total_amount` sur tous les step 1 émis, sans distinguer ce qui est pédagogique de ce qui ne l'est pas.
+Aujourd'hui, la base de commission HEOL inclut des frais de premier équipement (500€ "Ordinateur portable") qui ne devraient pas être commissionnés. Le code (`lib/queries/billable-events.ts:154-169`) somme `eduvia_invoice_steps.total_amount` sur tous les step 1 émis, sans distinguer ce qui est pédagogique de ce qui ne l'est pas.
 
-**Impact mesuré sur HEOL** : 6 steps "matériel" de 500€ = 3 000€ inclus à tort dans la base. À 50% de commission, cela représente **1 500€ overfacturé** sur l'historique HEOL.
+**Impact mesuré sur HEOL** (sur la base d'un taux historique de 50% TTC) : 6 invoices "matériel" de 500€ = 3 000€ inclus à tort dans la base, soit **1 500€ TTC overfacturé** sur FAC-HED-0003 (émise 2026-05-11, statut `emise`).
+
+En plus du nettoyage de base, le taux contractuel HEOL passe de **50% à 40% TTC** (cf. "Points à confirmer" sur le caractère rétroactif).
 
 ## Découverte clé
 
-Eduvia n'expose **pas** le détail des lignes d'un bordereau OPCO via son API (vérifié sur la spec OpenAPI publique + appel live sur 3 contrats HEOL 2026-05-12). Mais elle émet **les frais matériel comme un step distinct** :
+L'endpoint **non documenté** `GET /api/v1/invoices/:id/lines` expose le détail ligne par ligne d'un bordereau OPCO. Chaque ligne porte un champ `line_type` typé :
 
-| Champ                        | Step pédagogique | Step matériel      |
-| ---------------------------- | ---------------- | ------------------ |
-| `step_number`                | 1                | 1 (oui, identique) |
-| `invoice_id`                 | ex: 61           | ex: 62 (différent) |
-| `total_amount`               | 2 666,56€        | 500,00€            |
-| `including_pedagogie_amount` | 2 666,56€        | 0,00€              |
-| `including_rqth_amount`      | 0,00€            | 0,00€              |
+```json
+{
+  "id": 80,
+  "invoice_id": 62,
+  "amount": 500,
+  "line_type": "PREMIEREQUIPEMENT",
+  "quantity": 1,
+  "description": "Premier équipement pédagogique : Ordinateur portable"
+}
+```
 
-La signature d'un step "pur matériel" est donc claire : `including_pedagogie_amount = 0`. Tous les frais matériel HEOL ont été transmis le 2026-05-07 en émission groupée.
+Deux `line_type` observés sur les data HEOL actuelles :
+
+| line_type           | Description Eduvia                                     | Décision Soluvia                   |
+| ------------------- | ------------------------------------------------------ | ---------------------------------- |
+| `PEDAGOGIE`         | "Échéance n°X - Frais pédagogiques"                    | **Inclus** dans la base commission |
+| `PREMIEREQUIPEMENT` | "Premier équipement pédagogique : Ordinateur portable" | **Exclus**                         |
+
+D'autres `line_type` existent probablement (RQTH, MOBILITY, INSCRIPTION…) mais ne sont pas observés sur HEOL aujourd'hui. La règle est extensible (cf. "Whitelist line_type").
+
+## Architecture cible
+
+### Nouvelle table `eduvia_invoice_lines`
+
+```sql
+CREATE TABLE eduvia_invoice_lines (
+  id            BIGINT PRIMARY KEY,           -- id Eduvia, pas un UUID
+  invoice_id    BIGINT NOT NULL,              -- FK logique vers eduvia_invoice_steps.invoice_id
+  contrat_id    UUID NOT NULL REFERENCES contrats(id) ON DELETE CASCADE,
+  amount        NUMERIC(12,2) NOT NULL,
+  line_type     TEXT NOT NULL,                -- 'PEDAGOGIE', 'PREMIEREQUIPEMENT', ...
+  quantity      INTEGER NOT NULL DEFAULT 1,
+  description   TEXT,
+  created_at    TIMESTAMPTZ,                  -- timestamp Eduvia
+  updated_at    TIMESTAMPTZ,                  -- timestamp Eduvia
+  synced_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX ix_eduvia_invoice_lines_contrat ON eduvia_invoice_lines (contrat_id);
+CREATE INDEX ix_eduvia_invoice_lines_invoice ON eduvia_invoice_lines (invoice_id);
+CREATE INDEX ix_eduvia_invoice_lines_type ON eduvia_invoice_lines (line_type);
+
+-- RLS : lecture admin+CDP scopés sur leurs projets (via contrat_id → projet → cdp_id)
+ALTER TABLE eduvia_invoice_lines ENABLE ROW LEVEL SECURITY;
+```
+
+`invoice_id` n'est pas une FK formelle vers `eduvia_invoice_steps` parce qu'un même `invoice_id` Eduvia peut couvrir plusieurs steps logiques (peu probable, mais Eduvia ne le contredit pas). Le rattachement utile est sur `contrat_id`.
+
+### Sync Eduvia étendu
+
+Le sync existant `lib/eduvia/sync.ts` consomme déjà `/contracts/:id/invoice_steps`. On ajoute :
+
+- Pour chaque step retourné dont `invoice_id IS NOT NULL` : `GET /api/v1/invoices/:invoice_id/lines`
+- Upsert dans `eduvia_invoice_lines` (clé : `id` Eduvia)
+- Hard delete des lignes orphelines (si Eduvia retire une ligne, on retire en DB)
+
+Coût supplémentaire : 1 appel API par invoice émis. Sur HEOL aujourd'hui (47 step 1 émis + N steps suivants), ça reste raisonnable. Penser à paralléliser par lots de 5-10 pour ne pas allonger la durée totale du sync.
 
 ## Règle de calcul cible
 
-Remplacer la base actuelle par la part pédagogique :
-
 ```
-base_engagement(contrat) = SUM(COALESCE(eduvia_invoice_steps.including_pedagogie_amount, 0))
+COMMISSION_LINE_TYPES = ['PEDAGOGIE']   -- whitelist (hardcodée, voir Open Questions)
+
+base_engagement(contrat) = SUM(eduvia_invoice_lines.amount)
                           WHERE contrat_id = $1
-                            AND step_number = 1
-                            AND invoice_state IS NOT NULL
+                            AND line_type IN COMMISSION_LINE_TYPES
+                            AND EXISTS (
+                              SELECT 1 FROM eduvia_invoice_steps s
+                              WHERE s.invoice_id = eduvia_invoice_lines.invoice_id
+                                AND s.step_number = 1
+                                AND s.invoice_state IS NOT NULL
+                            )
 
-montant_brut(opco_step) = eduvia_invoice_steps.including_pedagogie_amount
+montant_brut(opco_step s) = SUM(eduvia_invoice_lines.amount)
+                            WHERE invoice_id = s.invoice_id
+                              AND line_type IN COMMISSION_LINE_TYPES
 ```
 
-`SUM` (plutôt qu'un `WHERE including_pedagogie_amount > 0`) est volontairement choisi pour rester correct si Eduvia émet un jour un step mixte (pédago + matériel sur le même invoice_id). La part matériel est silencieusement exclue, sans perdre la part pédago.
+Les steps dont la somme des lignes commissionnables est 0 ne sont pas remontés dans la liste billable-events (filtre `> 0`).
 
-## Périmètre
+## Conséquences code
 
-- **Tous les projets** (mode auto + mode manual). En pratique, seul HEOL a aujourd'hui des contrats actifs ; les 6 projets "Interne SOLUVIA" en mode auto ont 0 contrat et 0% de commission.
-- Le mode `auto` (commission sur échéancier prévisionnel saisi à la main) devient legacy : on l'aligne sur la logique step-1-OPCO nettoyée.
-
-### Conséquences code
-
+- `lib/eduvia/client.ts` : ajouter type `EduviaInvoiceLine` et helper `fetchInvoiceLines(instanceUrl, apiKey, invoiceId)`.
+- `lib/eduvia/sync.ts` : nouvelle phase post-invoice-steps qui itère sur les invoice_ids non nuls et sync les lignes.
 - `lib/queries/billable-events.ts` :
-  - **engagement** (lignes 154-169) : remplacer `SUM(total_amount)` par `SUM(COALESCE(including_pedagogie_amount, 0))`. Pas de filtre supplémentaire : un contrat dont le step 1 pédago est 0 (cas où seul un bordereau matériel a été émis) verra son event engagement omis car `brut === 0` est déjà filtré ligne 256.
-  - **opco_step** (ligne 315) : remplacer `total_amount` par `including_pedagogie_amount`. Ajouter un filtre `including_pedagogie_amount > 0` directement dans la query Supabase (lignes 141-147) pour ne pas remonter de steps "pur matériel" à 0€ dans la liste billable-events. Ce filtre est sûr car chaque step est un event isolé (pas une agrégation), donc un step à 0 n'a rien à contribuer.
+  - **engagement** : remplacer `SUM(eduvia_invoice_steps.total_amount)` par une jointure `eduvia_invoice_lines` filtrée sur `line_type IN COMMISSION_LINE_TYPES`.
+  - **opco_step** : pour chaque step retourné, calculer `montant_brut` = `SUM(lines WHERE line_type IN COMMISSION_LINE_TYPES AND invoice_id = step.invoice_id)`. Filtrer les steps dont cette somme est 0.
 - `lib/queries/billable-events.ts:listManualProjets` → renommer `listBillableProjets`, retirer le filtre `billing_mode='manual'`.
-- `lib/echeancier/calc.ts` : à supprimer (calcul de commission sur échéancier prévisionnel). Vérifier d'abord qu'aucun autre call site n'en dépend pour des usages annexes.
-- `lib/actions/factures/brouillons.ts` : retirer la branche `billing_mode='auto'` dans la création de brouillon, ne garder que la voie billable-events.
-- Migration DB : supprimer la colonne `projets.billing_mode` et son CHECK constraint. YAGNI : on rétablira si on a besoin de réintroduire un mode différent.
+- `lib/echeancier/calc.ts` : à supprimer (calcul de commission sur échéancier prévisionnel, obsolète).
+- `lib/actions/factures/brouillons.ts` : retirer la branche `billing_mode='auto'`.
+- `types/database.ts` : régénérer après migration.
+- Migration DB : create `eduvia_invoice_lines` + supprimer `projets.billing_mode` + UPDATE HEOL taux_commission (à confirmer rétroactif ou non, cf. Open Questions).
 
-### UI
+## UI
 
-- Les steps "pur matériel" (`including_pedagogie_amount = 0`) sont **filtrés en amont par la query** et n'apparaissent jamais dans la liste billable-events. Aucun changement de composant React requis.
-- Les steps mixtes (jamais observés chez HEOL aujourd'hui) apparaîtraient avec `montant_brut = including_pedagogie_amount` ; la part matériel est exclue silencieusement.
-- Sélecteur de projet dans la page de création de brouillon : liste désormais tous les projets actifs avec contrats Eduvia (au lieu des projets `billing_mode='manual'`).
+- Aucun changement de composant React requis pour la sélection des events facturables. La query filtre déjà côté serveur.
+- Sélecteur de projet : liste désormais tous les projets actifs avec contrats Eduvia, plus uniquement `billing_mode='manual'`.
+- **Bonus** : exposer le détail des lignes Eduvia (`line_type`, description, amount) en tooltip/expand sur chaque event billable. Audit clair "voici exactement ce qu'on commissionne". À chiffrer si retenu.
 
 ## Garde-fous conservés tels quels
 
 - Lock `missing_deca` : un contrat sans `contract_number` OPCO refuse toujours d'être facturé.
-- Exclusion engagement vs opco_step par contrat : un contrat ne peut être facturé qu'une fois, en engagement OU en opco_step.
+- Exclusion engagement vs opco_step par contrat.
 - Idempotence DB via `uq_facture_lignes_event_live` sur `(event_type, event_source_id)`.
 - Gapless invoice numbering : aucune facture historique n'est modifiée ou supprimée.
 
+## Whitelist `line_type`
+
+Pour la V1, hardcodée à `['PEDAGOGIE']` dans le code. Quand un nouveau `line_type` apparaîtra (RQTH, MOBILITY…), il faudra :
+
+- décider explicitement si Soluvia le commissionne ou non,
+- ajouter une migration data si la décision change pour le passé (rare).
+
+Si on observe l'apparition récurrente de nouveaux types, on évoluera vers une table `eduvia_line_types_commissionnable` (clé `line_type`, bool `commissionnable`) éditable côté admin. Pas urgent.
+
 ## Hors scope (explicit)
 
-1. **Correction de l'historique HEOL (1 500€ overbillé)**. Si une régularisation commerciale est nécessaire, elle se fera par avoir manuel séparé. Le présent spec ne réécrit pas les factures déjà émises.
-2. **Prise en compte de `including_rqth_amount`**. Aucune occurrence non nulle observée chez HEOL. Si la valeur devient non nulle un jour, on devra décider : la base inclut-elle pédago + RQTH, ou pédago seul ? À documenter au moment où le cas se présente.
-3. **Factures détachées de tout projet/contrat** : chantier B, brainstormé séparément, voir mémoire `project_facture_libre_todo`.
+1. **Correction de l'historique HEOL** (FAC-HED-0003 émise à 50% × base sale) : si régularisation commerciale, avoir manuel séparé. Pas couvert par la migration code.
+2. **Sync des champs `contrats.support` et `contrats.support_first_equipment`** : utile pour comprendre l'écart `support < npec_amount` sur 27 contrats HEOL mais hors scope ici. Voir mémoire `project_eduvia_support_field` pour les findings.
+3. **Factures détachées de tout projet/contrat** : chantier B, brainstormé séparément. Voir mémoire `project_facture_libre_todo`.
+
+## Points à confirmer avant exécution
+
+1. **Changement de taux 50→40 rétroactif ?**
+   - Option A : seules les futures factures sont à 40%. FAC-HED-0003 reste à 50% (sauf avoir manuel pour les seuls 500€ matériel surtout).
+   - Option B : le taux 40% est le taux contractuel "réel" depuis le début, donc avoir global de régularisation sur FAC-HED-0003 (différence 50→40% sur la base totale, plus l'élimination du matériel).
+   - Décision attendue avant déploiement. Impact financier différent dans les 2 cas.
+2. **Écart `support < npec_amount` sur 27 contrats HEOL** : à clarifier avec HEOL/Eduvia, mais ne bloque pas le présent spec — le calcul lignes par lignes utilise les montants réellement émis par l'OPCO, donc reste correct quelle que soit la réponse.
 
 ## Tests à écrire
 
 - `lib/queries/billable-events.test.ts` :
-  - Un contrat avec uniquement un step 1 pédago → base = pédago, 1 event engagement.
-  - Un contrat avec un step 1 pédago + un step 1 matériel (cas HEOL actuel) → base = pédago uniquement, 1 event engagement à la part pédago, le step matériel n'est pas remonté.
-  - Un contrat avec un step opco_step pur matériel (`including_pedagogie_amount = 0`) → l'event opco_step n'est pas remonté.
-  - Un contrat avec un step opco_step mixte (`total_amount > including_pedagogie_amount > 0`) → event opco_step avec `montant_brut = including_pedagogie_amount`.
-- Test de régression sur HEOL : sur les 47 step 1 émis (dont 6 "pur matériel" à 500€ et 41 pédagogiques), la base totale doit passer de 111 564,92€ (`SUM(total_amount)`) à 108 564,92€ (`SUM(including_pedagogie_amount)`).
+  - Contrat avec uniquement une ligne `PEDAGOGIE` sur step 1 → event engagement à amount.
+  - Contrat avec une ligne `PEDAGOGIE` + une ligne `PREMIEREQUIPEMENT` (cas HEOL actuel) → event engagement avec base = pédago uniquement, pas de ligne matériel.
+  - Contrat avec une ligne `PREMIEREQUIPEMENT` seule (sans pédago) → pas d'event engagement.
+  - Contrat avec un line_type inconnu → la ligne est ignorée (pas dans la whitelist), un warning est loggé pour signaler le nouveau type.
+  - Test régression HEOL : la base totale step 1 doit passer de 111 564,92€ (`SUM(total_amount)`) à 108 564,92€ (`SUM(lines PEDAGOGIE)`).
+- `lib/eduvia/sync.test.ts` : un mock fetch retourne 2 lignes par invoice, vérifier que la table est upsert correctement.
 
 ## Migration et déploiement
 
-1. Code + tests : un seul PR.
-2. Migration DB : retrait de `projets.billing_mode` dans une migration séparée appliquée après le déploiement du code (pour éviter qu'un ancien build ne lise un champ inexistant en window de déploiement).
-3. Pas de backfill. Pas de migration data.
+Trois PRs séquentielles pour limiter le blast radius :
+
+1. **PR 1** : migration DB `eduvia_invoice_lines` + sync étendu (sans changer le calcul de commission). On commence à peupler la table dès le premier sync.
+2. **PR 2** : calcul de commission migre sur `eduvia_invoice_lines`. Tests en parallèle pour vérifier l'équivalence avec l'ancienne base sur les data existantes (108 564,92€ HEOL).
+3. **PR 3** : suppression `lib/echeancier/calc.ts`, suppression colonne `projets.billing_mode`, UPDATE HEOL `taux_commission = 40`.
+
+Pas de backfill séparé : le sync alimente la table.
 
 ## Métriques de validation post-déploiement
 
-- Sortir la base de commission HEOL via `getBillableEvents(heol_id)` → vérifier que la somme des `montant_brut` events engagement = 108 564,92€ (vs 111 564,92€ avant).
-- Vérifier dans l'UI que les 6 steps "500€ matériel" n'apparaissent plus dans la liste billable-events.
+- `SELECT SUM(amount) FROM eduvia_invoice_lines WHERE line_type='PEDAGOGIE' AND ... step 1 émis` sur HEOL → doit donner **108 564,92€**.
+- La sortie de `getBillableEvents(heol_id)` ne contient plus aucun event à `montant_commissionne = 0`.
+- Tous les nouveaux brouillons HEOL sont chiffrés sur cette nouvelle base.
 
 ## Risques
 
-| Risque                                                                     | Probabilité | Mitigation                                                                                                                                                |
-| -------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Un projet client à venir n'utilise pas Eduvia (paiement direct entreprise) | moyenne     | Ce cas tombera dans le chantier B (factures libres). Pas un blocker du présent spec.                                                                      |
-| Eduvia change la sémantique de `including_pedagogie_amount` un jour        | faible      | Le snapshot des montants au moment de la facturation (via `npec_snapshot`, `taux_commission_snapshot` dans `facture_lignes`) garantit l'audit historique. |
-| Suppression de `billing_mode` casse un consommateur oublié                 | moyenne     | Grep avant migration. Si un usage subsiste, retarder la suppression DDL et garder le champ en DB (DEFAULT 'manual').                                      |
+| Risque                                                                                                | Probabilité | Mitigation                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| L'endpoint `/api/v1/invoices/:id/lines` n'est pas dans l'OpenAPI publique et peut casser sans préavis | moyenne     | Pinger l'équipe Eduvia pour confirmation officielle. Garder `including_pedagogie_amount` en DB comme fallback de calcul.                   |
+| Un nouveau `line_type` apparaît et est silencieusement exclu                                          | moyenne     | Logger un warning à chaque ligne d'un type non whitelisté observé. Alerte Sentry sur ce log → on rajoute le type au moment où il apparaît. |
+| Sync allongé par les N appels API supplémentaires                                                     | faible      | Paralléliser par lots. Mesurer le temps de sync HEOL avant/après.                                                                          |
+| Désaccord sur le caractère rétroactif du 50→40%                                                       | élevée      | À trancher AVANT déploiement (cf. Open Question 1).                                                                                        |

@@ -40,6 +40,7 @@ import type {
   MonthlyTrendRow,
   InvoiceStatusBreakdown,
 } from '@/lib/queries/dashboard';
+import type { Periode } from '@/lib/utils/dashboard-periode';
 import { RevenueTrendChart } from '@/components/dashboard/revenue-trend-chart';
 import { Sparkline } from '@/components/dashboard/sparkline';
 import { useHiddenKpis } from '@/components/dashboard/use-hidden-kpis';
@@ -268,6 +269,7 @@ export function DashboardPageClient({
   monthlyTrend,
   invoiceBreakdown,
   weekHours,
+  periode: _periode,
 }: {
   data: DashboardData;
   financials: DashboardFinancials;
@@ -275,6 +277,7 @@ export function DashboardPageClient({
   monthlyTrend: MonthlyTrendRow[];
   invoiceBreakdown: InvoiceStatusBreakdown;
   weekHours: number;
+  periode?: Periode;
 }) {
   // Mode personnalisation : permet de masquer des KPIs (persistance localStorage)
   const [editMode, setEditMode] = useState(false);

@@ -9,13 +9,31 @@ import {
 } from '@/lib/queries/dashboard';
 import { PageHeader } from '@/components/shared/page-header';
 import { DashboardPageClient } from '@/components/dashboard/dashboard-page-client';
+import { PeriodSelector } from '@/components/dashboard/period-selector';
+import {
+  resolvePeriode,
+  type PeriodeKey,
+} from '@/lib/utils/dashboard-periode';
 import { format, startOfMonth, addMonths } from 'date-fns';
 
 export const metadata: Metadata = { title: 'Tableau de bord - SOLUVIA' };
 export const revalidate = 30;
 
-export default async function DashboardPage() {
+const VALID_PERIODES: PeriodeKey[] = ['ce_mois', 'mois_precedent', '30j'];
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ periode?: string }>;
+}) {
+  const params = await searchParams;
+  const periodeKey: PeriodeKey =
+    params.periode && VALID_PERIODES.includes(params.periode as PeriodeKey)
+      ? (params.periode as PeriodeKey)
+      : 'ce_mois';
+
   const now = new Date();
+  const periode = resolvePeriode(periodeKey, now);
   const previousMonth = format(startOfMonth(addMonths(now, -1)), 'yyyy-MM-dd');
 
   const [
@@ -27,7 +45,7 @@ export default async function DashboardPage() {
     weekHours,
   ] = await Promise.all([
     getDashboardData(),
-    getDashboardFinancials(),
+    getDashboardFinancials(periode),
     getKpiSnapshots(previousMonth),
     getMonthlyTrend(),
     getInvoiceStatusBreakdown(),
@@ -38,8 +56,10 @@ export default async function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
-        description="KPIs et alertes opérationnelles"
-      />
+        description="KPIs et alertes operationnelles"
+      >
+        <PeriodSelector current={periodeKey} label={periode.label} />
+      </PageHeader>
       <DashboardPageClient
         data={data}
         financials={financials}
@@ -47,6 +67,7 @@ export default async function DashboardPage() {
         monthlyTrend={monthlyTrend}
         invoiceBreakdown={invoiceBreakdown}
         weekHours={weekHours}
+        periode={periode}
       />
     </div>
   );

@@ -843,4 +843,35 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
     const r = await getBillableEvents('proj-1');
     expect(r?.events[0]?.lock_reason).toBe('missing_deca');
   });
+
+  it('opco_step disponible : montant_brut = somme PEDAGOGIE de l invoice (matos exclu)', async () => {
+    const { client } = buildSupabase({
+      projets: { data: { id: 'proj-1', ref: 'TST', taux_commission: 40,
+        client: { id: 'cli', raison_sociale: 'Test' } } },
+      contrats: { data: [{ id: 'ctr-6', ref: 'CTR-T6', contract_number: 'DECA006',
+        internal_number: '6', apprenant_nom: 'Test', apprenant_prenom: 'U',
+        formation_titre: 'F', contract_state: 'ENGAGE', npec_amount: 5000 }] },
+      eduvia_invoice_lines: { data: [
+        { eduvia_invoice_id: 600, contrat_id: 'ctr-6', amount: 1500, line_type: 'PEDAGOGIE' },
+        { eduvia_invoice_id: 600, contrat_id: 'ctr-6', amount: 500, line_type: 'PREMIEREQUIPEMENT' },
+      ] },
+      eduvia_invoice_steps: { data: [{ id: 'step-600', contrat_id: 'ctr-6', step_number: 2,
+        eduvia_invoice_id: 600, including_pedagogie_amount: 1500,
+        opening_date: '2026-04-01', paid_at: null, invoice_state: 'TRANSMIS' }] },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValueOnce(client as never);
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const r = await getBillableEvents('proj-1');
+
+    expect(r?.events).toHaveLength(1);
+    expect(r?.events[0]).toMatchObject({
+      type: 'opco_step',
+      step_number: 2,
+      montant_brut: 1500,
+      montant_commissionne: 600, // 1500 x 40%
+      status: 'available',
+    });
+  });
 });

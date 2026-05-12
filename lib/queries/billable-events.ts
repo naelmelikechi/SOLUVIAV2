@@ -87,6 +87,23 @@ export interface ProjetBillableEvents {
 }
 
 /**
+ * Determines the billing status of an event based on its billing and lock state.
+ * Priority: billed > missing_deca > unknown_line_type > opposite_billed > available.
+ */
+function resolveLock(opts: {
+  billed?: BilledRef;
+  lockedByOther?: BilledRef;
+  missingDeca: boolean;
+  hasUnknown: boolean;
+}): { status: BillableEvent['status']; lock_reason?: BillableEvent['lock_reason'] } {
+  if (opts.billed) return { status: 'billed' };
+  if (opts.missingDeca) return { status: 'locked', lock_reason: 'missing_deca' };
+  if (opts.hasUnknown) return { status: 'locked', lock_reason: 'unknown_line_type' };
+  if (opts.lockedByOther) return { status: 'locked', lock_reason: 'opposite_billed' };
+  return { status: 'available' };
+}
+
+/**
  * Materialise tous les events facturables d'un projet, avec leur statut
  * billed/locked/available. Une seule passe DB grace a 4 SELECTs +
  * jointures cote app.
@@ -175,7 +192,6 @@ export async function getBillableEvents(
     basePedagoEngagement: number;
     engagementInvoiceIds: Set<number>;
     basePedagoByStepInvoice: Map<number, number>;
-    stepsByInvoiceId: Map<number, StepRow>;
     unknownLineTypes: Set<string>;
   };
   const aggByContrat = new Map<string, ContratLignesAgg>();
@@ -184,7 +200,6 @@ export async function getBillableEvents(
       basePedagoEngagement: 0,
       engagementInvoiceIds: new Set(),
       basePedagoByStepInvoice: new Map(),
-      stepsByInvoiceId: new Map(),
       unknownLineTypes: new Set(),
     });
   }
@@ -210,7 +225,6 @@ export async function getBillableEvents(
     } else {
       const prev = agg.basePedagoByStepInvoice.get(line.eduvia_invoice_id) ?? 0;
       agg.basePedagoByStepInvoice.set(line.eduvia_invoice_id, prev + Number(line.amount));
-      agg.stepsByInvoiceId.set(line.eduvia_invoice_id, step);
     }
   }
 
@@ -296,23 +310,11 @@ export async function getBillableEvents(
       ? Array.from(agg.unknownLineTypes).sort()
       : undefined;
 
-    // Helper : priorite missing_deca > unknown_line_type > opposite_billed.
-    function resolveLock(opts: { billed?: BilledRef; lockedByOther?: BilledRef }): {
-      status: BillableEvent['status'];
-      lock_reason?: BillableEvent['lock_reason'];
-    } {
-      if (opts.billed) return { status: 'billed' };
-      if (missingDeca) return { status: 'locked', lock_reason: 'missing_deca' };
-      if (hasUnknown) return { status: 'locked', lock_reason: 'unknown_line_type' };
-      if (opts.lockedByOther) return { status: 'locked', lock_reason: 'opposite_billed' };
-      return { status: 'available' };
-    }
-
     // -- Event engagement --------------------------------------------------
     if (c.contract_state === 'ENGAGE' && agg.basePedagoEngagement > 0) {
       const billed = billedByEventSource.get(c.id);
       const lockedByOpco = billedTypes?.get('opco_step');
-      const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByOpco });
+      const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByOpco, missingDeca, hasUnknown });
 
       events.push({
         type: 'engagement',
@@ -334,19 +336,19 @@ export async function getBillableEvents(
         billed_on: billed,
         locked_by: !missingDeca && !hasUnknown ? lockedByOpco : undefined,
         lock_reason,
-        unknown_line_types: unknownTypesList,
+        unknown_line_types: lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
       });
     }
 
     // -- Events opco_step --------------------------------------------------
     for (const [invoiceId, basePedago] of agg.basePedagoByStepInvoice) {
       if (basePedago <= 0) continue;
-      const step = agg.stepsByInvoiceId.get(invoiceId);
+      const step = stepByInvoiceId.get(invoiceId);
       if (!step) continue;
 
       const billed = billedByEventSource.get(step.id);
       const lockedByEngagement = billedTypes?.get('engagement');
-      const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByEngagement });
+      const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByEngagement, missingDeca, hasUnknown });
 
       events.push({
         type: 'opco_step',
@@ -368,7 +370,7 @@ export async function getBillableEvents(
         billed_on: billed,
         locked_by: !missingDeca && !hasUnknown ? lockedByEngagement : undefined,
         lock_reason,
-        unknown_line_types: unknownTypesList,
+        unknown_line_types: lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
       });
     }
   }

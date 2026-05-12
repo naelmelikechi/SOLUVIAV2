@@ -354,3 +354,102 @@ describe('getInvoiceStatusBreakdown', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// getDashboardFinancials(periode)
+// ---------------------------------------------------------------------------
+
+describe('getDashboardFinancials(periode)', () => {
+  it('appends date_emission filter on factures when periode given', async () => {
+    const supa = buildSupabase({});
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      supa.client,
+    );
+
+    const { getDashboardFinancials } = await import('@/lib/queries/dashboard');
+    const periode = {
+      key: 'ce_mois' as const,
+      from: new Date('2026-05-01T00:00:00.000Z'),
+      to: new Date('2026-05-31T00:00:00.000Z'),
+      label: 'Mai 2026',
+    };
+    await getDashboardFinancials(periode);
+
+    const factureOps = supa.ops.filter((o) => o.table === 'factures');
+    const hasDateEmission = factureOps.some((o) =>
+      o.filters.some(
+        (f) =>
+          f.col === 'date_emission' && f.op === 'gte' && f.val === '2026-05-01',
+      ),
+    );
+    expect(hasDateEmission).toBe(true);
+  });
+
+  it('appends date_paiement filter on paiements when periode given', async () => {
+    const supa = buildSupabase({});
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      supa.client,
+    );
+    const { getDashboardFinancials } = await import('@/lib/queries/dashboard');
+    const periode = {
+      key: 'ce_mois' as const,
+      from: new Date('2026-05-01T00:00:00.000Z'),
+      to: new Date('2026-05-31T00:00:00.000Z'),
+      label: 'Mai 2026',
+    };
+    await getDashboardFinancials(periode);
+
+    const paiementOps = supa.ops.filter((o) => o.table === 'paiements');
+    const hasDatePaiement = paiementOps.some((o) =>
+      o.filters.some(
+        (f) =>
+          f.col === 'date_paiement' && f.op === 'gte' && f.val === '2026-05-01',
+      ),
+    );
+    expect(hasDatePaiement).toBe(true);
+  });
+
+  it('omits date filters when periode is absent (compat)', async () => {
+    const supa = buildSupabase({});
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      supa.client,
+    );
+    const { getDashboardFinancials } = await import('@/lib/queries/dashboard');
+    await getDashboardFinancials();
+
+    const dateFilters = supa.ops.flatMap((o) =>
+      o.filters.filter(
+        (f) => f.col === 'date_emission' || f.col === 'date_paiement',
+      ),
+    );
+    expect(dateFilters).toHaveLength(0);
+  });
+
+  it('factures_retard query stays unfiltered by date (cumul a date)', async () => {
+    const supa = buildSupabase({});
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      supa.client,
+    );
+    const { getDashboardFinancials } = await import('@/lib/queries/dashboard');
+    const periode = {
+      key: 'ce_mois' as const,
+      from: new Date('2026-05-01T00:00:00.000Z'),
+      to: new Date('2026-05-31T00:00:00.000Z'),
+      label: 'Mai 2026',
+    };
+    await getDashboardFinancials(periode);
+
+    // There are 2 factures queries: one for totalFacture, one for factures-en-retard.
+    // The en_retard query is identifiable by its statut='en_retard' filter.
+    const retardQuery = supa.ops.find(
+      (o) =>
+        o.table === 'factures' &&
+        o.filters.some((f) => f.col === 'statut' && f.val === 'en_retard'),
+    );
+    expect(retardQuery).toBeDefined();
+    const hasDateFilter = retardQuery!.filters.some(
+      (f) => f.col === 'date_emission' || f.col === 'date_paiement',
+    );
+    expect(hasDateFilter).toBe(false);
+  });
+});

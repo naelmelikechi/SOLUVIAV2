@@ -1,9 +1,25 @@
 # Spec : base de commission sur part pédagogique uniquement
 
 **Date** : 2026-05-12
-**Statut** : approuvé en design, en attente review du spec
+**Statut** : **EN PAUSE** (2026-05-12) — en attente clarification HEOL/Eduvia sur l'écart `support` vs `npec_amount` (voir "Questions ouvertes" plus bas)
 **Auteur** : Nael Melikechi (via Claude)
 **Chantier lié, hors scope** : [factures libres](./TODO-facture-libre-design.md) (à brainstormer séparément)
+
+## Questions ouvertes bloquant la reprise
+
+L'investigation 2026-05-12 a révélé qu'un champ Eduvia non sync, `contrats.support`, vaut **moins** que `npec_amount` sur 27 des 41 contrats HEOL avec step 1 pédago émis. Concrètement :
+
+- 27 contrats HEOL ont `support ≈ 80% × npec_amount`, donc step 1 OPCO = 40% × support = 32% × npec
+- 11 contrats HEOL ont `support = npec_amount` (cas standard), step 1 OPCO = 40% × support = 40% × npec
+- Les 11 contrats à 100% support sont exactement ceux qui ont (ou peuvent recevoir) un `support_first_equipment = 500€`
+
+**À clarifier avec HEOL/Eduvia avant reprise** :
+
+1. Est-il normal que `support < npec_amount` pour ces 27 contrats ? Convention CFA particulière, retenue OPCO, plafond annuel ?
+2. L'OPCO peut-il émettre un "complément support" pour ces contrats plus tard, ou la base actuelle est-elle figée ?
+3. La règle "commission HEOL = 50% TTC du financement OPCO" s'applique-t-elle sur le `npec_amount` notionnel ou sur le `support` réel ? (impacte le chiffre 1 500€ overbill)
+
+Tant que ces points ne sont pas tranchés, on ne déploie pas la migration. Le calcul `SUM(including_pedagogie_amount)` proposé ci-dessous reste correct dans tous les cas (il exclut bien les 500€ matériel) ; la question est juste **sur quoi appliquer la commission** : sur le `support` actuel (qu'on lit déjà via `including_pedagogie_amount`) ou sur le `npec_amount` complet (qui peut nécessiter une régularisation manuelle).
 
 ## Problème
 

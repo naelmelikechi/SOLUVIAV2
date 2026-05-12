@@ -5,6 +5,7 @@ import { getQualiopiClients } from '@/lib/queries/qualiopi';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/shared/empty-state';
 
 export const metadata: Metadata = { title: 'Qualité - SOLUVIA' };
 export const revalidate = 60;
@@ -26,17 +27,15 @@ export default async function QualiopiHomePage() {
       />
 
       {clients.length === 0 ? (
-        <Card className="p-10 text-center">
-          <ShieldCheck className="text-muted-foreground mx-auto mb-3 h-10 w-10" />
-          <h3 className="mb-1 text-base font-semibold">Aucun client</h3>
-          <p className="text-muted-foreground mx-auto max-w-md text-sm">
-            Ajoutez vos clients CFA via{' '}
-            <Link href="/admin/clients" className="text-primary underline">
-              /admin/clients
-            </Link>{' '}
-            pour commencer.
-          </p>
-        </Card>
+        <EmptyState
+          icon={ShieldCheck}
+          title="Aucun client"
+          description="Ajoutez vos clients CFA pour activer le suivi Qualiopi."
+        >
+          <Link href="/admin/clients">
+            <Button size="sm">Gérer les clients</Button>
+          </Link>
+        </EmptyState>
       ) : (
         <div className="space-y-6">
           {configured.length > 0 && (

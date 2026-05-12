@@ -193,7 +193,7 @@ export function IntercontratList({
         <EmptyState
           icon={UsersRound}
           title="Aucun collaborateur en intercontrat"
-          description="Tous les collaborateurs actifs sont affectes a au moins un projet client."
+          description="Tous les collaborateurs actifs sont affectés à au moins un projet client."
         />
       ) : (
         <>
@@ -254,7 +254,7 @@ export function IntercontratList({
 
           {filteredData.length === 0 ? (
             <p className="text-muted-foreground text-sm italic">
-              Aucun collaborateur dans cette categorie.
+              Aucun collaborateur dans cette catégorie.
             </p>
           ) : (
             <div className="grid gap-3">

@@ -11,6 +11,7 @@ import { computeCompletion } from '@/lib/eduvia/quality-types';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { EmptyState } from '@/components/shared/empty-state';
 import { CriteriaFilter } from '@/components/qualiopi/criteria-filter';
 
 export const revalidate = 60;
@@ -138,12 +139,11 @@ export default async function QualiopiCampusPage({
 
       {/* Grille critères */}
       {criteriaWithStats.length === 0 ? (
-        <Card className="p-10 text-center">
-          <AlertTriangle className="text-muted-foreground mx-auto mb-3 h-8 w-8" />
-          <p className="text-muted-foreground text-sm">
-            Aucun critère à afficher. Vérifiez la clé API Eduvia.
-          </p>
-        </Card>
+        <EmptyState
+          icon={AlertTriangle}
+          title="Aucun critère à afficher"
+          description="Vérifiez la clé API Eduvia configurée pour ce client."
+        />
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           {criteriaWithStats.map(

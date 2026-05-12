@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getClientByRef, listCampusesForClient } from '@/lib/queries/qualiopi';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/shared/empty-state';
 import Link from 'next/link';
 import { Building2 } from 'lucide-react';
 
@@ -30,9 +31,11 @@ export default async function QualiopiClientPage({
         description="Sélectionnez un campus"
       />
       {campuses.length === 0 ? (
-        <Card className="text-muted-foreground p-10 text-center text-sm">
-          Aucun campus accessible. Vérifiez la clé API Eduvia.
-        </Card>
+        <EmptyState
+          icon={Building2}
+          title="Aucun campus accessible"
+          description="Vérifiez la clé API Eduvia configurée pour ce client."
+        />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {campuses.map((c) => (

@@ -42,4 +42,17 @@ describe('PeriodSelector', () => {
     fireEvent.click(screen.getByText('Mois precedent'));
     expect(pushMock).toHaveBeenCalledWith('/dashboard?periode=mois_precedent');
   });
+
+  it('se ferme quand on clique en dehors', () => {
+    render(
+      <div>
+        <PeriodSelector current="ce_mois" label="Mai 2026" />
+        <button data-testid="outside">outside</button>
+      </div>,
+    );
+    fireEvent.click(screen.getByText('Mai 2026'));
+    expect(screen.getByText('Ce mois')).toBeDefined();
+    fireEvent.mouseDown(screen.getByTestId('outside'));
+    expect(screen.queryByText('Ce mois')).toBeNull();
+  });
 });

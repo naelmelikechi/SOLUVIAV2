@@ -21,6 +21,10 @@ export const revalidate = 30;
 
 const VALID_PERIODES: PeriodeKey[] = ['ce_mois', 'mois_precedent', '30j'];
 
+function isPeriodeKey(v: string): v is PeriodeKey {
+  return (VALID_PERIODES as readonly string[]).includes(v);
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -28,9 +32,7 @@ export default async function DashboardPage({
 }) {
   const params = await searchParams;
   const periodeKey: PeriodeKey =
-    params.periode && VALID_PERIODES.includes(params.periode as PeriodeKey)
-      ? (params.periode as PeriodeKey)
-      : 'ce_mois';
+    params.periode && isPeriodeKey(params.periode) ? params.periode : 'ce_mois';
 
   const now = new Date();
   const periode = resolvePeriode(periodeKey, now);
@@ -56,7 +58,7 @@ export default async function DashboardPage({
     <div>
       <PageHeader
         title="Dashboard"
-        description="KPIs et alertes operationnelles"
+        description="KPIs et alertes opérationnelles"
       >
         <PeriodSelector current={periodeKey} label={periode.label} />
       </PageHeader>

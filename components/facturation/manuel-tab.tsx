@@ -305,7 +305,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   checked={showOpcoSteps}
                   onChange={(e) => setShowOpcoSteps(e.target.checked)}
                   className="border-input h-4 w-4 rounded"
-                  aria-label="Afficher les reglements OPCO"
+                  aria-label="Afficher les règlements OPCO"
                 />
                 <span>
                   Règlements OPCO{' '}
@@ -321,7 +321,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   checked={includeBilled}
                   onChange={(e) => setIncludeBilled(e.target.checked)}
                   className="border-input h-4 w-4 rounded"
-                  aria-label="Inclure les events deja factures"
+                  aria-label="Inclure les événements déjà facturés"
                 />
                 <span className="text-muted-foreground">
                   Inclure facturés (mode revue)
@@ -341,7 +341,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                         onChange={toggleAll}
                         disabled={availableInDisplay.length === 0}
                         className="border-input h-4 w-4 rounded"
-                        aria-label="Tout selectionner"
+                        aria-label="Tout sélectionner"
                       />
                     </TableHead>
                     <TableHead>DECA</TableHead>

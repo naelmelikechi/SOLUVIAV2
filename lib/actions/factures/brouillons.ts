@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAdmin, requireUser } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import { lastDayOfNextMonthUtcISO } from '@/lib/utils/dates';
@@ -65,6 +65,23 @@ const CreateBlankBrouillonSchema = z.object({
   projetId: uuidSchema('projetId'),
   lignes: z
     .array(BlankBrouillonLigneSchema)
+    .min(1, 'Au moins une ligne requise')
+    .max(500, 'Trop de lignes'),
+});
+
+// Facture libre : rattachee a un client uniquement (pas de projet ni de
+// contrats). Chaque ligne est juste une description + montant HT, et la TVA
+// est calculee a 20% sur le total. Admin only - les CDPs ne peuvent ni en
+// creer ni en voir (RLS via projet_id NULL == EXISTS-subquery vide).
+const FreeLigneSchema = z.object({
+  description: z.string().trim().min(1, 'Description requise').max(2000),
+  montantHt: montantHtSchema,
+});
+
+const CreateFreeBrouillonSchema = z.object({
+  clientId: uuidSchema('clientId'),
+  lignes: z
+    .array(FreeLigneSchema)
     .min(1, 'Au moins une ligne requise')
     .max(500, 'Trop de lignes'),
 });
@@ -859,6 +876,138 @@ export async function createBlankBrouillon(params: {
 
   revalidatePath('/facturation');
   revalidatePath(`/projets/${projet.ref}`);
+
+  return { success: true, id: facture.id };
+}
+
+// ---------------------------------------------------------------------------
+// createFreeBrouillon - facture libre (prestations one-shot, conseil, audit...)
+// rattachee a un client mais sans projet ni contrats. Admin/superadmin only.
+// ---------------------------------------------------------------------------
+export interface FreeLigne {
+  description: string;
+  montantHt: number;
+}
+
+export async function createFreeBrouillon(params: {
+  clientId: string;
+  lignes: FreeLigne[];
+}): Promise<{ success: boolean; id?: string; error?: string }> {
+  const parsed = CreateFreeBrouillonSchema.safeParse(params);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
+    };
+  }
+  const { clientId, lignes } = parsed.data;
+
+  // Admin only : les factures libres sont hors perimetre CDP (pas de projet
+  // -> pas de rattachement metier). Garantit que la RLS CDP (EXISTS sur
+  // projet) ne soit pas contournee par un appel direct au server action.
+  const auth = await requireAdmin();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
+
+  // Verifie que le client existe et n'est pas archive (Odoo et numerotation
+  // ont besoin du trigramme du client).
+  const { data: client } = await supabase
+    .from('clients')
+    .select('id, archive, trigramme')
+    .eq('id', clientId)
+    .single();
+  if (!client) return { success: false, error: 'Client introuvable' };
+  if (client.archive) {
+    return { success: false, error: 'Client archivé' };
+  }
+
+  // Cents entiers : garantit SUM(facture_lignes.montant_ht) == factures.montant_ht.
+  const totalHtCents = lignes.reduce(
+    (s, l) => s + Math.round(Number(l.montantHt) * 100),
+    0,
+  );
+  if (totalHtCents <= 0) {
+    return { success: false, error: 'Montant total nul ou négatif' };
+  }
+
+  const tauxTva = 20;
+  const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
+  const totalHt = totalHtCents / 100;
+  const montantTva = montantTvaCents / 100;
+  const montantTtc = (totalHtCents + montantTvaCents) / 100;
+
+  const today = new Date();
+  const dateEmissionStr = today.toISOString().split('T')[0]!;
+  const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
+
+  const { data: facture, error: insertError } = await supabase
+    .from('factures')
+    .insert({
+      projet_id: null,
+      client_id: clientId,
+      date_emission: dateEmissionStr,
+      date_echeance: dateEcheanceStr,
+      mois_concerne: today.toISOString().slice(0, 7),
+      montant_ht: totalHt,
+      taux_tva: tauxTva,
+      montant_tva: montantTva,
+      montant_ttc: montantTtc,
+      statut: 'a_emettre',
+      est_avoir: false,
+      created_by: user.id,
+    })
+    .select('id')
+    .single();
+
+  if (insertError || !facture) {
+    logger.error('actions.factures', 'createFreeBrouillon insert failed', {
+      error: insertError,
+      clientId,
+    });
+    return {
+      success: false,
+      error: insertError?.message ?? 'Échec de la création du brouillon',
+    };
+  }
+
+  const { error: lignesError } = await supabase.from('facture_lignes').insert(
+    lignes.map((l) => ({
+      facture_id: facture.id,
+      contrat_id: null,
+      description: l.description,
+      montant_ht: l.montantHt,
+      mois_relatif: 0,
+      quote_part: 0,
+      npec_snapshot: 0,
+      taux_commission_snapshot: 0,
+    })),
+  );
+
+  if (lignesError) {
+    // Best-effort cleanup : la facture (brouillon, statut a_emettre, ref NULL,
+    // numero_seq NULL) peut etre supprimee car elle ne consomme pas de numero
+    // gapless. La RLS factures_delete_brouillon_policy l'autorise.
+    await supabase.from('factures').delete().eq('id', facture.id);
+    logger.error('actions.factures', 'createFreeBrouillon lignes failed', {
+      factureId: facture.id,
+      error: lignesError,
+    });
+    return { success: false, error: lignesError.message };
+  }
+
+  logAudit(
+    'free_brouillon_created',
+    'facture',
+    facture.id,
+    {
+      clientId,
+      lignesCount: lignes.length,
+      montantHt: totalHt,
+    },
+    user.id,
+  );
+
+  revalidatePath('/facturation');
 
   return { success: true, id: facture.id };
 }

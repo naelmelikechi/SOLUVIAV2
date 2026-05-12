@@ -7,9 +7,14 @@ export {
   createFactures,
   createFactureFromEvents,
   createBlankBrouillon,
+  createFreeBrouillon,
   deleteBrouillon,
 } from './brouillons';
-export type { SelectedEvent, BlankBrouillonLigne } from './brouillons';
+export type {
+  SelectedEvent,
+  BlankBrouillonLigne,
+  FreeLigne,
+} from './brouillons';
 
 export { computeProrataAvoir, createAvoir } from './avoirs';
 export type { ProrataBreakdownItem } from './avoirs';

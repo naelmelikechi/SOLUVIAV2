@@ -55,6 +55,9 @@ interface RecordedOp {
 interface MockRows {
   facture?: { id: string; statut: string; est_avoir?: boolean } | null;
   lignesCount?: number;
+  // Si true, les lignes generees auront contract_number vide (declenche le
+  // garde DECA OPCO manquant). Par defaut chaque ligne a un DECA valide.
+  missingDeca?: boolean;
   updatedFacture?: { id: string; ref: string; statut: string } | null;
   fetchError?: { message: string } | null;
   updateError?: { message: string } | null;
@@ -89,8 +92,22 @@ function buildSupabaseMock(rows: MockRows) {
         return Promise.resolve({ data: null, error: null });
       },
       then(resolve: (v: unknown) => unknown) {
-        // Cas chained-then sans .single() : on retourne ce qui ressemble au
-        // "select count head" qui est `await`ed directement.
+        // Cas chained-then sans .single() : on retourne soit un tableau de
+        // lignes (emission.ts lit `data` directement), soit un count (pour
+        // les autres callsites historiques).
+        if (op.table === 'facture_lignes') {
+          const n = rows.lignesCount ?? 0;
+          const data = Array.from({ length: n }, (_, i) => ({
+            id: `ligne-${i + 1}`,
+            contrat: {
+              ref: `CTR-0000${i + 1}`,
+              contract_number: rows.missingDeca ? '' : `DECA-${i + 1}`,
+              apprenant_nom: 'Doe',
+              apprenant_prenom: 'John',
+            },
+          }));
+          return Promise.resolve({ data, error: null }).then(resolve);
+        }
         return Promise.resolve({
           count: rows.lignesCount ?? 0,
           error: null,

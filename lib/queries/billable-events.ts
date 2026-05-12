@@ -64,12 +64,17 @@ export interface BillableEvent {
   /**
    * Raison du verrouillage si status='locked'. Permet a l UI d afficher
    * le bon badge/tooltip.
-   * - 'opposite_billed' : le type oppose (engagement vs opco_step) est
-   *                       deja facture pour ce contrat (regle d exclusion)
-   * - 'missing_deca'    : contract_number (DECA OPCO) absent, on refuse
-   *                       de facturer pour eviter le rejet client
+   * - 'opposite_billed'    : le type oppose (engagement vs opco_step) est
+   *                          deja facture pour ce contrat (regle d exclusion)
+   * - 'missing_deca'       : contract_number (DECA OPCO) absent, on refuse
+   *                          de facturer pour eviter le rejet client
+   * - 'unknown_line_type'  : une ligne du bordereau OPCO du contrat a un
+   *                          line_type ni whiteliste ni blackliste. Voir
+   *                          unknown_line_types pour la liste, et
+   *                          lib/eduvia/line-types.ts pour la classification.
    */
-  lock_reason?: 'opposite_billed' | 'missing_deca';
+  lock_reason?: 'opposite_billed' | 'missing_deca' | 'unknown_line_type';
+  unknown_line_types?: string[];
 }
 
 export interface ProjetBillableEvents {

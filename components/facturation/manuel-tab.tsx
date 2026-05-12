@@ -199,7 +199,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
   const onPrepare = () => {
     if (!projet) return;
     if (totals.count === 0) {
-      toast.error('Selectionnez au moins un evenement');
+      toast.error('Sélectionnez au moins un événement');
       return;
     }
     const payload: SelectedEvent[] = [];
@@ -254,7 +254,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
               }}
             >
               <SelectTrigger className="min-w-[280px]">
-                <SelectValue placeholder="Selectionner un projet" />
+                <SelectValue placeholder="Sélectionner un projet" />
               </SelectTrigger>
               <SelectContent>
                 {projets.map((p) => (

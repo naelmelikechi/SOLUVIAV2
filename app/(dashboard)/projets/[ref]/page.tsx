@@ -25,14 +25,7 @@ import { ProjetQualiteSection } from '@/components/projets/projet-qualite-sectio
 import { ProjetContratsTable } from '@/components/projets/projet-contrats-table';
 import { ProjetStatCards } from '@/components/projets/projet-stat-cards';
 import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
-import {
-  ProjetEcheancierSection,
-  ProjetEcheancierManualPlaceholder,
-} from '@/components/projets/projet-echeancier-section';
-import {
-  listEcheancierTemplates,
-  getProjetEcheancierConfig,
-} from '@/lib/queries/echeanciers';
+import { ProjetEcheancierManualPlaceholder } from '@/components/projets/projet-echeancier-section';
 import { ProjetPerformanceVolets } from '@/components/projets/projet-performance-volets';
 import { getProjetPerformance } from '@/lib/queries/projet-performance';
 import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
@@ -70,8 +63,6 @@ export default async function ProjetDetailPage({
     documents,
     rdvsFormateurs,
     performance,
-    echeancierTemplates,
-    echeancierConfig,
   ] = await Promise.all([
     authUser
       ? supabase.from('users').select('role').eq('id', authUser.id).single()
@@ -82,8 +73,6 @@ export default async function ProjetDetailPage({
     getDocumentsByProjetId(projet.id),
     getRdvFormateursByProjetId(projet.id),
     getProjetPerformance(projet.id),
-    listEcheancierTemplates(),
-    getProjetEcheancierConfig(projet.id),
   ]);
 
   const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
@@ -101,7 +90,7 @@ export default async function ProjetDetailPage({
         Retour aux projets
       </Link>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <ProjetDetailHeader projet={projet} canEditBillingMode={userIsAdmin} />
+        <ProjetDetailHeader projet={projet} />
         {userIsAdmin && (
           <ProjetDuplicateButton
             projetId={projet.id}
@@ -127,17 +116,7 @@ export default async function ProjetDetailPage({
       </div>
 
       <div className="mb-6">
-        {projet.billing_mode === 'manual' ? (
-          <ProjetEcheancierManualPlaceholder />
-        ) : (
-          <ProjetEcheancierSection
-            projetId={projet.id}
-            templates={echeancierTemplates}
-            currentTemplateId={echeancierConfig?.echeancier_template_id ?? null}
-            currentOverride={echeancierConfig?.echeancier_override}
-            isAdmin={userIsAdmin}
-          />
-        )}
+        <ProjetEcheancierManualPlaceholder />
       </div>
 
       <ProjetContratsTable contrats={contrats} />

@@ -415,16 +415,6 @@ export function NewFactureDialog({
                               {p.client_raison_sociale}
                             </span>
                           </div>
-                          <span
-                            className={cn(
-                              'shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium',
-                              p.billing_mode === 'auto'
-                                ? 'bg-primary/10 text-primary'
-                                : 'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {p.billing_mode === 'auto' ? 'Auto' : 'Manuel'}
-                          </span>
                         </button>
                       </li>
                     );

@@ -7,7 +7,7 @@ import {
 } from '@/lib/queries/factures';
 import { listAjustementsPending } from '@/lib/queries/ajustements';
 import {
-  listManualProjets,
+  listBillableProjets,
   getBillableEvents,
   type ProjetBillableEvents,
 } from '@/lib/queries/billable-events';
@@ -30,12 +30,12 @@ export default async function FacturationPage() {
     getEcheancesPending(),
     listAjustementsPending(),
     getBrouillons(),
-    listManualProjets(),
+    listBillableProjets(),
     listProjetsForFacturation(),
   ]);
 
-  // Charge les events facturables pour chaque projet manuel (en parallele).
-  // Si pas de projet manuel, on passe un tableau vide a l'onglet Manuel.
+  // Charge les events facturables pour chaque projet billable (en parallele).
+  // Si pas de projet billable, on passe un tableau vide a l'onglet facturation.
   const manualProjetsEvents: ProjetBillableEvents[] = (
     await Promise.all(manualProjetsList.map((p) => getBillableEvents(p.id)))
   ).filter((p): p is ProjetBillableEvents => p !== null);

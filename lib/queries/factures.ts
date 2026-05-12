@@ -51,7 +51,7 @@ export async function getBrouillons() {
       id, date_emission, date_echeance, mois_concerne,
       montant_ht, taux_tva, montant_tva, montant_ttc,
       est_avoir, avoir_motif, facture_origine_id, created_at,
-      projet:projets!factures_projet_id_fkey(id, ref, billing_mode),
+      projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, is_demo),
       lignes:facture_lignes(id, description, montant_ht, event_type, event_source_id,
         contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
@@ -132,7 +132,7 @@ export async function getProjetActiveContratsForFacturation(projetId: string) {
     supabase
       .from('projets')
       .select(
-        'id, ref, taux_commission, billing_mode, client_id, client:clients!projets_client_id_fkey(id, raison_sociale)',
+        'id, ref, taux_commission, client_id, client:clients!projets_client_id_fkey(id, raison_sociale)',
       )
       .eq('id', projetId)
       .maybeSingle(),
@@ -155,7 +155,6 @@ export async function getProjetActiveContratsForFacturation(projetId: string) {
     clientId: projet.client_id,
     clientRaisonSociale: projet.client?.raison_sociale ?? '',
     tauxCommission: Number(projet.taux_commission ?? 10),
-    billingMode: projet.billing_mode as 'auto' | 'manual',
     contrats: contrats ?? [],
   };
 }
@@ -165,15 +164,15 @@ export type ProjetForFacturation = NonNullable<
 >;
 
 // ---------------------------------------------------------------------------
-// listProjetsForFacturation : liste tous les projets actifs (auto + manual)
-// pour le selecteur de la modale "Nouvelle facture" from-scratch.
+// listProjetsForFacturation : liste tous les projets actifs pour le
+// selecteur de la modale "Nouvelle facture" from-scratch.
 // ---------------------------------------------------------------------------
 export async function listProjetsForFacturation() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('projets')
     .select(
-      `id, ref, billing_mode, taux_commission,
+      `id, ref, taux_commission,
        client:clients!projets_client_id_fkey!inner(id, raison_sociale, is_demo, archive)`,
     )
     .eq('client.archive', false)
@@ -188,7 +187,6 @@ export async function listProjetsForFacturation() {
   return (data ?? []).map((p) => ({
     id: p.id,
     ref: p.ref ?? '',
-    billing_mode: p.billing_mode as 'auto' | 'manual',
     taux_commission: Number(p.taux_commission ?? 10),
     client_id: p.client?.id ?? '',
     client_raison_sociale: p.client?.raison_sociale ?? '',

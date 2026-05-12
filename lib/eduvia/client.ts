@@ -153,6 +153,23 @@ export interface EduviaInvoiceForecastStep {
   updated_at: string;
 }
 
+/**
+ * Ligne d'un bordereau OPCO emis. Renvoyee par l'endpoint non documente
+ * GET /api/v1/invoices/:id/lines. Champ `line_type` typant : valeurs connues
+ * 'PEDAGOGIE' (commissionnable Soluvia) et 'PREMIEREQUIPEMENT' (matos info,
+ * jamais commissionne). Voir lib/eduvia/line-types.ts pour la classification.
+ */
+export interface EduviaInvoiceLine {
+  id: number;
+  invoice_id: number;
+  amount: number;
+  line_type: string;
+  quantity: number;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface EduviaProgression {
   contract_id: number;
   formation_id: number;
@@ -400,4 +417,21 @@ export async function fetchStatus(
 ): Promise<EduviaStatus> {
   const baseUrl = baseUrlFrom(instanceUrl);
   return fetchJson<EduviaStatus>(`${baseUrl}/api/v1/status`, apiKey);
+}
+
+/**
+ * Fetch les lignes d'un bordereau OPCO emis.
+ * Endpoint non documente dans l'OpenAPI publique mais actif et stable.
+ * Decouvert 2026-05-12 (voir spec docs/superpowers/specs/2026-05-12-base-commission-pedago-design.md).
+ */
+export async function fetchInvoiceLines(
+  instanceUrl: string,
+  apiKey: string,
+  invoiceId: number,
+): Promise<EduviaInvoiceLine[]> {
+  return fetchList<EduviaInvoiceLine>(
+    instanceUrl,
+    apiKey,
+    `invoices/${invoiceId}/lines`,
+  );
 }

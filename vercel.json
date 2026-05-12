@@ -2,10 +2,6 @@
   "regions": ["cdg1"],
   "crons": [
     {
-      "path": "/api/cron/echeances",
-      "schedule": "0 2 1 * *"
-    },
-    {
       "path": "/api/cron/snapshot",
       "schedule": "0 3 1 * *"
     },

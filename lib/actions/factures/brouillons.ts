@@ -558,8 +558,8 @@ export async function createFactureFromEvents(params: {
 
   // 6. Calcule montants
   //
-  // Convention metier (mode billing_mode='manual', actuellement HEOL) :
-  // la commission Soluvia est exprimee TTC dans le contrat client.
+  // Convention metier (HEOL) : la commission Soluvia est exprimee TTC
+  // dans le contrat client.
   // Concretement : `montant_commissionne` (= base * taux/100) represente le
   // total TTC, TVA INCLUSE. On derive HT/TVA a rebours pour que la facture
   // affiche bien Total TTC = montant attendu par le client.
@@ -569,6 +569,56 @@ export async function createFactureFromEvents(params: {
   //                     step_number=1 AND invoice_state IS NOT NULL
   //                     (= metrique "engages" cote Eduvia)
   //   - 'opco_step'   : eduvia_invoice_steps.total_amount du step regle
+  // Audit log : pour chaque event utilisé dans le calcul, comparer la base
+  // (SUM lines PEDAGOGIE) au champ including_pedagogie_amount du step Eduvia.
+  // Diverge attendu sur les invoices HEOL emis avant 2026-05-06 (arrondi
+  // Eduvia a l'euro entier dans les lignes, fix le 2026-05-06). Sinon ecart
+  // = 0. Un ecart sur un invoice recent doit declencher une investigation.
+  {
+    const stepInvoiceIds = Array.from(
+      new Set(
+        resolved.flatMap((e) => live.auditInvoiceIdsBySource.get(e.source_id) ?? []),
+      ),
+    );
+    if (stepInvoiceIds.length > 0) {
+      const [{ data: stepsForAudit }, { data: linesForAudit }] = await Promise.all([
+        supabase
+          .from('eduvia_invoice_steps')
+          .select('eduvia_invoice_id, including_pedagogie_amount, contrat_id')
+          .in('eduvia_invoice_id', stepInvoiceIds),
+        supabase
+          .from('eduvia_invoice_lines')
+          .select('eduvia_invoice_id, amount')
+          .in('eduvia_invoice_id', stepInvoiceIds)
+          .eq('line_type', 'PEDAGOGIE'),
+      ]);
+
+      const linesByInvoice = new Map<number, number>();
+      for (const l of linesForAudit ?? []) {
+        if (l.eduvia_invoice_id == null) continue;
+        linesByInvoice.set(
+          l.eduvia_invoice_id,
+          (linesByInvoice.get(l.eduvia_invoice_id) ?? 0) + Number(l.amount),
+        );
+      }
+      for (const s of stepsForAudit ?? []) {
+        if (s.eduvia_invoice_id == null) continue;
+        const linesPedago = linesByInvoice.get(s.eduvia_invoice_id) ?? 0;
+        const stepPedago = Number(s.including_pedagogie_amount ?? 0);
+        const ecart = Math.round((stepPedago - linesPedago) * 100) / 100;
+        if (Math.abs(ecart) > 0.01) {
+          logger.info('actions.factures', 'ecart pedago lines vs step', {
+            invoice_id: s.eduvia_invoice_id,
+            contrat_id: s.contrat_id,
+            step_pedago: stepPedago,
+            lines_pedago: linesPedago,
+            ecart,
+          });
+        }
+      }
+    }
+  }
+
   const tauxTva = 20;
   const { totalTtc, totalHt, montantTva, lignesHt } =
     computeFactureTotauxTtcInclus(resolved, tauxTva);

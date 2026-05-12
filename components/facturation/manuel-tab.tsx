@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { FileText, Lock, CheckCircle2 } from 'lucide-react';
+import { FileText, Lock, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 import {
   createFactureFromEvents,
@@ -406,7 +406,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                 e.lock_reason === 'missing_deca' ? (
                                   <Tooltip>
                                     <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
-                                      <Lock className="h-3 w-3" />
+                                      <AlertTriangle className="h-3 w-3" />
                                       <span>
                                         {'Verrouillé'} : DECA manquant
                                       </span>
@@ -418,6 +418,31 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                       <div className="text-xs">
                                         {
                                           'Le numéro DECA OPCO de ce contrat est absent. Renseignez-le côté Eduvia avant de facturer (sinon le client refuserait la facture).'
+                                        }
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : e.lock_reason === 'unknown_line_type' ? (
+                                  <Tooltip>
+                                    <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
+                                      <AlertTriangle className="h-3 w-3" />
+                                      <span>
+                                        {'Verrouillé'} : type(s) OPCO inconnu(s)
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="top"
+                                      className="max-w-xs px-3 py-2"
+                                    >
+                                      <div className="text-xs">
+                                        {
+                                          'Type(s) de ligne OPCO inconnu(s) : '
+                                        }
+                                        <span className="font-mono">
+                                          {(e.unknown_line_types ?? []).join(', ')}
+                                        </span>
+                                        {
+                                          '. Décision admin requise dans lib/eduvia/line-types.ts.'
                                         }
                                       </div>
                                     </TooltipContent>

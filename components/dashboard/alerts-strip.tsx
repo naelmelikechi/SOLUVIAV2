@@ -32,13 +32,13 @@ export function AlertsStrip({ alerts }: { alerts: Alert[] }) {
     <div className="border-border/60 bg-card flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border px-3 py-2 text-xs">
       {alerts.map((a) => (
         <Link
-          key={a.title}
+          key={a.href}
           href={a.href}
           className="hover:text-foreground text-muted-foreground flex items-center gap-1.5 transition-colors"
         >
           <span
             className={cn(
-              'inline-flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white',
+              'inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
               dotColor[a.color],
             )}
           >

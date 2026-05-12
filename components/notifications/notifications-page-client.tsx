@@ -19,6 +19,7 @@ import {
   deleteNotification,
 } from '@/lib/actions/notifications';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/shared/empty-state';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -121,15 +122,11 @@ export function NotificationsPageClient({
 
   if (notifications.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <BellOff className="text-muted-foreground mb-4 h-12 w-12" />
-        <p className="text-muted-foreground text-lg font-medium">
-          Aucune notification
-        </p>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Vous serez notifié lorsque quelque chose requiert votre attention.
-        </p>
-      </div>
+      <EmptyState
+        icon={BellOff}
+        title="Aucune notification"
+        description="Vous serez notifié lorsque quelque chose requiert votre attention."
+      />
     );
   }
 

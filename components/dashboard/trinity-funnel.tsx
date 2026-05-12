@@ -9,6 +9,7 @@ export interface TrinityFunnelProps {
   productionTrend: number;
   editMode?: boolean;
   onHide?: () => void;
+  periodeLabel?: string;
 }
 
 function pct(value: number, total: number): number {
@@ -23,6 +24,7 @@ export function TrinityFunnel({
   productionTrend,
   editMode,
   onHide,
+  periodeLabel,
 }: TrinityFunnelProps) {
   const pctFacture = pct(facture, production);
   const pctEncaisse = pct(encaisse, production);
@@ -31,7 +33,13 @@ export function TrinityFunnel({
   const trendUp = productionTrend > 0;
 
   return (
-    <div className="border-border/60 bg-border/60 relative grid grid-cols-1 gap-px overflow-hidden rounded-xl border md:grid-cols-3">
+    <div>
+      {periodeLabel && (
+        <div className="text-muted-foreground mb-2 text-[10px] font-semibold tracking-wider uppercase">
+          Période : {periodeLabel}
+        </div>
+      )}
+      <div className="border-border/60 bg-border/60 relative grid grid-cols-1 gap-px overflow-hidden rounded-xl border md:grid-cols-3">
       {editMode && (
         <button
           type="button"
@@ -128,5 +136,7 @@ export function TrinityFunnel({
         </div>
       </div>
     </div>
+    </div>
   );
 }
+

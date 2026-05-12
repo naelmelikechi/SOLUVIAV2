@@ -73,6 +73,31 @@ describe('TrinityFunnel', () => {
     expect(screen.getByText(/200\s*€.*reste à facturer/i)).toBeDefined();
   });
 
+  it('affiche le label de periode quand fourni', () => {
+    render(
+      <TrinityFunnel
+        production={100}
+        facture={100}
+        encaisse={100}
+        productionTrend={0}
+        periodeLabel="Mai 2026"
+      />,
+    );
+    expect(screen.getByText(/Période : Mai 2026/)).toBeDefined();
+  });
+
+  it("n'affiche pas la ligne periode quand absent", () => {
+    render(
+      <TrinityFunnel
+        production={100}
+        facture={100}
+        encaisse={100}
+        productionTrend={0}
+      />,
+    );
+    expect(screen.queryByText(/Période :/)).toBeNull();
+  });
+
   it('masque la card via editMode + onHide', () => {
     const onHide = vi.fn();
     render(

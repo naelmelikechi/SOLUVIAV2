@@ -93,7 +93,7 @@ export function DashboardPageClient({
   monthlyTrend,
   invoiceBreakdown,
   weekHours,
-  periode: _periode,
+  periode,
 }: {
   data: DashboardData;
   financials: DashboardFinancials;
@@ -281,6 +281,7 @@ export function DashboardPageClient({
           productionTrend={productionTrend}
           editMode={editMode}
           onHide={() => toggle('trinity')}
+          periodeLabel={periode?.label}
         />,
       )}
 

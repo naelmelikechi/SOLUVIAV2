@@ -1,27 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, cloneElement } from 'react';
-import {
-  TrendingUp,
-  FileText,
-  CircleCheck,
-  AlertTriangle,
-  ClipboardList,
-  Users,
-  GraduationCap,
-  BookOpen,
-  XCircle,
-  Activity,
-  ShieldCheck,
-  Calendar,
-  ArrowUpRight,
-  ArrowDownRight,
-  Download,
-  CheckCircle2,
-  Clock,
-} from 'lucide-react';
-
+import { useState } from 'react';
+import { Download, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { Card } from '@/components/ui/card';
@@ -42,9 +23,12 @@ import type {
 } from '@/lib/queries/dashboard';
 import type { Periode } from '@/lib/utils/dashboard-periode';
 import { RevenueTrendChart } from '@/components/dashboard/revenue-trend-chart';
-import { Sparkline } from '@/components/dashboard/sparkline';
-import { useHiddenKpis } from '@/components/dashboard/use-hidden-kpis';
 import { InvoiceStatusChart } from '@/components/dashboard/invoice-status-chart';
+import { useHiddenKpis } from '@/components/dashboard/use-hidden-kpis';
+import { TrinityFunnel } from '@/components/dashboard/trinity-funnel';
+import { ContextChips } from '@/components/dashboard/context-chips';
+import { AlertsStrip, type Alert } from '@/components/dashboard/alerts-strip';
+import { MiniKpiCard } from '@/components/dashboard/mini-kpi-card';
 
 // ============================================================
 // Types
@@ -59,170 +43,6 @@ export interface DashboardData {
   contratsSansProgression: number;
 }
 
-type Alert = {
-  count: number;
-  title: string;
-  description: string;
-  href: string;
-  color: 'red' | 'orange' | 'blue';
-};
-
-// ============================================================
-// Alert color mapping
-// ============================================================
-
-const alertColorMap = {
-  red: {
-    bg: 'bg-red-500',
-    ring: 'ring-red-500/20',
-    hoverBg: 'hover:bg-red-50 dark:hover:bg-red-950/20',
-  },
-  orange: {
-    bg: 'bg-orange-500',
-    ring: 'ring-orange-500/20',
-    hoverBg: 'hover:bg-orange-50 dark:hover:bg-orange-950/20',
-  },
-  blue: {
-    bg: 'bg-blue-500',
-    ring: 'ring-blue-500/20',
-    hoverBg: 'hover:bg-blue-50 dark:hover:bg-blue-950/20',
-  },
-};
-
-// ============================================================
-// KPI Card sub-component
-// ============================================================
-
-const kpiColorMap = {
-  green: {
-    bg: 'bg-green-500/10',
-    text: 'text-green-600 dark:text-green-400',
-  },
-  blue: {
-    bg: 'bg-blue-500/10',
-    text: 'text-blue-600 dark:text-blue-400',
-  },
-  red: {
-    bg: 'bg-red-500/10',
-    text: 'text-red-600 dark:text-red-400',
-  },
-  purple: {
-    bg: 'bg-purple-500/10',
-    text: 'text-purple-600 dark:text-purple-400',
-  },
-  orange: {
-    bg: 'bg-orange-500/10',
-    text: 'text-orange-600 dark:text-orange-400',
-  },
-};
-
-interface KpiCardProps {
-  label: string;
-  value: string;
-  trend?: string;
-  trendUp?: boolean;
-  isNegativeMetric?: boolean;
-  subtitle?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: keyof typeof kpiColorMap;
-  /** Optionnel : valeurs des 12 derniers mois pour mini-graphique */
-  sparkline?: number[];
-  /** Mode édition : affiche un × pour masquer cette card */
-  editMode?: boolean;
-  onHide?: () => void;
-}
-
-const sparklineColorMap: Record<keyof typeof kpiColorMap, string> = {
-  green: '#10b981',
-  blue: '#3b82f6',
-  red: '#ef4444',
-  orange: '#f59e0b',
-  purple: '#8b5cf6',
-};
-
-function KpiCard({
-  label,
-  value,
-  trend,
-  trendUp,
-  isNegativeMetric,
-  subtitle,
-  icon: Icon,
-  color,
-  sparkline,
-  editMode,
-  onHide,
-}: KpiCardProps) {
-  const colors = kpiColorMap[color];
-  const trendIsGood =
-    trendUp !== undefined ? (isNegativeMetric ? !trendUp : trendUp) : undefined;
-
-  const showSparkline = sparkline && sparkline.length > 0;
-
-  return (
-    <Card className="relative p-5 transition-shadow hover:shadow-md">
-      {editMode && onHide && (
-        <button
-          type="button"
-          onClick={onHide}
-          aria-label={`Masquer ${label}`}
-          className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute top-2 right-2 inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs transition-colors"
-        >
-          ×
-        </button>
-      )}
-      <div className="mb-2 flex items-center gap-2">
-        <div
-          className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-lg',
-            colors.bg,
-          )}
-        >
-          <Icon className={cn('h-4 w-4', colors.text)} />
-        </div>
-        <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-          {label}
-        </span>
-      </div>
-      <div className="flex items-end justify-between gap-2">
-        <div className="text-2xl font-bold tabular-nums">{value}</div>
-        {showSparkline && (
-          <Sparkline
-            values={sparkline}
-            color={sparklineColorMap[color]}
-            height={32}
-            width={88}
-          />
-        )}
-      </div>
-      {trend && (
-        <div
-          className={cn(
-            'mt-1 flex items-center gap-1 text-xs',
-            trendIsGood
-              ? 'text-green-600 dark:text-green-400'
-              : 'text-red-600 dark:text-red-400',
-          )}
-        >
-          {trendUp ? (
-            <ArrowUpRight className="h-3 w-3" />
-          ) : (
-            <ArrowDownRight className="h-3 w-3" />
-          )}
-          <span className="font-medium tabular-nums">vs M-1 : {trend}</span>
-        </div>
-      )}
-      {subtitle && (
-        <p className="text-muted-foreground mt-1 text-xs">{subtitle}</p>
-      )}
-    </Card>
-  );
-}
-
-// ============================================================
-// Evolution table data
-// ============================================================
-
 interface EvolutionRow {
   label: string;
   current: string;
@@ -231,6 +51,10 @@ interface EvolutionRow {
   unit: '%' | 'pt';
   positiveIsGood: boolean;
 }
+
+// ============================================================
+// Export helper
+// ============================================================
 
 function handleExportExcel(evolutionData: EvolutionRow[]) {
   const headers = ['KPI', 'Actuel', 'Précédent', 'Évolution'];
@@ -247,7 +71,7 @@ function handleExportExcel(evolutionData: EvolutionRow[]) {
     .map((r) => r.map((c) => `"${c}"`).join(';'))
     .join('\n');
 
-  const blob = new Blob(['\uFEFF' + csvContent], {
+  const blob = new Blob(['﻿' + csvContent], {
     type: 'text/csv;charset=utf-8;',
   });
   const url = URL.createObjectURL(blob);
@@ -279,27 +103,31 @@ export function DashboardPageClient({
   weekHours: number;
   periode?: Periode;
 }) {
-  // Mode personnalisation : permet de masquer des KPIs (persistance localStorage)
   const [editMode, setEditMode] = useState(false);
   const { isHidden, toggle, hiddenKeys, restoreAll } = useHiddenKpis();
 
-  // Helper : rend un KpiCard ou null si la cle est masquee, et propage
-  // editMode + onHide automatiquement.
-  const wrapKpi = (key: string, card: React.ReactElement<KpiCardProps>) => {
-    if (isHidden(key)) return null;
-    if (!editMode) return card;
-    return cloneElement(card, { editMode: true, onHide: () => toggle(key) });
-  };
+  const {
+    totalProduction,
+    totalFacture,
+    totalEncaisse,
+    totalEnRetard,
+    totalAFacturer,
+    nbApprenantsActifs,
+    nbFormationsEnCours,
+    nbAbandons,
+    pedagogieAvgPct,
+    nbApprenantsRqth,
+    rqthPct,
+    tauxSaisieTemps,
+    tempsNonSaisi,
+  } = financials;
 
-  // ---- Alerts from real data ----
-  const tempsNonSaisi = financials.tempsNonSaisi;
-
+  // ---- Alerts list (4 possible items, filtered to non-null) ----
   const alerts: Alert[] = [
     data.facturesEnRetard > 0
       ? {
           count: data.facturesEnRetard,
           title: 'Factures en retard',
-          description: 'Paiements non reçus après échéance',
           href: '/facturation',
           color: 'red' as const,
         }
@@ -307,8 +135,7 @@ export function DashboardPageClient({
     data.echeancesAFacturer > 0
       ? {
           count: data.echeancesAFacturer,
-          title: 'Échéances à facturer',
-          description: 'Échéances prêtes à émettre',
+          title: 'Échéances prêtes',
           href: '/facturation',
           color: 'blue' as const,
         }
@@ -316,8 +143,7 @@ export function DashboardPageClient({
     tempsNonSaisi > 0
       ? {
           count: tempsNonSaisi,
-          title: 'Temps non saisi',
-          description: `${tempsNonSaisi} jour(s) sans saisie cette semaine`,
+          title: 'Jours sans saisie',
           href: '/temps',
           color: 'orange' as const,
         }
@@ -326,35 +152,15 @@ export function DashboardPageClient({
       ? {
           count: data.contratsSansProgression,
           title: 'Contrats sans progression',
-          description: 'Aucune saisie de temps depuis 30 jours',
           href: '/projets',
           color: 'orange' as const,
         }
       : null,
   ].filter((a): a is Alert => a !== null);
 
-  // ---- Financial KPIs from real data ----
-  const {
-    totalProduction,
-    totalFacture,
-    totalEncaisse,
-    totalEnRetard,
-    nbApprenantsActifs,
-    nbFormationsEnCours,
-    nbAbandons,
-    pedagogieAvgPct,
-    nbApprenantsRqth,
-    rqthPct,
-    tauxSaisieTemps,
-  } = financials;
-
   // ---- M-1 evolution helpers ----
   const hasPrevious = Object.keys(previousKpis).length > 0;
 
-  /**
-   * Compute % change between current and previous values.
-   * Returns 0 if no previous data or division by zero.
-   */
   function computeEvolution(
     current: number,
     previousValue: number | undefined,
@@ -368,7 +174,6 @@ export function DashboardPageClient({
   // Map current KPIs to their M-1 snapshot keys
   const prevTotalFacture = previousKpis['total_facture_ht'];
   const prevTotalEncaisse = previousKpis['total_encaisse'];
-  const _prevEnRetard = previousKpis['factures_en_retard'];
   const prevProjetsActifs = previousKpis['projets_actifs'];
   const prevContratsActifs = previousKpis['contrats_actifs'];
 
@@ -449,104 +254,44 @@ export function DashboardPageClient({
     },
   ];
 
-  // ---- Trends for KPI cards ----
-  function trendString(change: number): string | undefined {
-    if (change === 0) return undefined;
-    return `${change > 0 ? '+' : ''}${change}%`;
-  }
-
   const productionTrend = computeEvolution(totalProduction, prevProduction);
-  const factureTrend = computeEvolution(totalFacture, prevTotalFacture);
-  const encaisseTrend = computeEvolution(totalEncaisse, prevTotalEncaisse);
-  const retardTrend = computeEvolution(totalEnRetard, prevEnRetardAmount);
+
+  const renderIfVisible = (key: string, node: React.ReactNode) =>
+    isHidden(key) ? null : node;
 
   return (
-    <div className="space-y-6">
-      {/* ========== Alerts Block ========== */}
-      {alerts.length > 0 ? (
-        <Card className="divide-y p-0">
-          {alerts.map((alert) => {
-            const colors = alertColorMap[alert.color];
-            return (
-              <Link
-                key={alert.title}
-                href={alert.href}
-                className={cn(
-                  'flex items-center gap-4 px-5 py-3.5 transition-colors first:rounded-t-xl last:rounded-b-xl',
-                  colors.hoverBg,
-                )}
-              >
-                <div
-                  className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ring-4',
-                    colors.bg,
-                    colors.ring,
-                  )}
-                >
-                  {alert.count}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{alert.title}</p>
-                  <p className="text-muted-foreground text-xs">
-                    {alert.description}
-                  </p>
-                </div>
-                <ArrowUpRight className="text-muted-foreground h-4 w-4 shrink-0" />
-              </Link>
-            );
-          })}
-        </Card>
-      ) : (
-        <Card className="flex items-center gap-3 border-green-200 bg-green-50 p-5 dark:border-green-900 dark:bg-green-950/30">
-          <CheckCircle2 className="h-5 w-5 text-green-600" />
-          <div>
-            <p className="text-sm font-semibold text-green-800 dark:text-green-200">
-              Tout est en ordre
-            </p>
-            <p className="text-xs text-green-600 dark:text-green-400">
-              Aucune alerte active
-            </p>
-          </div>
-        </Card>
+    <div className="space-y-5">
+      {/* ========== Alerts ========== */}
+      {renderIfVisible('alerts', <AlertsStrip alerts={alerts} />)}
+
+      {/* ========== Trinity Funnel ========== */}
+      {renderIfVisible(
+        'trinity',
+        <TrinityFunnel
+          production={totalProduction}
+          facture={totalFacture}
+          encaisse={totalEncaisse}
+          productionTrend={productionTrend}
+          editMode={editMode}
+          onHide={() => toggle('trinity')}
+        />,
       )}
 
-      {/* ========== Personal Time Widget ========== */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-muted-foreground text-xs">Votre semaine</p>
-            <p className="text-lg font-bold">
-              {weekHours}h{' '}
-              <span className="text-muted-foreground text-sm font-normal">
-                / 35h
-              </span>
-            </p>
-          </div>
-          <Clock
-            className={cn(
-              'h-5 w-5',
-              weekHours >= 35 ? 'text-green-500' : 'text-orange-500',
-            )}
-          />
-        </div>
-        <div className="bg-muted mt-2 h-1.5 overflow-hidden rounded-full">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all',
-              weekHours >= 35 ? 'bg-green-500' : 'bg-orange-500',
-            )}
-            style={{
-              width: `${Math.min(100, (weekHours / 35) * 100)}%`,
-            }}
-          />
-        </div>
-      </Card>
+      {/* ========== Context Chips ========== */}
+      {renderIfVisible(
+        'chips',
+        <ContextChips
+          enRetard={totalEnRetard}
+          aFacturer={totalAFacturer}
+          weekHours={weekHours}
+        />,
+      )}
 
       {/* ========== Personnalisation toolbar ========== */}
       <div className="flex items-center justify-end gap-2 text-xs">
         {hiddenKeys.size > 0 && (
           <span className="text-muted-foreground">
-            {hiddenKeys.size} KPI(s) masqué(s) ·{' '}
+            {hiddenKeys.size} bloc(s) masqué(s) ·{' '}
             <button
               type="button"
               onClick={restoreAll}
@@ -570,175 +315,123 @@ export function DashboardPageClient({
         </button>
       </div>
 
-      {/* ========== Financial KPIs ========== */}
+      {/* ========== Activite operationnelle ========== */}
       <section>
-        <h2 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
-          Performance financière
-        </h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {wrapKpi(
-            'production',
-            <KpiCard
-              label="Production"
-              value={formatCurrency(totalProduction)}
-              trend={trendString(productionTrend)}
-              trendUp={productionTrend > 0}
-              icon={TrendingUp}
-              color="green"
-              sparkline={monthlyTrend.map((m) => m.production)}
-            />,
-          )}
-          {wrapKpi(
-            'facture',
-            <KpiCard
-              label="Facturé"
-              value={formatCurrency(totalFacture)}
-              trend={trendString(factureTrend)}
-              trendUp={factureTrend > 0}
-              icon={FileText}
-              color="blue"
-              sparkline={monthlyTrend.map((m) => m.facture)}
-            />,
-          )}
-          {wrapKpi(
-            'encaisse',
-            <KpiCard
-              label="Encaissé"
-              value={formatCurrency(totalEncaisse)}
-              trend={trendString(encaisseTrend)}
-              trendUp={encaisseTrend > 0}
-              icon={CircleCheck}
-              color="green"
-              sparkline={monthlyTrend.map((m) => m.encaisse)}
-            />,
-          )}
-          {wrapKpi(
-            'enRetard',
-            <KpiCard
-              label="En retard"
-              value={formatCurrency(totalEnRetard)}
-              trend={trendString(retardTrend)}
-              trendUp={retardTrend > 0}
-              isNegativeMetric
-              icon={AlertTriangle}
-              color="red"
-              sparkline={monthlyTrend.map((m) => m.enRetard)}
-            />,
-          )}
-        </div>
-      </section>
-
-      {/* ========== Operational KPIs ========== */}
-      <section>
-        <h2 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
+        <h2 className="text-muted-foreground mb-3 text-[10px] font-semibold tracking-wider uppercase">
           Activité opérationnelle
         </h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-          {wrapKpi(
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
+          {renderIfVisible(
             'projetsActifs',
-            <KpiCard
+            <MiniKpiCard
               label="Projets actifs"
               value={String(data.projetsActifs)}
               subtitle="en cours de suivi"
-              icon={ClipboardList}
-              color="green"
+              href="/projets"
+              editMode={editMode}
+              onHide={() => toggle('projetsActifs')}
             />,
           )}
-          {wrapKpi(
+          {renderIfVisible(
             'contratsActifs',
-            <KpiCard
-              label="Contrats actifs"
+            <MiniKpiCard
+              label="Contrats"
               value={String(data.contratsActifs)}
               subtitle="tous projets confondus"
-              icon={Users}
-              color="blue"
+              href="/projets"
+              editMode={editMode}
+              onHide={() => toggle('contratsActifs')}
             />,
           )}
-          {wrapKpi(
+          {renderIfVisible(
             'apprenantsActifs',
-            <KpiCard
-              label="Apprenants actifs"
+            <MiniKpiCard
+              label="Apprenants"
               value={String(nbApprenantsActifs)}
               subtitle="contrats en cours"
-              icon={GraduationCap}
-              color="purple"
+              href="/projets"
+              editMode={editMode}
+              onHide={() => toggle('apprenantsActifs')}
             />,
           )}
-          {wrapKpi(
+          {renderIfVisible(
             'formationsEnCours',
-            <KpiCard
+            <MiniKpiCard
               label="Formations"
               value={String(nbFormationsEnCours)}
               subtitle="en cours (Eduvia)"
-              icon={BookOpen}
-              color="blue"
+              href="/projets"
+              editMode={editMode}
+              onHide={() => toggle('formationsEnCours')}
             />,
           )}
-          {wrapKpi(
+          {renderIfVisible(
             'tauxSaisieTemps',
-            <KpiCard
-              label="Taux saisie temps"
+            <MiniKpiCard
+              label="Saisie temps"
               value={`${tauxSaisieTemps}%`}
-              subtitle={`${tempsNonSaisi}j non saisi(s) cette semaine`}
-              icon={Calendar}
-              color={tauxSaisieTemps >= 80 ? 'green' : 'orange'}
+              subtitle="moyenne équipe"
+              href="/temps"
+              editMode={editMode}
+              onHide={() => toggle('tauxSaisieTemps')}
             />,
           )}
         </div>
       </section>
 
-      {/* ========== Qualiopi KPIs ========== */}
+      {/* ========== Qualite & pedagogie ========== */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-            Qualité & pédagogie
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
+            Qualité &amp; pédagogie
           </h2>
           <Link
             href="/qualiopi"
-            className="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium"
+            className="text-primary text-[10px] font-medium hover:underline"
           >
-            <ShieldCheck className="h-3 w-3" />
-            Voir Qualiopi
+            Voir Qualiopi ›
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-          {wrapKpi(
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+          {renderIfVisible(
             'pedagogie',
-            <KpiCard
+            <MiniKpiCard
               label="Progression pédagogie"
               value={`${pedagogieAvgPct}%`}
               subtitle="moyenne contrats actifs"
-              icon={Activity}
-              color={pedagogieAvgPct >= 60 ? 'green' : 'orange'}
+              href="/qualiopi"
+              editMode={editMode}
+              onHide={() => toggle('pedagogie')}
             />,
           )}
-          {wrapKpi(
+          {renderIfVisible(
             'abandons',
-            <KpiCard
+            <MiniKpiCard
               label="Abandons"
               value={String(nbAbandons)}
-              subtitle="contrats résiliés / annulés"
-              icon={XCircle}
-              color={nbAbandons > 0 ? 'red' : 'green'}
-              isNegativeMetric
+              subtitle="résiliés / annulés"
+              href="/projets"
+              editMode={editMode}
+              onHide={() => toggle('abandons')}
             />,
           )}
-          {wrapKpi(
+          {renderIfVisible(
             'rqth',
-            <KpiCard
+            <MiniKpiCard
               label="Apprenants RQTH"
               value={`${rqthPct}%`}
               subtitle={`${nbApprenantsRqth} apprenant(s) en situation de handicap`}
-              icon={Activity}
-              color="purple"
+              href="/projets"
+              editMode={editMode}
+              onHide={() => toggle('rqth')}
             />,
           )}
         </div>
       </section>
 
-      {/* ========== Charts ========== */}
+      {/* ========== Visualisations ========== */}
       <section>
-        <h2 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
+        <h2 className="text-muted-foreground mb-3 text-[10px] font-semibold tracking-wider uppercase">
           Visualisations
         </h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -747,10 +440,10 @@ export function DashboardPageClient({
         </div>
       </section>
 
-      {/* ========== Evolution Table ========== */}
+      {/* ========== Evolution M/M-1 ========== */}
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+          <h2 className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
             Évolution M / M-1
           </h2>
           <Button
@@ -784,10 +477,10 @@ export function DashboardPageClient({
                     <TableCell className="pl-4 font-medium">
                       {row.label}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="num text-right">
                       {row.current}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-right tabular-nums">
+                    <TableCell className="num text-muted-foreground text-right">
                       {row.previous}
                     </TableCell>
                     <TableCell className="pr-4 text-right">
@@ -796,7 +489,7 @@ export function DashboardPageClient({
                       ) : (
                         <span
                           className={cn(
-                            'inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums',
+                            'num inline-flex items-center gap-0.5 text-xs font-semibold',
                             isGood
                               ? 'text-green-600 dark:text-green-400'
                               : 'text-red-600 dark:text-red-400',

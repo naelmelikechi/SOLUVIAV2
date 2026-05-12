@@ -76,6 +76,13 @@ export interface BillableEvent {
    */
   lock_reason?: 'opposite_billed' | 'missing_deca' | 'unknown_line_type';
   unknown_line_types?: string[];
+  /**
+   * Liste des invoice_id Eduvia ayant contribue a `montant_brut` pour cet
+   * event. Utilise par l'audit log a la facturation pour comparer la base
+   * lignes PEDAGOGIE vs eduvia_invoice_steps.including_pedagogie_amount.
+   * Champ technique, prefixe `_` pour signaler "interne / pas pour l'UI".
+   */
+  _stepInvoiceIds?: number[];
 }
 
 export interface ProjetBillableEvents {
@@ -337,6 +344,7 @@ export async function getBillableEvents(
         locked_by: !missingDeca && !hasUnknown ? lockedByOpco : undefined,
         lock_reason,
         unknown_line_types: lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
+        _stepInvoiceIds: Array.from(agg.engagementInvoiceIds).sort(),
       });
     }
 
@@ -371,6 +379,7 @@ export async function getBillableEvents(
         locked_by: !missingDeca && !hasUnknown ? lockedByEngagement : undefined,
         lock_reason,
         unknown_line_types: lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
+        _stepInvoiceIds: [invoiceId],
       });
     }
   }

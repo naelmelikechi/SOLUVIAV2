@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+# Mirror du job CI (sans le build, trop lent ~1m). Toutes les failures CI
+# des 30 derniers runs etaient des tests casses : ce hook les bloque avant
+# push. Pour bypasser en cas d'urgence : git push --no-verify (a eviter).
+
+set -e
+
+echo "[pre-push] lint..."
+npm run lint
+
+echo "[pre-push] typecheck..."
+npm run typecheck
+
+echo "[pre-push] test..."
+npm run test
+
+echo "[pre-push] OK"

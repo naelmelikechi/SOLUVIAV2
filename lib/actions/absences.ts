@@ -87,7 +87,7 @@ export async function createAbsenceAction(
   if (overlap && overlap.length > 0) {
     return {
       success: false,
-      error: 'Une absence existe deja sur cette periode',
+      error: 'Une absence existe déjà sur cette période',
     };
   }
 
@@ -146,7 +146,7 @@ export async function updateAbsenceAction(
   if (overlap && overlap.length > 0) {
     return {
       success: false,
-      error: 'Une autre absence existe deja sur cette periode',
+      error: 'Une autre absence existe déjà sur cette période',
     };
   }
 

@@ -10,7 +10,7 @@ import { logAudit } from '@/lib/utils/audit';
 // Schemas Zod (validation cote serveur, defense en profondeur)
 // ---------------------------------------------------------------------------
 // Pourquoi : RLS gere l'acces, pas les types. Sans ces guards, un client peut
-// poster taux=NaN, billing_mode='garbage' ou un id non-UUID et corrompre la
+// poster taux=NaN ou un id non-UUID et corrompre la
 // donnee ou crasher la query Supabase.
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -38,11 +38,6 @@ const CreateProjetSchema = z.object({
 const UpdateProjetTauxCommissionSchema = z.object({
   projetId: projetIdSchema,
   tauxCommission: tauxCommissionSchema,
-});
-
-const UpdateProjetBillingModeSchema = z.object({
-  projetId: projetIdSchema,
-  mode: z.enum(['auto', 'manual']),
 });
 
 const DuplicateProjetSchema = projetIdSchema;
@@ -176,64 +171,6 @@ export async function updateProjetTauxCommission(
     {
       tauxCommission: rounded,
     },
-    user.id,
-  );
-
-  revalidatePath('/projets');
-  if (updated?.ref) {
-    revalidatePath(`/projets/${updated.ref}`);
-  }
-
-  return { success: true };
-}
-
-export async function updateProjetBillingMode(
-  projetId: string,
-  mode: 'auto' | 'manual',
-): Promise<{ success: boolean; error?: string }> {
-  const parsed = UpdateProjetBillingModeSchema.safeParse({ projetId, mode });
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    const path = issue?.path[0];
-    if (path === 'projetId') {
-      return { success: false, error: 'Projet manquant' };
-    }
-    if (path === 'mode') {
-      return { success: false, error: 'Mode de facturation invalide' };
-    }
-    return {
-      success: false,
-      error: issue?.message ?? 'Donnees invalides',
-    };
-  }
-
-  const auth = await requireAdmin();
-  if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase, user } = auth;
-
-  const { data: updated, error } = await supabase
-    .from('projets')
-    .update({ billing_mode: parsed.data.mode })
-    .eq('id', parsed.data.projetId)
-    .select('ref')
-    .single();
-
-  if (error) {
-    logger.error('actions.projets', 'updateProjetBillingMode failed', {
-      error,
-      projetId: parsed.data.projetId,
-    });
-    return {
-      success: false,
-      error: error.message || 'Erreur lors de la mise à jour du mode',
-    };
-  }
-
-  logAudit(
-    'projet_billing_mode_changed',
-    'projet',
-    parsed.data.projetId,
-    { mode: parsed.data.mode },
     user.id,
   );
 

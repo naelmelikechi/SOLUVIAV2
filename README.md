@@ -98,7 +98,7 @@ boot échoue. Preview et dev n'ont pas cette contrainte.
 - `(auth)` — pages publiques : `/login`, `/forgot-password`, `/set-password`,
   `/mentions-legales`, `/politique-de-confidentialite`
 - `(dashboard)` — application authentifiée : `/projets`, `/facturation`,
-  `/temps`, `/qualite`, `/indicateurs`, `/equipe`, `/admin/*`, etc.
+  `/temps`, `/qualiopi`, `/indicateurs`, `/equipe`, `/admin/*`, etc.
 - `api/` — route handlers :
   - `api/auth/callback` — callback reset password
   - `api/cron/*` — 10 jobs cron (voir `docs/CRONS.md`)

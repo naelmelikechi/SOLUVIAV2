@@ -164,7 +164,7 @@ export interface NavItem {
 
 export const MAIN_NAV_ITEMS: NavItem[] = [
   { href: '/projets', label: 'Projets', icon: ClipboardList },
-  { href: '/qualite', label: 'Qualité', icon: CheckCircle },
+  { href: '/qualiopi', label: 'Qualité', icon: CheckCircle },
   { href: '/temps', label: 'Temps', icon: Clock },
   { href: '/production', label: 'Production', icon: TrendingUp },
   { href: '/facturation', label: 'Facturation', icon: FileText },

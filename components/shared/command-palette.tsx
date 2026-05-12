@@ -59,7 +59,7 @@ const items: CommandPaletteItem[] = [
   },
   {
     label: 'Qualité',
-    href: '/qualite',
+    href: '/qualiopi',
     section: 'Pages',
     icon: ClipboardCheck,
   },

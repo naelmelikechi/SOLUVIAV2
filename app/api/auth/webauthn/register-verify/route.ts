@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       userId: user.id,
     });
     return NextResponse.json(
-      { error: `Trop de tentatives. Reessayez dans ${rl.retryAfter ?? 60}s.` },
+      { error: `Trop de tentatives. Réessayez dans ${rl.retryAfter ?? 60}s.` },
       {
         status: 429,
         headers: { 'Retry-After': String(rl.retryAfter ?? 60) },

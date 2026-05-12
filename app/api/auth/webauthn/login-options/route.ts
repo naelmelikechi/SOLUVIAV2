@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   if (rl.limited) {
     logger.warn('webauthn.login-options', 'rate limit hit', { ip });
     return NextResponse.json(
-      { error: `Trop de tentatives. Reessayez dans ${rl.retryAfter ?? 60}s.` },
+      { error: `Trop de tentatives. Réessayez dans ${rl.retryAfter ?? 60}s.` },
       {
         status: 429,
         headers: { 'Retry-After': String(rl.retryAfter ?? 60) },

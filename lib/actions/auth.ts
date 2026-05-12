@@ -49,7 +49,7 @@ export async function loginAction(
     });
     return {
       success: false,
-      error: `Trop de tentatives. Reessayez dans ${limit.retryAfter}s.`,
+      error: `Trop de tentatives. Réessayez dans ${limit.retryAfter}s.`,
     };
   }
 

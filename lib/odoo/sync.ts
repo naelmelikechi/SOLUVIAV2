@@ -498,14 +498,14 @@ async function pullCancellations(
       // Pas de changement de statut: aucune valeur 'annulee' dans l'enum.
       // On notifie les admins pour traitement manuel.
       const writeDate = move.write_date.slice(0, 10);
-      const message = `⚠️ Facture ${facture.ref ?? '(sans ref)'} annulee cote Odoo le ${writeDate}. A reviser : creer un avoir Soluvia ou suivre selon contexte.`;
+      const message = `⚠️ Facture ${facture.ref ?? '(sans ref)'} annulée côté Odoo le ${writeDate}. À réviser : créer un avoir Soluvia ou suivre selon contexte.`;
 
       // Batch insert : meme contenu de notif pour chaque admin, on evite
       // les N round-trips.
       const notifsToCreate = adminIds.map((adminId) => ({
         type: 'erreur_sync' as const,
         user_id: adminId,
-        titre: 'Facture annulee cote Odoo',
+        titre: 'Facture annulée côté Odoo',
         message,
         lien: facture.ref ? `/facturation/${facture.ref}` : null,
       }));

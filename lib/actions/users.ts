@@ -392,7 +392,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
     return {
       success: false,
       error:
-        "Profil supprime mais l'auth Supabase est restee : contactez un superadmin (procedure dans docs/RUNBOOKS.md).",
+        "Profil supprimé mais l'auth Supabase est restée : contactez un superadmin (procédure dans docs/RUNBOOKS.md).",
     };
   }
 
@@ -634,7 +634,7 @@ export async function resetUserPassword(userId: string): Promise<ActionResult> {
     return {
       success: false,
       error:
-        'Vous ne pouvez pas reinitialiser votre propre mot de passe ici (utilisez Mot de passe oublie).',
+        'Vous ne pouvez pas réinitialiser votre propre mot de passe ici (utilisez Mot de passe oublié).',
     };
   }
 
@@ -651,7 +651,7 @@ export async function resetUserPassword(userId: string): Promise<ActionResult> {
     return {
       success: false,
       error:
-        'Seul un superadmin peut reinitialiser le mot de passe d un administrateur',
+        "Seul un superadmin peut réinitialiser le mot de passe d'un administrateur",
     };
   }
 
@@ -709,7 +709,7 @@ export async function resetUserPassword(userId: string): Promise<ActionResult> {
         error: result.error,
       });
       warnings.push(
-        'Mot de passe reinitialise mais l email n a pas ete envoye. Transmettez-le manuellement.',
+        "Mot de passe réinitialisé mais l'email n'a pas été envoyé. Transmettez-le manuellement.",
       );
     }
   } catch (err) {
@@ -718,7 +718,7 @@ export async function resetUserPassword(userId: string): Promise<ActionResult> {
       error: err instanceof Error ? err.message : String(err),
     });
     warnings.push(
-      'Mot de passe reinitialise mais l email n a pas pu etre envoye.',
+      "Mot de passe réinitialisé mais l'email n'a pas pu être envoyé.",
     );
   }
 

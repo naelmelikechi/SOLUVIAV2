@@ -376,12 +376,12 @@ export function NewFactureDialog({
         {step === 1 && (
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="search-projet">{'Projet'}</Label>
+              <Label htmlFor="search-projet">Projet</Label>
               <div className="relative">
                 <Search className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 h-4 w-4" />
                 <Input
                   id="search-projet"
-                  placeholder={'Rechercher par réf. ou client...'}
+                  placeholder="Rechercher par réf. ou client..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-8"
@@ -437,15 +437,14 @@ export function NewFactureDialog({
                 </span>
                 <span className="text-muted-foreground">
                   {'- Commission '}
-                  {projetData.tauxCommission}
-                  {'%'}
+                  {projetData.tauxCommission}%
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               <Label htmlFor="mois-global" className="text-xs">
-                {'Mois relatif global'}
+                Mois relatif global
               </Label>
               <Input
                 id="mois-global"
@@ -459,7 +458,7 @@ export function NewFactureDialog({
                 className="h-8 w-24"
               />
               <span className="text-muted-foreground text-[11px]">
-                {'s’applique aux lignes non éditées individuellement'}
+                s’applique aux lignes non éditées individuellement
               </span>
             </div>
 
@@ -475,16 +474,14 @@ export function NewFactureDialog({
                         aria-label="Tout sélectionner"
                       />
                     </th>
-                    <th className="px-2 py-2 font-medium">{'Contrat'}</th>
-                    <th className="px-2 py-2 font-medium">{'Apprenant'}</th>
-                    <th className="px-2 py-2 font-medium">{'Formation'}</th>
-                    <th className="px-2 py-2 text-right font-medium">
-                      {'NPEC'}
-                    </th>
-                    <th className="w-20 px-2 py-2 font-medium">{'Mois'}</th>
-                    <th className="px-2 py-2 font-medium">{'Description'}</th>
+                    <th className="px-2 py-2 font-medium">Contrat</th>
+                    <th className="px-2 py-2 font-medium">Apprenant</th>
+                    <th className="px-2 py-2 font-medium">Formation</th>
+                    <th className="px-2 py-2 text-right font-medium">NPEC</th>
+                    <th className="w-20 px-2 py-2 font-medium">Mois</th>
+                    <th className="px-2 py-2 font-medium">Description</th>
                     <th className="w-32 px-2 py-2 text-right font-medium">
-                      {'Montant HT'}
+                      Montant HT
                     </th>
                   </tr>
                 </thead>
@@ -618,7 +615,7 @@ export function NewFactureDialog({
                 onClick={() => setStep(1)}
                 disabled={isSubmitting}
               >
-                {'Précédent'}
+                Précédent
               </Button>
             )}
             <Button
@@ -626,7 +623,7 @@ export function NewFactureDialog({
               onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
             >
-              {'Annuler'}
+              Annuler
             </Button>
             {step === 1 ? (
               <Button
@@ -636,7 +633,7 @@ export function NewFactureDialog({
                 {isLoadingContrats ? (
                   <>
                     <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                    {'Chargement...'}
+                    Chargement...
                   </>
                 ) : (
                   'Suivant'
@@ -650,7 +647,7 @@ export function NewFactureDialog({
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                    {'Création...'}
+                    Création...
                   </>
                 ) : (
                   'Préparer le brouillon'

@@ -96,7 +96,7 @@ export function FactureDetailActions({
         // se passe alors que l email a souvent bien ete envoye avant
         // le timeout.
         toast.error(
-          'Reponse serveur tardive. Verifie ta boite mail dans 1 min - l envoi a probablement reussi.',
+          "Réponse serveur tardive. Vérifie ta boîte mail dans 1 min - l'envoi a probablement réussi.",
         );
         logger.error('facture-detail-client.resend', err, {
           factureId: facture.id,
@@ -112,9 +112,8 @@ export function FactureDetailActions({
         <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            {
-              'Brouillon non envoyé. Vérifiez puis cliquez sur Envoyer pour finaliser et déclencher la numérotation gapless + l’envoi email.'
-            }
+            Brouillon non envoyé. Vérifiez puis cliquez sur Envoyer pour
+            finaliser et déclencher la numérotation gapless + l’envoi email.
           </p>
         </div>
       )}

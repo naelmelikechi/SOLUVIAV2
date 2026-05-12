@@ -58,17 +58,17 @@ const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
 const INVOICE_STATE_LABELS: Record<string, string> = {
   // Etats Eduvia (en majuscule, telles que renvoyees par l'API)
   TRANSMIS: 'Transmise',
-  RECU: 'Recue OPCO',
+  RECU: 'Reçue OPCO',
   EN_INSTRUCTION: "En cours d'instruction",
-  ACCEPTE: 'Acceptee',
-  REGLE: 'Reglee',
-  REJETE: 'Rejetee',
+  ACCEPTE: 'Acceptée',
+  REGLE: 'Réglée',
+  REJETE: 'Rejetée',
   // Anciennes valeurs en minuscule, fallback
   draft: 'Brouillon',
-  sent: 'Envoyee',
-  paid: 'Payee',
+  sent: 'Envoyée',
+  paid: 'Payée',
   overdue: 'En retard',
-  cancelled: 'Annulee',
+  cancelled: 'Annulée',
 };
 
 function Section({

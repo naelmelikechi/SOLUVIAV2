@@ -52,7 +52,7 @@ function validateSiret(
       return {
         ok: true,
         warning:
-          '⚠️ SIRET invalide selon l’algorithme Luhn (verifie la saisie)',
+          '⚠️ SIRET invalide selon l’algorithme Luhn (vérifie la saisie)',
       };
     }
     return { ok: true };
@@ -74,7 +74,7 @@ function validateSiret(
   if (!isValidSiretLuhn(cleaned)) {
     return {
       ok: true,
-      warning: '⚠️ SIRET invalide selon l’algorithme Luhn (verifie la saisie)',
+      warning: '⚠️ SIRET invalide selon l’algorithme Luhn (vérifie la saisie)',
     };
   }
 

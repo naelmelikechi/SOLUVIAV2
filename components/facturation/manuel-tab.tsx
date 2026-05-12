@@ -215,12 +215,12 @@ export function ManuelTab({ projets }: ManuelTabProps) {
       });
       if (res.success) {
         toast.success(
-          'Brouillon de facture prepare. A verifier puis envoyer dans l’onglet Brouillons.',
+          'Brouillon de facture préparé. À vérifier puis envoyer dans l’onglet Brouillons.',
         );
         setSelected(new Set());
         router.refresh();
       } else {
-        toast.error(res.error ?? 'Erreur lors de la preparation du brouillon');
+        toast.error(res.error ?? 'Erreur lors de la préparation du brouillon');
       }
     });
   };

@@ -135,7 +135,6 @@ function LoginPageContent() {
           width={160}
           height={40}
           priority
-          className=""
         />
         <p className="text-muted-foreground mt-4 text-sm">
           Connectez-vous à votre compte

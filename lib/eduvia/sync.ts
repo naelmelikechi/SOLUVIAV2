@@ -6,6 +6,7 @@ import {
   fetchOne,
   fetchList,
   fetchStatus,
+  fetchInvoiceLines,
   EndpointNotAvailableError,
   AuthError,
 } from '@/lib/eduvia/client';
@@ -38,6 +39,7 @@ export interface SyncClientResult {
   progressions: number;
   invoice_steps: number;
   invoice_forecast_steps: number;
+  invoice_lines: number;
   errors: string[];
 }
 
@@ -72,6 +74,7 @@ export async function syncEduviaForClient(
     progressions: 0,
     invoice_steps: 0,
     invoice_forecast_steps: 0,
+    invoice_lines: 0,
     errors: [],
   };
 
@@ -466,8 +469,10 @@ export async function syncEduviaForClient(
       if (!contratId) continue;
 
       // Actual invoice steps
+      // Hoisted so Phase 5 (line sync) can iterate over the same array.
+      let steps: EduviaInvoiceStep[] = [];
       try {
-        const steps = await fetchList<EduviaInvoiceStep>(
+        steps = await fetchList<EduviaInvoiceStep>(
           instanceUrl,
           apiKey,
           `contracts/${contract.id}/invoice_steps`,
@@ -511,6 +516,52 @@ export async function syncEduviaForClient(
           result.errors.push(
             `invoice_steps contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
           );
+        }
+      }
+
+      // Phase 5 (in-line apres steps) : sync des lignes pour chaque step
+      // emis (invoice_id non null). Endpoint /api/v1/invoices/:id/lines
+      // non documente, peut casser sans preavis — on degrade gracieusement
+      // avec EndpointNotAvailableError.
+      for (const step of steps) {
+        if (!step.invoice_id) continue;
+        try {
+          const lines = await fetchInvoiceLines(instanceUrl, apiKey, step.invoice_id);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const supabaseAny = supabase as any; // types regen'd in Task 1.4
+          for (const line of lines) {
+            const { error: lineErr } = await supabaseAny
+              .from('eduvia_invoice_lines')
+              .upsert(
+                {
+                  eduvia_id: line.id,
+                  source_client_id: clientId,
+                  contrat_id: contratId,
+                  eduvia_invoice_id: line.invoice_id,
+                  amount: line.amount,
+                  line_type: line.line_type,
+                  quantity: line.quantity,
+                  description: line.description,
+                  eduvia_created_at: line.created_at,
+                  eduvia_updated_at: line.updated_at,
+                  last_synced_at: now,
+                },
+                { onConflict: 'eduvia_id,source_client_id' },
+              );
+            if (lineErr) {
+              result.errors.push(
+                `InvoiceLine eduvia_id=${line.id}: ${lineErr.message}`,
+              );
+            } else {
+              result.invoice_lines++;
+            }
+          }
+        } catch (err) {
+          if (!(err instanceof EndpointNotAvailableError)) {
+            result.errors.push(
+              `invoice_lines invoice=${step.invoice_id}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
         }
       }
 
@@ -673,6 +724,7 @@ export async function syncAllEduviaClients(
           progressions: 0,
           invoice_steps: 0,
           invoice_forecast_steps: 0,
+          invoice_lines: 0,
           errors: [
             'Cle API non dechiffrable (ENCRYPTION_KEY manquante ou cle stockee en clair). Recreez la cle pour la reactiver.',
           ],

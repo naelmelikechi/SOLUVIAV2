@@ -5,7 +5,9 @@ export type PeriodeKey = 'ce_mois' | 'mois_precedent' | '30j';
 
 export interface Periode {
   key: PeriodeKey;
+  /** UTC-midnight Date (time component is 00:00:00.000Z). */
   from: Date;
+  /** UTC-midnight Date (time component is 00:00:00.000Z). */
   to: Date;
   label: string;
 }
@@ -18,6 +20,12 @@ function utcEndOfMonth(year: number, month: number): Date {
   return new Date(Date.UTC(year, month + 1, 0));
 }
 
+/**
+ * Returns a `Periode` whose `from` and `to` are **UTC-midnight** Date objects
+ * (i.e. `time === 00:00:00.000Z`). To produce a `yyyy-MM-dd` string for DB
+ * queries, use `date.toISOString().slice(0, 10)` — NOT `date-fns format()`,
+ * which interprets the Date in the local timezone and may shift the day.
+ */
 export function resolvePeriode(
   key: PeriodeKey,
   ref: Date = new Date(),

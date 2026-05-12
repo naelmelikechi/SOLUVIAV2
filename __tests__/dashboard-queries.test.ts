@@ -466,4 +466,35 @@ describe('getDashboardFinancials(periode)', () => {
     );
     expect(hasDateFilter).toBe(false);
   });
+
+  it('totalAFacturer somme les montant_ht des echeances pretes a emettre', async () => {
+    const supa = buildSupabase({
+      echeances: {
+        data: [
+          { montant_ht: 1500.5 },
+          { montant_ht: 2000 },
+          { montant_ht: 100 },
+        ],
+        error: null,
+      },
+    });
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      supa.client,
+    );
+    const { getDashboardFinancials } = await import('@/lib/queries/dashboard');
+    const result = await getDashboardFinancials();
+    expect(result.totalAFacturer).toBe(3600.5);
+  });
+
+  it('totalAFacturer = 0 quand aucune echeance prete', async () => {
+    const supa = buildSupabase({
+      echeances: { data: [], error: null },
+    });
+    (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      supa.client,
+    );
+    const { getDashboardFinancials } = await import('@/lib/queries/dashboard');
+    const result = await getDashboardFinancials();
+    expect(result.totalAFacturer).toBe(0);
+  });
 });

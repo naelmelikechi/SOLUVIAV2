@@ -9,23 +9,23 @@ import { logAudit } from '@/lib/utils/audit';
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const ComputeProrataAvoirSchema = z.object({
-  factureOrigineId: z.string().uuid('factureOrigineId doit etre un UUID'),
+  factureOrigineId: z.string().uuid('factureOrigineId doit être un UUID'),
   dateRupture: z
     .string()
     .regex(ISO_DATE_RE, 'Date au format YYYY-MM-DD requise'),
 });
 
 const CreateAvoirSchema = z.object({
-  factureOrigineId: z.string().uuid('factureOrigineId doit etre un UUID'),
+  factureOrigineId: z.string().uuid('factureOrigineId doit être un UUID'),
   motif: z.string().min(1, 'Motif requis').max(200, 'Motif trop long'),
   montant: z
     .number()
-    .finite('Montant doit etre un nombre fini')
+    .finite('Montant doit être un nombre fini')
     .positive('Montant doit etre strictement positif')
     .max(10_000_000, 'Montant aberrant'),
   note: z.string().max(2000).optional(),
   // contratId : ajoute au #6 pour lier explicitement l avoir a un contrat
-  contratId: z.string().uuid('contratId doit etre un UUID').optional(),
+  contratId: z.string().uuid('contratId doit être un UUID').optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ export async function computeProrataAvoir(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const { factureOrigineId, dateRupture } = parsed.data;
@@ -151,7 +151,7 @@ export async function createAvoir(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const { factureOrigineId, motif, montant, note } = parsed.data;

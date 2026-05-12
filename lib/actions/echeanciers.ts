@@ -17,8 +17,8 @@ const SCOPE = 'actions.echeanciers';
 // types. Sans guards, un client peut poster mois_relatif=NaN, quote_part
 // negative, ou un id non-UUID et corrompre les donnees ou crasher la query.
 
-const projetIdSchema = z.string().uuid('Projet ID doit etre un UUID');
-const templateIdSchema = z.string().uuid('Template ID doit etre un UUID');
+const projetIdSchema = z.string().uuid('Projet ID doit être un UUID');
+const templateIdSchema = z.string().uuid('Template ID doit être un UUID');
 
 const JalonSchema = z.object({
   mois_relatif: z
@@ -28,7 +28,7 @@ const JalonSchema = z.object({
     .lte(120, 'mois_relatif trop grand'),
   quote_part: z
     .number()
-    .finite('quote_part doit etre un nombre fini')
+    .finite('quote_part doit être un nombre fini')
     .gt(0, 'quote_part doit etre strictement positif')
     .lte(1, 'quote_part doit etre <= 1'),
   label: z.string().trim().max(200).optional(),
@@ -66,9 +66,9 @@ const UpdateEcheancierTemplateSchema = z.object({
 });
 
 const ResolveAjustementSchema = z.object({
-  id: z.string().uuid('Ajustement ID doit etre un UUID'),
+  id: z.string().uuid('Ajustement ID doit être un UUID'),
   action: z.enum(['emitted', 'ignored']),
-  factureId: z.string().uuid('Facture ID doit etre un UUID').optional(),
+  factureId: z.string().uuid('Facture ID doit être un UUID').optional(),
 });
 
 const SetProjetEcheancierOverrideSchema = z.object({
@@ -85,7 +85,7 @@ export async function setProjetEcheancierTemplate(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -129,7 +129,7 @@ export async function createEcheancierTemplate(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -178,7 +178,7 @@ export async function updateEcheancierTemplate(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -218,7 +218,7 @@ export async function setEcheancierTemplateDefault(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -264,7 +264,7 @@ export async function archiveEcheancierTemplate(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -302,7 +302,7 @@ export async function resolveAjustement(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -345,7 +345,7 @@ export async function setProjetEcheancierOverride(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

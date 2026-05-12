@@ -7,10 +7,10 @@ import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 
 const AddManualPaymentSchema = z.object({
-  factureId: z.string().uuid('factureId doit etre un UUID'),
+  factureId: z.string().uuid('factureId doit être un UUID'),
   montant: z
     .number()
-    .finite('Montant doit etre un nombre fini')
+    .finite('Montant doit être un nombre fini')
     .positive('Montant doit etre strictement positif')
     .max(10_000_000, 'Montant aberrant'),
   dateReception: z
@@ -27,7 +27,7 @@ export async function addManualPayment(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const { factureId, montant, dateReception } = parsed.data;

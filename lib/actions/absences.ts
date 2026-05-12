@@ -35,7 +35,7 @@ const AbsenceDataSchema = z
     demi_jour_fin: z.boolean().optional(),
   })
   .refine((d) => d.date_fin >= d.date_debut, {
-    message: 'La date de fin doit etre apres la date de debut',
+    message: 'La date de fin doit être après la date de début',
     path: ['date_fin'],
   })
   .refine(
@@ -50,7 +50,7 @@ const AbsenceDataSchema = z
     },
   );
 
-const absenceIdSchema = z.string().uuid('Absence ID doit etre un UUID');
+const absenceIdSchema = z.string().uuid('Absence ID doit être un UUID');
 
 const UpdateAbsenceSchema = z.object({
   id: absenceIdSchema,
@@ -66,7 +66,7 @@ export async function createAbsenceAction(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   data = parsed.data;
@@ -123,7 +123,7 @@ export async function updateAbsenceAction(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;
@@ -179,7 +179,7 @@ export async function deleteAbsenceAction(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;

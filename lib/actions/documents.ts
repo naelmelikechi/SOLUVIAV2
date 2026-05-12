@@ -25,7 +25,7 @@ export type DocumentBucket = 'client-documents' | 'project-documents';
 // Schemas Zod (validation cote serveur, defense en profondeur)
 // ---------------------------------------------------------------------------
 
-const uuidSchema = z.string().uuid('ID doit etre un UUID');
+const uuidSchema = z.string().uuid('ID doit être un UUID');
 const projetRefSchema = z
   .string()
   .trim()
@@ -114,7 +114,7 @@ export async function uploadClientDocument(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   clientId = parsed.data.clientId;
@@ -202,7 +202,7 @@ export async function uploadProjetDocument(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   projetId = parsed.data.projetId;
@@ -281,7 +281,7 @@ export async function getDocumentDownloadUrl(
   const parsed = GetDownloadUrlSchema.safeParse({ storagePath, bucket });
   if (!parsed.success) {
     return {
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   storagePath = parsed.data.storagePath;
@@ -315,7 +315,7 @@ export async function deleteClientDocument(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   documentId = parsed.data.documentId;
@@ -387,7 +387,7 @@ export async function deleteProjetDocument(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   documentId = parsed.data.documentId;

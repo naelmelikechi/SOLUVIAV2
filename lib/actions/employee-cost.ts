@@ -20,7 +20,7 @@ const employeeCostFieldsSchema = z.object({
 });
 
 const UpdateUserCostSchema = z.object({
-  userId: z.string().uuid('User ID doit etre un UUID'),
+  userId: z.string().uuid('User ID doit être un UUID'),
   fields: employeeCostFieldsSchema,
 });
 
@@ -32,7 +32,7 @@ export async function updateUserCost(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const auth = await requireAdmin();
@@ -79,7 +79,7 @@ export async function updateEmployeeCostDefaults(fields: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const auth = await requireAdmin();

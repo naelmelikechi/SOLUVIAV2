@@ -16,7 +16,7 @@ export async function updateBugReportAction(
 ): Promise<{ success: boolean; error?: string }> {
   const parsed = UpdateSchema.safeParse(input);
   if (!parsed.success) {
-    return { success: false, error: 'Donnees invalides' };
+    return { success: false, error: 'Données invalides' };
   }
 
   const auth = await requireAdmin();

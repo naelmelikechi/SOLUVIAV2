@@ -11,7 +11,7 @@ import { getContratDetail } from '@/lib/queries/contrats';
 
 const FetchContratDetailSchema = z
   .string()
-  .uuid('Contrat ID doit etre un UUID');
+  .uuid('Contrat ID doit être un UUID');
 
 export async function fetchContratDetail(contratId: string) {
   const parsed = FetchContratDetailSchema.safeParse(contratId);

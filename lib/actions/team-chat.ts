@@ -22,7 +22,7 @@ const SendTeamMessageSchema = z.object({
     .nullable(),
 });
 
-const messageIdSchema = z.string().uuid('Message ID doit etre un UUID');
+const messageIdSchema = z.string().uuid('Message ID doit être un UUID');
 
 const SearchGiphySchema = z.string().max(200);
 
@@ -42,7 +42,7 @@ export async function sendTeamMessage(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -88,7 +88,7 @@ export async function deleteTeamMessage(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -135,7 +135,7 @@ export async function searchGiphy(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

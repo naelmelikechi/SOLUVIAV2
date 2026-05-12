@@ -13,12 +13,12 @@ import type { StatutRdv } from '@/lib/utils/constants';
 // ---------------------------------------------------------------------------
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const rdvIdSchema = z.string().uuid('RDV ID doit etre un UUID');
-const projetIdSchema = z.string().uuid('Projet ID doit etre un UUID');
-const prospectIdSchema = z.string().uuid('Prospect ID doit etre un UUID');
+const rdvIdSchema = z.string().uuid('RDV ID doit être un UUID');
+const projetIdSchema = z.string().uuid('Projet ID doit être un UUID');
+const prospectIdSchema = z.string().uuid('Prospect ID doit être un UUID');
 const formateurIdSchema = z
   .string()
-  .uuid('Formateur ID doit etre un UUID')
+  .uuid('Formateur ID doit être un UUID')
   .nullable()
   .optional();
 const datePrevueSchema = z
@@ -76,7 +76,7 @@ export async function createRdvFormateur(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   projetId = parsed.data.projetId;
@@ -124,7 +124,7 @@ export async function updateRdvFormateurStatut(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;
@@ -167,7 +167,7 @@ export async function deleteRdvFormateur(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;
@@ -195,7 +195,7 @@ export async function createRdvCommercial(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   prospectId = parsed.data.prospectId;
@@ -241,7 +241,7 @@ export async function updateRdvCommercialStatut(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;
@@ -284,7 +284,7 @@ export async function deleteRdvCommercial(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;

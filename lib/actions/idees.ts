@@ -13,7 +13,7 @@ import type { CibleIdee } from '@/lib/utils/constants';
 // Schemas Zod (validation cote serveur, defense en profondeur)
 // ---------------------------------------------------------------------------
 
-const ideeIdSchema = z.string().uuid('Idée ID doit etre un UUID');
+const ideeIdSchema = z.string().uuid('Idée ID doit être un UUID');
 const titreSchema = z
   .string()
   .trim()
@@ -103,7 +103,7 @@ export async function proposeIdea(data: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const titre = parsed.data.titre;
@@ -146,7 +146,7 @@ export async function updateProposedIdea(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -238,7 +238,7 @@ export async function validateIdea(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;
@@ -299,7 +299,7 @@ export async function rejectIdea(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const motifValue = parsed.data.motif;
@@ -360,7 +360,7 @@ export async function markIdeaImplemented(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;
@@ -421,7 +421,7 @@ export async function reopenIdea(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;
@@ -481,7 +481,7 @@ export async function revertImplementedIdea(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;
@@ -530,7 +530,7 @@ export async function reopenAndEditIdea(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -592,7 +592,7 @@ export async function archiveIdea(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   id = parsed.data.id;

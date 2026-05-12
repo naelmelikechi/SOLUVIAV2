@@ -21,10 +21,10 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const dateSchema = z
   .string()
   .regex(ISO_DATE_RE, 'Date au format YYYY-MM-DD requise');
-const projetIdSchema = z.string().uuid('Projet ID doit etre un UUID');
+const projetIdSchema = z.string().uuid('Projet ID doit être un UUID');
 const heuresSchema = z
   .number()
-  .finite('Heures doit etre un nombre fini')
+  .finite('Heures doit être un nombre fini')
   .min(0, 'Heures negatives interdites')
   .max(24, 'Maximum 24h par jour');
 
@@ -64,7 +64,7 @@ export async function saveSaisieTemps(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -115,7 +115,7 @@ export async function saveSaisieTempsAxes(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

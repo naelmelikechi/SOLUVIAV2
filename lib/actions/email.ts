@@ -6,7 +6,7 @@ import { requireUser } from '@/lib/auth/guards';
 import { sendEmailForFacture } from '@/lib/email/client';
 import { logAudit } from '@/lib/utils/audit';
 
-const factureIdSchema = z.string().uuid('Facture ID doit etre un UUID');
+const factureIdSchema = z.string().uuid('Facture ID doit être un UUID');
 
 export async function sendFactureEmailAction(
   factureId: string,
@@ -15,7 +15,7 @@ export async function sendFactureEmailAction(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -50,7 +50,7 @@ export async function sendRelanceEmailAction(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

@@ -25,12 +25,12 @@ const TVA_RATE_DEFAULT = 20;
 // factureId=garbage et corrompre les donnees ou crasher la query.
 
 const uuidSchema = (label: string) =>
-  z.string().uuid(`${label} doit etre un UUID`);
+  z.string().uuid(`${label} doit être un UUID`);
 
 // Montants HT : on accepte 0..10M€. Le signe (avoirs) est applique en aval.
 const montantHtSchema = z
   .number()
-  .finite('Montant doit etre un nombre fini')
+  .finite('Montant doit être un nombre fini')
   .gte(-10_000_000, 'Montant aberrant')
   .lte(10_000_000, 'Montant aberrant');
 
@@ -147,7 +147,7 @@ export async function addLigneToBrouillon(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const data = parsed.data;
@@ -236,7 +236,7 @@ export async function updateLigneInBrouillon(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const data = parsed.data;
@@ -312,7 +312,7 @@ export async function removeLigneFromBrouillon(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   ligneId = parsed.data;

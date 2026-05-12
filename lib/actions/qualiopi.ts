@@ -9,7 +9,7 @@ import { logAudit } from '@/lib/utils/audit';
 const SCOPE = 'actions.qualiopi';
 
 const AssignIndicatorSchema = z.object({
-  clientId: z.string().uuid('Client ID doit etre un UUID'),
+  clientId: z.string().uuid('Client ID doit être un UUID'),
   campusId: z.number().int().positive(),
   indicatorId: z.number().int().positive(),
   userId: z.string().uuid().nullable(),
@@ -29,7 +29,7 @@ export async function assignIndicatorResponsible(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

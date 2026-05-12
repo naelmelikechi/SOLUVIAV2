@@ -36,23 +36,23 @@ const InviteUserSchema = z.object({
     .toLowerCase()
     .email('Adresse email invalide')
     .max(254),
-  role: z.enum(['admin', 'cdp', 'commercial'], 'Role invalide'),
-  prenom: z.string().min(1, 'Prenom requis').max(100),
+  role: z.enum(['admin', 'cdp', 'commercial'], 'Rôle invalide'),
+  prenom: z.string().min(1, 'Prénom requis').max(100),
   nom: z.string().min(1, 'Nom requis').max(100),
 });
 
 const UpdateUserRoleSchema = z.object({
-  userId: z.string().uuid('userId doit etre un UUID'),
-  role: z.enum(['admin', 'cdp', 'superadmin', 'commercial'], 'Role invalide'),
+  userId: z.string().uuid('userId doit être un UUID'),
+  role: z.enum(['admin', 'cdp', 'superadmin', 'commercial'], 'Rôle invalide'),
 });
 
 const UpdateUserProfileSchema = z.object({
-  userId: z.string().uuid('userId doit etre un UUID'),
-  prenom: z.string().min(1, 'Prenom requis').max(100),
+  userId: z.string().uuid('userId doit être un UUID'),
+  prenom: z.string().min(1, 'Prénom requis').max(100),
   nom: z.string().min(1, 'Nom requis').max(100),
 });
 
-const UserIdSchema = z.string().uuid('userId doit etre un UUID');
+const UserIdSchema = z.string().uuid('userId doit être un UUID');
 
 // ---------------------------------------------------------------------------
 // Helpers locaux
@@ -101,7 +101,7 @@ export async function updateUserRole(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -166,7 +166,7 @@ export async function updateUserProfile(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -202,7 +202,7 @@ export async function updateUserPipelineAccess(
   pipelineAccess: boolean,
 ): Promise<ActionResult> {
   if (!UserIdSchema.safeParse(userId).success) {
-    return { success: false, error: 'userId doit etre un UUID' };
+    return { success: false, error: 'userId doit être un UUID' };
   }
 
   const auth = await requireAdmin();
@@ -236,7 +236,7 @@ export async function updateUserIdeasPermissions(
   permissions: { canValidateIdeas: boolean; canShipIdeas: boolean },
 ): Promise<ActionResult> {
   if (!UserIdSchema.safeParse(userId).success) {
-    return { success: false, error: 'userId doit etre un UUID' };
+    return { success: false, error: 'userId doit être un UUID' };
   }
 
   const auth = await requireAdmin();
@@ -273,7 +273,7 @@ export async function toggleUserActive(
   actif: boolean,
 ): Promise<ActionResult> {
   if (!UserIdSchema.safeParse(userId).success) {
-    return { success: false, error: 'userId doit etre un UUID' };
+    return { success: false, error: 'userId doit être un UUID' };
   }
 
   const auth = await requireAdmin();
@@ -340,7 +340,7 @@ export async function toggleUserActive(
 
 export async function deleteUser(userId: string): Promise<ActionResult> {
   if (!UserIdSchema.safeParse(userId).success) {
-    return { success: false, error: 'userId doit etre un UUID' };
+    return { success: false, error: 'userId doit être un UUID' };
   }
 
   const auth = await requireSuperAdmin();
@@ -431,7 +431,7 @@ export async function inviteUser(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -623,7 +623,7 @@ export async function inviteUser(
 
 export async function resetUserPassword(userId: string): Promise<ActionResult> {
   if (!UserIdSchema.safeParse(userId).success) {
-    return { success: false, error: 'userId doit etre un UUID' };
+    return { success: false, error: 'userId doit être un UUID' };
   }
 
   const auth = await requireAdmin();

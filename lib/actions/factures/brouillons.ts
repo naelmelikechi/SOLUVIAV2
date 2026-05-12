@@ -23,11 +23,11 @@ import { computeFactureTotauxTtcInclus } from '@/lib/utils/facture-totaux-ttc-in
 // arrays de 100k items et corrompre les donnees / ouvrir un DoS.
 
 const uuidSchema = (label: string) =>
-  z.string().uuid(`${label} doit etre un UUID`);
+  z.string().uuid(`${label} doit être un UUID`);
 
 const montantHtSchema = z
   .number()
-  .finite('Montant doit etre un nombre fini')
+  .finite('Montant doit être un nombre fini')
   .gte(-10_000_000, 'Montant aberrant')
   .lte(10_000_000, 'Montant aberrant');
 
@@ -85,7 +85,7 @@ export async function createFactures(
     return {
       success: false,
       ids: [],
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   echeanceIds = parsed.data;
@@ -373,7 +373,7 @@ export async function deleteBrouillon(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   factureId = parsed.data;
@@ -455,7 +455,7 @@ export async function createFactureFromEvents(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const { projetId, events } = parsed.data;
@@ -747,7 +747,7 @@ export async function createBlankBrouillon(params: {
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const { projetId, lignes } = parsed.data;

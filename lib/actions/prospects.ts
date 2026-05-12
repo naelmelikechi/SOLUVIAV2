@@ -25,29 +25,29 @@ const stageSchema = z.enum(['non_contacte', 'r1', 'r2', 'signe'], {
 });
 
 const LoadProspectDetailsSchema = z.object({
-  id: z.string().uuid('Prospect ID doit etre un UUID'),
+  id: z.string().uuid('Prospect ID doit être un UUID'),
 });
 
 const UpdateProspectStageSchema = z.object({
-  id: z.string().uuid('Prospect ID doit etre un UUID'),
+  id: z.string().uuid('Prospect ID doit être un UUID'),
   stage: stageSchema,
 });
 
 const UpdateProspectAssignmentSchema = z.object({
-  id: z.string().uuid('Prospect ID doit etre un UUID'),
-  commercialId: z.string().uuid('commercialId doit etre un UUID').nullable(),
+  id: z.string().uuid('Prospect ID doit être un UUID'),
+  commercialId: z.string().uuid('commercialId doit être un UUID').nullable(),
 });
 
 const BulkUpdateProspectsSchema = z.object({
   ids: z
-    .array(z.string().uuid('ID doit etre un UUID'))
+    .array(z.string().uuid('ID doit être un UUID'))
     .min(1, 'Aucun prospect sélectionné')
     .max(500, 'Maximum 500 prospects par operation'),
   patch: z
     .object({
       commercialId: z
         .string()
-        .uuid('commercialId doit etre un UUID')
+        .uuid('commercialId doit être un UUID')
         .nullable()
         .optional(),
       stage: stageSchema.optional(),
@@ -59,16 +59,16 @@ const BulkUpdateProspectsSchema = z.object({
 });
 
 const AddProspectNoteSchema = z.object({
-  prospectId: z.string().uuid('Prospect ID doit etre un UUID'),
+  prospectId: z.string().uuid('Prospect ID doit être un UUID'),
   contenu: z.string().trim().min(1, 'Le contenu est requis').max(2000),
 });
 
 const ConvertProspectSchema = z.object({
-  id: z.string().uuid('Prospect ID doit etre un UUID'),
+  id: z.string().uuid('Prospect ID doit être un UUID'),
 });
 
 const DeleteProspectSchema = z.object({
-  id: z.string().uuid('Prospect ID doit etre un UUID'),
+  id: z.string().uuid('Prospect ID doit être un UUID'),
 });
 
 async function getCaller() {
@@ -161,7 +161,7 @@ export async function updateProspectStage(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -208,7 +208,7 @@ export async function updateProspectAssignment(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -255,7 +255,7 @@ export async function bulkUpdateProspects(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -311,7 +311,7 @@ export async function addProspectNote(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -351,7 +351,7 @@ export async function convertProspectToClient(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -451,7 +451,7 @@ export async function deleteProspect(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

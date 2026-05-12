@@ -64,7 +64,7 @@ export async function updateProfile(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   prenom = parsed.data.prenom;
@@ -113,7 +113,7 @@ export async function updatePassword(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   newPassword = parsed.data.newPassword;
@@ -278,7 +278,7 @@ export async function attemptUnlockFrozenAvatar(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   attempt = parsed.data.attempt;

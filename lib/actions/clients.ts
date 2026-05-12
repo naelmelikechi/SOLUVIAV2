@@ -22,8 +22,8 @@ const SOLUVIA_INTERNAL_CLIENT_ID = '00000000-0000-0000-0000-0000000000ff';
 // type. Sans ces guards, un client peut poster des donnees aberrantes
 // (raison sociale = NaN, email = garbage, URL hostile) et corrompre la base.
 
-const uuidSchema = z.string().uuid('ID doit etre un UUID');
-const clientIdSchema = z.string().uuid('clientId doit etre un UUID');
+const uuidSchema = z.string().uuid('ID doit être un UUID');
+const clientIdSchema = z.string().uuid('clientId doit être un UUID');
 const optionalTrimmedString = (max: number) =>
   z
     .string()
@@ -59,7 +59,7 @@ const UpdateClientSchema = z.object({
 
 const UpdateClientApporteurSchema = z.object({
   clientId: clientIdSchema,
-  apporteurId: z.string().uuid('apporteurId doit etre un UUID').nullable(),
+  apporteurId: z.string().uuid('apporteurId doit être un UUID').nullable(),
   apporteurDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date au format YYYY-MM-DD requise')
@@ -113,7 +113,7 @@ const AddClientApiKeySchema = z.object({
       ),
     // API key Eduvia : chiffree en aval, pas de validation format stricte.
     apiKey: z.string().trim().min(1, 'La cle API est requise').max(500),
-    label: z.string().trim().min(1, 'Le libelle est requis').max(200),
+    label: z.string().trim().min(1, 'Le libellé est requis').max(200),
   }),
 });
 
@@ -196,7 +196,7 @@ export async function createClientAction(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const validated = parsed.data;
@@ -252,7 +252,7 @@ export async function updateClientAction(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const { id: validatedId, data: validated } = parsed.data;
@@ -319,7 +319,7 @@ export async function updateClientApporteur(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const validated = parsed.data;
@@ -475,7 +475,7 @@ export async function addClientContact(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const validated = parsed.data;
@@ -519,7 +519,7 @@ export async function deleteClientContact(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -559,7 +559,7 @@ export async function addClientNote(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -598,7 +598,7 @@ export async function addClientApiKey(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   const validated = parsed.data;
@@ -619,7 +619,7 @@ export async function addClientApiKey(
     return {
       success: false,
       error:
-        'Configuration serveur invalide: le chiffrement des cles API est indisponible. Contactez un administrateur.',
+        'Configuration serveur invalide: le chiffrement des clés API est indisponible. Contactez un administrateur.',
     };
   }
 
@@ -657,7 +657,7 @@ export async function deleteClientApiKey(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

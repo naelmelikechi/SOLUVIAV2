@@ -12,10 +12,10 @@ import { logAudit } from '@/lib/utils/audit';
 // Schemas Zod (validation cote serveur, defense en profondeur)
 // ---------------------------------------------------------------------------
 
-const SendFactureSchema = z.string().uuid('factureId doit etre un UUID');
+const SendFactureSchema = z.string().uuid('factureId doit être un UUID');
 
 const SendFacturesBulkSchema = z
-  .array(z.string().uuid('factureId doit etre un UUID'))
+  .array(z.string().uuid('factureId doit être un UUID'))
   .min(1, 'Aucune facture sélectionnée')
   .max(500, 'Trop de factures sélectionnées');
 
@@ -33,7 +33,7 @@ export async function sendFacture(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
   factureId = parsed.data;
@@ -192,7 +192,7 @@ export async function sendFacturesBulk(factureIds: string[]): Promise<{
       errors: [
         {
           id: '',
-          error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+          error: parsed.error.issues[0]?.message ?? 'Données invalides',
         },
       ],
     };

@@ -15,19 +15,19 @@ import { logAudit } from '@/lib/utils/audit';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-const projetIdSchema = z.string().uuid('Projet ID doit etre un UUID');
+const projetIdSchema = z.string().uuid('Projet ID doit être un UUID');
 
 const tauxCommissionSchema = z
   .number()
-  .finite('Taux doit etre un nombre fini')
+  .finite('Taux doit être un nombre fini')
   .gte(0, 'Taux doit etre >= 0')
   .lte(100, 'Taux doit etre <= 100');
 
 const CreateProjetSchema = z.object({
-  clientId: z.string().uuid('Client ID doit etre un UUID'),
-  typologieId: z.string().uuid('Typologie ID doit etre un UUID'),
-  cdpId: z.string().uuid('CDP ID doit etre un UUID'),
-  backupCdpId: z.string().uuid('Backup CDP ID doit etre un UUID').optional(),
+  clientId: z.string().uuid('Client ID doit être un UUID'),
+  typologieId: z.string().uuid('Typologie ID doit être un UUID'),
+  cdpId: z.string().uuid('CDP ID doit être un UUID'),
+  backupCdpId: z.string().uuid('Backup CDP ID doit être un UUID').optional(),
   tauxCommission: tauxCommissionSchema.optional(),
   dateDebut: z
     .string()
@@ -67,7 +67,7 @@ export async function createProjet(data: {
     }
     return {
       success: false,
-      error: issue?.message ?? 'Donnees invalides',
+      error: issue?.message ?? 'Données invalides',
     };
   }
 
@@ -136,7 +136,7 @@ export async function updateProjetTauxCommission(
     }
     return {
       success: false,
-      error: issue?.message ?? 'Donnees invalides',
+      error: issue?.message ?? 'Données invalides',
     };
   }
 
@@ -189,7 +189,7 @@ export async function duplicateProjet(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

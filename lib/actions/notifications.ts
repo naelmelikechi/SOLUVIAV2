@@ -6,7 +6,7 @@ import { requireUser } from '@/lib/auth/guards';
 
 const notificationIdSchema = z
   .string()
-  .uuid('Notification ID doit etre un UUID');
+  .uuid('Notification ID doit être un UUID');
 
 export async function markNotificationRead(
   notificationId: string,
@@ -15,7 +15,7 @@ export async function markNotificationRead(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -64,7 +64,7 @@ export async function deleteNotification(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

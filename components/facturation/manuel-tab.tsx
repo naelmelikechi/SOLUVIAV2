@@ -308,7 +308,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   aria-label="Afficher les reglements OPCO"
                 />
                 <span>
-                  {'Règlements OPCO'}{' '}
+                  Règlements OPCO{' '}
                   <span className="text-muted-foreground">
                     ({availableOpcoSteps} disponible
                     {availableOpcoSteps > 1 ? 's' : ''})
@@ -324,7 +324,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   aria-label="Inclure les events deja factures"
                 />
                 <span className="text-muted-foreground">
-                  Inclure factur{'é'}s (mode revue)
+                  Inclure facturés (mode revue)
                 </span>
               </label>
             </div>

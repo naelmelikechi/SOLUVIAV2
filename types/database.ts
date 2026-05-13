@@ -1358,6 +1358,7 @@ export type Database = {
           montant_ttc: number;
           montant_tva: number;
           numero_seq: number | null;
+          objet: string | null;
           odoo_id: string | null;
           pdf_url: string | null;
           projet_id: string | null;
@@ -1382,6 +1383,7 @@ export type Database = {
           montant_ttc: number;
           montant_tva: number;
           numero_seq?: number | null;
+          objet?: string | null;
           odoo_id?: string | null;
           pdf_url?: string | null;
           projet_id?: string | null;
@@ -1406,6 +1408,7 @@ export type Database = {
           montant_ttc?: number;
           montant_tva?: number;
           numero_seq?: number | null;
+          objet?: string | null;
           odoo_id?: string | null;
           pdf_url?: string | null;
           projet_id?: string | null;

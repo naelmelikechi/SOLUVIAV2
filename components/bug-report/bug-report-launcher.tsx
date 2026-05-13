@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Bug } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { BugReportSheet } from './bug-report-sheet';
 import { ensureConsoleErrorBuffer } from './console-error-buffer';
@@ -37,6 +38,11 @@ export function BugReportLauncher() {
     setAutoCapture(blob);
     setCapturing(false);
     setOpen(true);
+    if (!blob) {
+      toast.info(
+        "Capture automatique indisponible. Vous pouvez joindre un screenshot manuellement (Cmd+V ou bouton 'Joindre').",
+      );
+    }
   }
 
   function handleOpenChange(next: boolean) {

@@ -228,7 +228,7 @@ export function TempsPageClient({
           <TempsStatTile
             label="Cette semaine"
             value={formatHeures(totals.weekTotal)}
-            sub="35h theorique"
+            sub="35h théorique"
           />
           <TempsStatTile
             label="Cumul mois"

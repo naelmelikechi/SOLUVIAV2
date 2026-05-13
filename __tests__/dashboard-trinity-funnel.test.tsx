@@ -20,17 +20,29 @@ describe('TrinityFunnel', () => {
     expect(screen.getByText('Encaissé')).toBeDefined();
   });
 
-  it('calcule les % de conversion', () => {
+  it('affiche le taux de recouvrement (encaisse / facture)', () => {
     render(
       <TrinityFunnel
         production={1000}
         facture={900}
-        encaisse={500}
+        encaisse={450}
         productionTrend={0}
       />,
     );
-    expect(screen.getByText('90%')).toBeDefined();
-    expect(screen.getByText('50%')).toBeDefined();
+    expect(screen.getByText('50% recouvré')).toBeDefined();
+  });
+
+  it("n'affiche pas de % de facturation en prefixe", () => {
+    render(
+      <TrinityFunnel
+        production={1000}
+        facture={4000}
+        encaisse={0}
+        productionTrend={0}
+      />,
+    );
+    expect(screen.queryByText(/^\d+%$/)).toBeNull();
+    expect(screen.queryByText(/396%/)).toBeNull();
   });
 
   it('gere production = 0 sans NaN ni Infinity', () => {
@@ -44,8 +56,6 @@ describe('TrinityFunnel', () => {
     );
     expect(screen.queryAllByText(/NaN/).length).toBe(0);
     expect(screen.queryAllByText(/Infinity/).length).toBe(0);
-    // Les 2 % de conversion doivent etre 0%
-    expect(screen.getAllByText('0%').length).toBe(2);
   });
 
   it('affiche subtitle "tout est facturé" quand facture >= production', () => {

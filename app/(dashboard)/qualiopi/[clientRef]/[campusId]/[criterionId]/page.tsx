@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ChevronRight, User } from 'lucide-react';
@@ -14,6 +15,20 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
 
 export const revalidate = 60;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ clientRef: string; criterionId: string }>;
+}): Promise<Metadata> {
+  const { clientRef, criterionId } = await params;
+  const client = await getClientByRef(clientRef);
+  return {
+    title: client
+      ? `Critère ${criterionId} - ${client.raison_sociale} - SOLUVIA`
+      : 'Qualité - SOLUVIA',
+  };
+}
 
 export default async function CriterionPage({
   params,

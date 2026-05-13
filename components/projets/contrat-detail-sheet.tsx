@@ -55,6 +55,59 @@ const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
   ANNULE: 'red',
 };
 
+// Nomenclature Eduvia : codes contract_type (article du Code du travail)
+const CONTRACT_TYPE_LABELS: Record<string, string> = {
+  '11': "Contrat d'apprentissage",
+  '21': 'Contrat de professionnalisation',
+  '31': 'Contrat aidé',
+  '41': 'Convention de stage',
+  '51': 'POEI / AFPR',
+  '61': 'Reconversion',
+};
+
+// Nomenclature Eduvia : codes contract_mode (forme du contrat)
+const CONTRACT_MODE_LABELS: Record<string, string> = {
+  '1': 'CDD',
+  '2': 'CDI',
+  '3': 'Apprenti',
+  '4': 'Saisonnier',
+};
+
+const CREATION_MODE_LABELS: Record<string, string> = {
+  MANUAL: 'Manuel',
+  API: 'API',
+  IMPORT: 'Import',
+};
+
+const GENDER_LABELS: Record<string, string> = {
+  M: 'Masculin',
+  F: 'Féminin',
+  X: 'Non précisé',
+};
+
+// Codes nationalité Eduvia (INSEE simplifié)
+const NATIONALITY_LABELS: Record<string, string> = {
+  '1': 'Française',
+  '2': 'Union européenne',
+  '3': 'Hors Union européenne',
+};
+
+const APPRENANT_STATUS_LABELS: Record<string, string> = {
+  incomplete: 'Incomplet',
+  complete: 'Complet',
+  pending: 'En attente',
+  valid: 'Validé',
+};
+
+function mapLabel(
+  table: Record<string, string>,
+  value: string | number | null | undefined,
+): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  const key = String(value);
+  return table[key] ?? key;
+}
+
 const INVOICE_STATE_LABELS: Record<string, string> = {
   // Etats Eduvia (en majuscule, telles que renvoyees par l'API)
   TRANSMIS: 'Transmise',
@@ -187,11 +240,26 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
               </Section>
 
               <Section icon={Calendar} title="Contrat">
-                <Row label="Type" value={data.contrat.contract_type} />
-                <Row label="Mode" value={data.contrat.contract_mode} />
+                <Row
+                  label="Type"
+                  value={mapLabel(
+                    CONTRACT_TYPE_LABELS,
+                    data.contrat.contract_type,
+                  )}
+                />
+                <Row
+                  label="Mode"
+                  value={mapLabel(
+                    CONTRACT_MODE_LABELS,
+                    data.contrat.contract_mode,
+                  )}
+                />
                 <Row
                   label="Mode de création"
-                  value={data.contrat.creation_mode}
+                  value={mapLabel(
+                    CREATION_MODE_LABELS,
+                    data.contrat.creation_mode,
+                  )}
                 />
                 <Row
                   label="Date conclusion"
@@ -238,7 +306,10 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
                     label="Date de naissance"
                     value={fmtDate(data.apprenant.birth_date)}
                   />
-                  <Row label="Genre" value={data.apprenant.gender} />
+                  <Row
+                    label="Genre"
+                    value={mapLabel(GENDER_LABELS, data.apprenant.gender)}
+                  />
                   <Row
                     label="Adresse"
                     value={
@@ -251,7 +322,13 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
                         .join(' ') || null
                     }
                   />
-                  <Row label="Statut" value={data.apprenant.status} />
+                  <Row
+                    label="Statut"
+                    value={mapLabel(
+                      APPRENANT_STATUS_LABELS,
+                      data.apprenant.status,
+                    )}
+                  />
                   <Row
                     label="RQTH"
                     value={
@@ -263,8 +340,11 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
                     }
                   />
                   <Row
-                    label="Code nationalité"
-                    value={data.apprenant.nationality_code?.toString()}
+                    label="Nationalité"
+                    value={mapLabel(
+                      NATIONALITY_LABELS,
+                      data.apprenant.nationality_code,
+                    )}
                   />
                 </Section>
               )}

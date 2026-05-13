@@ -26,6 +26,12 @@ export function formatDateLong(date: string | Date): string {
   return format(d, 'd MMMM yyyy', { locale: fr });
 }
 
+// Normalise les tirets typographiques externes (em-dash et en-dash) en simple
+// hyphen, pour rester aligné sur la convention UI projet : pas d'em-dash.
+export function normalizeDashes(text: string): string {
+  return text.replace(/[—–]/g, '-');
+}
+
 export function formatPercent(value: number, decimals = 0): string {
   return `${value.toFixed(decimals)}%`;
 }

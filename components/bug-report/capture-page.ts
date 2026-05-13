@@ -63,8 +63,17 @@ export async function capturePageScreenshot(): Promise<Blob | null> {
     // L'utilisateur a refuse / annule le partage : c est attendu, on ne
     // forward pas a Sentry pour eviter le bruit. Les autres erreurs sont
     // remontees comme warn.
-    if (err instanceof DOMException && err.name === 'NotAllowedError') {
-      logger.info('bug-report.capture', 'capture annulee par l utilisateur');
+    // L'utilisateur a refuse / annule le partage, ou le contexte ne permet
+    // pas getDisplayMedia (iframe sandbox, extension, contexte non secure).
+    // Ces cas sont tous attendus -> log en info pour ne pas spammer Sentry.
+    if (
+      err instanceof DOMException &&
+      (err.name === 'NotAllowedError' ||
+        err.name === 'NotSupportedError' ||
+        err.name === 'AbortError' ||
+        err.name === 'NotFoundError')
+    ) {
+      logger.info('bug-report.capture', `capture indisponible: ${err.name}`);
     } else {
       logger.warn('bug-report.capture', 'capture echec', { error: err });
     }

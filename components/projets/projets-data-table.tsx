@@ -88,6 +88,7 @@ export function ProjetsDataTable({
   const columnsWithStar = useMemo<ColumnDef<ProjetListEnriched>[]>(() => {
     const starColumn: ColumnDef<ProjetListEnriched> = {
       id: '_favorite',
+      meta: { label: 'Favori' },
       header: () => <span className="sr-only">Favori</span>,
       cell: ({ row }) => {
         const id = row.original.id;

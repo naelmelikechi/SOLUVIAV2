@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getClientByRef, listCampusesForClient } from '@/lib/queries/qualiopi';
 import { PageHeader } from '@/components/shared/page-header';
@@ -7,6 +8,20 @@ import Link from 'next/link';
 import { Building2 } from 'lucide-react';
 
 export const revalidate = 300;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ clientRef: string }>;
+}): Promise<Metadata> {
+  const { clientRef } = await params;
+  const client = await getClientByRef(clientRef);
+  return {
+    title: client
+      ? `Qualité ${client.raison_sociale} - SOLUVIA`
+      : 'Qualité - SOLUVIA',
+  };
+}
 
 export default async function QualiopiClientPage({
   params,

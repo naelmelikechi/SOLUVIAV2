@@ -86,6 +86,302 @@ const CreateFreeBrouillonSchema = z.object({
     .max(500, 'Trop de lignes'),
 });
 
+// ---------------------------------------------------------------------------
+// Helper interne : insert brouillon facture + lignes
+// ---------------------------------------------------------------------------
+// Partage la mecanique commune entre createBlankBrouillon (facture rattachee
+// projet) et createFreeBrouillon (facture libre, projet_id=null). Calcule la
+// TVA 20% en cents entiers pour preserver l'invariant
+// SUM(facture_lignes.montant_ht) == factures.montant_ht et rollback la
+// facture si l'insert des lignes echoue (autorise tant que statut='a_emettre'
+// car aucun numero gapless n'est consomme). Caller responsable de
+// l'audit et des revalidatePath.
+
+type SupabaseServerClient = Extract<
+  Awaited<ReturnType<typeof requireUser>>,
+  { ok: true }
+>['supabase'];
+
+interface BrouillonLigneInsert {
+  contrat_id: string | null;
+  description: string;
+  montant_ht: number;
+  mois_relatif: number;
+  quote_part: number;
+  npec_snapshot: number;
+  taux_commission_snapshot: number;
+}
+
+async function insertBrouillonWithLignes(args: {
+  supabase: SupabaseServerClient;
+  userId: string;
+  projetId: string | null;
+  clientId: string;
+  lignes: BrouillonLigneInsert[];
+  logScope: string;
+}): Promise<
+  | { ok: true; factureId: string; totalHt: number }
+  | { ok: false; error: string }
+> {
+  const { supabase, userId, projetId, clientId, lignes, logScope } = args;
+
+  const totalHtCents = lignes.reduce(
+    (s, l) => s + Math.round(l.montant_ht * 100),
+    0,
+  );
+  if (totalHtCents <= 0) {
+    return { ok: false, error: 'Montant total nul ou négatif' };
+  }
+
+  const tauxTva = 20;
+  const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
+  const totalHt = totalHtCents / 100;
+  const montantTva = montantTvaCents / 100;
+  const montantTtc = (totalHtCents + montantTvaCents) / 100;
+
+  const today = new Date();
+  const dateEmissionStr = today.toISOString().split('T')[0]!;
+  const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
+
+  const { data: facture, error: insertError } = await supabase
+    .from('factures')
+    .insert({
+      projet_id: projetId,
+      client_id: clientId,
+      date_emission: dateEmissionStr,
+      date_echeance: dateEcheanceStr,
+      mois_concerne: today.toISOString().slice(0, 7),
+      montant_ht: totalHt,
+      taux_tva: tauxTva,
+      montant_tva: montantTva,
+      montant_ttc: montantTtc,
+      statut: 'a_emettre',
+      est_avoir: false,
+      created_by: userId,
+    })
+    .select('id')
+    .single();
+
+  if (insertError || !facture) {
+    logger.error('actions.factures', `${logScope} insert failed`, {
+      error: insertError,
+      clientId,
+      projetId,
+    });
+    return {
+      ok: false,
+      error: insertError?.message ?? 'Échec de la création du brouillon',
+    };
+  }
+
+  const { error: lignesError } = await supabase
+    .from('facture_lignes')
+    .insert(lignes.map((l) => ({ ...l, facture_id: facture.id })));
+
+  if (lignesError) {
+    await supabase.from('factures').delete().eq('id', facture.id);
+    logger.error('actions.factures', `${logScope} lignes failed`, {
+      factureId: facture.id,
+      error: lignesError,
+    });
+    return { ok: false, error: lignesError.message };
+  }
+
+  return { ok: true, factureId: facture.id, totalHt };
+}
+
+// ---------------------------------------------------------------------------
+// Helper interne : process un groupe d'echeances (= 1 projet) en brouillon.
+// ---------------------------------------------------------------------------
+// Retourne factureId | null. Chaque appel est independant et peut etre
+// lance en parallele via Promise.all dans createFactures (pas de dependance
+// croisee entre projets).
+interface BrouillonGroup {
+  projetId: string;
+  clientId: string;
+  tauxCommission: number;
+  echeancierTemplateId: string | null;
+  echeancierOverride: unknown;
+  moisConcernes: string[];
+  echeanceIds: string[];
+}
+
+async function processBrouillonGroup(
+  group: BrouillonGroup,
+  templates: Array<{
+    id: string;
+    nom: string;
+    jalons: unknown;
+    is_default: boolean;
+  }>,
+  supabase: SupabaseServerClient,
+  userId: string,
+): Promise<string | null> {
+  const { data: contratsRaw } = await supabase
+    .from('contrats')
+    .select(
+      'id, npec_amount, date_debut, duree_mois, archive, formation_titre, apprenant_prenom, apprenant_nom',
+    )
+    .eq('projet_id', group.projetId)
+    .eq('archive', false);
+
+  if (!contratsRaw || contratsRaw.length === 0) return null;
+
+  const contratsCtx: ContratEcheancierContext[] = contratsRaw
+    .filter((c) => c.date_debut && c.duree_mois)
+    .map((c) => ({
+      contrat_id: c.id,
+      npec_amount: c.npec_amount ?? 0,
+      date_debut: c.date_debut!,
+      duree_mois: c.duree_mois!,
+      archive: c.archive ?? false,
+    }));
+
+  const resolved = resolveProjetEcheancier(
+    {
+      echeancier_template_id: group.echeancierTemplateId,
+      echeancier_override: group.echeancierOverride,
+    },
+    templates.map((t) => ({
+      id: t.id,
+      nom: t.nom,
+      jalons: t.jalons,
+      is_default: t.is_default,
+    })),
+  );
+  const jalons = parseJalons(resolved.jalons);
+  const aggregated = aggregateProjetEcheances(
+    group.projetId,
+    contratsCtx,
+    jalons,
+    group.tauxCommission,
+  );
+
+  const moisSet = new Set(group.moisConcernes);
+  const selectedAggregated = aggregated.filter((a) =>
+    moisSet.has(a.mois_concerne),
+  );
+  if (selectedAggregated.length === 0) return null;
+
+  const contratInfo = new Map(
+    contratsRaw.map((c) => [
+      c.id,
+      {
+        formation: c.formation_titre ?? '',
+        prenom: c.apprenant_prenom ?? '',
+        nom: c.apprenant_nom ?? '',
+      },
+    ]),
+  );
+
+  const lignes: Array<{
+    contrat_id: string;
+    description: string;
+    montant_ht: number;
+    mois_relatif: number;
+    quote_part: number;
+    npec_snapshot: number;
+    taux_commission_snapshot: number;
+  }> = [];
+  for (const agg of selectedAggregated) {
+    for (const c of agg.contributions) {
+      const info = contratInfo.get(c.contrat_id);
+      const moisLabel = c.mois_absolu;
+      lignes.push({
+        contrat_id: c.contrat_id,
+        description: `Commission ${group.tauxCommission}% - ${info?.formation ?? ''} - ${info?.prenom ?? ''} ${info?.nom ?? ''} - ${moisLabel}`,
+        montant_ht: c.montant_ht,
+        mois_relatif: c.mois_relatif,
+        quote_part: c.quote_part,
+        npec_snapshot: c.npec_snapshot,
+        taux_commission_snapshot: group.tauxCommission,
+      });
+    }
+  }
+
+  if (lignes.length === 0) return null;
+
+  const sortedMois = [...group.moisConcernes].sort();
+  const moisLabel =
+    sortedMois.length === 1
+      ? sortedMois[0]!
+      : `${sortedMois[0]} - ${sortedMois[sortedMois.length - 1]}`;
+
+  // Cents entiers : SUM(facture_lignes.montant_ht) == factures.montant_ht.
+  // N.B. : ne passe pas par insertBrouillonWithLignes car mois_concerne =
+  // moisLabel (range de mois) et non YYYY-MM courant, et la facture doit
+  // ensuite linker des echeances - le helper generique ne gere pas ce 2e step.
+  const totalHtCents = lignes.reduce(
+    (s, l) => s + Math.round(l.montant_ht * 100),
+    0,
+  );
+  const tauxTva = 20;
+  const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
+  const totalHt = totalHtCents / 100;
+  const montantTva = montantTvaCents / 100;
+  const montantTtc = (totalHtCents + montantTvaCents) / 100;
+
+  const dateEcheanceStr = lastDayOfNextMonthUtcISO();
+
+  const { data: facture, error: insertError } = await supabase
+    .from('factures')
+    .insert({
+      projet_id: group.projetId,
+      client_id: group.clientId,
+      date_emission: new Date().toISOString().split('T')[0]!,
+      date_echeance: dateEcheanceStr,
+      mois_concerne: moisLabel,
+      montant_ht: totalHt,
+      taux_tva: tauxTva,
+      montant_tva: montantTva,
+      montant_ttc: montantTtc,
+      statut: 'a_emettre',
+      est_avoir: false,
+      created_by: userId,
+    })
+    .select('id')
+    .single();
+
+  if (insertError || !facture) return null;
+
+  const { error: lignesError } = await supabase.from('facture_lignes').insert(
+    lignes.map((l) => ({
+      facture_id: facture.id,
+      contrat_id: l.contrat_id,
+      description: l.description,
+      montant_ht: l.montant_ht,
+      mois_relatif: l.mois_relatif,
+      quote_part: l.quote_part,
+      npec_snapshot: l.npec_snapshot,
+      taux_commission_snapshot: l.taux_commission_snapshot,
+    })),
+  );
+
+  if (lignesError) {
+    await supabase.from('factures').delete().eq('id', facture.id);
+    logger.error('actions.factures', 'createFactures lignes insert failed', {
+      factureId: facture.id,
+      error: lignesError,
+    });
+    return null;
+  }
+
+  await supabase
+    .from('echeances')
+    .update({ facture_id: facture.id, validee: true })
+    .in('id', group.echeanceIds);
+
+  logAudit(
+    'brouillon_created',
+    'facture',
+    facture.id,
+    { mois: moisLabel },
+    userId,
+  );
+
+  return facture.id;
+}
+
 /**
  * Cree des factures BROUILLON (statut 'a_emettre') a partir d'echeances
  * selectionnees. Aucune ref ni email n'est genere a ce stade : il faut
@@ -181,188 +477,15 @@ export async function createFactures(
     }
   }
 
-  // 3. For each group, create facture + lignes
-  const createdIds: string[] = [];
-
-  for (const group of groups.values()) {
-    // Fetch active contrats for this projet (avec champs necessaires au calcul)
-    const { data: contratsRaw } = await supabase
-      .from('contrats')
-      .select(
-        'id, npec_amount, date_debut, duree_mois, archive, formation_titre, apprenant_prenom, apprenant_nom',
-      )
-      .eq('projet_id', group.projetId)
-      .eq('archive', false);
-
-    if (!contratsRaw || contratsRaw.length === 0) continue;
-
-    const contratsCtx: ContratEcheancierContext[] = contratsRaw
-      .filter((c) => c.date_debut && c.duree_mois)
-      .map((c) => ({
-        contrat_id: c.id,
-        npec_amount: c.npec_amount ?? 0,
-        date_debut: c.date_debut!,
-        duree_mois: c.duree_mois!,
-        archive: c.archive ?? false,
-      }));
-
-    // Resout l'echeancier du projet et calcule les contributions par
-    // contrat × mois. Filtre ensuite sur les mois selectionnes.
-    const resolved = resolveProjetEcheancier(
-      {
-        echeancier_template_id: group.echeancierTemplateId,
-        echeancier_override: group.echeancierOverride,
-      },
-      (templates ?? []).map((t) => ({
-        id: t.id,
-        nom: t.nom,
-        jalons: t.jalons,
-        is_default: t.is_default,
-      })),
-    );
-    const jalons = parseJalons(resolved.jalons);
-    const aggregated = aggregateProjetEcheances(
-      group.projetId,
-      contratsCtx,
-      jalons,
-      group.tauxCommission,
-    );
-
-    // Filtre sur les mois selectionnes par l'utilisateur
-    const moisSet = new Set(group.moisConcernes);
-    const selectedAggregated = aggregated.filter((a) =>
-      moisSet.has(a.mois_concerne),
-    );
-    if (selectedAggregated.length === 0) continue;
-
-    // Index contrat -> infos pour la description
-    const contratInfo = new Map(
-      contratsRaw.map((c) => [
-        c.id,
-        {
-          formation: c.formation_titre ?? '',
-          prenom: c.apprenant_prenom ?? '',
-          nom: c.apprenant_nom ?? '',
-        },
-      ]),
-    );
-
-    // Construit les lignes : 1 ligne par contrat × jalon dans la facture.
-    // Stocke les snapshots pour audit / recompute ulterieur.
-    const lignes: Array<{
-      contrat_id: string;
-      description: string;
-      montant_ht: number;
-      mois_relatif: number;
-      quote_part: number;
-      npec_snapshot: number;
-      taux_commission_snapshot: number;
-    }> = [];
-    for (const agg of selectedAggregated) {
-      for (const c of agg.contributions) {
-        const info = contratInfo.get(c.contrat_id);
-        const moisLabel = c.mois_absolu;
-        lignes.push({
-          contrat_id: c.contrat_id,
-          description: `Commission ${group.tauxCommission}% - ${info?.formation ?? ''} - ${info?.prenom ?? ''} ${info?.nom ?? ''} - ${moisLabel}`,
-          montant_ht: c.montant_ht,
-          mois_relatif: c.mois_relatif,
-          quote_part: c.quote_part,
-          npec_snapshot: c.npec_snapshot,
-          taux_commission_snapshot: group.tauxCommission,
-        });
-      }
-    }
-
-    if (lignes.length === 0) continue;
-
-    // Label mois_concerne facture
-    const sortedMois = [...group.moisConcernes].sort();
-    const moisLabel =
-      sortedMois.length === 1
-        ? sortedMois[0]!
-        : `${sortedMois[0]} - ${sortedMois[sortedMois.length - 1]}`;
-
-    // Cents entiers : garantit SUM(facture_lignes.montant_ht) == factures.montant_ht.
-    const totalHtCents = lignes.reduce(
-      (s, l) => s + Math.round(l.montant_ht * 100),
-      0,
-    );
-    const tauxTva = 20;
-    const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
-    const totalHt = totalHtCents / 100;
-    const montantTva = montantTvaCents / 100;
-    const montantTtc = (totalHtCents + montantTvaCents) / 100;
-
-    // Date echeance = end of next month (UTC strict pour ne pas dependre du
-    // fuseau du runtime - voir lib/utils/dates.ts).
-    const dateEcheanceStr = lastDayOfNextMonthUtcISO();
-
-    // INSERT facture en statut 'a_emettre' (brouillon).
-    // Pas de ref/numero_seq attribues a ce stade : le trigger BEFORE INSERT
-    // skip car statut='a_emettre'. La numerotation gapless reste preservee
-    // car un brouillon supprime ne consomme aucun numero.
-    const { data: facture, error: insertError } = await supabase
-      .from('factures')
-      .insert({
-        projet_id: group.projetId,
-        client_id: group.clientId,
-        date_emission: new Date().toISOString().split('T')[0]!,
-        date_echeance: dateEcheanceStr,
-        mois_concerne: moisLabel,
-        montant_ht: totalHt,
-        taux_tva: tauxTva,
-        montant_tva: montantTva,
-        montant_ttc: montantTtc,
-        statut: 'a_emettre',
-        est_avoir: false,
-        created_by: user.id,
-      })
-      .select('id')
-      .single();
-
-    if (insertError || !facture) continue;
-
-    // INSERT facture_lignes avec snapshots
-    const { error: lignesError } = await supabase.from('facture_lignes').insert(
-      lignes.map((l) => ({
-        facture_id: facture.id,
-        contrat_id: l.contrat_id,
-        description: l.description,
-        montant_ht: l.montant_ht,
-        mois_relatif: l.mois_relatif,
-        quote_part: l.quote_part,
-        npec_snapshot: l.npec_snapshot,
-        taux_commission_snapshot: l.taux_commission_snapshot,
-      })),
-    );
-
-    if (lignesError) {
-      // Rollback : supprime le brouillon orphelin (autorise tant qu'a_emettre)
-      await supabase.from('factures').delete().eq('id', facture.id);
-      logger.error('actions.factures', 'createFactures lignes insert failed', {
-        factureId: facture.id,
-        error: lignesError,
-      });
-      continue;
-    }
-
-    // UPDATE echeances to link au brouillon
-    await supabase
-      .from('echeances')
-      .update({ facture_id: facture.id, validee: true })
-      .in('id', group.echeanceIds);
-
-    createdIds.push(facture.id);
-
-    logAudit(
-      'brouillon_created',
-      'facture',
-      facture.id,
-      { mois: moisLabel },
-      user.id,
-    );
-  }
+  // 3. For each group, create facture + lignes (parallele : chaque groupe est
+  //    un projet independant - inserts et updates n'ont aucune dependance
+  //    croisee. Rollback reste isole par groupe via le helper).
+  const results = await Promise.all(
+    Array.from(groups.values()).map((group) =>
+      processBrouillonGroup(group, templates ?? [], supabase, user.id),
+    ),
+  );
+  const createdIds = results.filter((id): id is string => id !== null);
 
   revalidatePath('/facturation');
 
@@ -594,21 +717,24 @@ export async function createFactureFromEvents(params: {
   {
     const stepInvoiceIds = Array.from(
       new Set(
-        resolved.flatMap((e) => live.auditInvoiceIdsBySource.get(e.source_id) ?? []),
+        resolved.flatMap(
+          (e) => live.auditInvoiceIdsBySource.get(e.source_id) ?? [],
+        ),
       ),
     );
     if (stepInvoiceIds.length > 0) {
-      const [{ data: stepsForAudit }, { data: linesForAudit }] = await Promise.all([
-        supabase
-          .from('eduvia_invoice_steps')
-          .select('eduvia_invoice_id, including_pedagogie_amount, contrat_id')
-          .in('eduvia_invoice_id', stepInvoiceIds),
-        supabase
-          .from('eduvia_invoice_lines')
-          .select('eduvia_invoice_id, amount')
-          .in('eduvia_invoice_id', stepInvoiceIds)
-          .eq('line_type', 'PEDAGOGIE'),
-      ]);
+      const [{ data: stepsForAudit }, { data: linesForAudit }] =
+        await Promise.all([
+          supabase
+            .from('eduvia_invoice_steps')
+            .select('eduvia_invoice_id, including_pedagogie_amount, contrat_id')
+            .in('eduvia_invoice_id', stepInvoiceIds),
+          supabase
+            .from('eduvia_invoice_lines')
+            .select('eduvia_invoice_id, amount')
+            .in('eduvia_invoice_id', stepInvoiceIds)
+            .eq('line_type', 'PEDAGOGIE'),
+        ]);
 
       const linesByInvoice = new Map<number, number>();
       for (const l of linesForAudit ?? []) {
@@ -794,55 +920,13 @@ export async function createBlankBrouillon(params: {
     };
   }
 
-  // Cents entiers : garantit SUM(facture_lignes.montant_ht) == factures.montant_ht.
-  const totalHtCents = lignes.reduce(
-    (s, l) => s + Math.round(Number(l.montantHt ?? 0) * 100),
-    0,
-  );
-  if (totalHtCents <= 0) {
-    return { success: false, error: 'Montant total nul ou négatif' };
-  }
-
-  const tauxTva = 20;
-  const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
-  const totalHt = totalHtCents / 100;
-  const montantTva = montantTvaCents / 100;
-  const montantTtc = (totalHtCents + montantTvaCents) / 100;
-
-  const today = new Date();
-  const dateEmissionStr = today.toISOString().split('T')[0]!;
-  const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
-
-  const { data: facture, error: insertError } = await supabase
-    .from('factures')
-    .insert({
-      projet_id: projetId,
-      client_id: projet.client_id,
-      date_emission: dateEmissionStr,
-      date_echeance: dateEcheanceStr,
-      mois_concerne: today.toISOString().slice(0, 7),
-      montant_ht: totalHt,
-      taux_tva: tauxTva,
-      montant_tva: montantTva,
-      montant_ttc: montantTtc,
-      statut: 'a_emettre',
-      est_avoir: false,
-      created_by: user.id,
-    })
-    .select('id')
-    .single();
-
-  if (insertError || !facture) {
-    return {
-      success: false,
-      error: insertError?.message ?? 'Échec de la création du brouillon',
-    };
-  }
-
   const tauxProjet = Number(projet.taux_commission ?? 10);
-  const { error: lignesError } = await supabase.from('facture_lignes').insert(
-    lignes.map((l) => ({
-      facture_id: facture.id,
+  const result = await insertBrouillonWithLignes({
+    supabase,
+    userId: user.id,
+    projetId,
+    clientId: projet.client_id,
+    lignes: lignes.map((l) => ({
       contrat_id: l.contratId,
       description: l.description,
       montant_ht: l.montantHt,
@@ -851,25 +935,19 @@ export async function createBlankBrouillon(params: {
       npec_snapshot: l.npecSnapshot ?? 0,
       taux_commission_snapshot: l.tauxCommissionSnapshot ?? tauxProjet,
     })),
-  );
+    logScope: 'createBlankBrouillon',
+  });
 
-  if (lignesError) {
-    await supabase.from('factures').delete().eq('id', facture.id);
-    logger.error('actions.factures', 'createBlankBrouillon lignes failed', {
-      factureId: facture.id,
-      error: lignesError,
-    });
-    return { success: false, error: lignesError.message };
-  }
+  if (!result.ok) return { success: false, error: result.error };
 
   logAudit(
     'blank_brouillon_created',
     'facture',
-    facture.id,
+    result.factureId,
     {
       projetId,
       lignesCount: lignes.length,
-      montantHt: totalHt,
+      montantHt: result.totalHt,
     },
     user.id,
   );
@@ -877,7 +955,7 @@ export async function createBlankBrouillon(params: {
   revalidatePath('/facturation');
   revalidatePath(`/projets/${projet.ref}`);
 
-  return { success: true, id: facture.id };
+  return { success: true, id: result.factureId };
 }
 
 // ---------------------------------------------------------------------------
@@ -921,58 +999,12 @@ export async function createFreeBrouillon(params: {
     return { success: false, error: 'Client archivé' };
   }
 
-  // Cents entiers : garantit SUM(facture_lignes.montant_ht) == factures.montant_ht.
-  const totalHtCents = lignes.reduce(
-    (s, l) => s + Math.round(Number(l.montantHt) * 100),
-    0,
-  );
-  if (totalHtCents <= 0) {
-    return { success: false, error: 'Montant total nul ou négatif' };
-  }
-
-  const tauxTva = 20;
-  const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
-  const totalHt = totalHtCents / 100;
-  const montantTva = montantTvaCents / 100;
-  const montantTtc = (totalHtCents + montantTvaCents) / 100;
-
-  const today = new Date();
-  const dateEmissionStr = today.toISOString().split('T')[0]!;
-  const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
-
-  const { data: facture, error: insertError } = await supabase
-    .from('factures')
-    .insert({
-      projet_id: null,
-      client_id: clientId,
-      date_emission: dateEmissionStr,
-      date_echeance: dateEcheanceStr,
-      mois_concerne: today.toISOString().slice(0, 7),
-      montant_ht: totalHt,
-      taux_tva: tauxTva,
-      montant_tva: montantTva,
-      montant_ttc: montantTtc,
-      statut: 'a_emettre',
-      est_avoir: false,
-      created_by: user.id,
-    })
-    .select('id')
-    .single();
-
-  if (insertError || !facture) {
-    logger.error('actions.factures', 'createFreeBrouillon insert failed', {
-      error: insertError,
-      clientId,
-    });
-    return {
-      success: false,
-      error: insertError?.message ?? 'Échec de la création du brouillon',
-    };
-  }
-
-  const { error: lignesError } = await supabase.from('facture_lignes').insert(
-    lignes.map((l) => ({
-      facture_id: facture.id,
+  const result = await insertBrouillonWithLignes({
+    supabase,
+    userId: user.id,
+    projetId: null,
+    clientId,
+    lignes: lignes.map((l) => ({
       contrat_id: null,
       description: l.description,
       montant_ht: l.montantHt,
@@ -981,33 +1013,24 @@ export async function createFreeBrouillon(params: {
       npec_snapshot: 0,
       taux_commission_snapshot: 0,
     })),
-  );
+    logScope: 'createFreeBrouillon',
+  });
 
-  if (lignesError) {
-    // Best-effort cleanup : la facture (brouillon, statut a_emettre, ref NULL,
-    // numero_seq NULL) peut etre supprimee car elle ne consomme pas de numero
-    // gapless. La RLS factures_delete_brouillon_policy l'autorise.
-    await supabase.from('factures').delete().eq('id', facture.id);
-    logger.error('actions.factures', 'createFreeBrouillon lignes failed', {
-      factureId: facture.id,
-      error: lignesError,
-    });
-    return { success: false, error: lignesError.message };
-  }
+  if (!result.ok) return { success: false, error: result.error };
 
   logAudit(
     'free_brouillon_created',
     'facture',
-    facture.id,
+    result.factureId,
     {
       clientId,
       lignesCount: lignes.length,
-      montantHt: totalHt,
+      montantHt: result.totalHt,
     },
     user.id,
   );
 
   revalidatePath('/facturation');
 
-  return { success: true, id: facture.id };
+  return { success: true, id: result.factureId };
 }

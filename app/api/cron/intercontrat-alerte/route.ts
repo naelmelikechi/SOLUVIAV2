@@ -115,7 +115,7 @@ export async function GET(request: Request) {
             subject_user_id: u.id,
             type: 'collaborateur_a_affecter' as const,
             titre: 'Collaborateur en intercontrat',
-            message: `${fullName} est en attente d affectation depuis ${jours} jours.`,
+            message: `${fullName} est en attente d'affectation depuis ${jours} jours.`,
             lien: '/admin/intercontrat',
           }));
         });

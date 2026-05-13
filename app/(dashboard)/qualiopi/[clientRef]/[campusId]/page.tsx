@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight, ShieldCheck, AlertTriangle } from 'lucide-react';
@@ -19,6 +20,20 @@ export const revalidate = 60;
 interface PageProps {
   params: Promise<{ clientRef: string; campusId: string }>;
   searchParams: Promise<{ filter?: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ clientRef: string }>;
+}): Promise<Metadata> {
+  const { clientRef } = await params;
+  const client = await getClientByRef(clientRef);
+  return {
+    title: client
+      ? `Qualité ${client.raison_sociale} - SOLUVIA`
+      : 'Qualité - SOLUVIA',
+  };
 }
 
 export default async function QualiopiCampusPage({

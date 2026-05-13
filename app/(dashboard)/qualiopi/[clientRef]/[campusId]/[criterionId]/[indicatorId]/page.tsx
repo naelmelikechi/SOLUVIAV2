@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -17,6 +18,20 @@ import { IndicatorClient } from '@/components/qualiopi/indicator-client';
 import { NoticeIframe } from '@/components/qualiopi/notice-iframe';
 
 export const revalidate = 30;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ clientRef: string; indicatorId: string }>;
+}): Promise<Metadata> {
+  const { clientRef, indicatorId } = await params;
+  const client = await getClientByRef(clientRef);
+  return {
+    title: client
+      ? `Indicateur ${indicatorId} - ${client.raison_sociale} - SOLUVIA`
+      : 'Qualité - SOLUVIA',
+  };
+}
 
 export default async function IndicatorPage({
   params,

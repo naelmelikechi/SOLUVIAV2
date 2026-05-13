@@ -379,11 +379,12 @@ export async function updateClientApporteur(
 }
 
 // ---------------------------------------------------------------------------
-// archiveClient - soft delete (archive = true)
+// archiveClient / unarchiveClient - soft delete + restore
 // ---------------------------------------------------------------------------
 
-export async function archiveClient(
+async function setClientArchive(
   id: string,
+  shouldArchive: boolean,
 ): Promise<{ success: boolean; error?: string }> {
   const parsed = ArchiveClientSchema.safeParse({ id });
   if (!parsed.success) {
@@ -399,50 +400,37 @@ export async function archiveClient(
 
   const { error } = await supabase
     .from('clients')
-    .update({ archive: true })
+    .update({ archive: shouldArchive })
     .eq('id', parsed.data.id);
 
   if (error) return { success: false, error: error.message };
 
-  logAudit('client_archived', 'client', parsed.data.id, undefined, user.id);
+  logAudit(
+    shouldArchive ? 'client_archived' : 'client_unarchived',
+    'client',
+    parsed.data.id,
+    undefined,
+    user.id,
+  );
 
   revalidatePath('/admin/clients');
+  if (!shouldArchive) {
+    revalidatePath(`/admin/clients/${parsed.data.id}`);
+  }
 
   return { success: true };
 }
 
-// ---------------------------------------------------------------------------
-// unarchiveClient - restore (archive = false)
-// ---------------------------------------------------------------------------
+export async function archiveClient(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  return setClientArchive(id, true);
+}
 
 export async function unarchiveClient(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const parsed = ArchiveClientSchema.safeParse({ id });
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? 'ID invalide',
-    };
-  }
-
-  const auth = await requireAdmin();
-  if (!auth.ok) return { success: false, error: auth.error };
-  const { supabase, user } = auth;
-
-  const { error } = await supabase
-    .from('clients')
-    .update({ archive: false })
-    .eq('id', parsed.data.id);
-
-  if (error) return { success: false, error: error.message };
-
-  logAudit('client_unarchived', 'client', parsed.data.id, undefined, user.id);
-
-  revalidatePath('/admin/clients');
-  revalidatePath(`/admin/clients/${parsed.data.id}`);
-
-  return { success: true };
+  return setClientArchive(id, false);
 }
 
 // ---------------------------------------------------------------------------

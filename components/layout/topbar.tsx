@@ -9,6 +9,7 @@ import type { BadgeCounts } from '@/hooks/use-badge-counts';
 const routeLabels: Record<string, string> = {
   accueil: 'Accueil',
   projets: 'Projets',
+  internes: 'Internes',
   qualiopi: 'Qualité',
   temps: 'Temps',
   production: 'Production',
@@ -23,11 +24,20 @@ const routeLabels: Record<string, string> = {
   clients: 'Clients',
   utilisateurs: 'Utilisateurs',
   intercontrat: 'Intercontrat',
+  bugs: 'Bugs',
   audit: 'Audit',
   parametres: 'Paramètres',
   'parametres-compte': 'Mon compte',
   notifications: 'Notifications',
 };
+
+// Segments à masquer dans le fil d'Ariane (ids numériques, UUIDs).
+// Permet d'éviter les breadcrumbs du type "Qualité > HED > 1 > 1 > 1".
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isOpaqueId(segment: string): boolean {
+  return /^\d+$/.test(segment) || UUID_RE.test(segment);
+}
 
 export function Topbar({
   onHamburgerClick,
@@ -42,11 +52,16 @@ export function Topbar({
   const pathname = usePathname();
   const segments = pathname.split('/').filter(Boolean);
 
-  const breadcrumbs = segments.map((segment, index) => {
-    const href = '/' + segments.slice(0, index + 1).join('/');
-    const label = routeLabels[segment] || segment;
-    return { href, label };
-  });
+  const breadcrumbs = segments
+    .map((segment, index) => ({
+      segment,
+      href: '/' + segments.slice(0, index + 1).join('/'),
+    }))
+    .filter(({ segment }) => !isOpaqueId(segment))
+    .map(({ segment, href }) => ({
+      href,
+      label: routeLabels[segment] || segment,
+    }));
 
   const openCommandPalette = () => {
     document.dispatchEvent(

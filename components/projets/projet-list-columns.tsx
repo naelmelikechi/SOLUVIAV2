@@ -17,6 +17,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   {
     accessorKey: 'ref',
     enableHiding: false,
+    meta: { label: 'N° Projet' },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="N° Projet" />
     ),
@@ -24,6 +25,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     id: 'client',
+    meta: { label: 'Client' },
     accessorFn: (row) => row.client?.raison_sociale ?? '',
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -51,6 +53,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     id: 'cdp',
+    meta: { label: 'CDP' },
     accessorFn: (row) => (row.cdp ? `${row.cdp.prenom} ${row.cdp.nom}` : ''),
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="CDP" filterVariant="text" />
@@ -75,6 +78,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   {
     accessorKey: 'statut',
     enableHiding: false,
+    meta: { label: 'Statut' },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Statut" />
     ),
@@ -91,6 +95,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     id: 'typologie',
+    meta: { label: 'Typologie' },
     accessorFn: (row) => row.typologie?.code ?? '',
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -107,6 +112,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'taux_commission',
+    meta: { label: 'Commission' },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Commission" />
     ),
@@ -122,6 +128,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'apprentisActifs',
+    meta: { label: 'Apprentis actifs' },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Apprentis" />
     ),
@@ -133,6 +140,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'facturesEnRetard',
+    meta: { label: 'Factures en retard' },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Fact. retard" />
     ),
@@ -146,6 +154,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'encaissementsEnRetard',
+    meta: { label: 'Encaissements en retard' },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Enc. retard" />
     ),
@@ -162,6 +171,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'tempsMois',
+    meta: { label: 'Temps du mois' },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Temps" />
     ),

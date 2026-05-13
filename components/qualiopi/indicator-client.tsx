@@ -26,7 +26,7 @@ import {
 import type { QualiopiAssignment } from '@/lib/queries/qualiopi';
 import type { ActiveUserMinimal } from '@/lib/queries/users';
 import { assignIndicatorResponsible } from '@/lib/actions/qualiopi';
-import { formatDateShort } from '@/lib/utils/formatters';
+import { formatDateShort, normalizeDashes } from '@/lib/utils/formatters';
 
 interface IndicatorClientProps {
   clientId: string;
@@ -120,7 +120,7 @@ export function IndicatorClient({
                       color={STATUS_COLOR[statusValue] ?? 'gray'}
                     />
                     <span className="truncate text-sm font-medium">
-                      {deliverable.title}
+                      {normalizeDashes(deliverable.title)}
                     </span>
                   </div>
                   <div className="text-muted-foreground flex items-center gap-2 text-xs">
@@ -189,7 +189,9 @@ function EvidencesPanel({
     <Card className="p-0">
       <div className="border-b border-[var(--border-light)] px-4 py-3">
         <div className="mb-1 flex items-start justify-between gap-2">
-          <h3 className="text-sm font-semibold">{deliverable.title}</h3>
+          <h3 className="text-sm font-semibold">
+            {normalizeDashes(deliverable.title)}
+          </h3>
           <Button
             variant="ghost"
             size="icon"

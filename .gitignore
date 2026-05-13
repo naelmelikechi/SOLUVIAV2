@@ -50,3 +50,6 @@ _local/
 /blob-report/
 /playwright/.cache/
 /e2e/.auth/
+
+# Rapports de tests locaux (notes de session, non versionnées)
+/test-reports/

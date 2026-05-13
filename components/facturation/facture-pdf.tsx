@@ -263,6 +263,9 @@ export function FacturePdf({
               Échéance :{' '}
               {facture.date_echeance ? formatDate(facture.date_echeance) : '-'}
             </Text>
+            {facture.conditions_reglement && (
+              <Text style={styles.bold}>{facture.conditions_reglement}</Text>
+            )}
           </View>
         </View>
 

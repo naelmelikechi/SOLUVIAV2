@@ -1345,6 +1345,7 @@ export type Database = {
         Row: {
           avoir_motif: string | null;
           client_id: string;
+          conditions_reglement: string | null;
           created_at: string;
           created_by: string | null;
           date_echeance: string | null;
@@ -1370,6 +1371,7 @@ export type Database = {
         Insert: {
           avoir_motif?: string | null;
           client_id: string;
+          conditions_reglement?: string | null;
           created_at?: string;
           created_by?: string | null;
           date_echeance?: string | null;
@@ -1395,6 +1397,7 @@ export type Database = {
         Update: {
           avoir_motif?: string | null;
           client_id?: string;
+          conditions_reglement?: string | null;
           created_at?: string;
           created_by?: string | null;
           date_echeance?: string | null;

@@ -386,7 +386,9 @@ export function FacturePdf({
           <View style={styles.paymentBox} wrap={false}>
             <Text style={styles.label}>Modalités de paiement</Text>
             <Text style={{ marginTop: 4 }}>
-              Règlement par virement bancaire sous 30 jours fin de mois.
+              {facture.conditions_reglement
+                ? `Règlement par virement bancaire - ${facture.conditions_reglement}.`
+                : 'Règlement par virement bancaire sous 30 jours fin de mois.'}
             </Text>
             <Text style={{ marginTop: 2, color: '#6b7280' }}>
               Merci d&apos;indiquer la référence{' '}

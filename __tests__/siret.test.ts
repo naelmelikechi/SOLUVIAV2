@@ -37,21 +37,24 @@ describe('isValidSiretFormat', () => {
 });
 
 describe('isValidSiretLuhn', () => {
-  // Generation d un SIRET valide pour les tests : on calcule a partir de
-  // l implementation pour avoir un fixed-point garanti coherent avec le code.
-  // Le but est de couvrir le happy path + le rejet checksum, pas de tester
-  // contre des SIRET reels (necessiterait acces base INSEE).
-  it('valide pour un SIRET dont les chiffres somment a 0 mod 10', () => {
-    // 00000000000000 : sum = 0 -> mod 10 = 0 -> valide
+  it('valide pour des SIRET reels valides', () => {
+    // Exemple Wikipedia (SIRET valide officiellement)
+    expect(isValidSiretLuhn('73282932000074')).toBe(true);
+    // HEOL ACADEMY (source : pappers.fr)
+    expect(isValidSiretLuhn('92255939800032')).toBe(true);
+  });
+
+  it('valide pour 00000000000000 (cas limite, somme = 0)', () => {
     expect(isValidSiretLuhn('00000000000000')).toBe(true);
   });
 
   it('rejette si checksum Luhn invalide', () => {
-    // 00000000000001 : sum = 2 (le 1 en position 13 odd -> double = 2)
-    // mod 10 = 2 != 0
+    // 1 final transforme un SIRET zero en checksum invalide
     expect(isValidSiretLuhn('00000000000001')).toBe(false);
-    // 11111111111111 : alterne 1 et 2 -> 7*1 + 7*2 = 21 mod 10 = 1
+    // 11111111111111 : 7 chiffres doubles a 2 + 7 chiffres a 1 = 21
     expect(isValidSiretLuhn('11111111111111')).toBe(false);
+    // SIRET reel altere
+    expect(isValidSiretLuhn('92255939800033')).toBe(false);
   });
 
   it('rejette si format invalide (court-circuite avant Luhn)', () => {

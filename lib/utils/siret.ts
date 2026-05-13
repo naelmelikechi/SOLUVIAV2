@@ -15,14 +15,14 @@ export function isValidSiretFormat(siret: string): boolean {
 }
 
 export function isValidSiretLuhn(siret: string): boolean {
-  // Algorithme Luhn pour SIRET (14 chiffres)
+  // Algorithme Luhn pour SIRET (14 chiffres).
+  // Contrairement au SIREN (9 chiffres), le SIRET ayant une longueur paire,
+  // ce sont les chiffres d'index pair (0, 2, 4, ..., 12) qui sont doubles.
   if (!isValidSiretFormat(siret)) return false;
   let sum = 0;
   for (let i = 0; i < 14; i++) {
     let n = Number(siret[i]);
-    // En SIRET, les positions paires (1, 3, 5, ...) sont doublees
-    // Index 0-based : positions 0, 2, 4, ... NON doublees ; positions 1, 3, 5, ... doublees
-    if (i % 2 === 1) {
+    if (i % 2 === 0) {
       n *= 2;
       if (n > 9) n -= 9;
     }

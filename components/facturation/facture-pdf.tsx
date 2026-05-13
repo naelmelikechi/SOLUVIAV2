@@ -309,8 +309,9 @@ export function FacturePdf({
         <View style={{ marginBottom: 16 }}>
           <Text style={styles.label}>Objet</Text>
           <Text>
-            Commission de gestion - Projet {facture.projet?.ref ?? ''} -{' '}
-            {facture.mois_concerne}
+            {facture.projet?.ref
+              ? `Commission de gestion - Projet ${facture.projet.ref} - ${facture.mois_concerne}`
+              : `Prestation - ${facture.mois_concerne}`}
           </Text>
         </View>
 

@@ -73,7 +73,15 @@ export function createFactureListColumns(
           filterVariant="text"
         />
       ),
-      cell: ({ row }) => <ProjectRef ref_={row.original.projet?.ref ?? ''} />,
+      cell: ({ row }) => {
+        const ref = row.original.projet?.ref;
+        if (!ref) {
+          return (
+            <span className="text-muted-foreground text-xs italic">Libre</span>
+          );
+        }
+        return <ProjectRef ref_={ref} />;
+      },
     },
     {
       id: 'client',

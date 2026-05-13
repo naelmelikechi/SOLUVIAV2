@@ -100,17 +100,19 @@ export function FactureDetailHeader({
         ) : (
           (facture.client?.raison_sociale ?? '')
         )}{' '}
-        · Projet{' '}
         {facture.projet?.ref ? (
-          <Link
-            href={`/projets/${facture.projet.ref}`}
-            className="font-mono text-orange-600 transition-colors hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300"
-          >
-            {facture.projet.ref}
-          </Link>
+          <>
+            · Projet{' '}
+            <Link
+              href={`/projets/${facture.projet.ref}`}
+              className="font-mono text-orange-600 transition-colors hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300"
+            >
+              {facture.projet.ref}
+            </Link>{' '}
+          </>
         ) : (
-          ''
-        )}{' '}
+          <span className="text-muted-foreground italic">· Facture libre </span>
+        )}
         · {moisCapitalized}
       </p>
 

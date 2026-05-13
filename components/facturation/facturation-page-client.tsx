@@ -13,6 +13,10 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { NewFactureDialog } from '@/components/facturation/new-facture-dialog';
+import {
+  NewFactureLibreDialog,
+  type FreeFactureClientOption,
+} from '@/components/facturation/new-facture-libre-dialog';
 import { DataTable } from '@/components/shared/data-table';
 import type { FilterOption } from '@/components/shared/data-table';
 import {
@@ -62,6 +66,8 @@ interface FacturationPageClientProps {
   brouillons: BrouillonItem[];
   manualProjets: ProjetBillableEvents[];
   projetsForFacturation: Awaited<ReturnType<typeof listProjetsForFacturation>>;
+  clientsForFreeFacture: FreeFactureClientOption[];
+  isAdmin: boolean;
 }
 
 export function FacturationPageClient({
@@ -71,6 +77,8 @@ export function FacturationPageClient({
   brouillons,
   manualProjets,
   projetsForFacturation,
+  clientsForFreeFacture,
+  isAdmin,
 }: FacturationPageClientProps) {
   const router = useRouter();
   // Onglet par defaut : Brouillons s'il y en a (priorite revue), sinon
@@ -78,6 +86,7 @@ export function FacturationPageClient({
   const [activeTab, setActiveTab] = useState(brouillons.length > 0 ? 0 : 1);
   const [echeanceView, setEcheanceView] = useState<'list' | 'calendar'>('list');
   const [newFactureOpen, setNewFactureOpen] = useState(false);
+  const [newFactureLibreOpen, setNewFactureLibreOpen] = useState(false);
   const [preview, setPreview] = useState<
     { kind: 'facture'; ref: string } | { kind: 'echeance'; id: string } | null
   >(null);
@@ -145,7 +154,18 @@ export function FacturationPageClient({
   ) {
     return (
       <>
-        <div className="mb-3 flex justify-end">
+        <div className="mb-3 flex justify-end gap-2">
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setNewFactureLibreOpen(true)}
+              disabled={clientsForFreeFacture.length === 0}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Facture libre
+            </Button>
+          )}
           <Button
             size="sm"
             onClick={() => setNewFactureOpen(true)}
@@ -165,13 +185,31 @@ export function FacturationPageClient({
           onOpenChange={setNewFactureOpen}
           initialProjets={projetsForFacturation}
         />
+        {isAdmin && (
+          <NewFactureLibreDialog
+            open={newFactureLibreOpen}
+            onOpenChange={setNewFactureLibreOpen}
+            clients={clientsForFreeFacture}
+          />
+        )}
       </>
     );
   }
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <div className="mb-3 flex justify-end">
+      <div className="mb-3 flex justify-end gap-2">
+        {isAdmin && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setNewFactureLibreOpen(true)}
+            disabled={clientsForFreeFacture.length === 0}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Facture libre
+          </Button>
+        )}
         <Button
           size="sm"
           onClick={() => setNewFactureOpen(true)}
@@ -369,6 +407,13 @@ export function FacturationPageClient({
         onOpenChange={setNewFactureOpen}
         initialProjets={projetsForFacturation}
       />
+      {isAdmin && (
+        <NewFactureLibreDialog
+          open={newFactureLibreOpen}
+          onOpenChange={setNewFactureLibreOpen}
+          clients={clientsForFreeFacture}
+        />
+      )}
     </Tabs>
   );
 }

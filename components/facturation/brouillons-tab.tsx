@@ -424,8 +424,8 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                             </span>
                           </Link>
                         ) : (
-                          <span className="text-muted-foreground text-xs">
-                            {'-'}
+                          <span className="text-muted-foreground text-xs italic">
+                            Libre
                           </span>
                         )}
                       </TableCell>

@@ -300,8 +300,16 @@ export function FacturePdf({
             {facture.client?.raison_sociale ?? ''}
           </Text>
           {facture.client?.adresse && <Text>{facture.client.adresse}</Text>}
+          {facture.client?.localisation && (
+            <Text>{facture.client.localisation}</Text>
+          )}
           {facture.client?.siret && (
             <Text style={styles.muted}>SIRET {facture.client.siret}</Text>
+          )}
+          {facture.client?.tva_intracommunautaire && (
+            <Text style={styles.muted}>
+              TVA {facture.client.tva_intracommunautaire}
+            </Text>
           )}
         </View>
 

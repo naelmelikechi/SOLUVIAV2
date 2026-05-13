@@ -18,6 +18,8 @@ interface PreviewData {
     raison_sociale: string;
     siret: string | null;
     adresse: string | null;
+    localisation: string | null;
+    tva_intracommunautaire: string | null;
   } | null;
   lignes: Array<{
     id: string;
@@ -128,8 +130,14 @@ export function EcheanceApercuHtml({ echeanceId }: { echeanceId: string }) {
           </p>
           <p className="font-bold">{data.client?.raison_sociale ?? ''}</p>
           {data.client?.adresse && <p>{data.client.adresse}</p>}
+          {data.client?.localisation && <p>{data.client.localisation}</p>}
           {data.client?.siret && (
             <p className="text-neutral-500">SIRET {data.client.siret}</p>
+          )}
+          {data.client?.tva_intracommunautaire && (
+            <p className="text-neutral-500">
+              TVA {data.client.tva_intracommunautaire}
+            </p>
           )}
         </div>
 

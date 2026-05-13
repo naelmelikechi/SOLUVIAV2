@@ -34,7 +34,7 @@ export async function GET(
         id, mois_concerne, date_emission_prevue, montant_prevu_ht,
         projet:projets!echeances_projet_id_fkey(
           id, ref, taux_commission,
-          client:clients!projets_client_id_fkey(id, trigramme, raison_sociale, siret, adresse)
+          client:clients!projets_client_id_fkey(id, trigramme, raison_sociale, siret, adresse, localisation, tva_intracommunautaire)
         )
       `,
       )
@@ -107,6 +107,9 @@ export async function GET(
             raison_sociale: projet.client.raison_sociale ?? '',
             siret: projet.client.siret ?? null,
             adresse: projet.client.adresse ?? null,
+            localisation: projet.client.localisation ?? null,
+            tva_intracommunautaire:
+              projet.client.tva_intracommunautaire ?? null,
           }
         : null,
       lignes,

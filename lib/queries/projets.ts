@@ -105,12 +105,14 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
   // Build lookup maps
   const apprentisMap = new Map<string, number>();
   for (const c of contratsRes.data ?? []) {
+    if (!c.projet_id) continue;
     apprentisMap.set(c.projet_id, (apprentisMap.get(c.projet_id) ?? 0) + 1);
   }
 
   const facturesRetardMap = new Map<string, number>();
   const encaissementsRetardMap = new Map<string, number>();
   for (const f of facturesRes.data ?? []) {
+    if (!f.projet_id) continue;
     facturesRetardMap.set(
       f.projet_id,
       (facturesRetardMap.get(f.projet_id) ?? 0) + 1,

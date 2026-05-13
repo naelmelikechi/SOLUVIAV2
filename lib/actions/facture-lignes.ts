@@ -101,7 +101,7 @@ async function recomputeFactureTotaux(factureId: string): Promise<void> {
 async function assertBrouillon(factureId: string): Promise<{
   ok: boolean;
   est_avoir?: boolean;
-  projet_id?: string;
+  projet_id?: string | null;
   ref?: string;
   error?: string;
 }> {

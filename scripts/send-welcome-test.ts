@@ -1,8 +1,11 @@
-// Lance via : npx tsx scripts/send-welcome-test.ts
+// Lance via : npx tsx --env-file=.env.local scripts/send-welcome-test.ts
 // Envoie les 4 versions du welcome email a nmelikechi@mysoluvia.com
 // Subjects prefixes [TEST role=...] pour les distinguer dans la boite.
+//
+// Note : on utilise --env-file=.env.local plutot que dotenv/config car
+// lib/env.ts valide process.env au chargement du module ; les imports ES
+// etant hoist es, un dotenv.config() en debut de script s execute trop tard.
 
-import 'dotenv/config';
 import {
   buildWelcomeAdmin,
   buildWelcomeSuperadmin,

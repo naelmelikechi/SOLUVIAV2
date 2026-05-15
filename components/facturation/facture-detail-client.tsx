@@ -11,10 +11,12 @@ import {
   AlertTriangle,
   Send,
   Info,
+  Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { AvoirDialog } from '@/components/facturation/avoir-dialog';
+import { EditBrouillonInfoDialog } from '@/components/facturation/edit-brouillon-info-dialog';
 import {
   sendFactureEmailAction,
   sendRelanceEmailAction,
@@ -34,6 +36,7 @@ export function FactureDetailActions({
 }: FactureDetailActionsProps) {
   const router = useRouter();
   const [avoirOpen, setAvoirOpen] = useState(false);
+  const [editInfoOpen, setEditInfoOpen] = useState(false);
   const [emailPending, startEmailTransition] = useTransition();
   const [relancePending, startRelanceTransition] = useTransition();
   const [sendPending, startSendTransition] = useTransition();
@@ -133,6 +136,16 @@ export function FactureDetailActions({
               <Send className="mr-1.5 h-4 w-4" />
             )}
             {sendPending ? 'Envoi en cours...' : 'Envoyer'}
+          </Button>
+        )}
+        {isBrouillon && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setEditInfoOpen(true)}
+          >
+            <Pencil className="mr-1.5 h-4 w-4" />
+            Modifier les infos
           </Button>
         )}
         {!isBrouillon && (
@@ -235,6 +248,22 @@ export function FactureDetailActions({
           )}
           open={avoirOpen}
           onOpenChange={setAvoirOpen}
+        />
+      )}
+
+      {/* Edit info Dialog (brouillon only) */}
+      {isBrouillon && (
+        <EditBrouillonInfoDialog
+          open={editInfoOpen}
+          onOpenChange={setEditInfoOpen}
+          factureId={facture.id}
+          initial={{
+            date_emission: facture.date_emission,
+            date_echeance: facture.date_echeance,
+            objet: facture.objet,
+            conditions_reglement: facture.conditions_reglement,
+          }}
+          onSuccess={() => router.refresh()}
         />
       )}
     </>

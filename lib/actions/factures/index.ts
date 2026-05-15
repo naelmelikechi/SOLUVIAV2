@@ -9,6 +9,7 @@ export {
   createBlankBrouillon,
   createFreeBrouillon,
   deleteBrouillon,
+  updateBrouillonInfo,
 } from './brouillons';
 export type {
   SelectedEvent,

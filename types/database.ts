@@ -2533,6 +2533,7 @@ export type Database = {
           taux_charges_patronales: number | null;
           telephone: string | null;
           updated_at: string;
+          welcome_email_sent_at: string | null;
         };
         Insert: {
           actif?: boolean;
@@ -2559,6 +2560,7 @@ export type Database = {
           taux_charges_patronales?: number | null;
           telephone?: string | null;
           updated_at?: string;
+          welcome_email_sent_at?: string | null;
         };
         Update: {
           actif?: boolean;
@@ -2585,6 +2587,7 @@ export type Database = {
           taux_charges_patronales?: number | null;
           telephone?: string | null;
           updated_at?: string;
+          welcome_email_sent_at?: string | null;
         };
         Relationships: [];
       };

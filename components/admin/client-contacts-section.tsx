@@ -5,6 +5,8 @@ import { Users, Plus, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -14,7 +16,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { addClientContact, deleteClientContact } from '@/lib/actions/clients';
+import {
+  addClientContact,
+  deleteClientContact,
+  updateClientContact,
+} from '@/lib/actions/clients';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import {
   TableSearchInput,
@@ -36,6 +42,8 @@ export function ClientContactsSection({
   const [poste, setPoste] = useState('');
   const [email, setEmail] = useState('');
   const [telephone, setTelephone] = useState('');
+  const [recoitFactures, setRecoitFactures] = useState(false);
+  const [recoitFacturesCc, setRecoitFacturesCc] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
@@ -56,6 +64,8 @@ export function ClientContactsSection({
     setPoste('');
     setEmail('');
     setTelephone('');
+    setRecoitFactures(false);
+    setRecoitFacturesCc(false);
     setShowForm(false);
   }
 
@@ -65,12 +75,19 @@ export function ClientContactsSection({
       return;
     }
 
+    if ((recoitFactures || recoitFacturesCc) && !email.trim()) {
+      toast.error('Un email est requis pour recevoir les factures');
+      return;
+    }
+
     startTransition(async () => {
       const result = await addClientContact(clientId, {
         nom,
         poste: poste || null,
         email: email || null,
         telephone: telephone || null,
+        recoit_factures: recoitFactures,
+        recoit_factures_cc: recoitFacturesCc,
       });
       if (result.success) {
         toast.success('Contact ajouté');
@@ -95,6 +112,26 @@ export function ClientContactsSection({
         setDeleteTarget(null);
       } else {
         toast.error(result.error ?? 'Erreur lors de la suppression');
+      }
+    });
+  }
+
+  function toggleFlag(
+    contactId: string,
+    contactEmail: string | null,
+    field: 'recoit_factures' | 'recoit_factures_cc',
+    nextValue: boolean,
+  ) {
+    if (nextValue && !contactEmail) {
+      toast.error('Ajoutez un email à ce contact avant de cocher cette option');
+      return;
+    }
+    startTransition(async () => {
+      const result = await updateClientContact(contactId, clientId, {
+        [field]: nextValue,
+      });
+      if (!result.success) {
+        toast.error(result.error ?? 'Erreur lors de la mise à jour');
       }
     });
   }
@@ -138,6 +175,34 @@ export function ClientContactsSection({
               onChange={(e) => setTelephone(e.target.value)}
             />
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="new-contact-recoit-factures"
+                checked={recoitFactures}
+                onCheckedChange={(v) => setRecoitFactures(v === true)}
+              />
+              <Label
+                htmlFor="new-contact-recoit-factures"
+                className="cursor-pointer text-sm font-normal"
+              >
+                Reçoit les factures (À)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="new-contact-recoit-factures-cc"
+                checked={recoitFacturesCc}
+                onCheckedChange={(v) => setRecoitFacturesCc(v === true)}
+              />
+              <Label
+                htmlFor="new-contact-recoit-factures-cc"
+                className="cursor-pointer text-sm font-normal"
+              >
+                En copie (Cc)
+              </Label>
+            </div>
+          </div>
           <div className="mt-3 flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={resetForm}>
               Annuler
@@ -166,6 +231,8 @@ export function ClientContactsSection({
                   <TableHead>Poste</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Téléphone</TableHead>
+                  <TableHead className="text-center">Facturation</TableHead>
+                  <TableHead className="text-center">Cc</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
@@ -173,7 +240,7 @@ export function ClientContactsSection({
                 {filtered.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={7}
                       className="text-muted-foreground h-12 text-center text-sm"
                     >
                       Aucun résultat.
@@ -188,11 +255,39 @@ export function ClientContactsSection({
                     <TableCell className="text-muted-foreground text-sm">
                       {c.poste || '-'}
                     </TableCell>
-                    <TableCell className="text-sm">
-                      {c.email || '-'}
-                    </TableCell>
+                    <TableCell className="text-sm">{c.email || '-'}</TableCell>
                     <TableCell className="text-sm">
                       {c.telephone || '-'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Checkbox
+                        checked={c.recoit_factures ?? false}
+                        disabled={isPending || !c.email}
+                        onCheckedChange={(v) =>
+                          toggleFlag(
+                            c.id,
+                            c.email,
+                            'recoit_factures',
+                            v === true,
+                          )
+                        }
+                        aria-label={`Recoit les factures: ${c.nom}`}
+                      />
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Checkbox
+                        checked={c.recoit_factures_cc ?? false}
+                        disabled={isPending || !c.email}
+                        onCheckedChange={(v) =>
+                          toggleFlag(
+                            c.id,
+                            c.email,
+                            'recoit_factures_cc',
+                            v === true,
+                          )
+                        }
+                        aria-label={`En copie facturation: ${c.nom}`}
+                      />
                     </TableCell>
                     <TableCell>
                       <Button

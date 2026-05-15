@@ -7,6 +7,7 @@ import {
   getFactureRefById,
   getProjetActiveContratsForFacturation,
 } from '@/lib/queries/factures';
+import { getContactsByClientId } from '@/lib/queries/clients';
 import { getEmetteurInfo } from '@/lib/queries/parametres';
 
 export async function generateMetadata({
@@ -42,20 +43,26 @@ export default async function FactureDetailPage({
   // Fetch paiements, avoir-on-this-facture, origin ref, emetteur, and projet
   // (pour edition des lignes en mode brouillon) in parallel
   const projetId = facture.projet?.id ?? '';
-  const [paiements, avoirSurCetteFacture, origineRef, EMETTEUR, projetData] =
-    await Promise.all([
-      getPaiementsByFactureId(facture.id),
-      facture.est_avoir
-        ? Promise.resolve(null)
-        : getAvoirForFacture(facture.id),
-      facture.est_avoir && facture.facture_origine_id
-        ? getFactureRefById(facture.facture_origine_id)
-        : Promise.resolve(null),
-      getEmetteurInfo(),
-      projetId
-        ? getProjetActiveContratsForFacturation(projetId)
-        : Promise.resolve(null),
-    ]);
+  const clientId = facture.client?.id;
+  const [
+    paiements,
+    avoirSurCetteFacture,
+    origineRef,
+    EMETTEUR,
+    projetData,
+    contacts,
+  ] = await Promise.all([
+    getPaiementsByFactureId(facture.id),
+    facture.est_avoir ? Promise.resolve(null) : getAvoirForFacture(facture.id),
+    facture.est_avoir && facture.facture_origine_id
+      ? getFactureRefById(facture.facture_origine_id)
+      : Promise.resolve(null),
+    getEmetteurInfo(),
+    projetId
+      ? getProjetActiveContratsForFacturation(projetId)
+      : Promise.resolve(null),
+    clientId ? getContactsByClientId(clientId) : Promise.resolve([]),
+  ]);
 
   const isBrouillon = facture.statut === 'a_emettre';
   const tauxCommission = projetData?.tauxCommission ?? 10;
@@ -77,6 +84,13 @@ export default async function FactureDetailPage({
       <FactureDetailActions
         facture={facture}
         avoirSurCetteFacture={avoirSurCetteFacture}
+        contacts={(contacts ?? []).map((c) => ({
+          id: c.id,
+          nom: c.nom,
+          email: c.email,
+          recoit_factures: c.recoit_factures ?? false,
+          recoit_factures_cc: c.recoit_factures_cc ?? false,
+        }))}
       />
 
       {/* Émetteur / Destinataire */}

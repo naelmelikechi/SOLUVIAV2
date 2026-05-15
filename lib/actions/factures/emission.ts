@@ -14,6 +14,17 @@ import { logAudit } from '@/lib/utils/audit';
 
 const SendFactureSchema = z.string().uuid('factureId doit être un UUID');
 
+const EmailListSchema = z
+  .array(z.string().email('Email invalide').max(254))
+  .max(20, 'Trop de destinataires (max 20)');
+
+const RecipientsOverrideSchema = z
+  .object({
+    to: EmailListSchema.optional(),
+    cc: EmailListSchema.optional(),
+  })
+  .optional();
+
 const SendFacturesBulkSchema = z
   .array(z.string().uuid('factureId doit être un UUID'))
   .min(1, 'Aucune facture sélectionnée')
@@ -28,6 +39,7 @@ const SendFacturesBulkSchema = z
 // et odoo_id IS NULL pour les factures, et est_avoir=true pour les avoirs).
 export async function sendFacture(
   factureId: string,
+  recipients?: { to?: string[]; cc?: string[] },
 ): Promise<{ success: boolean; ref?: string; error?: string }> {
   const parsed = SendFactureSchema.safeParse(factureId);
   if (!parsed.success) {
@@ -37,6 +49,16 @@ export async function sendFacture(
     };
   }
   factureId = parsed.data;
+
+  const parsedRecipients = RecipientsOverrideSchema.safeParse(recipients);
+  if (!parsedRecipients.success) {
+    return {
+      success: false,
+      error:
+        parsedRecipients.error.issues[0]?.message ?? 'Destinataires invalides',
+    };
+  }
+  const override = parsedRecipients.data;
 
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
@@ -160,7 +182,7 @@ export async function sendFacture(
   // fire-and-forget classique. Si Resend echoue on n'echoue pas la facture
   // (deja en 'emise' avec ref, le bouton "Renvoyer par email" reste dispo).
   waitUntil(
-    sendEmailForFacture(updated.id, supabase).catch((err) => {
+    sendEmailForFacture(updated.id, supabase, override).catch((err) => {
       logger.error('actions.factures', 'Email post-emission failed', {
         factureId: updated.id,
         factureRef: updated.ref,

@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Download,
   Mail,
   FileWarning,
-  Loader2,
   AlertTriangle,
   Send,
   Info,
@@ -17,6 +16,10 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { AvoirDialog } from '@/components/facturation/avoir-dialog';
 import { EditBrouillonInfoDialog } from '@/components/facturation/edit-brouillon-info-dialog';
+import {
+  SendFactureDialog,
+  type FactureContact,
+} from '@/components/facturation/send-facture-dialog';
 import {
   sendFactureEmailAction,
   sendRelanceEmailAction,
@@ -28,44 +31,70 @@ import { logger } from '@/lib/utils/logger';
 interface FactureDetailActionsProps {
   facture: FactureDetail;
   avoirSurCetteFacture: { id: string; ref: string | null } | null;
+  contacts: FactureContact[];
 }
 
 export function FactureDetailActions({
   facture,
   avoirSurCetteFacture,
+  contacts,
 }: FactureDetailActionsProps) {
   const router = useRouter();
   const [avoirOpen, setAvoirOpen] = useState(false);
   const [editInfoOpen, setEditInfoOpen] = useState(false);
-  const [emailPending, startEmailTransition] = useTransition();
-  const [relancePending, startRelanceTransition] = useTransition();
-  const [sendPending, startSendTransition] = useTransition();
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [resendDialogOpen, setResendDialogOpen] = useState(false);
+  const [relanceDialogOpen, setRelanceDialogOpen] = useState(false);
 
   const isBrouillon = facture.statut === 'a_emettre';
 
-  const handleSendBrouillon = () => {
-    startSendTransition(async () => {
-      const result = await sendFacture(facture.id);
-      if (result.success) {
-        toast.success(
-          result.ref
-            ? `Envoyé : ${result.ref}`
-            : 'Brouillon envoyé avec succès',
-        );
-        if (result.ref) {
-          // Le ref vient d'etre attribue, l'URL doit pointer vers le nouveau
-          // ref (la route etait sur l'ancienne URL UUID-less). Pour les
-          // brouillons sans ref, le detail est probablement accede via l'id.
-          router.replace(`/facturation/${result.ref}`);
-        } else {
-          router.refresh();
-        }
+  const handleConfirmSend = async (recipients: {
+    to: string[];
+    cc: string[];
+  }) => {
+    const result = await sendFacture(facture.id, recipients);
+    if (result.success) {
+      if (result.ref) {
+        router.replace(`/facturation/${result.ref}`);
       } else {
-        toast.error(result.error ?? "Erreur lors de l'envoi");
+        router.refresh();
       }
-    });
+    }
+    return result;
   };
 
+  const handleConfirmResend = async (recipients: {
+    to: string[];
+    cc: string[];
+  }) => {
+    try {
+      return await sendFactureEmailAction(facture.id, recipients);
+    } catch (err) {
+      // Le rendu PDF + Resend peut depasser le maxDuration serverless
+      // pour les factures volumineuses (40+ lignes). Le browser recoit alors
+      // une 500/504 et le await throw. On retourne un succes optimiste avec
+      // hint pour que l'utilisateur verifie sa boite.
+      logger.error('facture-detail-client.resend', err, {
+        factureId: facture.id,
+      });
+      return {
+        success: false,
+        error:
+          "Réponse serveur tardive. Vérifie ta boîte mail dans 1 min - l'envoi a probablement réussi.",
+      };
+    }
+  };
+
+  const handleConfirmRelance = async (recipients: {
+    to: string[];
+    cc: string[];
+  }) => {
+    return await sendRelanceEmailAction(facture.id, recipients);
+  };
+
+  // Le bouton "Envoyer" (brouillon) et "Renvoyer par email" ouvrent maintenant
+  // le dialog SendFactureDialog au lieu d'envoyer directement, pour laisser
+  // l'admin ajuster TO/CC. Idem pour la relance manuelle.
   const handleDownloadPdf = async () => {
     try {
       const response = await fetch(`/api/factures/${facture.ref}/pdf`);
@@ -80,32 +109,6 @@ export function FactureDetailActions({
     } catch {
       toast.error('Erreur lors de la génération du PDF');
     }
-  };
-
-  const handleResendEmail = () => {
-    startEmailTransition(async () => {
-      try {
-        const result = await sendFactureEmailAction(facture.id);
-        if (result.success) {
-          toast.success('Email envoyé avec succès');
-        } else {
-          toast.error(result.error ?? "Erreur lors de l'envoi");
-        }
-      } catch (err) {
-        // Le rendu PDF + Resend peut depasser le maxDuration serverless
-        // pour les factures volumineuses (40+ lignes). Dans ce cas le
-        // browser recoit une 500/504 et le await throw. Sans ce catch,
-        // aucun toast n etait affiche -> utilisateur croit que rien ne
-        // se passe alors que l email a souvent bien ete envoye avant
-        // le timeout.
-        toast.error(
-          "Réponse serveur tardive. Vérifie ta boîte mail dans 1 min - l'envoi a probablement réussi.",
-        );
-        logger.error('facture-detail-client.resend', err, {
-          factureId: facture.id,
-        });
-      }
-    });
   };
 
   return (
@@ -127,15 +130,10 @@ export function FactureDetailActions({
           <Button
             variant="default"
             size="sm"
-            onClick={handleSendBrouillon}
-            disabled={sendPending}
+            onClick={() => setSendDialogOpen(true)}
           >
-            {sendPending ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="mr-1.5 h-4 w-4" />
-            )}
-            {sendPending ? 'Envoi en cours...' : 'Envoyer'}
+            <Send className="mr-1.5 h-4 w-4" />
+            Envoyer
           </Button>
         )}
         {isBrouillon && (
@@ -158,15 +156,10 @@ export function FactureDetailActions({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleResendEmail}
-            disabled={emailPending}
+            onClick={() => setResendDialogOpen(true)}
           >
-            {emailPending ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <Mail className="mr-1.5 h-4 w-4" />
-            )}
-            {emailPending ? 'Envoi en cours...' : 'Renvoyer par email'}
+            <Mail className="mr-1.5 h-4 w-4" />
+            Renvoyer par email
           </Button>
         )}
         {facture.statut === 'en_retard' && (
@@ -174,24 +167,10 @@ export function FactureDetailActions({
             variant="outline"
             size="sm"
             className="border-orange-200 text-orange-600 hover:bg-orange-50 dark:border-orange-900 dark:text-orange-400 dark:hover:bg-orange-950/30"
-            disabled={relancePending}
-            onClick={() =>
-              startRelanceTransition(async () => {
-                const result = await sendRelanceEmailAction(facture.id);
-                if (result.success) {
-                  toast.success('Relance envoyée avec succès');
-                } else {
-                  toast.error(result.error ?? "Erreur lors de l'envoi");
-                }
-              })
-            }
+            onClick={() => setRelanceDialogOpen(true)}
           >
-            {relancePending ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <AlertTriangle className="mr-1.5 h-4 w-4" />
-            )}
-            {relancePending ? 'Envoi...' : 'Envoyer une relance'}
+            <AlertTriangle className="mr-1.5 h-4 w-4" />
+            Envoyer une relance
           </Button>
         )}
         {!facture.est_avoir && !isBrouillon && (
@@ -264,6 +243,45 @@ export function FactureDetailActions({
             conditions_reglement: facture.conditions_reglement,
           }}
           onSuccess={() => router.refresh()}
+        />
+      )}
+
+      {/* Envoi initial du brouillon */}
+      {isBrouillon && (
+        <SendFactureDialog
+          open={sendDialogOpen}
+          onOpenChange={setSendDialogOpen}
+          factureRef={facture.ref}
+          contacts={contacts}
+          onConfirm={handleConfirmSend}
+          title="Envoyer la facture"
+          confirmLabel="Envoyer"
+        />
+      )}
+
+      {/* Renvoi email facture deja emise */}
+      {!facture.est_avoir && !isBrouillon && (
+        <SendFactureDialog
+          open={resendDialogOpen}
+          onOpenChange={setResendDialogOpen}
+          factureRef={facture.ref}
+          contacts={contacts}
+          onConfirm={handleConfirmResend}
+          title="Renvoyer la facture par email"
+          confirmLabel="Renvoyer"
+        />
+      )}
+
+      {/* Relance pour facture en retard */}
+      {facture.statut === 'en_retard' && (
+        <SendFactureDialog
+          open={relanceDialogOpen}
+          onOpenChange={setRelanceDialogOpen}
+          factureRef={facture.ref}
+          contacts={contacts}
+          onConfirm={handleConfirmRelance}
+          title="Envoyer une relance"
+          confirmLabel="Envoyer la relance"
         />
       )}
     </>

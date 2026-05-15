@@ -11,7 +11,8 @@ import type { Database } from '@/types/database';
 const FROM_FACTURATION = 'SOLUVIA Facturation <contact@mysoluvia.com>';
 
 export async function sendFactureEmail(params: {
-  to: string;
+  to: string | string[];
+  cc?: string[];
   factureRef: string;
   isAvoir: boolean;
   montantTtc: number;
@@ -26,6 +27,7 @@ export async function sendFactureEmail(params: {
   return sendEmail({
     from: FROM_FACTURATION,
     to: params.to,
+    cc: params.cc,
     subject,
     html: buildFactureEmailHtml(params),
     attachments: [
@@ -35,6 +37,53 @@ export async function sendFactureEmail(params: {
       },
     ],
   });
+}
+
+/**
+ * Resout les destinataires (TO + CC) pour un client donne.
+ *
+ * 1. Si override.to fourni -> override total (utilise pour dialog manuel).
+ * 2. Sinon, lit les contacts du client :
+ *    - TO = contacts avec recoit_factures = true
+ *    - CC = contacts avec recoit_factures_cc = true
+ * 3. Fallback : si aucun contact flagge, prend le premier contact avec email
+ *    (preserve comportement historique).
+ */
+async function resolveFactureRecipients(
+  clientId: string,
+  supabase: SupabaseClient<Database>,
+  override?: { to?: string[]; cc?: string[] },
+): Promise<
+  { ok: true; to: string[]; cc: string[] } | { ok: false; error: string }
+> {
+  if (override?.to && override.to.length > 0) {
+    return { ok: true, to: override.to, cc: override.cc ?? [] };
+  }
+
+  const { data: contacts } = await supabase
+    .from('client_contacts')
+    .select('email, recoit_factures, recoit_factures_cc')
+    .eq('client_id', clientId)
+    .not('email', 'is', null);
+
+  const list = contacts ?? [];
+  const to = list
+    .filter((c) => c.recoit_factures && c.email)
+    .map((c) => c.email as string);
+  const cc = list
+    .filter((c) => c.recoit_factures_cc && c.email)
+    .map((c) => c.email as string);
+
+  if (to.length === 0) {
+    // Fallback historique : premier contact avec email.
+    const first = list.find((c) => c.email)?.email;
+    if (!first) {
+      return { ok: false, error: 'Aucun contact avec email pour ce client' };
+    }
+    return { ok: true, to: [first], cc };
+  }
+
+  return { ok: true, to, cc };
 }
 
 /**
@@ -51,6 +100,7 @@ export async function sendFactureEmail(params: {
 export async function sendEmailForFacture(
   factureId: string,
   supabase: SupabaseClient<Database>,
+  override?: { to?: string[]; cc?: string[] },
 ): Promise<{ success: boolean; error?: string }> {
   // 1. Fetch facture with client + projet
   const { data: facture, error: factureError } = await supabase
@@ -72,31 +122,28 @@ export async function sendEmailForFacture(
     return { success: false, error: 'Facture introuvable' };
   }
 
-  // 0. Idempotent skip si deja envoye avec succes. Protege contre les
-  // double-clics admin sur le bouton "Renvoyer par email".
-  if (facture.email_envoye) {
+  // 0. Idempotent skip si deja envoye avec succes (sans override). Protege
+  // contre les double-clics admin sur "Renvoyer par email". Si l'admin
+  // fournit un override TO/CC, on autorise le renvoi (cas typique : ajout
+  // d'un destinataire oublie).
+  const hasOverride = !!(override?.to && override.to.length > 0);
+  if (facture.email_envoye && !hasOverride) {
     return { success: true };
   }
 
-  // 2. Find first client contact with email
+  // 2. Resolve recipients
   const clientId = facture.client?.id;
   if (!clientId) {
     return { success: false, error: 'Client introuvable pour cette facture' };
   }
 
-  const { data: contacts } = await supabase
-    .from('client_contacts')
-    .select('email')
-    .eq('client_id', clientId)
-    .not('email', 'is', null)
-    .limit(1);
-
-  const contactEmail = contacts?.[0]?.email;
-  if (!contactEmail) {
-    return {
-      success: false,
-      error: 'Aucun contact avec email pour ce client',
-    };
+  const recipients = await resolveFactureRecipients(
+    clientId,
+    supabase,
+    override,
+  );
+  if (!recipients.ok) {
+    return { success: false, error: recipients.error };
   }
 
   // 3. Render PDF
@@ -124,7 +171,8 @@ export async function sendEmailForFacture(
 
   // 4. Send email
   const result = await sendFactureEmail({
-    to: contactEmail,
+    to: recipients.to,
+    cc: recipients.cc.length > 0 ? recipients.cc : undefined,
     factureRef: facture.ref ?? '',
     isAvoir: facture.est_avoir,
     montantTtc: facture.montant_ttc,
@@ -164,6 +212,7 @@ export async function sendEmailForFacture(
 export async function sendRelanceEmail(
   factureId: string,
   supabase: SupabaseClient<Database>,
+  override?: { to?: string[]; cc?: string[] },
 ): Promise<{ success: boolean; error?: string }> {
   // Fetch facture
   const { data: facture } = await supabase
@@ -176,21 +225,16 @@ export async function sendRelanceEmail(
 
   if (!facture) return { success: false, error: 'Facture introuvable' };
 
-  // Find contact email
+  // Resolve recipients (override or client_contacts flags)
   const clientId = (facture.client as unknown as { id: string })?.id;
   if (!clientId) return { success: false, error: 'Client introuvable' };
 
-  const { data: contacts } = await supabase
-    .from('client_contacts')
-    .select('email')
-    .eq('client_id', clientId)
-    .not('email', 'is', null)
-    .limit(1);
-
-  const contactEmail = contacts?.[0]?.email;
-  if (!contactEmail) {
-    return { success: false, error: 'Aucun contact avec email pour ce client' };
-  }
+  const recipients = await resolveFactureRecipients(
+    clientId,
+    supabase,
+    override,
+  );
+  if (!recipients.ok) return { success: false, error: recipients.error };
 
   const montant = new Intl.NumberFormat('fr-FR', {
     style: 'currency',
@@ -241,14 +285,16 @@ export async function sendRelanceEmail(
 
   const result = await sendEmail({
     from: FROM_FACTURATION,
-    to: contactEmail,
+    to: recipients.to,
+    cc: recipients.cc.length > 0 ? recipients.cc : undefined,
     subject: `Rappel - Facture ${facture.ref} en attente de paiement`,
     html,
   });
 
   if (!result.success && !result.skipped) {
     logger.error('email', 'Échec envoi relance', {
-      to: contactEmail,
+      to: recipients.to,
+      cc: recipients.cc,
       ref: facture.ref,
       error: result.error,
     });

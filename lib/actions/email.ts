@@ -8,8 +8,20 @@ import { logAudit } from '@/lib/utils/audit';
 
 const factureIdSchema = z.string().uuid('Facture ID doit être un UUID');
 
+const emailListSchema = z
+  .array(z.string().email('Email invalide').max(254))
+  .max(20, 'Trop de destinataires (max 20)');
+
+const recipientsOverrideSchema = z
+  .object({
+    to: emailListSchema.optional(),
+    cc: emailListSchema.optional(),
+  })
+  .optional();
+
 export async function sendFactureEmailAction(
   factureId: string,
+  recipients?: { to?: string[]; cc?: string[] },
 ): Promise<{ success: boolean; error?: string }> {
   const parsed = factureIdSchema.safeParse(factureId);
   if (!parsed.success) {
@@ -19,11 +31,24 @@ export async function sendFactureEmailAction(
     };
   }
 
+  const parsedRecipients = recipientsOverrideSchema.safeParse(recipients);
+  if (!parsedRecipients.success) {
+    return {
+      success: false,
+      error:
+        parsedRecipients.error.issues[0]?.message ?? 'Destinataires invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
-  const result = await sendEmailForFacture(parsed.data, supabase);
+  const result = await sendEmailForFacture(
+    parsed.data,
+    supabase,
+    parsedRecipients.data,
+  );
 
   if (result.success) {
     logAudit('email_sent', 'facture', parsed.data, undefined, user.id);
@@ -45,6 +70,7 @@ export async function sendFactureEmailAction(
 
 export async function sendRelanceEmailAction(
   factureId: string,
+  recipients?: { to?: string[]; cc?: string[] },
 ): Promise<{ success: boolean; error?: string }> {
   const parsed = factureIdSchema.safeParse(factureId);
   if (!parsed.success) {
@@ -54,12 +80,25 @@ export async function sendRelanceEmailAction(
     };
   }
 
+  const parsedRecipients = recipientsOverrideSchema.safeParse(recipients);
+  if (!parsedRecipients.success) {
+    return {
+      success: false,
+      error:
+        parsedRecipients.error.issues[0]?.message ?? 'Destinataires invalides',
+    };
+  }
+
   const auth = await requireUser();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
   const { sendRelanceEmail } = await import('@/lib/email/client');
-  const result = await sendRelanceEmail(parsed.data, supabase);
+  const result = await sendRelanceEmail(
+    parsed.data,
+    supabase,
+    parsedRecipients.data,
+  );
 
   if (result.success) {
     logAudit('relance_sent', 'facture', parsed.data, undefined, user.id);

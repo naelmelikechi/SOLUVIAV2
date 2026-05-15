@@ -391,6 +391,8 @@ export type Database = {
           id: string;
           nom: string;
           poste: string | null;
+          recoit_factures: boolean;
+          recoit_factures_cc: boolean;
           telephone: string | null;
         };
         Insert: {
@@ -400,6 +402,8 @@ export type Database = {
           id?: string;
           nom: string;
           poste?: string | null;
+          recoit_factures?: boolean;
+          recoit_factures_cc?: boolean;
           telephone?: string | null;
         };
         Update: {
@@ -409,6 +413,8 @@ export type Database = {
           id?: string;
           nom?: string;
           poste?: string | null;
+          recoit_factures?: boolean;
+          recoit_factures_cc?: boolean;
           telephone?: string | null;
         };
         Relationships: [

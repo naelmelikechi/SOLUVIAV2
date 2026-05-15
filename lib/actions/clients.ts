@@ -12,6 +12,7 @@ import {
   isValidSiretLuhn,
   normalizeSiret,
 } from '@/lib/utils/siret';
+import type { Database } from '@/types/database';
 
 const SOLUVIA_INTERNAL_CLIENT_ID = '00000000-0000-0000-0000-0000000000ff';
 
@@ -80,11 +81,19 @@ const ContactDataSchema = z.object({
     .nullable()
     .optional(),
   telephone: z.string().trim().min(5).max(30).nullable().optional(),
+  recoit_factures: z.boolean().optional(),
+  recoit_factures_cc: z.boolean().optional(),
 });
 
 const AddClientContactSchema = z.object({
   clientId: clientIdSchema,
   data: ContactDataSchema,
+});
+
+const UpdateClientContactSchema = z.object({
+  contactId: uuidSchema,
+  clientId: clientIdSchema,
+  data: ContactDataSchema.partial(),
 });
 
 const DeleteClientContactSchema = z.object({
@@ -442,6 +451,8 @@ interface ContactData {
   poste?: string | null;
   email?: string | null;
   telephone?: string | null;
+  recoit_factures?: boolean;
+  recoit_factures_cc?: boolean;
 }
 
 export async function addClientContact(
@@ -454,6 +465,8 @@ export async function addClientContact(
     poste: data.poste?.trim() ? data.poste : null,
     email: data.email?.trim() ? data.email : null,
     telephone: data.telephone?.trim() ? data.telephone : null,
+    recoit_factures: data.recoit_factures ?? false,
+    recoit_factures_cc: data.recoit_factures_cc ?? false,
   };
 
   const parsed = AddClientContactSchema.safeParse({
@@ -478,6 +491,8 @@ export async function addClientContact(
     poste: validated.data.poste ?? null,
     email: validated.data.email ?? null,
     telephone: validated.data.telephone ?? null,
+    recoit_factures: validated.data.recoit_factures ?? false,
+    recoit_factures_cc: validated.data.recoit_factures_cc ?? false,
   });
 
   if (error) return { success: false, error: error.message };
@@ -492,6 +507,72 @@ export async function addClientContact(
 
   revalidatePath(`/admin/clients/${validated.clientId}`);
 
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// updateClientContact - patch partiel sur un contact existant
+// ---------------------------------------------------------------------------
+// Utile pour basculer les flags recoit_factures / recoit_factures_cc depuis la
+// fiche client sans re-creer le contact. Validation Zod stricte pour eviter
+// d'injecter des champs hors schema.
+
+export async function updateClientContact(
+  contactId: string,
+  clientId: string,
+  data: Partial<ContactData>,
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateClientContactSchema.safeParse({
+    contactId,
+    clientId,
+    data,
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
+    };
+  }
+  const validated = parsed.data;
+
+  const auth = await requireUser();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
+
+  // Construit le patch en ne touchant que les champs explicitement fournis,
+  // pour ne pas ecraser involontairement des valeurs existantes.
+  const patch: Database['public']['Tables']['client_contacts']['Update'] = {};
+  if ('nom' in validated.data && validated.data.nom !== undefined)
+    patch.nom = validated.data.nom;
+  if ('poste' in validated.data) patch.poste = validated.data.poste ?? null;
+  if ('email' in validated.data) patch.email = validated.data.email ?? null;
+  if ('telephone' in validated.data)
+    patch.telephone = validated.data.telephone ?? null;
+  if ('recoit_factures' in validated.data)
+    patch.recoit_factures = validated.data.recoit_factures ?? false;
+  if ('recoit_factures_cc' in validated.data)
+    patch.recoit_factures_cc = validated.data.recoit_factures_cc ?? false;
+
+  if (Object.keys(patch).length === 0) {
+    return { success: true };
+  }
+
+  const { error } = await supabase
+    .from('client_contacts')
+    .update(patch)
+    .eq('id', validated.contactId)
+    .eq('client_id', validated.clientId);
+
+  if (error) return { success: false, error: error.message };
+
+  logAudit(
+    'contact_updated',
+    'client',
+    validated.contactId,
+    patch as Record<string, string | number | boolean | null>,
+    user.id,
+  );
+  revalidatePath(`/admin/clients/${validated.clientId}`);
   return { success: true };
 }
 

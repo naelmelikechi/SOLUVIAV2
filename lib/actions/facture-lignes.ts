@@ -61,16 +61,21 @@ const RemoveLigneSchema = uuidSchema('ligneId');
 
 async function recomputeFactureTotaux(factureId: string): Promise<void> {
   const supabase = await createClient();
-  // lignes + facture en parallele : independants.
-  const [lignesRes, factureRes] = await Promise.all([
+  // lignes + facture + echeances liees en parallele : independants.
+  const [lignesRes, factureRes, echeancesRes] = await Promise.all([
     supabase
       .from('facture_lignes')
       .select('montant_ht')
       .eq('facture_id', factureId),
     supabase.from('factures').select('taux_tva').eq('id', factureId).single(),
+    supabase
+      .from('echeances')
+      .select('id, montant_prevu_ht')
+      .eq('facture_id', factureId),
   ]);
   const lignes = lignesRes.data;
   const facture = factureRes.data;
+  const echeances = echeancesRes.data;
 
   const totalHt =
     Math.round(
@@ -95,6 +100,28 @@ async function recomputeFactureTotaux(factureId: string): Promise<void> {
       factureId,
       error: updateError,
     });
+  }
+
+  // Audit non-silencieux : si la facture est liee a des echeances et que le
+  // total facture diverge de la somme des previsions, on logge pour que
+  // l'ecart soit detectable (sans modifier montant_prevu_ht qui represente
+  // l'historique de prevision metier).
+  if (echeances && echeances.length > 0) {
+    const totalEcheancesHt =
+      Math.round(
+        echeances.reduce((s, e) => s + Number(e.montant_prevu_ht ?? 0), 0) *
+          100,
+      ) / 100;
+    const ecart = Math.round((totalHt - totalEcheancesHt) * 100) / 100;
+    if (Math.abs(ecart) > 0.01) {
+      logger.warn('actions.facture-lignes', 'ecart facture vs echeances', {
+        factureId,
+        totalFactureHt: totalHt,
+        totalEcheancesPrevuHt: totalEcheancesHt,
+        ecart,
+        echeanceIds: echeances.map((e) => e.id),
+      });
+    }
   }
 }
 

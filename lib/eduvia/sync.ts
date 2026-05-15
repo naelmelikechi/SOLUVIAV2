@@ -534,7 +534,11 @@ export async function syncEduviaForClient(
       for (const step of steps) {
         if (!step.invoice_id) continue;
         try {
-          const lines = await fetchInvoiceLines(instanceUrl, apiKey, step.invoice_id);
+          const lines = await fetchInvoiceLines(
+            instanceUrl,
+            apiKey,
+            step.invoice_id,
+          );
           for (const line of lines) {
             const { error: lineErr } = await supabase
               .from('eduvia_invoice_lines')
@@ -566,26 +570,43 @@ export async function syncEduviaForClient(
           // I2: Orphan delete - si Eduvia a supprime une ligne entre 2 syncs,
           // on la supprime de notre DB pour eviter que la base de commission
           // s'inflate sur des donnees obsoletes.
-          // Cas limite lines.length=0 : apiLineIds=[] -> on passe '(0)' comme
-          // fallback pour que la clause NOT IN matche toutes les lignes (Supabase
-          // ne supporte pas NOT IN sur un tableau vide).
-          const apiLineIds = lines.map((l) => l.id);
-          const notInParam =
-            apiLineIds.length > 0 ? apiLineIds.join(',') : '0';
-          const { error: deleteErr } = await supabase
-            .from('eduvia_invoice_lines')
-            .delete()
-            .eq('source_client_id', clientId)
-            .eq('eduvia_invoice_id', step.invoice_id)
-            .not('eduvia_id', 'in', `(${notInParam})`);
-          if (deleteErr) {
-            result.errors.push(
-              `InvoiceLine orphan cleanup invoice=${step.invoice_id}: ${deleteErr.message}`,
-            );
+          //
+          // Garde-fou anti-wipe : si l'API renvoie lines.length=0 alors qu'on
+          // avait deja des lignes en DB, c'est probablement un bug transitoire
+          // Eduvia. Sans ce garde-fou, le NOT IN '(0)' supprimerait *toutes*
+          // les lignes de cette facture et fausserait la base commission
+          // jusqu'au prochain sync.
+          if (lines.length === 0) {
+            const { count: existingCount } = await supabase
+              .from('eduvia_invoice_lines')
+              .select('id', { count: 'exact', head: true })
+              .eq('source_client_id', clientId)
+              .eq('eduvia_invoice_id', step.invoice_id);
+            if ((existingCount ?? 0) > 0) {
+              result.errors.push(
+                `InvoiceLine orphan cleanup invoice=${step.invoice_id}: API renvoie 0 ligne mais DB en a ${existingCount}, skip delete pour eviter wipe.`,
+              );
+            }
+          } else {
+            const apiLineIds = lines.map((l) => l.id);
+            const { error: deleteErr } = await supabase
+              .from('eduvia_invoice_lines')
+              .delete()
+              .eq('source_client_id', clientId)
+              .eq('eduvia_invoice_id', step.invoice_id)
+              .not('eduvia_id', 'in', `(${apiLineIds.join(',')})`);
+            if (deleteErr) {
+              result.errors.push(
+                `InvoiceLine orphan cleanup invoice=${step.invoice_id}: ${deleteErr.message}`,
+              );
+            }
           }
         } catch (err) {
           if (!(err instanceof EndpointNotAvailableError)) {
-            if (result.errors.length - phase5StartErrorCount < PHASE5_MAX_ERRORS) {
+            if (
+              result.errors.length - phase5StartErrorCount <
+              PHASE5_MAX_ERRORS
+            ) {
               result.errors.push(
                 `invoice_lines invoice=${step.invoice_id}: ${err instanceof Error ? err.message : String(err)}`,
               );

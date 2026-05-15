@@ -372,9 +372,7 @@ beforeEach(() => {
   );
 
   // fetchOne (progressions): not available
-  fetchOneMock.mockRejectedValue(
-    new EndpointNotAvailableError('progressions'),
-  );
+  fetchOneMock.mockRejectedValue(new EndpointNotAvailableError('progressions'));
 
   // fetchList (invoice_steps, invoice_forecast_steps): default to not available
   // Tests override this per-case for steps
@@ -397,7 +395,8 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
     // fetchList handles invoice_steps and invoice_forecast_steps
     fetchListMock.mockImplementation(
       async (_url: string, _key: string, resource: string) => {
-        if (resource === 'contracts/1/invoice_steps') return [STEP_PEDAGO, STEP_MATOS];
+        if (resource === 'contracts/1/invoice_steps')
+          return [STEP_PEDAGO, STEP_MATOS];
         if (resource === 'contracts/1/invoice_forecast_steps') return [];
         return [];
       },
@@ -449,7 +448,9 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
     expect(pedaPayload.eduvia_invoice_id).toBe(200);
     expect(pedaPayload.amount).toBe(2666.56);
     expect(pedaPayload.line_type).toBe('PEDAGOGIE');
-    expect(pedaOp!.options).toEqual({ onConflict: 'eduvia_id,source_client_id' });
+    expect(pedaOp!.options).toEqual({
+      onConflict: 'eduvia_id,source_client_id',
+    });
 
     // Check matos line payload
     const matOp = lineOps.find(
@@ -649,8 +650,12 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
 
     // Le delete doit filtrer sur source_client_id + eduvia_invoice_id=200
     const deleteOp = deleteOps[0]!;
-    const clientFilter = deleteOp.filters.find((f) => f.col === 'source_client_id');
-    const invoiceFilter = deleteOp.filters.find((f) => f.col === 'eduvia_invoice_id');
+    const clientFilter = deleteOp.filters.find(
+      (f) => f.col === 'source_client_id',
+    );
+    const invoiceFilter = deleteOp.filters.find(
+      (f) => f.col === 'eduvia_invoice_id',
+    );
     expect(clientFilter?.val).toBe(CLIENT_ID);
     expect(invoiceFilter?.val).toBe(200);
 
@@ -661,7 +666,11 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
     expect(String(notInFilter!.val)).toContain('79');
   });
 
-  it('I2: si Eduvia retourne 0 lignes (all orphans), delete frappe toutes les lignes de l invoice', async () => {
+  it('I2: si Eduvia retourne 0 lignes, skip delete pour eviter wipe', async () => {
+    // Anti-wipe : si l API retourne lines=[] (bug transitoire ou retraitement
+    // Eduvia), on ne doit PAS supprimer les lignes existantes cote DB. Sans
+    // ce garde-fou, un seul appel buggy effaceraient toute l historique
+    // de commission pour cette facture.
     fetchListMock.mockImplementation(
       async (_url: string, _key: string, resource: string) => {
         if (resource === 'contracts/1/invoice_steps') return [STEP_PEDAGO];
@@ -670,7 +679,6 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       },
     );
 
-    // API retourne tableau vide pour cette invoice
     fetchInvoiceLinesMock.mockResolvedValue([]);
 
     const supa = buildSupabase({
@@ -692,18 +700,12 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       'fake-key',
     );
 
-    expect(res.errors).toHaveLength(0);
-    expect(res.invoice_lines).toBe(0); // aucune ligne inseree
+    expect(res.invoice_lines).toBe(0);
 
-    // Delete doit quand meme etre emise (avec fallback '0' dans NOT IN)
+    // Aucun delete ne doit etre emis : garde-fou anti-wipe.
     const deleteOps = supa.ops.filter(
       (o) => o.op === 'delete' && o.table === 'eduvia_invoice_lines',
     );
-    expect(deleteOps).toHaveLength(1);
-
-    // NOT IN fallback : val doit contenir '0' (toutes les lignes sont orphelines)
-    const notInFilter = deleteOps[0]!.filters.find((f) => f.col === 'eduvia_id');
-    expect(notInFilter).toBeDefined();
-    expect(String(notInFilter!.val)).toContain('0');
+    expect(deleteOps).toHaveLength(0);
   });
 });

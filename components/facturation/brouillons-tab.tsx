@@ -8,6 +8,7 @@ import {
   Download,
   Eye,
   Loader2,
+  Pencil,
   Send,
   Trash2,
   Inbox,
@@ -48,6 +49,7 @@ import {
   sendFacture,
   sendFacturesBulk,
 } from '@/lib/actions/factures';
+import { EditBrouillonInfoDialog } from '@/components/facturation/edit-brouillon-info-dialog';
 import type { BrouillonItem } from '@/lib/queries/factures';
 
 interface BrouillonsTabProps {
@@ -76,6 +78,8 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
   const [previewBrouillon, setPreviewBrouillon] =
     useState<BrouillonItem | null>(null);
   const [previewLoaded, setPreviewLoaded] = useState(false);
+  const [editInfoBrouillon, setEditInfoBrouillon] =
+    useState<BrouillonItem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<BrouillonItem | null>(
     null,
   );
@@ -482,15 +486,25 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                 : 'Aperçu brouillon - Facture'}
             </SheetTitle>
             {previewBrouillon ? (
-              <a
-                href={`/api/factures/brouillon/${previewBrouillon.id}/pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={buttonVariants({ variant: 'outline', size: 'sm' })}
-              >
-                <Download className="mr-1.5 h-4 w-4" />
-                {'Télécharger'}
-              </a>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditInfoBrouillon(previewBrouillon)}
+                >
+                  <Pencil className="mr-1.5 h-4 w-4" />
+                  Modifier les infos
+                </Button>
+                <a
+                  href={`/api/factures/brouillon/${previewBrouillon.id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({ variant: 'outline', size: 'sm' })}
+                >
+                  <Download className="mr-1.5 h-4 w-4" />
+                  {'Télécharger'}
+                </a>
+              </div>
             ) : null}
           </SheetHeader>
           {previewBrouillon ? (
@@ -515,6 +529,28 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
           ) : null}
         </SheetContent>
       </Sheet>
+
+      {/* Edit brouillon info dialog */}
+      {editInfoBrouillon && (
+        <EditBrouillonInfoDialog
+          open={editInfoBrouillon !== null}
+          onOpenChange={(open) => {
+            if (!open) setEditInfoBrouillon(null);
+          }}
+          factureId={editInfoBrouillon.id}
+          initial={{
+            date_emission: editInfoBrouillon.date_emission,
+            date_echeance: editInfoBrouillon.date_echeance,
+            objet: editInfoBrouillon.objet,
+            conditions_reglement: editInfoBrouillon.conditions_reglement,
+          }}
+          onSuccess={() => {
+            setEditInfoBrouillon(null);
+            setPreviewLoaded(false);
+            router.refresh();
+          }}
+        />
+      )}
 
       {/* Delete confirmation */}
       <ConfirmDialog

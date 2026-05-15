@@ -51,6 +51,7 @@ export async function getBrouillons() {
       id, date_emission, date_echeance, mois_concerne,
       montant_ht, taux_tva, montant_tva, montant_ttc,
       est_avoir, avoir_motif, facture_origine_id, created_at,
+      objet, conditions_reglement,
       projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, is_demo),
       lignes:facture_lignes(id, description, montant_ht, event_type, event_source_id,

@@ -15,68 +15,72 @@ import {
   sendWelcomeEmail,
 } from '@/lib/email/welcome';
 
-describe('welcome email builders', () => {
-  describe('buildWelcomeAdmin', () => {
-    it('inclut le prenom du destinataire echappe', () => {
-      const { subject, html } = buildWelcomeAdmin({ prenom: '<Marc>' });
-      expect(html).toContain('&lt;Marc&gt;');
-      expect(html).not.toContain('<Marc>');
-      expect(subject).toBe('Bienvenue sur Soluvia - votre cockpit de pilotage');
-    });
-
-    it('contient les 4 bullets admin', () => {
-      const { html } = buildWelcomeAdmin({ prenom: 'Marc' });
-      expect(html).toMatch(/Vue d.ensemble et indicateurs/);
-      expect(html).toMatch(/projets, contrats et clients/);
-      expect(html).toMatch(/Facturation OPCO/);
-      expect(html).toMatch(/Administration\s*:\s*utilisateurs/);
-    });
-
-    it('contient le CTA vers app.mysoluvia.com', () => {
-      const { html } = buildWelcomeAdmin({ prenom: 'Marc' });
-      expect(html).toContain('https://app.mysoluvia.com');
-      expect(html).toMatch(/Acc.der a Soluvia/i);
-    });
-
-    it("ne contient pas d'em-dashes", () => {
-      const { html, subject } = buildWelcomeAdmin({ prenom: 'Marc' });
-      expect(html).not.toContain('—');
-      expect(subject).not.toContain('—');
-    });
+describe('welcome email builders - structure commune', () => {
+  it.each([
+    ['admin', buildWelcomeAdmin],
+    ['superadmin', buildWelcomeSuperadmin],
+    ['cdp', buildWelcomeCdp],
+    ['commercial', buildWelcomeCommercial],
+  ] as const)('%s : escape le prenom, logo, CTA, pas d em-dash', (_, build) => {
+    const { html, subject } = build({ prenom: '<Marc>' });
+    // Echappement HTML du prenom user-supplied
+    expect(html).toContain('&lt;Marc&gt;');
+    expect(html).not.toContain('<Marc>');
+    // Logo officiel
+    expect(html).toContain('https://app.mysoluvia.com/logo.png');
+    // CTA
+    expect(html).toContain('https://app.mysoluvia.com');
+    expect(html).toMatch(/Accéder à Soluvia/);
+    // Signature
+    expect(html).toMatch(/L'équipe SOLUVIA/);
+    // Pas d em-dashes
+    expect(html).not.toContain('—');
+    expect(subject).not.toContain('—');
   });
+});
 
-  describe('buildWelcomeSuperadmin', () => {
-    it("mentionne l'acces technique complet et la note d'usage avise", () => {
-      const { subject, html } = buildWelcomeSuperadmin({ prenom: 'Marc' });
-      expect(subject).toBe('Bienvenue sur Soluvia - acces superadmin');
-      expect(html).toMatch(/acces technique complet/);
-      expect(html).toMatch(/journal d.audit/);
-      expect(html).toMatch(/operations sensibles/);
-    });
+describe('buildWelcomeAdmin', () => {
+  it('a le bon subject et le contenu admin', () => {
+    const { subject, html } = buildWelcomeAdmin({ prenom: 'Marc' });
+    expect(subject).toBe('Bienvenue sur Soluvia - votre cockpit de pilotage');
+    expect(html).toMatch(/compte administrateur/);
+    expect(html).toMatch(/vue d'ensemble/i);
+    expect(html).toMatch(/projets, contrats/i);
+    expect(html).toMatch(/facturation OPCO/i);
+    expect(html).toMatch(/paramètres/i);
   });
+});
 
-  describe('buildWelcomeCdp', () => {
-    it('a le bon subject et les bullets cdp', () => {
-      const { subject, html } = buildWelcomeCdp({ prenom: 'Sophie' });
-      expect(subject).toBe(
-        'Bienvenue sur Soluvia - votre espace chef de projet',
-      );
-      expect(html).toMatch(/portefeuille/);
-      expect(html).toMatch(/Saisie du temps/);
-      expect(html).toMatch(/qualite/i);
-      expect(html).toMatch(/Notifications temps reel/);
-    });
+describe('buildWelcomeSuperadmin', () => {
+  it('a le bon subject avec accent et mentionne les actions sensibles', () => {
+    const { subject, html } = buildWelcomeSuperadmin({ prenom: 'Marc' });
+    expect(subject).toBe('Bienvenue sur Soluvia - accès superadmin');
+    expect(html).toMatch(/superadmin/i);
+    expect(html).toMatch(/rôles/i);
+    expect(html).toMatch(/réglages/i);
+    expect(html).toMatch(/historique/i);
+    expect(html).toMatch(/actions sensibles/i);
   });
+});
 
-  describe('buildWelcomeCommercial', () => {
-    it('a le bon subject et les bullets commercial', () => {
-      const { subject, html } = buildWelcomeCommercial({ prenom: 'Lea' });
-      expect(subject).toBe('Bienvenue sur Soluvia - votre pipeline commercial');
-      expect(html).toMatch(/Pipeline prospects/);
-      expect(html).toMatch(/projets convertis/);
-      expect(html).toMatch(/taux de conversion/);
-      expect(html).toMatch(/chefs de projet/);
-    });
+describe('buildWelcomeCdp', () => {
+  it('a le bon subject et le contenu chef de projet', () => {
+    const { subject, html } = buildWelcomeCdp({ prenom: 'Sophie' });
+    expect(subject).toBe('Bienvenue sur Soluvia - votre espace chef de projet');
+    expect(html).toMatch(/chef de projet/i);
+    expect(html).toMatch(/saisie du temps/i);
+    expect(html).toMatch(/qualité/i);
+    expect(html).toMatch(/alertes/i);
+  });
+});
+
+describe('buildWelcomeCommercial', () => {
+  it('a le bon subject et le contenu commercial', () => {
+    const { subject, html } = buildWelcomeCommercial({ prenom: 'Léa' });
+    expect(subject).toBe('Bienvenue sur Soluvia - votre pipeline commercial');
+    expect(html).toMatch(/prospects/i);
+    expect(html).toMatch(/taux de conversion/i);
+    expect(html).toMatch(/chefs de projet/i);
   });
 });
 

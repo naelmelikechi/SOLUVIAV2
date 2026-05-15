@@ -37,6 +37,18 @@ describe('welcome email builders - structure commune', () => {
     expect(html).not.toContain('—');
     expect(subject).not.toContain('—');
   });
+
+  it.each([
+    ['admin', buildWelcomeAdmin],
+    ['superadmin', buildWelcomeSuperadmin],
+    ['cdp', buildWelcomeCdp],
+    ['commercial', buildWelcomeCommercial],
+  ] as const)('%s : rappelle la fiche de temps hebdomadaire', (_, build) => {
+    const { html } = build({ prenom: 'Marc' });
+    expect(html).toMatch(/fiche de temps/i);
+    expect(html).toContain('chaque semaine');
+    expect(html).toMatch(/Mon temps/);
+  });
 });
 
 describe('buildWelcomeAdmin', () => {

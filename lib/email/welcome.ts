@@ -30,6 +30,14 @@ interface Section {
   body: string;
 }
 
+const FICHE_DE_TEMPS_REMINDER = `
+      <div style="margin:20px 0 0;padding:14px 16px;background:#fffbeb;border-left:3px solid #f59e0b;border-radius:6px;">
+        <p style="margin:0 0 6px;color:#78350f;font-size:14px;font-weight:600;">Important : la fiche de temps</p>
+        <p style="margin:0;color:#78350f;font-size:13px;line-height:1.6;">
+          Chaque collaborateur doit remplir sa fiche de temps <strong>chaque semaine</strong>, sans exception. Elle permet de ventiler tes heures par projet et par activité (face à face, préparation, suivi, administratif). C'est la base de la facturation OPCO, du suivi de rentabilité et de la conformité Qualiopi : si elle n'est pas à jour, on perd la visibilité côté pilotage et côté facturation. Tu y accèdes depuis le menu "Mon temps" dans la barre latérale.
+        </p>
+      </div>`;
+
 function shell(opts: {
   greeting: string;
   intro: string;
@@ -63,6 +71,7 @@ function shell(opts: {
       <p style="margin:0 0 12px;color:#2d4a2d;font-size:14px;line-height:1.6;">${opts.intro}</p>
       <p style="margin:0 0 20px;color:#2d4a2d;font-size:14px;line-height:1.6;">${opts.pitch}</p>
       ${sectionsHtml}
+      ${FICHE_DE_TEMPS_REMINDER}
       <p style="margin:20px 0 0;color:#2d4a2d;font-size:14px;line-height:1.6;">${opts.closing}</p>
       <div style="text-align:center;margin:28px 0 4px;">
         <a href="https://app.mysoluvia.com" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">Accéder à Soluvia</a>

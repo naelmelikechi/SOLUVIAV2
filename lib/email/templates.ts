@@ -41,6 +41,14 @@ export function buildFactureEmailHtml(params: {
   isAvoir: boolean;
   montantTtc: number;
   dateEcheance: string;
+  /**
+   * Conditions de reglement saisies sur la facture (cf. champ
+   * factures.conditions_reglement). Si fourni, remplace le texte par defaut
+   * "Reglement par virement bancaire sous 30 jours fin de mois" dans la
+   * section Modalites de paiement. Assure la coherence email <-> PDF (Art.
+   * L441-10 II : modalites opposables au client uniquement si mentionnees).
+   */
+  conditionsReglement?: string | null;
   emetteur?: EmetteurInfo;
 }): string {
   const { factureRef, isAvoir, montantTtc, dateEcheance } = params;
@@ -71,6 +79,14 @@ export function buildFactureEmailHtml(params: {
     ? escapeHtml(emetteur.titulaire_compte)
     : null;
   const showRib = !isAvoir && iban !== null;
+  // Modalites de reglement : priorise le champ conditions_reglement saisi sur
+  // la facture (cf. PDF), fallback sur le texte standard "30 jours fin de mois".
+  // On garde la phrase "Merci d'indiquer la reference X lors du virement" en
+  // tant que ligne distincte universelle.
+  const conditionsTexte =
+    params.conditionsReglement && params.conditionsReglement.trim()
+      ? escapeHtml(params.conditionsReglement)
+      : 'Règlement par virement bancaire sous 30 jours fin de mois.';
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -150,7 +166,7 @@ export function buildFactureEmailHtml(params: {
                       Modalités de paiement
                     </p>
                     <p style="margin:0 0 12px;font-size:13px;color:#1a1a1a;line-height:1.5;">
-                      Règlement par virement bancaire sous 30 jours fin de mois. Merci d'indiquer la référence <strong>${escapedFactureRef}</strong> lors du virement.
+                      ${conditionsTexte} Merci d'indiquer la référence <strong>${escapedFactureRef}</strong> lors du virement.
                     </p>
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;color:#1a1a1a;">
                       ${

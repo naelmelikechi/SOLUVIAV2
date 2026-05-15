@@ -116,7 +116,7 @@ export function buildWelcomeAdmin(p: BuilderParams): BuiltEmail {
         },
       ],
       closing:
-        'Explore librement : les actions importantes sont protégées et rien ne se perd. Si tu repères quelque chose qui cloche, il y a un bouton "Signaler un bug" en bas de la barre latérale.',
+        'Explore librement : les actions importantes sont protégées et rien ne se perd. Si tu repères quelque chose qui cloche, il y a un bouton "Signaler un bug" en bas à droite de chaque page.',
     }),
   };
 }
@@ -186,7 +186,7 @@ export function buildWelcomeCdp(p: BuilderParams): BuiltEmail {
         },
       ],
       closing:
-        'Si une vue te manque ou qu\'un truc n\'est pas clair, fais-nous remonter avec le bouton "Signaler un bug" en bas de la barre latérale : on lit tout.',
+        'Si une vue te manque ou qu\'un truc n\'est pas clair, fais-nous remonter avec le bouton "Signaler un bug" en bas à droite de chaque page : on lit tout.',
     }),
   };
 }

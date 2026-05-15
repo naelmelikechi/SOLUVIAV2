@@ -9,6 +9,10 @@ import {
 import type { FactureDetail } from '@/lib/queries/factures';
 import type { EmetteurInfo } from '@/lib/queries/parametres';
 import { formatDate } from '@/lib/utils/formatters';
+import {
+  AUTOLIQUIDATION_MENTION,
+  resolveTvaRegime,
+} from '@/lib/utils/tva-intracom';
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA',
@@ -230,6 +234,12 @@ export function FacturePdf({
   const adresseLigne1 = adresseParts[0] ?? EMETTEUR.adresse;
   const adresseLigne2 = adresseParts.slice(1).join(', ');
 
+  // Detection autoliquidation TVA intracom : client UE non-FR avec taux_tva=0.
+  // Sert a afficher la mention obligatoire Art. 283-2 CGI.
+  const tvaRegime = resolveTvaRegime(facture.client?.tva_intracommunautaire);
+  const isAutoliquidation =
+    tvaRegime.isAutoliquidation && Number(facture.taux_tva) === 0;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -380,6 +390,15 @@ export function FacturePdf({
             </Text>
           </View>
         </View>
+
+        {/* Mention autoliquidation TVA - obligatoire B2B intracom UE non-FR */}
+        {isAutoliquidation && (
+          <View style={{ marginTop: 12 }}>
+            <Text style={[styles.bold, { color: '#1a1a1a' }]}>
+              {AUTOLIQUIDATION_MENTION}
+            </Text>
+          </View>
+        )}
 
         {/* Modalites de paiement / RIB */}
         {(EMETTEUR.iban || EMETTEUR.bic) && (

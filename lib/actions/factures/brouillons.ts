@@ -14,6 +14,7 @@ import {
 } from '@/lib/echeancier/calc';
 import { getBillableEvents } from '@/lib/queries/billable-events';
 import { computeFactureTotauxTtcInclus } from '@/lib/utils/facture-totaux-ttc-inclus';
+import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 
 // ---------------------------------------------------------------------------
 // Schemas Zod (validation cote serveur, defense en profondeur)
@@ -145,7 +146,13 @@ async function insertBrouillonWithLignes(args: {
     return { ok: false, error: 'Montant total nul ou négatif' };
   }
 
-  const tauxTva = 20;
+  // TVA : 0% si client UE non-FR (autoliquidation), sinon 20%.
+  const { data: clientTva } = await supabase
+    .from('clients')
+    .select('tva_intracommunautaire')
+    .eq('id', clientId)
+    .single();
+  const tauxTva = resolveTvaRegime(clientTva?.tva_intracommunautaire).taux;
   const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
   const totalHt = totalHtCents / 100;
   const montantTva = montantTvaCents / 100;
@@ -327,7 +334,12 @@ async function processBrouillonGroup(
     (s, l) => s + Math.round(l.montant_ht * 100),
     0,
   );
-  const tauxTva = 20;
+  const { data: clientTva } = await supabase
+    .from('clients')
+    .select('tva_intracommunautaire')
+    .eq('id', group.clientId)
+    .single();
+  const tauxTva = resolveTvaRegime(clientTva?.tva_intracommunautaire).taux;
   const montantTvaCents = Math.round((totalHtCents * tauxTva) / 100);
   const totalHt = totalHtCents / 100;
   const montantTva = montantTvaCents / 100;
@@ -802,10 +814,12 @@ export async function createFactureFromEvents(params: {
     }
   }
 
-  // 5. Recupere client_id du projet
+  // 5. Recupere client_id du projet + TVA intracom client (pour autoliquidation)
   const { data: projet } = await supabase
     .from('projets')
-    .select('id, client_id, taux_commission')
+    .select(
+      'id, client_id, taux_commission, client:clients!projets_client_id_fkey(tva_intracommunautaire)',
+    )
     .eq('id', projetId)
     .single();
   if (!projet) return { success: false, error: 'Projet introuvable' };
@@ -878,7 +892,7 @@ export async function createFactureFromEvents(params: {
     }
   }
 
-  const tauxTva = 20;
+  const tauxTva = resolveTvaRegime(projet.client?.tva_intracommunautaire).taux;
   const { totalTtc, totalHt, montantTva, lignesHt } =
     computeFactureTotauxTtcInclus(resolved, tauxTva);
   const montantTtc = totalTtc;

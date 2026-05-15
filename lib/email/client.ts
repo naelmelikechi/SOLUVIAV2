@@ -40,6 +40,13 @@ export async function sendFactureEmail(params: {
 /**
  * Full workflow: fetch facture, find contact email, render PDF, send email.
  * Can be called from both the server action and from createFactures.
+ *
+ * Idempotence : si email_envoye est deja a true, on retourne success sans
+ * renvoyer (anti-double-clic admin). Pour forcer un renvoi, mettre
+ * email_envoye=false en DB.
+ *
+ * Echec Resend : on persiste email_last_attempt_at + email_erreur sur la
+ * facture. Permet a l UI d afficher l etat et facilite le retry manuel.
  */
 export async function sendEmailForFacture(
   factureId: string,
@@ -63,6 +70,12 @@ export async function sendEmailForFacture(
 
   if (factureError || !facture) {
     return { success: false, error: 'Facture introuvable' };
+  }
+
+  // 0. Idempotent skip si deja envoye avec succes. Protege contre les
+  // double-clics admin sur le bouton "Renvoyer par email".
+  if (facture.email_envoye) {
+    return { success: true };
   }
 
   // 2. Find first client contact with email
@@ -120,11 +133,24 @@ export async function sendEmailForFacture(
     emetteur,
   });
 
-  // 5. On success: mark email_envoye
+  // 5. Persist outcome (succes ou echec) sur la facture pour observabilite.
+  const nowIso = new Date().toISOString();
   if (result.success) {
     await supabase
       .from('factures')
-      .update({ email_envoye: true })
+      .update({
+        email_envoye: true,
+        email_last_attempt_at: nowIso,
+        email_erreur: null,
+      })
+      .eq('id', factureId);
+  } else {
+    await supabase
+      .from('factures')
+      .update({
+        email_last_attempt_at: nowIso,
+        email_erreur: result.error ?? 'Erreur Resend inconnue',
+      })
       .eq('id', factureId);
   }
 

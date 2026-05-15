@@ -1351,6 +1351,8 @@ export type Database = {
           date_echeance: string | null;
           date_emission: string | null;
           email_envoye: boolean;
+          email_erreur: string | null;
+          email_last_attempt_at: string | null;
           est_avoir: boolean;
           facture_origine_id: string | null;
           id: string;
@@ -1377,6 +1379,8 @@ export type Database = {
           date_echeance?: string | null;
           date_emission?: string | null;
           email_envoye?: boolean;
+          email_erreur?: string | null;
+          email_last_attempt_at?: string | null;
           est_avoir?: boolean;
           facture_origine_id?: string | null;
           id?: string;
@@ -1403,6 +1407,8 @@ export type Database = {
           date_echeance?: string | null;
           date_emission?: string | null;
           email_envoye?: boolean;
+          email_erreur?: string | null;
+          email_last_attempt_at?: string | null;
           est_avoir?: boolean;
           facture_origine_id?: string | null;
           id?: string;

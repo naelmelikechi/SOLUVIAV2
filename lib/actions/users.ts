@@ -568,6 +568,41 @@ export async function inviteUser(
     return { success: false, error: insertError.message };
   }
 
+  // Envoi du welcome email (presentation outil par role). Independant de
+  // l invitation (credentials) envoyee plus haut. Best-effort : si fail,
+  // on log + on retient un warning, mais on continue (l outil reste utilisable
+  // meme sans le welcome).
+  try {
+    const { sendWelcomeEmail } = await import('@/lib/email/welcome');
+    const welcomeResult = await sendWelcomeEmail({
+      email: parsed.data.email,
+      prenom: parsed.data.prenom,
+      role: parsed.data.role,
+    });
+    if (welcomeResult.success) {
+      const { error: stampErr } = await adminClient
+        .from('users')
+        .update({ welcome_email_sent_at: new Date().toISOString() })
+        .eq('id', newUser.user.id);
+      if (stampErr) {
+        logger.warn('actions.users', 'welcome stamp failed', {
+          userId: newUser.user.id,
+          error: stampErr.message,
+        });
+      }
+    } else {
+      logger.warn('actions.users', 'welcome email send failed', {
+        to: parsed.data.email,
+        error: welcomeResult.error,
+      });
+    }
+  } catch (err) {
+    logger.error('actions.users', 'welcome email threw', {
+      to: parsed.data.email,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   logAudit(
     'user_invited',
     'user',

@@ -49,7 +49,12 @@ import {
   sendFacture,
   sendFacturesBulk,
 } from '@/lib/actions/factures';
+import { getFactureContactsAction } from '@/lib/actions/email';
 import { EditBrouillonInfoDialog } from '@/components/facturation/edit-brouillon-info-dialog';
+import {
+  SendFactureDialog,
+  type FactureContact,
+} from '@/components/facturation/send-facture-dialog';
 import type { BrouillonItem } from '@/lib/queries/factures';
 
 interface BrouillonsTabProps {
@@ -86,6 +91,15 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
   const [bulkPending, startBulkTransition] = useTransition();
   const [rowPendingId, setRowPendingId] = useState<string | null>(null);
   const [rowAction, setRowAction] = useState<'send' | 'delete' | null>(null);
+
+  // Etat du dialog d'envoi pour un brouillon (single send). Contient l'id de
+  // la facture, sa ref optionnelle et la liste des contacts du client charges
+  // a la volee au clic. null = dialog ferme.
+  const [sendDialog, setSendDialog] = useState<{
+    factureId: string;
+    factureRef: string | null;
+    contacts: FactureContact[];
+  } | null>(null);
 
   const filtered = useMemo(
     () =>
@@ -128,29 +142,44 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
     });
   }, []);
 
+  // Ouvre le dialog d'envoi (TO/CC editables) pour un brouillon. Charge
+  // d'abord les contacts du client a la volee (lazy fetch). Le send reel
+  // est declenche depuis le dialog via handleConfirmSendOne.
   const handleSendOne = (id: string) => {
     setRowPendingId(id);
     setRowAction('send');
     startBulkTransition(async () => {
-      const result = await sendFacture(id);
+      const result = await getFactureContactsAction(id);
       setRowPendingId(null);
       setRowAction(null);
-      if (result.success) {
-        toast.success(
-          result.ref
-            ? `Envoyé : ${result.ref}`
-            : 'Brouillon envoyé avec succès',
-        );
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-        router.refresh();
-      } else {
-        toast.error(result.error ?? "Erreur lors de l'envoi");
+      if (!result.success) {
+        toast.error(result.error ?? 'Erreur chargement contacts');
+        return;
       }
+      setSendDialog({
+        factureId: id,
+        factureRef: result.factureRef,
+        contacts: result.contacts,
+      });
     });
+  };
+
+  const handleConfirmSendOne = async (recipients: {
+    to: string[];
+    cc: string[];
+  }) => {
+    if (!sendDialog) return { success: false, error: 'Etat invalide' };
+    const factureId = sendDialog.factureId;
+    const result = await sendFacture(factureId, recipients);
+    if (result.success) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(factureId);
+        return next;
+      });
+      router.refresh();
+    }
+    return result;
   };
 
   const handleSendBulk = (ids: string[]) => {
@@ -549,6 +578,21 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
             setPreviewLoaded(false);
             router.refresh();
           }}
+        />
+      )}
+
+      {/* Send dialog (single brouillon) - TO/CC editables avant emission */}
+      {sendDialog && (
+        <SendFactureDialog
+          open={sendDialog !== null}
+          onOpenChange={(open) => {
+            if (!open) setSendDialog(null);
+          }}
+          factureRef={sendDialog.factureRef}
+          contacts={sendDialog.contacts}
+          onConfirm={handleConfirmSendOne}
+          title="Envoyer le brouillon"
+          confirmLabel="Envoyer"
         />
       )}
 

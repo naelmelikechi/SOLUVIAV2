@@ -277,43 +277,82 @@ class OdooJsonRpcClient implements OdooClient {
     const taxIdsCmd: unknown[] = taxId ? [[6, 0, [taxId]]] : [[5]];
 
     const moveType = payload.is_credit_note ? 'out_refund' : 'out_invoice';
-    const lineIds = payload.lines.map((l) => [
-      0,
-      0,
-      {
-        name: l.description,
-        quantity: l.quantity,
-        price_unit: l.price_unit,
-        tax_ids: taxIdsCmd,
-      },
-    ]);
 
-    const moveId = await this.executeKw<number>('account.move', 'create', [
-      {
-        move_type: moveType,
-        partner_id: partnerId,
-        invoice_date: payload.date_invoice,
-        invoice_date_due: payload.date_due,
-        ref: payload.ref,
-        invoice_line_ids: lineIds,
-      },
-    ]);
+    // Idempotency : si un move existe deja pour ce ref+type, on le reutilise.
+    // Sans cette recherche, un echec de action_post apres create laissait un
+    // draft cote Odoo dont l'odoo_id n'etait pas sauve cote Soluvia, et le
+    // run suivant recreait un doublon draft.
+    type ExistingMove = { id: number; state: string };
+    const existing = await this.executeKw<ExistingMove[]>(
+      'account.move',
+      'search_read',
+      [
+        [
+          ['ref', '=', payload.ref],
+          ['move_type', '=', moveType],
+        ],
+      ],
+      { fields: ['id', 'state'], limit: 1 },
+    );
+    const existingMove = existing[0];
 
-    // Post the invoice (draft -> posted) sauf si is_draft (mode demo)
-    if (!payload.is_draft) {
-      await this.executeKw<boolean>('account.move', 'action_post', [[moveId]]);
-    }
-
-    logger.info(
-      SCOPE,
-      payload.is_draft ? 'Created draft move' : 'Posted move',
-      {
+    let moveId: number;
+    if (existingMove) {
+      moveId = existingMove.id;
+      logger.info(SCOPE, 'Reusing existing move', {
         ref: payload.ref,
         odoo_id: moveId,
-        type: moveType,
-        is_draft: payload.is_draft ?? false,
-      },
-    );
+        state: existingMove.state,
+      });
+      // Si encore en draft et qu'on n'est pas en mode demo, on tente le post.
+      // Si deja posted/cancel, on retourne juste l'id pour que Soluvia le sauve.
+      if (existingMove.state === 'draft' && !payload.is_draft) {
+        await this.executeKw<boolean>('account.move', 'action_post', [
+          [moveId],
+        ]);
+      }
+    } else {
+      const lineIds = payload.lines.map((l) => [
+        0,
+        0,
+        {
+          name: l.description,
+          quantity: l.quantity,
+          price_unit: l.price_unit,
+          tax_ids: taxIdsCmd,
+        },
+      ]);
+
+      moveId = await this.executeKw<number>('account.move', 'create', [
+        {
+          move_type: moveType,
+          partner_id: partnerId,
+          invoice_date: payload.date_invoice,
+          invoice_date_due: payload.date_due,
+          ref: payload.ref,
+          invoice_line_ids: lineIds,
+        },
+      ]);
+
+      // Post the invoice (draft -> posted) sauf si is_draft (mode demo)
+      if (!payload.is_draft) {
+        await this.executeKw<boolean>('account.move', 'action_post', [
+          [moveId],
+        ]);
+      }
+
+      logger.info(
+        SCOPE,
+        payload.is_draft ? 'Created draft move' : 'Posted move',
+        {
+          ref: payload.ref,
+          odoo_id: moveId,
+          type: moveType,
+          is_draft: payload.is_draft ?? false,
+        },
+      );
+    }
+
     return { odoo_id: String(moveId) };
   }
 

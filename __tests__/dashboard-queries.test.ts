@@ -392,7 +392,7 @@ describe('getDashboardFinancials(periode)', () => {
     expect(hasDateEmissionLte).toBe(true);
   });
 
-  it('appends date_paiement filter on paiements when periode given', async () => {
+  it('appends date_reception filter on paiements when periode given', async () => {
     const supa = buildSupabase({});
     (createClient as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
       supa.client,
@@ -407,20 +407,24 @@ describe('getDashboardFinancials(periode)', () => {
     await getDashboardFinancials(periode);
 
     const paiementOps = supa.ops.filter((o) => o.table === 'paiements');
-    const hasDatePaiement = paiementOps.some((o) =>
+    const hasDateReception = paiementOps.some((o) =>
       o.filters.some(
         (f) =>
-          f.col === 'date_paiement' && f.op === 'gte' && f.val === '2026-05-01',
+          f.col === 'date_reception' &&
+          f.op === 'gte' &&
+          f.val === '2026-05-01',
       ),
     );
-    expect(hasDatePaiement).toBe(true);
-    const hasDatePaiementLte = paiementOps.some((o) =>
+    expect(hasDateReception).toBe(true);
+    const hasDateReceptionLte = paiementOps.some((o) =>
       o.filters.some(
         (f) =>
-          f.col === 'date_paiement' && f.op === 'lte' && f.val === '2026-05-31',
+          f.col === 'date_reception' &&
+          f.op === 'lte' &&
+          f.val === '2026-05-31',
       ),
     );
-    expect(hasDatePaiementLte).toBe(true);
+    expect(hasDateReceptionLte).toBe(true);
   });
 
   it('omits date filters when periode is absent (compat)', async () => {
@@ -433,7 +437,7 @@ describe('getDashboardFinancials(periode)', () => {
 
     const dateFilters = supa.ops.flatMap((o) =>
       o.filters.filter(
-        (f) => f.col === 'date_emission' || f.col === 'date_paiement',
+        (f) => f.col === 'date_emission' || f.col === 'date_reception',
       ),
     );
     expect(dateFilters).toHaveLength(0);
@@ -462,18 +466,18 @@ describe('getDashboardFinancials(periode)', () => {
     );
     expect(retardQuery).toBeDefined();
     const hasDateFilter = retardQuery!.filters.some(
-      (f) => f.col === 'date_emission' || f.col === 'date_paiement',
+      (f) => f.col === 'date_emission' || f.col === 'date_reception',
     );
     expect(hasDateFilter).toBe(false);
   });
 
-  it('totalAFacturer somme les montant_ht des echeances pretes a emettre', async () => {
+  it('totalAFacturer somme les montant_prevu_ht des echeances pretes a emettre', async () => {
     const supa = buildSupabase({
       echeances: {
         data: [
-          { montant_ht: 1500.5 },
-          { montant_ht: 2000 },
-          { montant_ht: 100 },
+          { montant_prevu_ht: 1500.5 },
+          { montant_prevu_ht: 2000 },
+          { montant_prevu_ht: 100 },
         ],
         error: null,
       },
@@ -512,13 +516,17 @@ describe('getDashboardFinancials(periode)', () => {
     expect(echeancesOp).toBeDefined();
     const filters = echeancesOp!.filters;
     expect(
-      filters.some((f) => f.col === 'facture_id' && f.op === 'is' && f.val === null),
+      filters.some(
+        (f) => f.col === 'facture_id' && f.op === 'is' && f.val === null,
+      ),
     ).toBe(true);
     expect(
-      filters.some((f) => f.col === 'validee' && f.op === 'eq' && f.val === false),
+      filters.some(
+        (f) => f.col === 'validee' && f.op === 'eq' && f.val === false,
+      ),
     ).toBe(true);
     expect(
-      filters.some((f) => f.col === 'date_echeance' && f.op === 'lte'),
+      filters.some((f) => f.col === 'date_emission_prevue' && f.op === 'lte'),
     ).toBe(true);
   });
 });

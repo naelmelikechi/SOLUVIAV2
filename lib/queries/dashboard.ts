@@ -219,7 +219,7 @@ export async function getDashboardFinancials(
       .lte('date_emission', periode.to.toISOString().slice(0, 10));
   }
 
-  // Build paiements query (filtered by date_paiement when periode provided)
+  // Build paiements query (filtered by date_reception when periode provided)
   let paiementsQuery = supabase
     .from('paiements')
     .select(
@@ -230,8 +230,8 @@ export async function getDashboardFinancials(
 
   if (periode) {
     paiementsQuery = paiementsQuery
-      .gte('date_paiement', periode.from.toISOString().slice(0, 10))
-      .lte('date_paiement', periode.to.toISOString().slice(0, 10));
+      .gte('date_reception', periode.from.toISOString().slice(0, 10))
+      .lte('date_reception', periode.to.toISOString().slice(0, 10));
   }
 
   const [
@@ -304,11 +304,11 @@ export async function getDashboardFinancials(
     supabase
       .from('echeances')
       .select(
-        'montant_ht, projet:projets!echeances_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        'montant_prevu_ht, projet:projets!echeances_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
       )
       .is('facture_id', null)
       .eq('validee', false)
-      .lte('date_echeance', format(now, 'yyyy-MM-dd'))
+      .lte('date_emission_prevue', format(now, 'yyyy-MM-dd'))
       .eq('projet.client.is_demo', false)
       .eq('projet.client.archive', false),
   ]);
@@ -530,13 +530,13 @@ export async function getDashboardFinancials(
       ? Math.round((distinctEntries / expectedEntries) * 100)
       : 0;
 
-  type EcheanceMontant = { montant_ht: number | null };
+  type EcheanceMontant = { montant_prevu_ht: number | null };
   const echeancesPretes =
     (echeancesAFacturerRes.data as unknown as EcheanceMontant[]) ?? [];
   const totalAFacturer =
     Math.round(
       echeancesPretes.reduce(
-        (sum, e) => sum + Number(e.montant_ht ?? 0),
+        (sum, e) => sum + Number(e.montant_prevu_ht ?? 0),
         0,
       ) * 100,
     ) / 100;

@@ -207,9 +207,14 @@ WHERE id = (SELECT facture_id FROM _avoir_origine);
 CREATE TEMP TABLE _avoir (facture_id UUID);
 INSERT INTO _avoir SELECT pg_temp.create_brouillon();
 
+-- Avoir: la contrainte factures_signe_montants_check exige des montants
+-- negatifs pour est_avoir=true (legal FR, montants signes coherents).
 UPDATE factures SET
   statut = 'avoir',
   est_avoir = true,
+  montant_ht = -montant_ht,
+  montant_tva = -montant_tva,
+  montant_ttc = -montant_ttc,
   avoir_motif = 'Test gapless avoir',
   facture_origine_id = (SELECT facture_id FROM _avoir_origine)
 WHERE id = (SELECT facture_id FROM _avoir);

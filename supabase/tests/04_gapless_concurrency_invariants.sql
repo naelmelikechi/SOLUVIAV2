@@ -229,8 +229,8 @@ SELECT isnt(
 SELECT matches(
   (SELECT ref FROM factures
    WHERE id = (SELECT facture_id FROM _avoir)),
-  '^FAC-CON-\d{4}$',
-  'Avoir recoit aussi un ref de la forme FAC-XXX-NNNN'
+  '^AVR-CON-\d{4}$',
+  'Avoir recoit un ref de la forme AVR-XXX-NNNN (serie distincte des factures)'
 );
 
 -- ----- Assertion 6 : re-update facture deja emise n attribue pas un nouveau numero --

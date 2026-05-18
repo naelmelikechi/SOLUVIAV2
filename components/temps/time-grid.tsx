@@ -11,6 +11,12 @@ import { cn } from '@/lib/utils';
 import { formatHeures } from '@/lib/utils/formatters';
 import { MAX_HEURES_JOUR, DEBOUNCE_MS } from '@/lib/utils/constants';
 import {
+  computeDailyProjectTotal,
+  computeRowTotal,
+  computeWeekTotal,
+  computeWeeklyMax,
+} from '@/lib/utils/temps-totals';
+import {
   useColumnWidths,
   ResizeHandle,
 } from '@/components/temps/use-column-widths';
@@ -70,29 +76,22 @@ export function TimeGrid({
     };
   }, []);
 
-  // Calculate daily totals (project hours only - absences tracked separately)
+  // Daily project hours (used for the row of "Total journalier" + gauges).
+  // Full-day absence and jours feries -> zero (any zombie saisies are ignored).
   const dailyTotals = displayDates.map((date) =>
-    saisies.reduce((sum, s) => sum + (s.heures[date] || 0), 0),
+    computeDailyProjectTotal(date, saisies, absences, joursFeries),
   );
 
-  // Count working days (Mon-Fri minus holidays)
-  const workingDays = weekDates
-    .slice(0, 5)
-    .filter((d) => !joursFeries[d]).length;
-  const weeklyMax = workingDays * MAX_HEURES_JOUR;
-  // Weekly total includes both project hours and absence hours
+  const weeklyMax = computeWeeklyMax(weekDates, joursFeries);
   const absenceTotal = weekDates
     .slice(0, 5)
     .reduce((sum, d) => sum + (absences[d] || 0), 0);
-  const weeklyTotal =
-    weekDates
-      .slice(0, 5)
-      .filter((d) => !joursFeries[d])
-      .reduce(
-        (sum, d) =>
-          sum + saisies.reduce((s, saisie) => s + (saisie.heures[d] || 0), 0),
-        0,
-      ) + absenceTotal;
+  const weeklyTotal = computeWeekTotal({
+    weekDates,
+    saisies,
+    absences,
+    joursFeries,
+  });
 
   const handleCellSave = (
     projetId: string,
@@ -116,11 +115,13 @@ export function TimeGrid({
       return false;
     }
 
-    // Check weekly max
+    // Check weekly max. Same exclusion rule as the displayed totals:
+    // skip jours feries AND days under a full-day absence so zombie
+    // saisies do not falsely push the user over the limit.
     const currentWeekOther =
       weekDates
         .slice(0, 5)
-        .filter((d) => !joursFeries[d])
+        .filter((d) => !joursFeries[d] && (absences[d] || 0) < 7)
         .reduce(
           (sum, d) =>
             sum +
@@ -138,6 +139,10 @@ export function TimeGrid({
       toast.error(`Maximum ${formatHeures(weeklyMax)} par semaine`);
       return false;
     }
+
+    // Capture the previous value so we can rollback if the server save fails.
+    const previousValue =
+      saisies.find((s) => s.projet_id === projetId)?.heures[date] ?? 0;
 
     // Notify parent of optimistic update (parent updates saisies state)
     onSaveHours?.(projetId, date, parsed);
@@ -162,6 +167,9 @@ export function TimeGrid({
           if (mountedRef.current) setSaveStatus('idle');
         }, 2000);
       } else {
+        // Rollback the optimistic update so the UI stops lying to the user
+        // about a value that did not actually persist.
+        onSaveHours?.(projetId, date, previousValue);
         setSaveStatus('idle');
         toast.error(result.error ?? 'Erreur lors de la sauvegarde');
       }
@@ -240,9 +248,12 @@ export function TimeGrid({
           </thead>
           <tbody>
             {saisies.map((saisie, idx) => {
-              const rowTotal = weekDates
-                .slice(0, 5)
-                .reduce((sum, d) => sum + (saisie.heures[d] || 0), 0);
+              const rowTotal = computeRowTotal(
+                saisie,
+                weekDates,
+                absences,
+                joursFeries,
+              );
 
               const prev = idx > 0 ? saisies[idx - 1] : null;
               const isFirstInterne =
@@ -480,6 +491,18 @@ interface TimeCellProps {
 function TimeCell({ initialValue, today, onSave, onClickCell }: TimeCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const display = (v: number) => (v > 0 ? formatHeures(v) : '');
+
+  // Sync the uncontrolled input visually whenever the source-of-truth value
+  // changes from outside (server rollback after save failure, parent setState
+  // post-fetch, undo). Only when the input is NOT focused, so we never
+  // overwrite what the user is currently typing.
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    if (document.activeElement === input) return;
+    const next = display(initialValue);
+    if (input.value !== next) input.value = next;
+  }, [initialValue]);
 
   const stepBy = (delta: number) => {
     const input = inputRef.current;

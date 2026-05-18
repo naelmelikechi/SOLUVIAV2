@@ -2,12 +2,12 @@
 
 import { useState, useCallback, useTransition, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Copy, Download, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import {
   fetchWeekData,
+  fetchAbsencesForWeek,
   saveSaisieTemps,
   saveSaisieTempsAxes,
   copyPreviousWeek,
@@ -43,13 +43,15 @@ export function TempsPageClient({
   initialSaisies,
   initialAbsences,
   isAdmin,
-  joursFeries = {},
+  joursFeries: initialJoursFeries = {},
   totals,
 }: TempsPageClientProps) {
-  const router = useRouter();
   const [weekOffset, setWeekOffset] = useState(0);
   const [weekDates, setWeekDates] = useState(initialWeekDates);
   const [saisies, setSaisies] = useState<SaisieTemps[]>(initialSaisies);
+  const [absences, setAbsences] = useState<AbsencePeriod[]>(initialAbsences);
+  const [joursFeries, setJoursFeries] =
+    useState<Record<string, string>>(initialJoursFeries);
   const [isPending, startTransition] = useTransition();
 
   const [selectedCell, setSelectedCell] = useState<{
@@ -60,9 +62,6 @@ export function TempsPageClient({
   const selectedSaisie = selectedCell
     ? saisies.find((s) => s.projet_id === selectedCell.projetId)
     : null;
-
-  // Absences received from server (refreshed via router.refresh after mutations)
-  const absences = initialAbsences;
 
   const absencesPerDate = useMemo(
     () => computeAbsenceHoursPerDay(absences, weekDates),
@@ -96,8 +95,17 @@ export function TempsPageClient({
       const result = await fetchWeekData(newOffset);
       setWeekDates(result.weekDates);
       setSaisies(result.saisies);
+      setAbsences(result.absences);
+      setJoursFeries(result.joursFeries);
     });
   }, []);
+
+  const refreshAbsences = useCallback(() => {
+    startTransition(async () => {
+      const fresh = await fetchAbsencesForWeek(weekDates);
+      setAbsences(fresh);
+    });
+  }, [weekDates]);
 
   const handleCellClick = useCallback((projetId: string, date: string) => {
     setSelectedCell({ projetId, date });
@@ -123,26 +131,46 @@ export function TempsPageClient({
   const handleSaveAxes = useCallback(
     async (axes: Record<string, number>, total: number) => {
       if (!selectedCell) return;
-
-      // Save axes (fire-and-forget, we update UI optimistically)
-      await saveSaisieTempsAxes(selectedCell.projetId, selectedCell.date, axes);
-
-      // Also save the total hours (so the cell updates automatically)
-      if (total > 0) {
-        await saveSaisieTemps(selectedCell.projetId, selectedCell.date, total);
-      }
-
-      // Update parent state: axes + heures (regardless of axes save result)
       const cellProjetId = selectedCell.projetId;
       const cellDate = selectedCell.date;
 
+      // IMPORTANT: la saisie_temps DOIT exister avant d ecrire ses axes
+      // (saveSaisieTempsAxes fait un .maybeSingle() sur la saisie et refuse
+      // sinon). On sauve donc d abord les heures, puis les axes.
+      if (total > 0) {
+        const r = await saveSaisieTemps(cellProjetId, cellDate, total);
+        if (!r.success) {
+          toast.error(r.error ?? 'Erreur lors de la sauvegarde des heures');
+          return;
+        }
+      } else {
+        // total == 0 : on supprime la saisie. saveSaisieTemps gere ce cas
+        // (DELETE) et cascade supprime les axes via FK.
+        const r = await saveSaisieTemps(cellProjetId, cellDate, 0);
+        if (!r.success) {
+          toast.error(r.error ?? 'Erreur lors de la suppression');
+          return;
+        }
+      }
+
+      // total == 0 : pas besoin de poser des axes (la saisie est supprimee
+      // ou il n y a rien a repartir).
+      if (total > 0) {
+        const r = await saveSaisieTempsAxes(cellProjetId, cellDate, axes);
+        if (!r.success) {
+          toast.error(r.error ?? 'Erreur lors de la sauvegarde des axes');
+          return;
+        }
+      }
+
+      // Update parent state: axes + heures (apres succes serveur)
       setSaisies((prev) =>
         prev.map((s) => {
           if (s.projet_id !== cellProjetId) return s;
           return {
             ...s,
             heures: { ...s.heures, [cellDate]: total },
-            axes: { ...s.axes, [cellDate]: axes },
+            axes: { ...s.axes, [cellDate]: total > 0 ? axes : {} },
           };
         }),
       );
@@ -167,6 +195,8 @@ export function TempsPageClient({
       const refreshed = await fetchWeekData(weekOffset);
       setWeekDates(refreshed.weekDates);
       setSaisies(refreshed.saisies);
+      setAbsences(refreshed.absences);
+      setJoursFeries(refreshed.joursFeries);
     });
   }, [weekDates, weekOffset]);
 
@@ -318,7 +348,7 @@ export function TempsPageClient({
             absences={absences}
             saisiesHoursPerDate={saisiesHoursPerDate}
             joursFeries={joursFeries}
-            onChanged={() => router.refresh()}
+            onChanged={refreshAbsences}
           />
         )}
       </div>

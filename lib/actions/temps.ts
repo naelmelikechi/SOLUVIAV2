@@ -8,7 +8,9 @@ import {
   getSaisiesForWeek,
   getTeamWeekSummary,
 } from '@/lib/queries/temps';
-import { subtractDaysIso } from '@/lib/utils/dates';
+import { getAbsencesForUserAndPeriod } from '@/lib/queries/absences';
+import { getJoursFeries } from '@/lib/queries/parametres';
+import { subtractDaysIso, addDaysIso } from '@/lib/utils/dates';
 
 // ---------------------------------------------------------------------------
 // Schemas Zod (validation cote serveur, defense en profondeur)
@@ -174,9 +176,42 @@ export async function fetchWeekData(weekOffset: number) {
     throw new Error(parsed.error.issues[0]?.message ?? 'weekOffset invalide');
   }
   const weekDates = getWeekDates(parsed.data);
-  const saisies = await getSaisiesForWeek(weekDates);
+  const firstDate = weekDates[0]!;
+  const lastDate = weekDates[weekDates.length - 1]!;
+  const startYear = Number(firstDate.slice(0, 4));
+  const endYear = Number(lastDate.slice(0, 4));
+  const years = startYear === endYear ? [startYear] : [startYear, endYear];
 
-  return { weekDates, saisies };
+  const [saisies, absences, ...joursFeriesPerYear] = await Promise.all([
+    getSaisiesForWeek(weekDates),
+    getAbsencesForUserAndPeriod(firstDate, lastDate),
+    ...years.map((y) => getJoursFeries(y)),
+  ]);
+
+  const joursFeries: Record<string, string> = {};
+  for (const list of joursFeriesPerYear) {
+    for (const jf of list ?? []) {
+      joursFeries[jf.date] = jf.libelle;
+    }
+  }
+
+  return { weekDates, saisies, absences, joursFeries };
+}
+
+// ---------------------------------------------------------------------------
+// fetchAbsencesForWeek - lightweight refresh after absence CRUD mutations
+// ---------------------------------------------------------------------------
+
+export async function fetchAbsencesForWeek(weekDates: string[]) {
+  const parsed = CurrentWeekDatesSchema.safeParse(weekDates);
+  if (!parsed.success) {
+    throw new Error(
+      parsed.error.issues[0]?.message ?? 'Dates de semaine invalides',
+    );
+  }
+  const first = parsed.data[0]!;
+  const last = parsed.data[parsed.data.length - 1]!;
+  return getAbsencesForUserAndPeriod(first, last);
 }
 
 // ---------------------------------------------------------------------------
@@ -250,16 +285,51 @@ export async function copyPreviousWeek(
     (existingSaisies ?? []).map((s) => `${s.projet_id}|${s.date}`),
   );
 
+  // Build the set of "blocked" target dates: dates that are jours feries OR
+  // covered by a full-day absence. Copying saisies onto those dates pollutes
+  // the DB with rows that don't display (cell blocked) and used to inflate
+  // totals - we now simply skip them at the source.
+  const firstCur = currentWeekDates[0]!;
+  const lastCur = currentWeekDates[currentWeekDates.length - 1]!;
+  const startYear = Number(firstCur.slice(0, 4));
+  const endYear = Number(lastCur.slice(0, 4));
+  const years = startYear === endYear ? [startYear] : [startYear, endYear];
+  const [absencesForWeek, ...joursFeriesPerYear] = await Promise.all([
+    getAbsencesForUserAndPeriod(firstCur, lastCur),
+    ...years.map((y) => getJoursFeries(y)),
+  ]);
+  const feriesSet = new Set<string>();
+  for (const list of joursFeriesPerYear)
+    for (const jf of list ?? []) feriesSet.add(jf.date);
+  const absenceFullDays = new Set<string>();
+  for (const period of absencesForWeek) {
+    let cur = period.date_debut;
+    while (cur <= period.date_fin) {
+      const isStart = cur === period.date_debut;
+      const isEnd = cur === period.date_fin;
+      const isHalf =
+        (isStart && period.demi_jour_debut) || (isEnd && period.demi_jour_fin);
+      if (!isHalf) absenceFullDays.add(cur);
+      cur = addDaysIso(cur, 1);
+    }
+  }
+  const blockedTargetDates = new Set<string>([
+    ...feriesSet,
+    ...absenceFullDays,
+  ]);
+
   // Map previous week dates to current week dates
   const dateMapping: Record<string, string> = {};
   for (let i = 0; i < previousWeekDates.length; i++) {
     dateMapping[previousWeekDates[i]!] = currentWeekDates[i]!;
   }
 
-  // Build rows to insert (skip entries that already exist)
+  // Build rows to insert (skip entries that already exist, or land on a
+  // blocked target date)
   const rowsToInsert = prevSaisies
     .filter((s) => {
       const targetDate = dateMapping[s.date]!;
+      if (blockedTargetDates.has(targetDate)) return false;
       return !existingKeys.has(`${s.projet_id}|${targetDate}`);
     })
     .map((s) => ({

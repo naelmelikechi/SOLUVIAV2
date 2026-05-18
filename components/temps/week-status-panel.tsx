@@ -69,6 +69,7 @@ export function WeekStatusPanel({
           key={mode.absence?.id ?? mode.initialDate ?? 'new'}
           absence={mode.absence}
           initialDate={mode.initialDate}
+          weekDates={weekDates}
           onCancel={() => setMode({ kind: 'list' })}
           onSaved={() => {
             setMode({ kind: 'list' });
@@ -266,20 +267,36 @@ function DayRow({
 interface FormViewProps {
   absence?: AbsencePeriod;
   initialDate?: string;
+  weekDates: string[];
   onCancel: () => void;
   onSaved: () => void;
 }
 
-function FormView({ absence, initialDate, onCancel, onSaved }: FormViewProps) {
+function FormView({
+  absence,
+  initialDate,
+  weekDates,
+  onCancel,
+  onSaved,
+}: FormViewProps) {
   const isEdit = !!absence;
   const today = format(new Date(), 'yyyy-MM-dd');
+  // Default = today if it falls in the viewed week, otherwise Monday of viewed week.
+  const defaultDate = (() => {
+    if (initialDate) return initialDate;
+    if (weekDates.length > 0) {
+      const first = weekDates[0]!;
+      const last = weekDates[weekDates.length - 1]!;
+      if (today >= first && today <= last) return today;
+      return first;
+    }
+    return today;
+  })();
   const [type, setType] = useState<AbsenceType>(absence?.type ?? 'conges');
   const [dateDebut, setDateDebut] = useState(
-    absence?.date_debut ?? initialDate ?? today,
+    absence?.date_debut ?? defaultDate,
   );
-  const [dateFin, setDateFin] = useState(
-    absence?.date_fin ?? initialDate ?? today,
-  );
+  const [dateFin, setDateFin] = useState(absence?.date_fin ?? defaultDate);
   const [demiJourDebut, setDemiJourDebut] = useState(
     absence?.demi_jour_debut ?? false,
   );
@@ -288,13 +305,18 @@ function FormView({ absence, initialDate, onCancel, onSaved }: FormViewProps) {
   );
   const [isPending, startTransition] = useTransition();
 
+  const sameDay = dateDebut === dateFin;
+  // On a single-day absence, only the start half-day flag is meaningful (the
+  // schema forbids both flags being true on the same day). Force the fin flag
+  // off when the period collapses to one day so a stale checkbox from a prior
+  // multi-day edit doesn't sneak through.
+  const effectiveDemiJourFin = sameDay ? false : demiJourFin;
   const total = computeAbsenceTotalHours(
     dateDebut,
     dateFin,
     demiJourDebut,
-    demiJourFin,
+    effectiveDemiJourFin,
   );
-  const sameDay = dateDebut === dateFin;
 
   const handleSubmit = useCallback(() => {
     if (sameDay && demiJourDebut && demiJourFin) {
@@ -307,7 +329,7 @@ function FormView({ absence, initialDate, onCancel, onSaved }: FormViewProps) {
         date_debut: dateDebut,
         date_fin: dateFin,
         demi_jour_debut: demiJourDebut,
-        demi_jour_fin: demiJourFin,
+        demi_jour_fin: effectiveDemiJourFin,
       };
       const result = isEdit
         ? await updateAbsenceAction(absence!.id, data)
@@ -323,6 +345,7 @@ function FormView({ absence, initialDate, onCancel, onSaved }: FormViewProps) {
     sameDay,
     demiJourDebut,
     demiJourFin,
+    effectiveDemiJourFin,
     type,
     dateDebut,
     dateFin,

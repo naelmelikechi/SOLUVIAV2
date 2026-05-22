@@ -164,7 +164,7 @@ RLS devis / devis_lignes / devis_public_views : `get_user_role() IN ('admin', 's
 - Ajout `societe_emettrice_id uuid not null references societes_emettrices(id)`. Migration backfill : tout l'existant = SOLUVIA.
 - Ajout `devis_id uuid references devis(id)` nullable.
 - Ajout `est_acompte boolean not null default false`.
-- Numerotation : la sequence gapless devient `(societe_emettrice_id, est_avoir, numero_seq)`. Migration de recalcul a executer en transaction avec tests pgTAP avant push prod.
+- Numerotation : le format de ref `FAC-<TRIGRAMME_CLIENT>-NNNN` (et `AVR-<TRIGRAMME_CLIENT>-NNNN`) reste inchange. La sequence gapless reste globale en Phase 1 (tant que seule SOLUVIA emet). Phase 4 (arrivee DIGIVIA) : adaptation du trigger pour sequencer par `societe_emettrice_id`, format ref DIGIVIA a definir avec le user a ce moment (probablement `FAC-DIG-<TRIGRAMME>-NNNN` pour eviter collision avec la serie SOL existante).
 
 `facture_lignes` : pas de changement structurel. Les lignes d'une facture creee depuis un devis sont initialisees en copiant les `devis_lignes`.
 
@@ -173,7 +173,7 @@ RLS devis / devis_lignes / devis_public_views : `get_user_role() IN ('admin', 's
 ### 4.4 Triggers et contraintes
 
 - Numerotation devis : trigger BEFORE UPDATE sur `devis` qui alloue `numero_seq = max(numero_seq) + 1 WHERE societe_emettrice_id = X` a la premiere transition `brouillon -> envoye`. `ref = 'DEV-' || societe.code || '-' || lpad(numero_seq::text, 4, '0')`. La numerotation devis n'est pas legalement gapless (contrairement aux factures), un brouillon supprime ne cree pas de trou puisque la seq n'est allouee qu'a l'envoi.
-- Numerotation factures : extension de la logique existante avec le couple `(societe_emettrice_id, est_avoir)`. Gapless preserve par serie.
+- Numerotation factures : trigger `generate_facture_ref` / `assign_facture_ref_on_send` existant inchange en Phase 1. Adaptation differee a la Phase 4 quand DIGIVIA arrive.
 - `pdf_locked = true` : trigger qui rejette tout UPDATE sur les lignes, totaux et identite du devis (cf pattern `factures_integrity_guards`).
 - Transitions de statut : trigger qui rejette les transitions illegales (ex `accepte -> brouillon`).
 - Champs `acceptation_*` : modifiables uniquement via la RPC `accept_devis_public` (security definer). Les UPDATE directs depuis le client authentifie sont rejetes.
@@ -295,7 +295,7 @@ PDF locked + RIB qui change : si la societe change de banque demain, les anciens
 ### Phase 1 : Socle multi-societe + factures libres (1-2 jours)
 
 - Migration `societes_emettrices` + seed SOLUVIA.
-- Migration `factures.societe_emettrice_id` + backfill SOL + numerotation par societe.
+- Migration `factures.societe_emettrice_id` (nullable puis backfill SOL puis NOT NULL). Trigger numerotation inchange.
 - Page admin `/admin/parametres/societes-emettrices` (CRUD).
 - Refacto `facture-pdf.tsx` pour lire la societe depuis la DB.
 - Finalisation `new-facture-libre-dialog` (selection client + societe, lignes libres, brouillon sans projet).
@@ -326,11 +326,12 @@ Livrable autonome : workflow complet brouillon -> envoi -> signature en ligne.
 
 Livrable autonome : boucle complete devis -> factures avec automatismes.
 
-### Phase 4 : DIGIVIA (0.5 jour, donnees uniquement)
+### Phase 4 : DIGIVIA (0.5 a 1 jour)
 
 - Insert DIGIVIA dans `societes_emettrices` via UI admin (requiert SIRET, TVA, RIB).
+- Adaptation du trigger `generate_facture_ref` pour sequencer la numerotation par `societe_emettrice_id` (et choix du format ref DIGIVIA, ex `FAC-DIG-<TRIGRAMME>-NNNN`) afin de respecter la numerotation continue par societe (CGI 289).
 - Configuration `odoo_company_id` DIGIVIA quand wisemanh.odoo.com l'a creee.
-- Test d'un devis et d'une facture DIGIVIA bout en bout (le code ne bouge pas, seulement donnees).
+- Test d'un devis et d'une facture DIGIVIA bout en bout.
 
 Estimation totale : 5 a 7 jours de dev concentre hors imprevus. Phase 4 = configuration.
 
@@ -354,14 +355,14 @@ Estimation totale : 5 a 7 jours de dev concentre hors imprevus. Phase 4 = config
 
 ## 15. Risques et points de vigilance
 
-1. **Backfill `factures.societe_emettrice_id`** : 50+ factures existantes, toutes SOL. Migration idempotente, test pgTAP avant push prod, recalcul `numero_seq` en transaction.
+1. **Backfill `factures.societe_emettrice_id`** : factures existantes toutes assignees a SOLUVIA. Migration en deux temps (nullable puis NOT NULL apres backfill) avec test pgTAP de non-regression du trigger numerotation.
 2. **PDF locked + RIB change** : snapshot legal correct, documenter dans le runbook.
 3. **Lien public abuse** : rate-limit IP + log des 401 / 404. Token UUID v4 non devinable.
 4. **DIGIVIA pas dans Odoo** : factures locales avec badge, emails partent quand meme (Resend reste `mysoluvia.com`).
 5. **Email reply-to DIGIVIA** : V1 envoi depuis `contact@mysoluvia.com` avec `reply-to:contact@digivia.fr` (en attendant verification domaine DIGIVIA dans Resend).
 6. **Conditions de paiement** : penalites 3x taux legal + indemnite 40 EUR stockees dans `conditions_reglement_default` de chaque societe emettrice, pas en dur dans le PDF.
 7. **Champs OF optionnels sur clients** : relire les validations Zod du formulaire client pour confirmer qu'aucun champ OF n'est obligatoire.
-8. **Numerotation gapless** : factures gapless par serie `(societe_emettrice_id, est_avoir)`. Devis gapless uniquement a partir de l'envoi (brouillons supprimes ne creent pas de trou). Documenter dans `docs/numerotation-factures.md`.
+8. **Numerotation gapless** : factures gapless `(est_avoir)` global en Phase 1 (compatible juridiquement tant qu'une seule societe emet). Devis gapless par `(societe_emettrice_id)`, alloue uniquement a partir de l'envoi (brouillons supprimes ne creent pas de trou). En Phase 4, adapter le trigger factures pour sequencer aussi par societe. Documenter dans `docs/numerotation-factures.md`.
 
 ## 16. Memoires liees
 

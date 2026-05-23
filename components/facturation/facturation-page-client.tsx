@@ -16,6 +16,7 @@ import { NewFactureDialog } from '@/components/facturation/new-facture-dialog';
 import {
   NewFactureLibreDialog,
   type FreeFactureClientOption,
+  type SocieteOption,
 } from '@/components/facturation/new-facture-libre-dialog';
 import { DataTable } from '@/components/shared/data-table';
 import type { FilterOption } from '@/components/shared/data-table';
@@ -67,6 +68,7 @@ interface FacturationPageClientProps {
   manualProjets: ProjetBillableEvents[];
   projetsForFacturation: Awaited<ReturnType<typeof listProjetsForFacturation>>;
   clientsForFreeFacture: FreeFactureClientOption[];
+  societesEmettrices: SocieteOption[];
   isAdmin: boolean;
 }
 
@@ -78,6 +80,7 @@ export function FacturationPageClient({
   manualProjets,
   projetsForFacturation,
   clientsForFreeFacture,
+  societesEmettrices,
   isAdmin,
 }: FacturationPageClientProps) {
   const router = useRouter();
@@ -190,6 +193,7 @@ export function FacturationPageClient({
             open={newFactureLibreOpen}
             onOpenChange={setNewFactureLibreOpen}
             clients={clientsForFreeFacture}
+            societes={societesEmettrices}
           />
         )}
       </>
@@ -412,6 +416,7 @@ export function FacturationPageClient({
           open={newFactureLibreOpen}
           onOpenChange={setNewFactureLibreOpen}
           clients={clientsForFreeFacture}
+          societes={societesEmettrices}
         />
       )}
     </Tabs>

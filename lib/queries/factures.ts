@@ -204,6 +204,7 @@ export async function getFactureByRef(ref: string) {
       id, ref, numero_seq, date_emission, date_echeance, mois_concerne,
       montant_ht, taux_tva, montant_tva, montant_ttc,
       statut, est_avoir, avoir_motif, facture_origine_id, email_envoye, created_by, objet, conditions_reglement,
+      societe_emettrice_id,
       projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, siret, adresse, localisation, tva_intracommunautaire),
       lignes:facture_lignes(id, contrat_id, description, montant_ht, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
@@ -236,6 +237,7 @@ export async function getFactureById(id: string) {
       id, ref, numero_seq, date_emission, date_echeance, mois_concerne,
       montant_ht, taux_tva, montant_tva, montant_ttc,
       statut, est_avoir, avoir_motif, facture_origine_id, email_envoye, created_by, objet, conditions_reglement,
+      societe_emettrice_id,
       projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, siret, adresse, localisation, tva_intracommunautaire),
       lignes:facture_lignes(id, contrat_id, description, montant_ht, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))

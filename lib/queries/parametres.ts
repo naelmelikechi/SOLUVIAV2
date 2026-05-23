@@ -76,7 +76,7 @@ export async function getLastEduviaSyncDate(): Promise<string | null> {
 }
 
 // ---------------------------------------------------------------------------
-// getEmetteurInfo - company info for invoices (from parametres table)
+// getEmetteurInfo - company info for invoices (from societes_emettrices)
 // ---------------------------------------------------------------------------
 
 export interface EmetteurInfo {
@@ -103,28 +103,43 @@ const EMETTEUR_FALLBACK: EmetteurInfo = {
   titulaire_compte: null,
 };
 
-export async function getEmetteurInfo(): Promise<EmetteurInfo> {
+/**
+ * Charge les infos emetteur depuis societes_emettrices.
+ *
+ * - Si societeId fourni : charge cette societe specifique.
+ * - Si null/undefined   : charge la societe par defaut (est_defaut=TRUE, actif=TRUE).
+ * - En cas d'erreur ou d'absence de ligne : log warning + retourne EMETTEUR_FALLBACK.
+ */
+export async function getEmetteurInfo(
+  societeId?: string | null,
+): Promise<EmetteurInfo> {
   try {
-    const params = await getParametresByCategorie('entreprise');
-    // Les cles en BD sont prefixees par la categorie (ex: entreprise.iban).
-    // On fournit les deux formes (avec et sans prefixe) pour rester
-    // compatible si la convention evolue.
-    const get = (k: string) => {
-      const row = params.find(
-        (p) => p.cle === k || p.cle === `entreprise.${k}`,
-      );
-      return row?.valeur ?? null;
-    };
+    const supabase = await createClient();
+    let query = supabase.from('societes_emettrices').select('*').limit(1);
+    if (societeId) {
+      query = query.eq('id', societeId);
+    } else {
+      query = query.eq('est_defaut', true).eq('actif', true);
+    }
+    const { data, error } = await query.maybeSingle();
+
+    if (error || !data) {
+      logger.warn('queries.parametres', 'getEmetteurInfo fallback used', {
+        societeId,
+        error: error?.message,
+      });
+      return EMETTEUR_FALLBACK;
+    }
 
     return {
-      raison_sociale: get('raison_sociale') ?? EMETTEUR_FALLBACK.raison_sociale,
-      adresse: get('adresse') ?? EMETTEUR_FALLBACK.adresse,
-      siret: get('siret') ?? EMETTEUR_FALLBACK.siret,
-      tva: get('tva') ?? get('tva_intracommunautaire') ?? EMETTEUR_FALLBACK.tva,
-      iban: get('iban'),
-      bic: get('bic'),
-      banque: get('banque'),
-      titulaire_compte: get('titulaire_compte'),
+      raison_sociale: data.raison_sociale,
+      adresse: `${data.adresse}, ${data.code_postal} ${data.ville}`,
+      siret: data.siret,
+      tva: data.tva_intracom,
+      iban: data.banque_iban,
+      bic: data.banque_bic,
+      banque: data.banque_nom,
+      titulaire_compte: data.raison_sociale,
     };
   } catch (err) {
     logger.warn('queries.parametres', 'getEmetteurInfo fallback used', {

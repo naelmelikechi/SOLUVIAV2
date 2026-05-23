@@ -24,10 +24,18 @@ export interface FreeFactureClientOption {
   raison_sociale: string;
 }
 
+export interface SocieteOption {
+  id: string;
+  code: string;
+  raison_sociale: string;
+  est_defaut: boolean;
+}
+
 interface NewFactureLibreDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clients: FreeFactureClientOption[];
+  societes: SocieteOption[];
 }
 
 interface DraftLigne {
@@ -48,11 +56,15 @@ export function NewFactureLibreDialog({
   open,
   onOpenChange,
   clients,
+  societes,
 }: NewFactureLibreDialogProps) {
   const router = useRouter();
   const [clientId, setClientId] = useState<string>('');
   const [search, setSearch] = useState('');
   const [lignes, setLignes] = useState<DraftLigne[]>([emptyLigne()]);
+  const [societeId, setSocieteId] = useState<string>(
+    () => societes.find((s) => s.est_defaut)?.id ?? societes[0]?.id ?? '',
+  );
   const [isSubmitting, startSubmit] = useTransition();
 
   const filteredClients = useMemo(() => {
@@ -74,6 +86,7 @@ export function NewFactureLibreDialog({
 
   const canSubmit =
     !!clientId &&
+    !!societeId &&
     lignes.length > 0 &&
     lignes.every(
       (l) =>
@@ -85,6 +98,9 @@ export function NewFactureLibreDialog({
     setClientId('');
     setSearch('');
     setLignes([emptyLigne()]);
+    setSocieteId(
+      societes.find((s) => s.est_defaut)?.id ?? societes[0]?.id ?? '',
+    );
   }
 
   function handleOpenChange(next: boolean) {
@@ -114,6 +130,7 @@ export function NewFactureLibreDialog({
     startSubmit(async () => {
       const result = await createFreeBrouillon({
         clientId,
+        societeEmettriceId: societeId,
         lignes: lignes.map((l) => ({
           description: l.description.trim(),
           montantHt: Number(l.montantHt.replace(',', '.')),
@@ -144,6 +161,30 @@ export function NewFactureLibreDialog({
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-2">
+          {/* Societe emettrice */}
+          {societes.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="societe-emettrice">Societe emettrice</Label>
+              <select
+                id="societe-emettrice"
+                value={societeId}
+                onChange={(e) => setSocieteId(e.target.value)}
+                className="bg-background w-full rounded-md border px-3 py-2 text-sm"
+              >
+                {societes.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.code} - {s.raison_sociale}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {societes.length === 1 && (
+            <p className="text-muted-foreground text-xs">
+              Emise depuis : <strong>{societes[0]!.raison_sociale}</strong>
+            </p>
+          )}
+
           {/* Step 1 : choix client */}
           <div className="space-y-2">
             <Label htmlFor="search-client">Client</Label>

@@ -11,6 +11,7 @@ import {
   getBillableEvents,
   type ProjetBillableEvents,
 } from '@/lib/queries/billable-events';
+import { listSocietesEmettricesActives } from '@/lib/queries/societes-emettrices';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
@@ -34,6 +35,7 @@ export default async function FacturationPage() {
     projetsForFacturation,
     currentUserRes,
     clientsForFacturation,
+    societesActives,
   ] = await Promise.all([
     getFacturesList(),
     getEcheancesPending(),
@@ -53,6 +55,7 @@ export default async function FacturationPage() {
       .eq('archive', false)
       .neq('trigramme', 'INT')
       .order('raison_sociale'),
+    listSocietesEmettricesActives(),
   ]);
 
   // Charge les events facturables pour chaque projet billable (en parallele).
@@ -74,6 +77,12 @@ export default async function FacturationPage() {
         manualProjets={manualProjetsEvents}
         projetsForFacturation={projetsForFacturation}
         clientsForFreeFacture={clientsForFacturation.data ?? []}
+        societesEmettrices={societesActives.map((s) => ({
+          id: s.id,
+          code: s.code,
+          raison_sociale: s.raison_sociale,
+          est_defaut: s.est_defaut,
+        }))}
         isAdmin={userIsAdmin}
       />
     </div>

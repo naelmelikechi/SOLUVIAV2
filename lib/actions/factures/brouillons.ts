@@ -94,6 +94,7 @@ const FreeLigneSchema = z.object({
 
 const CreateFreeBrouillonSchema = z.object({
   clientId: uuidSchema('clientId'),
+  societeEmettriceId: uuidSchema('societeEmettriceId').optional(),
   lignes: z
     .array(FreeLigneSchema)
     .min(1, 'Au moins une ligne requise')
@@ -133,11 +134,14 @@ async function insertBrouillonWithLignes(args: {
   clientId: string;
   lignes: BrouillonLigneInsert[];
   logScope: string;
+  societeEmettriceId?: string;
 }): Promise<
   | { ok: true; factureId: string; totalHt: number }
   | { ok: false; error: string }
 > {
   const { supabase, userId, projetId, clientId, lignes, logScope } = args;
+  const societeEmettriceIdFinal =
+    args.societeEmettriceId ?? (await getDefaultSocieteEmettriceId());
 
   const totalHtCents = lignes.reduce(
     (s, l) => s + Math.round(l.montant_ht * 100),
@@ -163,11 +167,10 @@ async function insertBrouillonWithLignes(args: {
   const dateEmissionStr = today.toISOString().split('T')[0]!;
   const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
 
-  const societeEmettriceId = await getDefaultSocieteEmettriceId();
   const { data: facture, error: insertError } = await supabase
     .from('factures')
     .insert({
-      societe_emettrice_id: societeEmettriceId,
+      societe_emettrice_id: societeEmettriceIdFinal,
       projet_id: projetId,
       client_id: clientId,
       date_emission: dateEmissionStr,
@@ -1106,6 +1109,7 @@ export interface FreeLigne {
 
 export async function createFreeBrouillon(params: {
   clientId: string;
+  societeEmettriceId?: string;
   lignes: FreeLigne[];
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   const parsed = CreateFreeBrouillonSchema.safeParse(params);
@@ -1115,7 +1119,7 @@ export async function createFreeBrouillon(params: {
       error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
-  const { clientId, lignes } = parsed.data;
+  const { clientId, societeEmettriceId, lignes } = parsed.data;
 
   // Admin only : les factures libres sont hors perimetre CDP (pas de projet
   // -> pas de rattachement metier). Garantit que la RLS CDP (EXISTS sur
@@ -1141,6 +1145,7 @@ export async function createFreeBrouillon(params: {
     userId: user.id,
     projetId: null,
     clientId,
+    societeEmettriceId,
     lignes: lignes.map((l) => ({
       contrat_id: null,
       description: l.description,

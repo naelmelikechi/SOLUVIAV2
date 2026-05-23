@@ -81,6 +81,15 @@ export default async function ParametresPage() {
         />
         <EmployeeCostDefaultsForm initial={costDefaults} />
         <EcheanciersSectionWrapper templates={echeancierTemplates} />
+        <Link
+          href="/admin/parametres/societes-emettrices"
+          className="hover:bg-muted/40 block rounded-md border p-4"
+        >
+          <h3 className="font-semibold">Societes emettrices</h3>
+          <p className="text-muted-foreground text-sm">
+            Gerer SOLUVIA, DIGIVIA et les autres entites juridiques.
+          </p>
+        </Link>
       </div>
     </div>
   );

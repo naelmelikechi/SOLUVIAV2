@@ -299,7 +299,7 @@ export function NewFactureLibreDialog({
               <span className="font-medium">
                 {selectedClient
                   ? `${selectedClient.trigramme} - ${selectedClient.raison_sociale}`
-                  : '—'}
+                  : '-'}
               </span>
             </div>
             <div className="flex justify-between">

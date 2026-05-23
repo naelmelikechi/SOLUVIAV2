@@ -32,6 +32,11 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
+// Mock societes-emettrices helper (not yet seeded in test env).
+vi.mock('@/lib/queries/societes-emettrices', () => ({
+  getDefaultSocieteEmettriceId: vi.fn().mockResolvedValue('soc-default-id'),
+}));
+
 const VALID_CLIENT_UUID = '11111111-1111-4111-8111-111111111111';
 const VALID_USER_UUID = '22222222-2222-4222-8222-222222222222';
 

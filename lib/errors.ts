@@ -81,7 +81,9 @@ export type AppErrorCode =
   // Intercontrat
   | 'INTERCONTRAT_FETCH_FAILED'
   // Projets internes
-  | 'INTERNES_FETCH_FAILED';
+  | 'INTERNES_FETCH_FAILED'
+  // Societes emettrices
+  | 'SOCIETE_EMETTRICE_DEFAULT_MISSING';
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

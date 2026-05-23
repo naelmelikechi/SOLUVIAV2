@@ -21,6 +21,11 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),
 }));
 
+// Mock societes-emettrices helper (not yet seeded in test env).
+vi.mock('@/lib/queries/societes-emettrices', () => ({
+  getDefaultSocieteEmettriceId: vi.fn().mockResolvedValue('soc-default-id'),
+}));
+
 import { createClient } from '@/lib/supabase/server';
 import { createAvoir } from '@/lib/actions/factures/avoirs';
 

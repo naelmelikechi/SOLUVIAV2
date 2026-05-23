@@ -53,19 +53,22 @@ BEGIN
     VALUES (v_projet_id, v_client_id, v_typo, 'RLD-PROJ', 'actif', false, false, (SELECT cdp_id FROM _ctx));
 
   INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_concerne,
-                        montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir)
+                        montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
+                        societe_emettrice_id)
     VALUES (v_projet_id, v_client_id, '2026-05-01', '2026-06-30', '2026-05',
-            100, 20, 20, 120, 'a_emettre', false)
+            100, 20, 20, 120, 'a_emettre', false,
+            (SELECT id FROM societes_emettrices WHERE code = 'SOL'))
     RETURNING id INTO v_brouillon;
 
   -- Pour creer une "emise", on insert directement avec statut='emise' + ref
   -- (bypass le trigger qui exige a_emettre -> emise via UPDATE).
   INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_concerne,
                         montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
-                        ref, numero_seq)
+                        ref, numero_seq, societe_emettrice_id)
     VALUES (v_projet_id, v_client_id, '2026-05-01', '2026-06-30', '2026-05',
             200, 20, 40, 240, 'emise', false,
-            'FAC-RLD-9999', 999999)
+            'FAC-RLD-9999', 999999,
+            (SELECT id FROM societes_emettrices WHERE code = 'SOL'))
     RETURNING id INTO v_emise;
 
   UPDATE _ctx SET brouillon_id = v_brouillon, emise_id = v_emise;
@@ -113,9 +116,11 @@ DECLARE
   v_client UUID := (SELECT client_id FROM projets WHERE ref='RLD-PROJ');
 BEGIN
   INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_concerne,
-                        montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir)
+                        montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
+                        societe_emettrice_id)
     VALUES (v_projet, v_client, '2026-05-01', '2026-06-30', '2026-05',
-            100, 20, 20, 120, 'a_emettre', false)
+            100, 20, 20, 120, 'a_emettre', false,
+            (SELECT id FROM societes_emettrices WHERE code = 'SOL'))
     RETURNING id INTO v_id;
   UPDATE _ctx SET brouillon_id = v_id;
 END $$;

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { requireUser } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/utils/audit';
+import { getDefaultSocieteEmettriceId } from '@/lib/queries/societes-emettrices';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -275,9 +276,11 @@ export async function createAvoir(params: {
   // L'avoir est cree en BROUILLON (statut 'a_emettre' + est_avoir=true).
   // Le user doit le verifier puis l'envoyer via sendFacture, ce qui
   // transitionnera le statut vers 'avoir' et attribuera le ref final.
+  const societeEmettriceId = await getDefaultSocieteEmettriceId();
   const { data: avoir, error: insertError } = await supabase
     .from('factures')
     .insert({
+      societe_emettrice_id: societeEmettriceId,
       projet_id: origine.projet_id,
       client_id: origine.client_id,
       date_emission: new Date().toISOString().split('T')[0]!,

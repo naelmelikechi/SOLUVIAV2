@@ -83,7 +83,8 @@ export type AppErrorCode =
   // Projets internes
   | 'INTERNES_FETCH_FAILED'
   // Societes emettrices
-  | 'SOCIETE_EMETTRICE_DEFAULT_MISSING';
+  | 'SOCIETE_EMETTRICE_DEFAULT_MISSING'
+  | 'SOCIETES_EMETTRICES_FETCH_FAILED';
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

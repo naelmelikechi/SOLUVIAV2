@@ -6,6 +6,7 @@ import type { FactureListItem } from '@/lib/queries/factures';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import {
@@ -100,6 +101,21 @@ export function createFactureListColumns(
           {row.original.client?.raison_sociale ?? ''}
         </span>
       ),
+    },
+    {
+      id: 'type',
+      header: () => <span className="text-xs font-medium">Type</span>,
+      enableSorting: false,
+      enableHiding: false,
+      size: 80,
+      cell: ({ row }) => {
+        const isProjet = row.original.projet !== null;
+        return (
+          <Badge variant={isProjet ? 'outline' : 'secondary'}>
+            {isProjet ? 'Projet' : 'Libre'}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: 'date_emission',

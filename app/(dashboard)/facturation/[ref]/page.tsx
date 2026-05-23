@@ -57,7 +57,7 @@ export default async function FactureDetailPage({
     facture.est_avoir && facture.facture_origine_id
       ? getFactureRefById(facture.facture_origine_id)
       : Promise.resolve(null),
-    getEmetteurInfo(),
+    getEmetteurInfo(facture.societe_emettrice_id),
     projetId
       ? getProjetActiveContratsForFacturation(projetId)
       : Promise.resolve(null),

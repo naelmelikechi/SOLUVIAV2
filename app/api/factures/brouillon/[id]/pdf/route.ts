@@ -49,7 +49,7 @@ export async function GET(
     facture.est_avoir && facture.facture_origine_id
       ? getFactureRefById(facture.facture_origine_id)
       : Promise.resolve(null),
-    getEmetteurInfo(),
+    getEmetteurInfo(facture.societe_emettrice_id),
   ]);
 
   // Identifiant provisoire pour brouillon. Le ref reel sera attribue a l'envoi.

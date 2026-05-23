@@ -13,6 +13,7 @@ import {
   type ContratEcheancierContext,
 } from '@/lib/echeancier/calc';
 import { getBillableEvents } from '@/lib/queries/billable-events';
+import { getDefaultSocieteEmettriceId } from '@/lib/queries/societes-emettrices';
 import { computeFactureTotauxTtcInclus } from '@/lib/utils/facture-totaux-ttc-inclus';
 import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 
@@ -162,9 +163,11 @@ async function insertBrouillonWithLignes(args: {
   const dateEmissionStr = today.toISOString().split('T')[0]!;
   const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
 
+  const societeEmettriceId = await getDefaultSocieteEmettriceId();
   const { data: facture, error: insertError } = await supabase
     .from('factures')
     .insert({
+      societe_emettrice_id: societeEmettriceId,
       projet_id: projetId,
       client_id: clientId,
       date_emission: dateEmissionStr,
@@ -347,9 +350,11 @@ async function processBrouillonGroup(
 
   const dateEcheanceStr = lastDayOfNextMonthUtcISO();
 
+  const societeEmettriceId = await getDefaultSocieteEmettriceId();
   const { data: facture, error: insertError } = await supabase
     .from('factures')
     .insert({
+      societe_emettrice_id: societeEmettriceId,
       projet_id: group.projetId,
       client_id: group.clientId,
       date_emission: new Date().toISOString().split('T')[0]!,
@@ -904,9 +909,11 @@ export async function createFactureFromEvents(params: {
   const dateEcheanceStr = lastDayOfNextMonthUtcISO();
 
   // 7. INSERT brouillon
+  const societeEmettriceId = await getDefaultSocieteEmettriceId();
   const { data: facture, error: insertError } = await supabase
     .from('factures')
     .insert({
+      societe_emettrice_id: societeEmettriceId,
       projet_id: projetId,
       client_id: projet.client_id,
       date_emission: new Date().toISOString().split('T')[0]!,

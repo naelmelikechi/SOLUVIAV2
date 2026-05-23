@@ -1386,6 +1386,7 @@ export type Database = {
           pdf_url: string | null;
           projet_id: string | null;
           ref: string | null;
+          societe_emettrice_id: string;
           statut: Database['public']['Enums']['statut_facture'];
           taux_tva: number;
           updated_at: string;
@@ -1414,6 +1415,7 @@ export type Database = {
           pdf_url?: string | null;
           projet_id?: string | null;
           ref?: string | null;
+          societe_emettrice_id: string;
           statut?: Database['public']['Enums']['statut_facture'];
           taux_tva?: number;
           updated_at?: string;
@@ -1442,6 +1444,7 @@ export type Database = {
           pdf_url?: string | null;
           projet_id?: string | null;
           ref?: string | null;
+          societe_emettrice_id?: string;
           statut?: Database['public']['Enums']['statut_facture'];
           taux_tva?: number;
           updated_at?: string;
@@ -1473,6 +1476,13 @@ export type Database = {
             columns: ['projet_id'];
             isOneToOne: false;
             referencedRelation: 'projets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'factures_societe_emettrice_id_fkey';
+            columns: ['societe_emettrice_id'];
+            isOneToOne: false;
+            referencedRelation: 'societes_emettrices';
             referencedColumns: ['id'];
           },
         ];

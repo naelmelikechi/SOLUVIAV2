@@ -64,9 +64,10 @@ SELECT target_id, projet_id, '2026-05-01', 7 FROM _ctx;
 
 INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_concerne,
                       montant_ht, taux_tva, montant_tva, montant_ttc,
-                      statut, est_avoir, created_by)
+                      statut, est_avoir, created_by, societe_emettrice_id)
 SELECT projet_id, client_id, '2026-05-01', '2026-06-30', '2026-05',
-       100, 20, 20, 120, 'a_emettre', false, target_id
+       100, 20, 20, 120, 'a_emettre', false, target_id,
+       (SELECT id FROM societes_emettrices WHERE code = 'SOL')
 FROM _ctx;
 
 -- Helper : execute le RPC sous l identite d un user

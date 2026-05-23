@@ -51,10 +51,12 @@ DECLARE
 BEGIN
   INSERT INTO factures (
     projet_id, client_id, date_emission, date_echeance, mois_concerne,
-    montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir
+    montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
+    societe_emettrice_id
   )
   SELECT projet_id, client_id, '2026-05-01', '2026-06-30', '2026-05',
-         1000, 20, 200, 1200, 'a_emettre', false
+         1000, 20, 200, 1200, 'a_emettre', false,
+         (SELECT id FROM societes_emettrices WHERE code = 'SOL')
   FROM _ctx
   RETURNING id INTO v_id;
 

@@ -41,6 +41,11 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(),
 }));
 
+// Mock societes-emettrices helper (not yet seeded in test env).
+vi.mock('@/lib/queries/societes-emettrices', () => ({
+  getDefaultSocieteEmettriceId: vi.fn().mockResolvedValue('soc-default-id'),
+}));
+
 import { requireUser } from '@/lib/auth/guards';
 import { getBillableEvents } from '@/lib/queries/billable-events';
 import { logger } from '@/lib/utils/logger';
@@ -54,7 +59,10 @@ const CONTRAT_ID = 'a1b2c3d4-1234-4abc-89ef-000000000002';
 const CLIENT_ID = 'a1b2c3d4-1234-4abc-89ef-000000000003';
 const FACTURE_ID = 'a1b2c3d4-1234-4abc-89ef-000000000004';
 
-const mockUser = { id: 'a1b2c3d4-1234-4abc-89ef-000000000099', email: 'admin@test.com' };
+const mockUser = {
+  id: 'a1b2c3d4-1234-4abc-89ef-000000000099',
+  email: 'admin@test.com',
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -213,9 +221,8 @@ describe('createFactureFromEvents - audit log ecart PEDAGOGIE', () => {
 
     mockRequireUser(supabaseMock);
 
-    const { createFactureFromEvents } = await import(
-      '@/lib/actions/factures/brouillons'
-    );
+    const { createFactureFromEvents } =
+      await import('@/lib/actions/factures/brouillons');
     await createFactureFromEvents({
       projetId: PROJET_ID,
       events: [{ type: 'engagement', source_id: CONTRAT_ID }],
@@ -267,18 +274,17 @@ describe('createFactureFromEvents - audit log ecart PEDAGOGIE', () => {
 
     mockRequireUser(supabaseMock);
 
-    const { createFactureFromEvents } = await import(
-      '@/lib/actions/factures/brouillons'
-    );
+    const { createFactureFromEvents } =
+      await import('@/lib/actions/factures/brouillons');
     await createFactureFromEvents({
       projetId: PROJET_ID,
       events: [{ type: 'engagement', source_id: CONTRAT_ID }],
     });
 
     // Filtrer les appels a logger.info avec le message d'audit pedago
-    const auditCalls = vi.mocked(logger.info).mock.calls.filter(
-      (args) => args[1] === 'ecart pedago lines vs step',
-    );
+    const auditCalls = vi
+      .mocked(logger.info)
+      .mock.calls.filter((args) => args[1] === 'ecart pedago lines vs step');
     expect(auditCalls).toHaveLength(0);
   });
 });

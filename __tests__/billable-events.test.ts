@@ -147,8 +147,18 @@ describe('getBillableEvents - base engagement', () => {
       // 2 lignes PEDAGOGIE sur des step 1 differents (cas re-emission apres modif contrat)
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 101, contrat_id: 'ctr-1', amount: 1000, line_type: 'PEDAGOGIE' },
-          { eduvia_invoice_id: 102, contrat_id: 'ctr-1', amount: 500, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 101,
+            contrat_id: 'ctr-1',
+            amount: 1000,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 102,
+            contrat_id: 'ctr-1',
+            amount: 500,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -199,7 +209,12 @@ describe('getBillableEvents - base engagement', () => {
       contrats: { data: [contrat()] },
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 103, contrat_id: 'ctr-1', amount: 123.45, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 103,
+            contrat_id: 'ctr-1',
+            amount: 123.45,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -241,7 +256,12 @@ describe('getBillableEvents - avoir compensateur', () => {
       contrats: { data: [contrat()] },
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 201, contrat_id: 'ctr-1', amount: 2000, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 201,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -298,7 +318,12 @@ describe('getBillableEvents - avoir compensateur', () => {
       contrats: { data: [contrat()] },
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 202, contrat_id: 'ctr-1', amount: 2000, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 202,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -352,8 +377,18 @@ describe('getBillableEvents - exclusion engagement / opco_step', () => {
       // Ligne PEDAGOGIE pour step 2 (opco_step) + ligne pour step 1 (engagement)
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 301, contrat_id: 'ctr-1', amount: 1000, line_type: 'PEDAGOGIE' },
-          { eduvia_invoice_id: 302, contrat_id: 'ctr-1', amount: 2000, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 301,
+            contrat_id: 'ctr-1',
+            amount: 1000,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 302,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -411,8 +446,18 @@ describe('getBillableEvents - exclusion engagement / opco_step', () => {
       contrats: { data: [contrat()] },
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 401, contrat_id: 'ctr-1', amount: 1000, line_type: 'PEDAGOGIE' },
-          { eduvia_invoice_id: 402, contrat_id: 'ctr-1', amount: 2000, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 401,
+            contrat_id: 'ctr-1',
+            amount: 1000,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 402,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -533,7 +578,12 @@ describe('getBillableEvents - DECA manquant', () => {
       contrats: { data: [contrat({ contract_number: null })] },
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 501, contrat_id: 'ctr-1', amount: 2000, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 501,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -575,7 +625,12 @@ describe('getBillableEvents - DECA manquant', () => {
       },
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 601, contrat_id: 'ctr-1', amount: 1500, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 601,
+            contrat_id: 'ctr-1',
+            amount: 1500,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -615,7 +670,12 @@ describe('getBillableEvents - DECA manquant', () => {
       contrats: { data: [contrat({ contract_number: 'DECA-2026-001' })] },
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 701, contrat_id: 'ctr-1', amount: 3000, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 701,
+            contrat_id: 'ctr-1',
+            amount: 3000,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -656,8 +716,18 @@ describe('getBillableEvents - DECA manquant', () => {
       contrats: { data: [contrat({ contract_number: null })] },
       eduvia_invoice_lines: {
         data: [
-          { eduvia_invoice_id: 801, contrat_id: 'ctr-1', amount: 1000, line_type: 'PEDAGOGIE' },
-          { eduvia_invoice_id: 802, contrat_id: 'ctr-1', amount: 2000, line_type: 'PEDAGOGIE' },
+          {
+            eduvia_invoice_id: 801,
+            contrat_id: 'ctr-1',
+            amount: 1000,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 802,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
         ],
       },
       eduvia_invoice_steps: {
@@ -720,52 +790,126 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
   it('1 ligne PEDAGOGIE sur step 1 emis -> engagement a amount (40% commission)', async () => {
     const { client } = buildSupabase({
       projets: {
-        data: { id: 'proj-1', ref: 'TST-001', taux_commission: 40,
-          client: { id: 'cli-1', raison_sociale: 'Test' } },
+        data: {
+          id: 'proj-1',
+          ref: 'TST-001',
+          taux_commission: 40,
+          client: { id: 'cli-1', raison_sociale: 'Test' },
+        },
       },
-      contrats: { data: [{ id: 'ctr-1', ref: 'CTR-T1', contract_number: 'DECA001',
-        internal_number: '1', apprenant_nom: 'Test', apprenant_prenom: 'User',
-        formation_titre: 'F', contract_state: 'ENGAGE', npec_amount: 5000 }] },
-      eduvia_invoice_lines: { data: [{
-        eduvia_invoice_id: 100, contrat_id: 'ctr-1', amount: 2500,
-        line_type: 'PEDAGOGIE',
-      }] },
-      eduvia_invoice_steps: { data: [{
-        id: 'step-uuid-100', contrat_id: 'ctr-1', step_number: 1,
-        eduvia_invoice_id: 100, including_pedagogie_amount: 2500,
-        opening_date: '2026-01-01', paid_at: null, invoice_state: 'TRANSMIS',
-      }] },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-1',
+            ref: 'CTR-T1',
+            contract_number: 'DECA001',
+            internal_number: '1',
+            apprenant_nom: 'Test',
+            apprenant_prenom: 'User',
+            formation_titre: 'F',
+            contract_state: 'ENGAGE',
+            npec_amount: 5000,
+          },
+        ],
+      },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 100,
+            contrat_id: 'ctr-1',
+            amount: 2500,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-uuid-100',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 100,
+            including_pedagogie_amount: 2500,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
       facture_lignes: { data: [] },
     });
-    vi.mocked(createClient).mockResolvedValueOnce(client as never);
+    vi.mocked(createClient).mockResolvedValue(client as never);
 
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const r = await getBillableEvents('proj-1');
 
     expect(r?.events).toHaveLength(1);
     expect(r?.events[0]).toMatchObject({
-      type: 'engagement', montant_brut: 2500, montant_commissionne: 1000,
+      type: 'engagement',
+      montant_brut: 2500,
+      montant_commissionne: 1000,
       status: 'available',
     });
   });
 
   it('PEDAGOGIE + PREMIEREQUIPEMENT dans la meme invoice -> base = PEDAGOGIE seul', async () => {
     const { client } = buildSupabase({
-      projets: { data: { id: 'proj-1', ref: 'TST', taux_commission: 40,
-        client: { id: 'cli', raison_sociale: 'Test' } } },
-      contrats: { data: [{ id: 'ctr-2', ref: 'CTR-T2', contract_number: 'DECA002',
-        internal_number: '2', apprenant_nom: 'Test', apprenant_prenom: 'User',
-        formation_titre: 'F', contract_state: 'ENGAGE', npec_amount: 5000 }] },
-      eduvia_invoice_lines: { data: [
-        { eduvia_invoice_id: 200, contrat_id: 'ctr-2', amount: 2500, line_type: 'PEDAGOGIE' },
-        { eduvia_invoice_id: 200, contrat_id: 'ctr-2', amount: 500, line_type: 'PREMIEREQUIPEMENT' },
-      ] },
-      eduvia_invoice_steps: { data: [{ id: 'step-200', contrat_id: 'ctr-2', step_number: 1,
-        eduvia_invoice_id: 200, including_pedagogie_amount: 2500,
-        opening_date: '2026-01-01', paid_at: null, invoice_state: 'TRANSMIS' }] },
+      projets: {
+        data: {
+          id: 'proj-1',
+          ref: 'TST',
+          taux_commission: 40,
+          client: { id: 'cli', raison_sociale: 'Test' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-2',
+            ref: 'CTR-T2',
+            contract_number: 'DECA002',
+            internal_number: '2',
+            apprenant_nom: 'Test',
+            apprenant_prenom: 'User',
+            formation_titre: 'F',
+            contract_state: 'ENGAGE',
+            npec_amount: 5000,
+          },
+        ],
+      },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 200,
+            contrat_id: 'ctr-2',
+            amount: 2500,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 200,
+            contrat_id: 'ctr-2',
+            amount: 500,
+            line_type: 'PREMIEREQUIPEMENT',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-200',
+            contrat_id: 'ctr-2',
+            step_number: 1,
+            eduvia_invoice_id: 200,
+            including_pedagogie_amount: 2500,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
       facture_lignes: { data: [] },
     });
-    vi.mocked(createClient).mockResolvedValueOnce(client as never);
+    vi.mocked(createClient).mockResolvedValue(client as never);
 
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const r = await getBillableEvents('proj-1');
@@ -777,20 +921,56 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
 
   it('PREMIEREQUIPEMENT seul (sans PEDAGOGIE) -> pas d event engagement', async () => {
     const { client } = buildSupabase({
-      projets: { data: { id: 'proj-1', ref: 'TST', taux_commission: 40,
-        client: { id: 'cli', raison_sociale: 'Test' } } },
-      contrats: { data: [{ id: 'ctr-3', ref: 'CTR-T3', contract_number: 'DECA003',
-        internal_number: '3', apprenant_nom: 'Test', apprenant_prenom: 'U',
-        formation_titre: 'F', contract_state: 'ENGAGE', npec_amount: 5000 }] },
-      eduvia_invoice_lines: { data: [
-        { eduvia_invoice_id: 300, contrat_id: 'ctr-3', amount: 500, line_type: 'PREMIEREQUIPEMENT' },
-      ] },
-      eduvia_invoice_steps: { data: [{ id: 'step-300', contrat_id: 'ctr-3', step_number: 1,
-        eduvia_invoice_id: 300, including_pedagogie_amount: 0,
-        opening_date: '2026-01-01', paid_at: null, invoice_state: 'TRANSMIS' }] },
+      projets: {
+        data: {
+          id: 'proj-1',
+          ref: 'TST',
+          taux_commission: 40,
+          client: { id: 'cli', raison_sociale: 'Test' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-3',
+            ref: 'CTR-T3',
+            contract_number: 'DECA003',
+            internal_number: '3',
+            apprenant_nom: 'Test',
+            apprenant_prenom: 'U',
+            formation_titre: 'F',
+            contract_state: 'ENGAGE',
+            npec_amount: 5000,
+          },
+        ],
+      },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 300,
+            contrat_id: 'ctr-3',
+            amount: 500,
+            line_type: 'PREMIEREQUIPEMENT',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-300',
+            contrat_id: 'ctr-3',
+            step_number: 1,
+            eduvia_invoice_id: 300,
+            including_pedagogie_amount: 0,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
       facture_lignes: { data: [] },
     });
-    vi.mocked(createClient).mockResolvedValueOnce(client as never);
+    vi.mocked(createClient).mockResolvedValue(client as never);
 
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const r = await getBillableEvents('proj-1');
@@ -799,21 +979,62 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
 
   it('line_type inconnu sur le contrat -> tous ses events sont locked unknown_line_type', async () => {
     const { client } = buildSupabase({
-      projets: { data: { id: 'proj-1', ref: 'TST', taux_commission: 40,
-        client: { id: 'cli', raison_sociale: 'Test' } } },
-      contrats: { data: [{ id: 'ctr-4', ref: 'CTR-T4', contract_number: 'DECA004',
-        internal_number: '4', apprenant_nom: 'Test', apprenant_prenom: 'U',
-        formation_titre: 'F', contract_state: 'ENGAGE', npec_amount: 5000 }] },
-      eduvia_invoice_lines: { data: [
-        { eduvia_invoice_id: 400, contrat_id: 'ctr-4', amount: 2500, line_type: 'PEDAGOGIE' },
-        { eduvia_invoice_id: 400, contrat_id: 'ctr-4', amount: 100, line_type: 'EXAMEN' },
-      ] },
-      eduvia_invoice_steps: { data: [{ id: 'step-400', contrat_id: 'ctr-4', step_number: 1,
-        eduvia_invoice_id: 400, including_pedagogie_amount: 2500,
-        opening_date: '2026-01-01', paid_at: null, invoice_state: 'TRANSMIS' }] },
+      projets: {
+        data: {
+          id: 'proj-1',
+          ref: 'TST',
+          taux_commission: 40,
+          client: { id: 'cli', raison_sociale: 'Test' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-4',
+            ref: 'CTR-T4',
+            contract_number: 'DECA004',
+            internal_number: '4',
+            apprenant_nom: 'Test',
+            apprenant_prenom: 'U',
+            formation_titre: 'F',
+            contract_state: 'ENGAGE',
+            npec_amount: 5000,
+          },
+        ],
+      },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 400,
+            contrat_id: 'ctr-4',
+            amount: 2500,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 400,
+            contrat_id: 'ctr-4',
+            amount: 100,
+            line_type: 'EXAMEN',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-400',
+            contrat_id: 'ctr-4',
+            step_number: 1,
+            eduvia_invoice_id: 400,
+            including_pedagogie_amount: 2500,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
       facture_lignes: { data: [] },
     });
-    vi.mocked(createClient).mockResolvedValueOnce(client as never);
+    vi.mocked(createClient).mockResolvedValue(client as never);
 
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const r = await getBillableEvents('proj-1');
@@ -825,21 +1046,62 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
 
   it('missing_deca prime sur unknown_line_type', async () => {
     const { client } = buildSupabase({
-      projets: { data: { id: 'proj-1', ref: 'TST', taux_commission: 40,
-        client: { id: 'cli', raison_sociale: 'Test' } } },
-      contrats: { data: [{ id: 'ctr-5', ref: 'CTR-T5', contract_number: '',
-        internal_number: '5', apprenant_nom: 'Test', apprenant_prenom: 'U',
-        formation_titre: 'F', contract_state: 'ENGAGE', npec_amount: 5000 }] },
-      eduvia_invoice_lines: { data: [
-        { eduvia_invoice_id: 500, contrat_id: 'ctr-5', amount: 2500, line_type: 'PEDAGOGIE' },
-        { eduvia_invoice_id: 500, contrat_id: 'ctr-5', amount: 100, line_type: 'INSCRIPTION' },
-      ] },
-      eduvia_invoice_steps: { data: [{ id: 'step-500', contrat_id: 'ctr-5', step_number: 1,
-        eduvia_invoice_id: 500, including_pedagogie_amount: 2500,
-        opening_date: '2026-01-01', paid_at: null, invoice_state: 'TRANSMIS' }] },
+      projets: {
+        data: {
+          id: 'proj-1',
+          ref: 'TST',
+          taux_commission: 40,
+          client: { id: 'cli', raison_sociale: 'Test' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-5',
+            ref: 'CTR-T5',
+            contract_number: '',
+            internal_number: '5',
+            apprenant_nom: 'Test',
+            apprenant_prenom: 'U',
+            formation_titre: 'F',
+            contract_state: 'ENGAGE',
+            npec_amount: 5000,
+          },
+        ],
+      },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 500,
+            contrat_id: 'ctr-5',
+            amount: 2500,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 500,
+            contrat_id: 'ctr-5',
+            amount: 100,
+            line_type: 'INSCRIPTION',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-500',
+            contrat_id: 'ctr-5',
+            step_number: 1,
+            eduvia_invoice_id: 500,
+            including_pedagogie_amount: 2500,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
       facture_lignes: { data: [] },
     });
-    vi.mocked(createClient).mockResolvedValueOnce(client as never);
+    vi.mocked(createClient).mockResolvedValue(client as never);
 
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const r = await getBillableEvents('proj-1');
@@ -940,7 +1202,7 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
         ],
       },
     });
-    vi.mocked(createClient).mockResolvedValueOnce(client as never);
+    vi.mocked(createClient).mockResolvedValue(client as never);
 
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const r = await getBillableEvents('proj-prio');
@@ -957,21 +1219,62 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
 
   it('opco_step disponible : montant_brut = somme PEDAGOGIE de l invoice (matos exclu)', async () => {
     const { client } = buildSupabase({
-      projets: { data: { id: 'proj-1', ref: 'TST', taux_commission: 40,
-        client: { id: 'cli', raison_sociale: 'Test' } } },
-      contrats: { data: [{ id: 'ctr-6', ref: 'CTR-T6', contract_number: 'DECA006',
-        internal_number: '6', apprenant_nom: 'Test', apprenant_prenom: 'U',
-        formation_titre: 'F', contract_state: 'ENGAGE', npec_amount: 5000 }] },
-      eduvia_invoice_lines: { data: [
-        { eduvia_invoice_id: 600, contrat_id: 'ctr-6', amount: 1500, line_type: 'PEDAGOGIE' },
-        { eduvia_invoice_id: 600, contrat_id: 'ctr-6', amount: 500, line_type: 'PREMIEREQUIPEMENT' },
-      ] },
-      eduvia_invoice_steps: { data: [{ id: 'step-600', contrat_id: 'ctr-6', step_number: 2,
-        eduvia_invoice_id: 600, including_pedagogie_amount: 1500,
-        opening_date: '2026-04-01', paid_at: null, invoice_state: 'TRANSMIS' }] },
+      projets: {
+        data: {
+          id: 'proj-1',
+          ref: 'TST',
+          taux_commission: 40,
+          client: { id: 'cli', raison_sociale: 'Test' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-6',
+            ref: 'CTR-T6',
+            contract_number: 'DECA006',
+            internal_number: '6',
+            apprenant_nom: 'Test',
+            apprenant_prenom: 'U',
+            formation_titre: 'F',
+            contract_state: 'ENGAGE',
+            npec_amount: 5000,
+          },
+        ],
+      },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 600,
+            contrat_id: 'ctr-6',
+            amount: 1500,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 600,
+            contrat_id: 'ctr-6',
+            amount: 500,
+            line_type: 'PREMIEREQUIPEMENT',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-600',
+            contrat_id: 'ctr-6',
+            step_number: 2,
+            eduvia_invoice_id: 600,
+            including_pedagogie_amount: 1500,
+            opening_date: '2026-04-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
       facture_lignes: { data: [] },
     });
-    vi.mocked(createClient).mockResolvedValueOnce(client as never);
+    vi.mocked(createClient).mockResolvedValue(client as never);
 
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const r = await getBillableEvents('proj-1');
@@ -984,5 +1287,391 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
       montant_commissionne: 600, // 1500 x 40%
       status: 'available',
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Resolution OPCO via prefixe DECA
+// ---------------------------------------------------------------------------
+
+describe('getBillableEvents - resolution OPCO', () => {
+  it('contrat avec DECA prefixe AKTO (017) -> event avec opco_code=AKTO, status available', async () => {
+    const { client } = buildSupabase({
+      projets: {
+        data: {
+          id: 'proj-opco-1',
+          ref: 'TST-OPCO',
+          taux_commission: 40,
+          client: { id: 'cli-1', raison_sociale: 'Test OPCO' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-opco-1',
+            ref: 'CTR-OPCO-1',
+            contract_number: '017-AKTO-2026-001',
+            internal_number: 'INT-OPCO-1',
+            apprenant_nom: 'Martin',
+            apprenant_prenom: 'Sophie',
+            formation_titre: 'Commerce',
+            contract_state: 'ENGAGE',
+            npec_amount: 6000,
+          },
+        ],
+      },
+      opcos: {
+        data: [
+          {
+            code: 'AKTO',
+            nom: 'AKTO - Commerce',
+            prefixes_deca: ['017', '030'],
+          },
+        ],
+        error: null,
+      },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 1001,
+            contrat_id: 'ctr-opco-1',
+            amount: 3000,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-opco-1001',
+            contrat_id: 'ctr-opco-1',
+            step_number: 1,
+            eduvia_invoice_id: 1001,
+            including_pedagogie_amount: 3000,
+            opening_date: '2026-02-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(client as never);
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const r = await getBillableEvents('proj-opco-1');
+
+    expect(r?.events).toHaveLength(1);
+    const ev = r!.events[0]!;
+    expect(ev.status).toBe('available');
+    expect(ev.opco_code).toBe('AKTO');
+    expect(ev.opco_nom).toBe('AKTO - Commerce');
+    expect(ev.lock_reason).toBeUndefined();
+  });
+
+  it('contrat avec DECA prefixe inconnu -> locked unknown_opco', async () => {
+    const { client } = buildSupabase({
+      projets: {
+        data: {
+          id: 'proj-opco-2',
+          ref: 'TST-OPCO2',
+          taux_commission: 40,
+          client: { id: 'cli-2', raison_sociale: 'Test OPCO 2' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-opco-2',
+            ref: 'CTR-OPCO-2',
+            contract_number: '999-INCONNU-2026-001',
+            internal_number: 'INT-OPCO-2',
+            apprenant_nom: 'Durand',
+            apprenant_prenom: 'Paul',
+            formation_titre: 'Industrie',
+            contract_state: 'ENGAGE',
+            npec_amount: 4000,
+          },
+        ],
+      },
+      opcos: { data: [], error: null },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 1002,
+            contrat_id: 'ctr-opco-2',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-opco-1002',
+            contrat_id: 'ctr-opco-2',
+            step_number: 1,
+            eduvia_invoice_id: 1002,
+            including_pedagogie_amount: 2000,
+            opening_date: '2026-03-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(client as never);
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const r = await getBillableEvents('proj-opco-2');
+
+    expect(r?.events).toHaveLength(1);
+    const ev = r!.events[0]!;
+    expect(ev.status).toBe('locked');
+    expect(ev.lock_reason).toBe('unknown_opco');
+    expect(ev.opco_code).toBeNull();
+    expect(ev.opco_nom).toBeNull();
+  });
+
+  it('priorite missing_deca > unknown_opco : contract_number null -> lock_reason=missing_deca', async () => {
+    const { client } = buildSupabase({
+      projets: {
+        data: {
+          id: 'proj-opco-3',
+          ref: 'TST-OPCO3',
+          taux_commission: 40,
+          client: { id: 'cli-3', raison_sociale: 'Test OPCO 3' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-opco-3',
+            ref: 'CTR-OPCO-3',
+            contract_number: null,
+            internal_number: 'INT-OPCO-3',
+            apprenant_nom: 'Leblanc',
+            apprenant_prenom: 'Marie',
+            formation_titre: 'Sante',
+            contract_state: 'ENGAGE',
+            npec_amount: 3000,
+          },
+        ],
+      },
+      opcos: { data: [], error: null },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 1003,
+            contrat_id: 'ctr-opco-3',
+            amount: 1500,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-opco-1003',
+            contrat_id: 'ctr-opco-3',
+            step_number: 1,
+            eduvia_invoice_id: 1003,
+            including_pedagogie_amount: 1500,
+            opening_date: '2026-03-15',
+            paid_at: null,
+            invoice_state: 'REGLE',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(client as never);
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const r = await getBillableEvents('proj-opco-3');
+
+    expect(r?.events).toHaveLength(1);
+    const ev = r!.events[0]!;
+    expect(ev.status).toBe('locked');
+    // missing_deca doit prendre le dessus sur unknown_opco
+    expect(ev.lock_reason).toBe('missing_deca');
+  });
+
+  it('priorite unknown_opco > unknown_line_type : DECA prefixe inconnu + ligne type inconnu -> lock_reason=unknown_opco', async () => {
+    const { client } = buildSupabase({
+      projets: {
+        data: {
+          id: 'proj-opco-4',
+          ref: 'TST-OPCO4',
+          taux_commission: 40,
+          client: { id: 'cli-4', raison_sociale: 'Test OPCO 4' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-opco-4',
+            ref: 'CTR-OPCO-4',
+            contract_number: '888-INCONNU-2026-001',
+            internal_number: 'INT-OPCO-4',
+            apprenant_nom: 'Petit',
+            apprenant_prenom: 'Lucas',
+            formation_titre: 'BTP',
+            contract_state: 'ENGAGE',
+            npec_amount: 5000,
+          },
+        ],
+      },
+      opcos: { data: [], error: null },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 1004,
+            contrat_id: 'ctr-opco-4',
+            amount: 2500,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 1004,
+            contrat_id: 'ctr-opco-4',
+            amount: 100,
+            line_type: 'EXAMEN',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-opco-1004',
+            contrat_id: 'ctr-opco-4',
+            step_number: 1,
+            eduvia_invoice_id: 1004,
+            including_pedagogie_amount: 2500,
+            opening_date: '2026-04-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(client as never);
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const r = await getBillableEvents('proj-opco-4');
+
+    expect(r?.events).toHaveLength(1);
+    const ev = r!.events[0]!;
+    expect(ev.status).toBe('locked');
+    // unknown_opco doit prendre le dessus sur unknown_line_type
+    expect(ev.lock_reason).toBe('unknown_opco');
+  });
+
+  it('plusieurs OPCO sur meme projet -> events distincts avec opco_code different', async () => {
+    const { client } = buildSupabase({
+      projets: {
+        data: {
+          id: 'proj-opco-5',
+          ref: 'TST-OPCO5',
+          taux_commission: 40,
+          client: { id: 'cli-5', raison_sociale: 'Test Multi OPCO' },
+        },
+      },
+      contrats: {
+        data: [
+          {
+            id: 'ctr-akto',
+            ref: 'CTR-AKTO',
+            contract_number: '017-AKTO-2026-001',
+            internal_number: 'INT-AKTO',
+            apprenant_nom: 'Morel',
+            apprenant_prenom: 'Anne',
+            formation_titre: 'Commerce',
+            contract_state: 'ENGAGE',
+            npec_amount: 4000,
+          },
+          {
+            id: 'ctr-mob',
+            ref: 'CTR-MOB',
+            contract_number: '006-MOB-2026-001',
+            internal_number: 'INT-MOB',
+            apprenant_nom: 'Bernard',
+            apprenant_prenom: 'Luc',
+            formation_titre: 'Transport',
+            contract_state: 'ENGAGE',
+            npec_amount: 5000,
+          },
+        ],
+      },
+      opcos: {
+        data: [
+          { code: 'AKTO', nom: 'AKTO', prefixes_deca: ['017'] },
+          {
+            code: 'OPCO_MOBILITES',
+            nom: 'OPCO Mobilites',
+            prefixes_deca: ['006'],
+          },
+        ],
+        error: null,
+      },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 2001,
+            contrat_id: 'ctr-akto',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 2002,
+            contrat_id: 'ctr-mob',
+            amount: 2500,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-akto-2001',
+            contrat_id: 'ctr-akto',
+            step_number: 1,
+            eduvia_invoice_id: 2001,
+            including_pedagogie_amount: 2000,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+          {
+            id: 'step-mob-2002',
+            contrat_id: 'ctr-mob',
+            step_number: 1,
+            eduvia_invoice_id: 2002,
+            including_pedagogie_amount: 2500,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(client as never);
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const r = await getBillableEvents('proj-opco-5');
+
+    expect(r?.events).toHaveLength(2);
+    const aktoEv = r!.events.find((e) => e.contrat_id === 'ctr-akto')!;
+    const mobEv = r!.events.find((e) => e.contrat_id === 'ctr-mob')!;
+
+    expect(aktoEv.opco_code).toBe('AKTO');
+    expect(aktoEv.opco_nom).toBe('AKTO');
+    expect(aktoEv.status).toBe('available');
+
+    expect(mobEv.opco_code).toBe('OPCO_MOBILITES');
+    expect(mobEv.opco_nom).toBe('OPCO Mobilites');
+    expect(mobEv.status).toBe('available');
   });
 });

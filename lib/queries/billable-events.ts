@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { classifyLineType } from '@/lib/eduvia/line-types';
+import { getActiveOpcoMapping } from '@/lib/queries/opcos';
+import { extractDecaPrefix, resolveOpcoFromDeca } from '@/lib/opco/resolve';
 
 // ---------------------------------------------------------------------------
 // Billable events : 2 sources de facturation pour tous les projets avec
@@ -53,6 +55,9 @@ export interface BillableEvent {
   step_opening_date: string | null; // pour opco_step
   step_paid_at: string | null;
 
+  opco_code: string | null; // OPCO resolu via prefixe DECA, null si non resolu
+  opco_nom: string | null; // Nom affiche dans UI/PDF
+
   montant_brut: number; // SUM(PEDAGOGIE lines)
   montant_commissionne: number; // brut * taux_commission / 100
 
@@ -73,8 +78,16 @@ export interface BillableEvent {
    *                          line_type ni whiteliste ni blackliste. Voir
    *                          unknown_line_types pour la liste, et
    *                          lib/eduvia/line-types.ts pour la classification.
+   * - 'unknown_opco'       : contract_number (DECA OPCO) present mais son
+   *                          prefixe (3 premiers chiffres) ne correspond a
+   *                          aucun OPCO actif dans le referentiel. Facturation
+   *                          bloquee pour eviter une imputation incorrecte.
    */
-  lock_reason?: 'opposite_billed' | 'missing_deca' | 'unknown_line_type';
+  lock_reason?:
+    | 'opposite_billed'
+    | 'missing_deca'
+    | 'unknown_line_type'
+    | 'unknown_opco';
   unknown_line_types?: string[];
 }
 
@@ -94,18 +107,27 @@ export interface ProjetBillableEvents {
 
 /**
  * Determines the billing status of an event based on its billing and lock state.
- * Priority: billed > missing_deca > unknown_line_type > opposite_billed > available.
+ * Priority: billed > missing_deca > unknown_opco > unknown_line_type > opposite_billed > available.
  */
 function resolveLock(opts: {
   billed?: BilledRef;
   lockedByOther?: BilledRef;
   missingDeca: boolean;
+  unknownOpco: boolean;
   hasUnknown: boolean;
-}): { status: BillableEvent['status']; lock_reason?: BillableEvent['lock_reason'] } {
+}): {
+  status: BillableEvent['status'];
+  lock_reason?: BillableEvent['lock_reason'];
+} {
   if (opts.billed) return { status: 'billed' };
-  if (opts.missingDeca) return { status: 'locked', lock_reason: 'missing_deca' };
-  if (opts.hasUnknown) return { status: 'locked', lock_reason: 'unknown_line_type' };
-  if (opts.lockedByOther) return { status: 'locked', lock_reason: 'opposite_billed' };
+  if (opts.missingDeca)
+    return { status: 'locked', lock_reason: 'missing_deca' };
+  if (opts.unknownOpco)
+    return { status: 'locked', lock_reason: 'unknown_opco' };
+  if (opts.hasUnknown)
+    return { status: 'locked', lock_reason: 'unknown_line_type' };
+  if (opts.lockedByOther)
+    return { status: 'locked', lock_reason: 'opposite_billed' };
   return { status: 'available' };
 }
 
@@ -167,6 +189,9 @@ export async function getBillableEvents(
 
   const contratIds = contrats.map((c) => c.id);
 
+  // 2b. Mapping OPCO actifs (prefixe DECA -> OPCO info)
+  const opcoMapping = await getActiveOpcoMapping();
+
   // 3. Lignes des bordereaux OPCO emis pour ces contrats.
   //    Source de verite : eduvia_invoice_lines (whitelist line_type=PEDAGOGIE).
   //    On joint avec eduvia_invoice_steps pour matcher l'invoice_id au
@@ -181,7 +206,9 @@ export async function getBillableEvents(
   //    pour les events opco_step (cle d'idempotence facture_lignes).
   const { data: emittedSteps } = await supabase
     .from('eduvia_invoice_steps')
-    .select('id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state')
+    .select(
+      'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state',
+    )
     .in('contrat_id', contratIds)
     .not('invoice_state', 'is', null)
     .not('eduvia_invoice_id', 'is', null);
@@ -190,7 +217,8 @@ export async function getBillableEvents(
   type StepRow = NonNullable<typeof emittedSteps>[number];
   const stepByInvoiceId = new Map<number, StepRow>();
   for (const s of emittedSteps ?? []) {
-    if (s.eduvia_invoice_id != null) stepByInvoiceId.set(s.eduvia_invoice_id, s);
+    if (s.eduvia_invoice_id != null)
+      stepByInvoiceId.set(s.eduvia_invoice_id, s);
   }
 
   // 5. Classifier les lignes par contrat. Calculer base engagement, base
@@ -231,7 +259,10 @@ export async function getBillableEvents(
       agg.engagementInvoiceIds.add(line.eduvia_invoice_id);
     } else {
       const prev = agg.basePedagoByStepInvoice.get(line.eduvia_invoice_id) ?? 0;
-      agg.basePedagoByStepInvoice.set(line.eduvia_invoice_id, prev + Number(line.amount));
+      agg.basePedagoByStepInvoice.set(
+        line.eduvia_invoice_id,
+        prev + Number(line.amount),
+      );
     }
   }
 
@@ -318,13 +349,28 @@ export async function getBillableEvents(
       ? Array.from(agg.unknownLineTypes).sort()
       : undefined;
 
+    const decaPrefix = extractDecaPrefix(c.contract_number);
+    const opcoInfo = resolveOpcoFromDeca(c.contract_number, opcoMapping);
+    // unknownOpco: DECA has a valid numeric prefix but it's not in the active mapping.
+    // If the prefix can't even be extracted (non-numeric or empty), missingDeca handles it.
+    const unknownOpco = !!decaPrefix && !opcoInfo;
+
     // -- Event engagement --------------------------------------------------
     if (c.contract_state === 'ENGAGE' && agg.basePedagoEngagement > 0) {
       const billed = billedByEventSource.get(c.id);
       const lockedByOpco = billedTypes?.get('opco_step');
-      const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByOpco, missingDeca, hasUnknown });
+      const { status, lock_reason } = resolveLock({
+        billed,
+        lockedByOther: lockedByOpco,
+        missingDeca,
+        unknownOpco,
+        hasUnknown,
+      });
 
-      auditInvoiceIdsBySource.set(c.id, Array.from(agg.engagementInvoiceIds).sort());
+      auditInvoiceIdsBySource.set(
+        c.id,
+        Array.from(agg.engagementInvoiceIds).sort(),
+      );
       events.push({
         type: 'engagement',
         source_id: c.id,
@@ -339,13 +385,20 @@ export async function getBillableEvents(
         step_number: null,
         step_opening_date: null,
         step_paid_at: null,
+        opco_code: opcoInfo?.code ?? null,
+        opco_nom: opcoInfo?.nom ?? null,
         montant_brut: agg.basePedagoEngagement,
-        montant_commissionne: Math.round(((agg.basePedagoEngagement * taux) / 100) * 100) / 100,
+        montant_commissionne:
+          Math.round(((agg.basePedagoEngagement * taux) / 100) * 100) / 100,
         status,
         billed_on: billed,
-        locked_by: !missingDeca && !hasUnknown ? lockedByOpco : undefined,
+        locked_by:
+          !missingDeca && !unknownOpco && !hasUnknown
+            ? lockedByOpco
+            : undefined,
         lock_reason,
-        unknown_line_types: lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
+        unknown_line_types:
+          lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
       });
     }
 
@@ -357,7 +410,13 @@ export async function getBillableEvents(
 
       const billed = billedByEventSource.get(step.id);
       const lockedByEngagement = billedTypes?.get('engagement');
-      const { status, lock_reason } = resolveLock({ billed, lockedByOther: lockedByEngagement, missingDeca, hasUnknown });
+      const { status, lock_reason } = resolveLock({
+        billed,
+        lockedByOther: lockedByEngagement,
+        missingDeca,
+        unknownOpco,
+        hasUnknown,
+      });
 
       auditInvoiceIdsBySource.set(step.id, [invoiceId]);
       events.push({
@@ -374,13 +433,20 @@ export async function getBillableEvents(
         step_number: step.step_number ?? null,
         step_opening_date: step.opening_date ?? null,
         step_paid_at: step.paid_at ?? null,
+        opco_code: opcoInfo?.code ?? null,
+        opco_nom: opcoInfo?.nom ?? null,
         montant_brut: basePedago,
-        montant_commissionne: Math.round(((basePedago * taux) / 100) * 100) / 100,
+        montant_commissionne:
+          Math.round(((basePedago * taux) / 100) * 100) / 100,
         status,
         billed_on: billed,
-        locked_by: !missingDeca && !hasUnknown ? lockedByEngagement : undefined,
+        locked_by:
+          !missingDeca && !unknownOpco && !hasUnknown
+            ? lockedByEngagement
+            : undefined,
         lock_reason,
-        unknown_line_types: lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
+        unknown_line_types:
+          lock_reason === 'unknown_line_type' ? unknownTypesList : undefined,
       });
     }
   }
@@ -426,7 +492,9 @@ export async function listBillableProjets(): Promise<
     .order('ref');
 
   if (error) {
-    logger.error('queries.billable-events', 'listBillableProjets failed', { error });
+    logger.error('queries.billable-events', 'listBillableProjets failed', {
+      error,
+    });
     return [];
   }
 

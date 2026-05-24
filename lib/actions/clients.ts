@@ -4,7 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireAdmin, requireUser } from '@/lib/auth/guards';
 import { encryptApiKey, decryptApiKey } from '@/lib/utils/encryption';
-import { baseUrlFrom } from '@/lib/eduvia/client';
+import {
+  baseUrlFrom,
+  EDUVIA_INSTANCE_URL_REGEX,
+  normalizeEduviaInstanceUrl,
+} from '@/lib/eduvia/client';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import {
@@ -109,16 +113,19 @@ const AddClientNoteSchema = z.object({
 const AddClientApiKeySchema = z.object({
   clientId: clientIdSchema,
   data: z.object({
-    // instance_url stocke en hostname (ex: "dupont.eduvia.app"),
-    // pas en URL complete - voir baseUrlFrom() dans lib/eduvia/client.ts.
+    // instance_url stocke en hostname canonique (ex: "dupont.eduvia.app").
+    // L user peut coller une URL complete (https://api.dupont.eduvia.app/api/v1),
+    // on normalise puis valide. baseUrlFrom() (lib/eduvia/client.ts) prefixe
+    // ensuite `https://api.` lui-meme, d ou la forme canonique en DB.
     instanceUrl: z
       .string()
       .trim()
       .min(1, "L'URL de l'instance est requise")
       .max(500)
+      .transform(normalizeEduviaInstanceUrl)
       .refine(
-        (v) => v.includes('.eduvia.app'),
-        "L'URL doit contenir .eduvia.app (ex: dupont.eduvia.app)",
+        (v) => EDUVIA_INSTANCE_URL_REGEX.test(v),
+        'Format attendu : slug.eduvia.app (ex: dupont.eduvia.app)',
       ),
     // API key Eduvia : chiffree en aval, pas de validation format stricte.
     apiKey: z.string().trim().min(1, 'La cle API est requise').max(500),

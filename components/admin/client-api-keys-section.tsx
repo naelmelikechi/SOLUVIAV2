@@ -27,6 +27,10 @@ import {
   toggleClientApiKeyActive,
   testApiKeyConnection,
 } from '@/lib/actions/clients';
+import {
+  EDUVIA_INSTANCE_URL_REGEX,
+  normalizeEduviaInstanceUrl,
+} from '@/lib/eduvia/client';
 import type { ClientApiKey } from '@/lib/queries/clients';
 
 interface ClientApiKeysSectionProps {
@@ -81,8 +85,9 @@ export function ClientApiKeysSection({
       toast.error("L'URL de l'instance est requise");
       return;
     }
-    if (!instanceUrl.includes('.eduvia.app')) {
-      toast.error("L'URL doit contenir .eduvia.app (ex: dupont.eduvia.app)");
+    const normalizedUrl = normalizeEduviaInstanceUrl(instanceUrl);
+    if (!EDUVIA_INSTANCE_URL_REGEX.test(normalizedUrl)) {
+      toast.error('Format attendu : slug.eduvia.app (ex: dupont.eduvia.app)');
       return;
     }
     if (!apiKey.trim()) {
@@ -92,7 +97,7 @@ export function ClientApiKeysSection({
 
     startTransition(async () => {
       const result = await addClientApiKey(clientId, {
-        instanceUrl,
+        instanceUrl: normalizedUrl,
         apiKey,
         label,
       });
@@ -174,11 +179,17 @@ export function ClientApiKeysSection({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
             />
-            <Input
-              placeholder="URL instance * (ex: dupont.eduvia.app)"
-              value={instanceUrl}
-              onChange={(e) => setInstanceUrl(e.target.value)}
-            />
+            <div>
+              <Input
+                placeholder="URL instance * (ex: dupont.eduvia.app)"
+                value={instanceUrl}
+                onChange={(e) => setInstanceUrl(e.target.value)}
+              />
+              <p className="text-muted-foreground mt-1 text-xs">
+                Format attendu : slug.eduvia.app (https:// et /api/v1 sont
+                retirés automatiquement)
+              </p>
+            </div>
             <Input
               placeholder="Clé API *"
               type="password"

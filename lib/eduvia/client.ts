@@ -234,6 +234,24 @@ export class HttpClientError extends Error {
   }
 }
 
+/**
+ * Forme canonique d'un instance_url Eduvia : `slug.eduvia.app`.
+ * Tolere les saisies utilisateur courantes (URL complete, prefixe api.,
+ * suffixe /api/v1, slash final, casse). N'effectue PAS la validation du
+ * format final - utiliser EDUVIA_INSTANCE_URL_REGEX pour ca.
+ */
+export function normalizeEduviaInstanceUrl(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^api\./, '')
+    .replace(/\/api\/v1(\/.*)?$/, '')
+    .replace(/\/$/, '');
+}
+
+export const EDUVIA_INSTANCE_URL_REGEX = /^[a-z0-9-]+\.eduvia\.app$/;
+
 export function baseUrlFrom(instanceUrl: string): string {
   // instance_url is stored as "slug.eduvia.app" - API lives at "api.slug.eduvia.app"
   const cleanUrl = instanceUrl.replace(/\/$/, '').replace(/^https?:\/\//, '');

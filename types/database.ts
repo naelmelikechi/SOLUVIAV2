@@ -924,6 +924,62 @@ export type Database = {
           },
         ];
       };
+      devis_lignes: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          devis_id: string;
+          id: string;
+          libelle: string;
+          ordre: number;
+          prix_unitaire_ht: number;
+          quantite: number;
+          taux_tva: number;
+          total_ht: number;
+          total_ttc: number;
+          total_tva: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          devis_id: string;
+          id?: string;
+          libelle: string;
+          ordre: number;
+          prix_unitaire_ht: number;
+          quantite?: number;
+          taux_tva?: number;
+          total_ht: number;
+          total_ttc: number;
+          total_tva: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          devis_id?: string;
+          id?: string;
+          libelle?: string;
+          ordre?: number;
+          prix_unitaire_ht?: number;
+          quantite?: number;
+          taux_tva?: number;
+          total_ht?: number;
+          total_ttc?: number;
+          total_tva?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'devis_lignes_devis_id_fkey';
+            columns: ['devis_id'];
+            isOneToOne: false;
+            referencedRelation: 'devis';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       donnees_financieres: {
         Row: {
           contrat_id: string;

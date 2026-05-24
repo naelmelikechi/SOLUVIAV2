@@ -1,0 +1,26 @@
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { requireAdmin } from '@/lib/auth/guards';
+import { listOpcos } from '@/lib/queries/opcos';
+import { OpcosSection } from '@/components/admin/opcos-section';
+
+export const metadata: Metadata = { title: 'Referentiel OPCO - SOLUVIA' };
+
+export default async function OpcosPage() {
+  const auth = await requireAdmin();
+  if (!auth.ok) redirect('/');
+
+  const opcos = await listOpcos(true);
+
+  return (
+    <div className="container mx-auto py-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Referentiel OPCO</h1>
+        <p className="text-muted-foreground mt-1">
+          Mapping prefixes DECA vers OPCO utilise par la facturation.
+        </p>
+      </div>
+      <OpcosSection opcos={opcos} />
+    </div>
+  );
+}

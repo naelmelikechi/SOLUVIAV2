@@ -25,6 +25,7 @@ import {
   LineChart,
   Sparkles,
   Bug,
+  Landmark,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -41,6 +42,7 @@ type MainNavItem = {
   adminOnly?: boolean;
   requiresIndicateursAccess?: boolean;
   unassignedOnly?: boolean;
+  exactMatch?: boolean;
 };
 
 const mainNavItems: MainNavItem[] = [
@@ -113,6 +115,13 @@ const adminNavItems = [
     href: '/admin/parametres',
     label: 'Paramètres',
     icon: Settings,
+    adminOnly: true,
+    exactMatch: true,
+  },
+  {
+    href: '/admin/parametres/opcos',
+    label: 'Referentiel OPCO',
+    icon: Landmark,
     adminOnly: true,
   },
 ];
@@ -370,7 +379,9 @@ export function Sidebar({
         {adminNavItems
           .filter((item) => !item.adminOnly || isAdmin(user?.role))
           .map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            const isActive = item.exactMatch
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
             const Icon = item.icon;
             const badge = badgeConfig[item.href];
             const count = badge ? badgeCounts[badge.key] : 0;

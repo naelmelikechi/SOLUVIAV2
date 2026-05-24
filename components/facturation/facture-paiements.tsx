@@ -203,8 +203,10 @@ export function FacturePaiements({
                 Enregistrer le paiement dans Odoo
               </p>
               <p className="text-muted-foreground text-xs">
-                Ce paiement sera pousse dans Odoo (account.payment) et lettre a
-                la facture. Ecriture comptable definitive.
+                Ce paiement sera poussé dans Odoo (account.payment) et lettré à
+                la facture. L&apos;écriture comptable est inscrite immédiatement
+                dans le livre - un retour en arrière nécessite une intervention
+                manuelle dans Odoo (contre-écriture).
               </p>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-1">

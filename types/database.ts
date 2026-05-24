@@ -1311,6 +1311,7 @@ export type Database = {
           mois_relatif: number | null;
           montant_ht: number;
           npec_snapshot: number | null;
+          opco_code: string | null;
           quote_part: number | null;
           taux_commission_snapshot: number | null;
         };
@@ -1326,6 +1327,7 @@ export type Database = {
           mois_relatif?: number | null;
           montant_ht: number;
           npec_snapshot?: number | null;
+          opco_code?: string | null;
           quote_part?: number | null;
           taux_commission_snapshot?: number | null;
         };
@@ -1341,6 +1343,7 @@ export type Database = {
           mois_relatif?: number | null;
           montant_ht?: number;
           npec_snapshot?: number | null;
+          opco_code?: string | null;
           quote_part?: number | null;
           taux_commission_snapshot?: number | null;
         };

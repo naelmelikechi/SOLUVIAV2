@@ -41,6 +41,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { cn } from '@/lib/utils';
+import { OpcoFilter } from './opco-filter';
 
 interface ManuelTabProps {
   projets: ProjetBillableEvents[];
@@ -65,11 +66,42 @@ export function ManuelTab({ projets }: ManuelTabProps) {
   const [showOpcoSteps, setShowOpcoSteps] = useState(true);
   const [includeBilled, setIncludeBilled] = useState(false);
   const [selected, setSelected] = useState<Set<EventKey>>(new Set());
+  // Filtre OPCO : [projetId, codes[]] — le projetId permet de detecter un changement
+  // de projet et de reinitialiser le filtre sans useEffect.
+  const [opcoFilterState, setOpcoFilterState] = useState<{
+    projetId: string;
+    codes: string[];
+  }>({ projetId: '', codes: [] });
 
   const projet = useMemo(
     () => projets.find((p) => p.projetId === selectedProjetId) ?? null,
     [projets, selectedProjetId],
   );
+
+  const events = useMemo(() => projet?.events ?? [], [projet]);
+
+  // Calcul des codes OPCO disponibles pour le projet courant
+  const allAvailableOpcoCodes = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          events
+            .filter((e) => e.status === 'available' && e.opco_code)
+            .map((e) => e.opco_code as string),
+        ),
+      ),
+    [events],
+  );
+
+  // Derive le filtre courant : si le projet a change, reinitialise sur tous les codes
+  const opcoCodesFilter =
+    opcoFilterState.projetId === selectedProjetId
+      ? opcoFilterState.codes
+      : allAvailableOpcoCodes;
+
+  function setOpcoCodesFilter(codes: string[]) {
+    setOpcoFilterState({ projetId: selectedProjetId, codes });
+  }
 
   // Compteurs (uniquement events 'available')
   const availableEngagements = useMemo(
@@ -94,9 +126,15 @@ export function ManuelTab({ projets }: ManuelTabProps) {
       if (e.type === 'engagement' && !showEngagements) return false;
       if (e.type === 'opco_step' && !showOpcoSteps) return false;
       if (e.status === 'billed' && !includeBilled) return false;
+      if (
+        opcoCodesFilter.length > 0 &&
+        e.opco_code &&
+        !opcoCodesFilter.includes(e.opco_code)
+      )
+        return false;
       return true;
     });
-  }, [projet, showEngagements, showOpcoSteps, includeBilled]);
+  }, [projet, showEngagements, showOpcoSteps, includeBilled, opcoCodesFilter]);
 
   // Selection helpers
   const isSelected = (e: BillableEvent) => selected.has(eventKey(e));
@@ -209,9 +247,16 @@ export function ManuelTab({ projets }: ManuelTabProps) {
       }
     }
     startTransition(async () => {
+      const filterToPass =
+        opcoCodesFilter.length > 0 &&
+        opcoCodesFilter.length < allAvailableOpcoCodes.length
+          ? opcoCodesFilter
+          : undefined;
+
       const res = await createFactureFromEvents({
         projetId: projet.projetId,
         events: payload,
+        opcoCodesFilter: filterToPass,
       });
       if (res.success) {
         toast.success(
@@ -329,6 +374,15 @@ export function ManuelTab({ projets }: ManuelTabProps) {
               </label>
             </div>
 
+            {/* Filtre OPCO */}
+            <div className="mb-4">
+              <OpcoFilter
+                events={events}
+                selected={opcoCodesFilter}
+                onChange={setOpcoCodesFilter}
+              />
+            </div>
+
             {/* Table */}
             <div className="border-border overflow-x-auto rounded-lg border">
               <Table>
@@ -435,11 +489,11 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                       className="max-w-xs px-3 py-2"
                                     >
                                       <div className="text-xs">
-                                        {
-                                          'Type(s) de ligne OPCO inconnu(s) : '
-                                        }
+                                        {'Type(s) de ligne OPCO inconnu(s) : '}
                                         <span className="font-mono">
-                                          {(e.unknown_line_types ?? []).join(', ')}
+                                          {(e.unknown_line_types ?? []).join(
+                                            ', ',
+                                          )}
                                         </span>
                                         {
                                           '. Décision admin requise dans lib/eduvia/line-types.ts.'
@@ -589,9 +643,19 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                 </Button>
                 <Button
                   onClick={onPrepare}
-                  disabled={isPending || totals.count === 0}
+                  disabled={
+                    isPending ||
+                    totals.count === 0 ||
+                    (opcoCodesFilter.length === 0 &&
+                      allAvailableOpcoCodes.length > 0)
+                  }
                 >
-                  {isPending ? 'Préparation…' : 'Préparer le brouillon'}
+                  {isPending
+                    ? 'Preparation...'
+                    : opcoCodesFilter.length === 0 &&
+                        allAvailableOpcoCodes.length > 0
+                      ? 'Selectionnez au moins un OPCO'
+                      : 'Preparer le brouillon'}
                 </Button>
               </div>
             </div>

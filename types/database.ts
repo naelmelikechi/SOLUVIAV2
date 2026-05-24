@@ -784,6 +784,146 @@ export type Database = {
           },
         ];
       };
+      devis: {
+        Row: {
+          acceptation_email: string | null;
+          acceptation_ip: unknown;
+          acceptation_nom: string | null;
+          acceptation_token: string | null;
+          acceptation_token_expire_at: string | null;
+          acceptation_user_agent: string | null;
+          client_id: string;
+          conditions_reglement: string | null;
+          created_at: string;
+          created_by: string | null;
+          date_acceptation: string | null;
+          date_emission: string | null;
+          date_envoi: string | null;
+          date_refus: string | null;
+          date_validite: string | null;
+          devis_parent_id: string | null;
+          id: string;
+          montant_ht: number;
+          montant_ttc: number;
+          montant_tva: number;
+          notes_internes: string | null;
+          numero_seq: number | null;
+          objet: string;
+          pdf_locked: boolean;
+          pdf_url: string | null;
+          ref: string | null;
+          refus_motif: string | null;
+          relance_j14_envoyee_at: string | null;
+          relance_j7_envoyee_at: string | null;
+          relances_actives: boolean;
+          societe_emettrice_id: string;
+          statut: Database['public']['Enums']['statut_devis'];
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          acceptation_email?: string | null;
+          acceptation_ip?: unknown;
+          acceptation_nom?: string | null;
+          acceptation_token?: string | null;
+          acceptation_token_expire_at?: string | null;
+          acceptation_user_agent?: string | null;
+          client_id: string;
+          conditions_reglement?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          date_acceptation?: string | null;
+          date_emission?: string | null;
+          date_envoi?: string | null;
+          date_refus?: string | null;
+          date_validite?: string | null;
+          devis_parent_id?: string | null;
+          id?: string;
+          montant_ht?: number;
+          montant_ttc?: number;
+          montant_tva?: number;
+          notes_internes?: string | null;
+          numero_seq?: number | null;
+          objet: string;
+          pdf_locked?: boolean;
+          pdf_url?: string | null;
+          ref?: string | null;
+          refus_motif?: string | null;
+          relance_j14_envoyee_at?: string | null;
+          relance_j7_envoyee_at?: string | null;
+          relances_actives?: boolean;
+          societe_emettrice_id: string;
+          statut?: Database['public']['Enums']['statut_devis'];
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          acceptation_email?: string | null;
+          acceptation_ip?: unknown;
+          acceptation_nom?: string | null;
+          acceptation_token?: string | null;
+          acceptation_token_expire_at?: string | null;
+          acceptation_user_agent?: string | null;
+          client_id?: string;
+          conditions_reglement?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          date_acceptation?: string | null;
+          date_emission?: string | null;
+          date_envoi?: string | null;
+          date_refus?: string | null;
+          date_validite?: string | null;
+          devis_parent_id?: string | null;
+          id?: string;
+          montant_ht?: number;
+          montant_ttc?: number;
+          montant_tva?: number;
+          notes_internes?: string | null;
+          numero_seq?: number | null;
+          objet?: string;
+          pdf_locked?: boolean;
+          pdf_url?: string | null;
+          ref?: string | null;
+          refus_motif?: string | null;
+          relance_j14_envoyee_at?: string | null;
+          relance_j7_envoyee_at?: string | null;
+          relances_actives?: boolean;
+          societe_emettrice_id?: string;
+          statut?: Database['public']['Enums']['statut_devis'];
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'devis_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'devis_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'devis_devis_parent_id_fkey';
+            columns: ['devis_parent_id'];
+            isOneToOne: false;
+            referencedRelation: 'devis';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'devis_societe_emettrice_id_fkey';
+            columns: ['societe_emettrice_id'];
+            isOneToOne: false;
+            referencedRelation: 'societes_emettrices';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       donnees_financieres: {
         Row: {
           contrat_id: string;
@@ -2791,6 +2931,14 @@ export type Database = {
       role_utilisateur: 'admin' | 'cdp' | 'superadmin' | 'commercial';
       scope_kpi: 'global' | 'projet' | 'cdp';
       stage_prospect: 'non_contacte' | 'r1' | 'r2' | 'signe';
+      statut_devis:
+        | 'brouillon'
+        | 'envoye'
+        | 'accepte'
+        | 'refuse'
+        | 'expire'
+        | 'remplace'
+        | 'annule';
       statut_facture: 'a_emettre' | 'emise' | 'payee' | 'en_retard' | 'avoir';
       statut_idee: 'proposee' | 'validee' | 'implementee' | 'rejetee';
       statut_projet: 'actif' | 'en_pause' | 'termine' | 'archive';
@@ -2944,6 +3092,15 @@ export const Constants = {
       role_utilisateur: ['admin', 'cdp', 'superadmin', 'commercial'],
       scope_kpi: ['global', 'projet', 'cdp'],
       stage_prospect: ['non_contacte', 'r1', 'r2', 'signe'],
+      statut_devis: [
+        'brouillon',
+        'envoye',
+        'accepte',
+        'refuse',
+        'expire',
+        'remplace',
+        'annule',
+      ],
       statut_facture: ['a_emettre', 'emise', 'payee', 'en_retard', 'avoir'],
       statut_idee: ['proposee', 'validee', 'implementee', 'rejetee'],
       statut_projet: ['actif', 'en_pause', 'termine', 'archive'],

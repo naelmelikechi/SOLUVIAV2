@@ -25,14 +25,9 @@ export type CreateFactureFromDevisInput = z.input<
 >;
 
 type LignePayload = {
-  libelle: string;
-  description: string | null;
-  quantite: number;
-  prix_unitaire_ht: number;
+  description: string;
   taux_tva_ligne: number;
-  total_ht_ligne: number;
-  total_tva_ligne: number;
-  total_ttc_ligne: number;
+  montant_ht: number;
   ordre: number;
 };
 
@@ -84,17 +79,11 @@ export async function createFactureFromDevis(
   if (parsed.data.mode === 'acompte') {
     const pct = parsed.data.pourcentage ?? 50;
     const montantHt = Math.round(totalDevisHt * pct) / 100;
-    const tva = Math.round(montantHt * tauxTva) / 100;
     lignesPayload = [
       {
-        libelle: `Acompte ${pct}% sur ${devis.ref ?? devis.id} - ${devis.objet}`,
-        description: null,
-        quantite: 1,
-        prix_unitaire_ht: montantHt,
+        description: `Acompte ${pct}% sur ${devis.ref ?? devis.id} - ${devis.objet}`,
         taux_tva_ligne: tauxTva,
-        total_ht_ligne: montantHt,
-        total_tva_ligne: tva,
-        total_ttc_ligne: Math.round((montantHt + tva) * 100) / 100,
+        montant_ht: montantHt,
         ordre: 1,
       },
     ];
@@ -104,38 +93,30 @@ export async function createFactureFromDevis(
       Math.round((totalDevisHt - totalDejaFactureHt) * 100) / 100;
     if (montantHt <= 0)
       return { success: false, error: 'Devis deja entierement facture' };
-    const tva = Math.round(montantHt * tauxTva) / 100;
     lignesPayload = [
       {
-        libelle: `Solde sur ${devis.ref ?? devis.id} - ${devis.objet}`,
-        description: null,
-        quantite: 1,
-        prix_unitaire_ht: montantHt,
+        description: `Solde sur ${devis.ref ?? devis.id} - ${devis.objet}`,
         taux_tva_ligne: tauxTva,
-        total_ht_ligne: montantHt,
-        total_tva_ligne: tva,
-        total_ttc_ligne: Math.round((montantHt + tva) * 100) / 100,
+        montant_ht: montantHt,
         ordre: 1,
       },
     ];
   } else {
     // personnalisee : copie toutes les lignes du devis
     lignesPayload = devis.lignes.map((l, i) => ({
-      libelle: l.libelle,
-      description: l.description,
-      quantite: Number(l.quantite),
-      prix_unitaire_ht: Number(l.prix_unitaire_ht),
+      description: l.description ? `${l.libelle}\n${l.description}` : l.libelle,
       taux_tva_ligne: Number(l.taux_tva),
-      total_ht_ligne: Number(l.total_ht),
-      total_tva_ligne: Number(l.total_tva),
-      total_ttc_ligne: Number(l.total_ttc),
+      montant_ht: Number(l.total_ht),
       ordre: i + 1,
     }));
   }
 
-  const totalHt = lignesPayload.reduce((s, l) => s + l.total_ht_ligne, 0);
-  const totalTva = lignesPayload.reduce((s, l) => s + l.total_tva_ligne, 0);
-  const totalTtc = lignesPayload.reduce((s, l) => s + l.total_ttc_ligne, 0);
+  const totalHt = lignesPayload.reduce((s, l) => s + l.montant_ht, 0);
+  const totalTva = lignesPayload.reduce(
+    (s, l) => s + Math.round(l.montant_ht * l.taux_tva_ligne) / 100,
+    0,
+  );
+  const totalTtc = Math.round((totalHt + totalTva) * 100) / 100;
 
   // Insert facture brouillon (statut 'a_emettre')
   const { data: facture, error: factureErr } = await supabase
@@ -173,11 +154,11 @@ export async function createFactureFromDevis(
 
   // Insert lignes
   const lignesWithFactureId = lignesPayload.map((l) => ({
-    ...l,
     facture_id: facture.id,
-    // description requise NOT NULL sur facture_lignes - utiliser libelle en fallback
-    description: l.description ?? l.libelle,
-    montant_ht: l.total_ht_ligne,
+    description: l.description,
+    montant_ht: l.montant_ht,
+    taux_tva_ligne: l.taux_tva_ligne,
+    ordre: l.ordre,
   }));
   const { error: lignesErr } = await supabase
     .from('facture_lignes')

@@ -3,6 +3,7 @@ import { getDevisById } from '@/lib/queries/devis';
 import { renderDevisPdfBuffer } from '@/lib/utils/render-devis-pdf';
 import { getAppUrl } from '@/lib/utils/app-url';
 import { logger } from '@/lib/utils/logger';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const FROM = 'SOLUVIA <contact@mysoluvia.com>';
 
@@ -104,6 +105,97 @@ export async function sendDevisAcceptationConfirmation(
     html,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Relances J+7 / J+14
+// ---------------------------------------------------------------------------
+
+interface RelanceParams {
+  devisId: string;
+  niveau: 'j7' | 'j14';
+}
+
+export async function sendDevisRelanceEmail(p: RelanceParams): Promise<void> {
+  // Utilise createAdminClient car appele depuis un cron (pas de cookies HTTP)
+  const supabase = createAdminClient();
+
+  const { data: devisRow, error: devisErr } = await supabase
+    .from('devis')
+    .select(
+      `*, societe_emettrice:societes_emettrices(id, code, raison_sociale, email_contact)`,
+    )
+    .eq('id', p.devisId)
+    .maybeSingle();
+
+  if (devisErr || !devisRow) {
+    logger.warn('email.devis.relance', 'devis introuvable', { id: p.devisId });
+    return;
+  }
+
+  const devis = devisRow as typeof devisRow & {
+    societe_emettrice: { raison_sociale: string; email_contact: string } | null;
+  };
+
+  if (
+    !devis.ref ||
+    !devis.acceptation_token ||
+    !devis.societe_emettrice ||
+    !devis.client_id
+  ) {
+    logger.warn('email.devis.relance', 'devis incomplet', { id: p.devisId });
+    return;
+  }
+
+  const { data: contacts } = await supabase
+    .from('client_contacts')
+    .select('email')
+    .eq('client_id', devis.client_id)
+    .eq('recoit_factures', true);
+
+  const to = (contacts ?? []).map((c) => c.email).filter(Boolean) as string[];
+  if (to.length === 0) {
+    logger.warn('email.devis.relance', 'aucun contact recoit_factures', {
+      ref: devis.ref,
+    });
+    return;
+  }
+
+  const link = `${getAppUrl()}/devis/public/${devis.acceptation_token}`;
+
+  const intro =
+    p.niveau === 'j7'
+      ? `Nous nous permettons un petit rappel concernant le devis ${devis.ref}, envoye il y a une semaine.`
+      : `Nous revenons vers vous concernant le devis ${devis.ref}, envoye il y a deux semaines. Sa validite expire le ${devis.date_validite}.`;
+
+  const subject =
+    p.niveau === 'j7'
+      ? `[Rappel] Devis ${devis.ref} - ${devis.objet}`
+      : `[Rappel important] Devis ${devis.ref} expire bientot`;
+
+  const html = `
+    <div style="font-family: -apple-system, sans-serif; color: #1a1a1a;">
+      <p>Bonjour,</p>
+      <p>${intro}</p>
+      <p>Pour consulter et accepter en ligne :</p>
+      <p><a href="${link}" style="display:inline-block;background:#16a34a;color:white;padding:12px 20px;border-radius:6px;text-decoration:none;">Acceder au devis</a></p>
+      <p>Cordialement,<br />${devis.societe_emettrice.raison_sociale}</p>
+    </div>
+  `;
+
+  await sendEmail({
+    from: FROM,
+    to,
+    subject,
+    html,
+    replyTo: devis.societe_emettrice.email_contact,
+  });
+
+  logger.info('email.devis.relance', `relance ${p.niveau} envoyee`, {
+    ref: devis.ref,
+  });
+}
+
+// ---------------------------------------------------------------------------
 
 interface RefusNotifParams {
   devisId: string;

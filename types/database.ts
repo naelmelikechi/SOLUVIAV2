@@ -980,6 +980,41 @@ export type Database = {
           },
         ];
       };
+      devis_public_views: {
+        Row: {
+          devis_id: string;
+          id: string;
+          ip: unknown;
+          token: string;
+          user_agent: string | null;
+          viewed_at: string;
+        };
+        Insert: {
+          devis_id: string;
+          id?: string;
+          ip?: unknown;
+          token: string;
+          user_agent?: string | null;
+          viewed_at?: string;
+        };
+        Update: {
+          devis_id?: string;
+          id?: string;
+          ip?: unknown;
+          token?: string;
+          user_agent?: string | null;
+          viewed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'devis_public_views_devis_id_fkey';
+            columns: ['devis_id'];
+            isOneToOne: false;
+            referencedRelation: 'devis';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       donnees_financieres: {
         Row: {
           contrat_id: string;
@@ -2957,7 +2992,21 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      accept_devis_public: {
+        Args: {
+          p_email: string;
+          p_ip?: unknown;
+          p_nom: string;
+          p_token: string;
+          p_user_agent?: string;
+        };
+        Returns: Json;
+      };
       delete_user_cascade: { Args: { p_user_id: string }; Returns: undefined };
+      get_devis_public: {
+        Args: { p_ip?: unknown; p_token: string; p_user_agent?: string };
+        Returns: Json;
+      };
       get_prospect_time_in_stage_median: {
         Args: never;
         Returns: {
@@ -2979,6 +3028,10 @@ export type Database = {
           email: string;
           id: string;
         }[];
+      };
+      refuse_devis_public: {
+        Args: { p_motif: string; p_token: string };
+        Returns: Json;
       };
     };
     Enums: {

@@ -784,6 +784,237 @@ export type Database = {
           },
         ];
       };
+      devis: {
+        Row: {
+          acceptation_email: string | null;
+          acceptation_ip: unknown;
+          acceptation_nom: string | null;
+          acceptation_token: string | null;
+          acceptation_token_expire_at: string | null;
+          acceptation_user_agent: string | null;
+          client_id: string;
+          conditions_reglement: string | null;
+          created_at: string;
+          created_by: string | null;
+          date_acceptation: string | null;
+          date_emission: string | null;
+          date_envoi: string | null;
+          date_refus: string | null;
+          date_validite: string | null;
+          devis_parent_id: string | null;
+          id: string;
+          montant_ht: number;
+          montant_ttc: number;
+          montant_tva: number;
+          notes_internes: string | null;
+          numero_seq: number | null;
+          objet: string;
+          pdf_locked: boolean;
+          pdf_url: string | null;
+          ref: string | null;
+          refus_motif: string | null;
+          relance_j14_envoyee_at: string | null;
+          relance_j7_envoyee_at: string | null;
+          relances_actives: boolean;
+          societe_emettrice_id: string;
+          statut: Database['public']['Enums']['statut_devis'];
+          updated_at: string;
+          version: number;
+        };
+        Insert: {
+          acceptation_email?: string | null;
+          acceptation_ip?: unknown;
+          acceptation_nom?: string | null;
+          acceptation_token?: string | null;
+          acceptation_token_expire_at?: string | null;
+          acceptation_user_agent?: string | null;
+          client_id: string;
+          conditions_reglement?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          date_acceptation?: string | null;
+          date_emission?: string | null;
+          date_envoi?: string | null;
+          date_refus?: string | null;
+          date_validite?: string | null;
+          devis_parent_id?: string | null;
+          id?: string;
+          montant_ht?: number;
+          montant_ttc?: number;
+          montant_tva?: number;
+          notes_internes?: string | null;
+          numero_seq?: number | null;
+          objet: string;
+          pdf_locked?: boolean;
+          pdf_url?: string | null;
+          ref?: string | null;
+          refus_motif?: string | null;
+          relance_j14_envoyee_at?: string | null;
+          relance_j7_envoyee_at?: string | null;
+          relances_actives?: boolean;
+          societe_emettrice_id: string;
+          statut?: Database['public']['Enums']['statut_devis'];
+          updated_at?: string;
+          version?: number;
+        };
+        Update: {
+          acceptation_email?: string | null;
+          acceptation_ip?: unknown;
+          acceptation_nom?: string | null;
+          acceptation_token?: string | null;
+          acceptation_token_expire_at?: string | null;
+          acceptation_user_agent?: string | null;
+          client_id?: string;
+          conditions_reglement?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          date_acceptation?: string | null;
+          date_emission?: string | null;
+          date_envoi?: string | null;
+          date_refus?: string | null;
+          date_validite?: string | null;
+          devis_parent_id?: string | null;
+          id?: string;
+          montant_ht?: number;
+          montant_ttc?: number;
+          montant_tva?: number;
+          notes_internes?: string | null;
+          numero_seq?: number | null;
+          objet?: string;
+          pdf_locked?: boolean;
+          pdf_url?: string | null;
+          ref?: string | null;
+          refus_motif?: string | null;
+          relance_j14_envoyee_at?: string | null;
+          relance_j7_envoyee_at?: string | null;
+          relances_actives?: boolean;
+          societe_emettrice_id?: string;
+          statut?: Database['public']['Enums']['statut_devis'];
+          updated_at?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'devis_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'devis_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'devis_devis_parent_id_fkey';
+            columns: ['devis_parent_id'];
+            isOneToOne: false;
+            referencedRelation: 'devis';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'devis_societe_emettrice_id_fkey';
+            columns: ['societe_emettrice_id'];
+            isOneToOne: false;
+            referencedRelation: 'societes_emettrices';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      devis_lignes: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          devis_id: string;
+          id: string;
+          libelle: string;
+          ordre: number;
+          prix_unitaire_ht: number;
+          quantite: number;
+          taux_tva: number;
+          total_ht: number;
+          total_ttc: number;
+          total_tva: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          devis_id: string;
+          id?: string;
+          libelle: string;
+          ordre: number;
+          prix_unitaire_ht: number;
+          quantite?: number;
+          taux_tva?: number;
+          total_ht: number;
+          total_ttc: number;
+          total_tva: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          devis_id?: string;
+          id?: string;
+          libelle?: string;
+          ordre?: number;
+          prix_unitaire_ht?: number;
+          quantite?: number;
+          taux_tva?: number;
+          total_ht?: number;
+          total_ttc?: number;
+          total_tva?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'devis_lignes_devis_id_fkey';
+            columns: ['devis_id'];
+            isOneToOne: false;
+            referencedRelation: 'devis';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      devis_public_views: {
+        Row: {
+          devis_id: string;
+          id: string;
+          ip: unknown;
+          token: string;
+          user_agent: string | null;
+          viewed_at: string;
+        };
+        Insert: {
+          devis_id: string;
+          id?: string;
+          ip?: unknown;
+          token: string;
+          user_agent?: string | null;
+          viewed_at?: string;
+        };
+        Update: {
+          devis_id?: string;
+          id?: string;
+          ip?: unknown;
+          token?: string;
+          user_agent?: string | null;
+          viewed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'devis_public_views_devis_id_fkey';
+            columns: ['devis_id'];
+            isOneToOne: false;
+            referencedRelation: 'devis';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       donnees_financieres: {
         Row: {
           contrat_id: string;
@@ -1308,12 +1539,20 @@ export type Database = {
           event_type: string | null;
           facture_id: string;
           id: string;
+          libelle: string | null;
           mois_relatif: number | null;
           montant_ht: number;
           npec_snapshot: number | null;
           opco_code: string | null;
+          ordre: number | null;
+          prix_unitaire_ht: number | null;
+          quantite: number | null;
           quote_part: number | null;
           taux_commission_snapshot: number | null;
+          taux_tva_ligne: number | null;
+          total_ht_ligne: number | null;
+          total_ttc_ligne: number | null;
+          total_tva_ligne: number | null;
         };
         Insert: {
           contrat_id?: string | null;
@@ -1324,12 +1563,20 @@ export type Database = {
           event_type?: string | null;
           facture_id: string;
           id?: string;
+          libelle?: string | null;
           mois_relatif?: number | null;
           montant_ht: number;
           npec_snapshot?: number | null;
           opco_code?: string | null;
+          ordre?: number | null;
+          prix_unitaire_ht?: number | null;
+          quantite?: number | null;
           quote_part?: number | null;
           taux_commission_snapshot?: number | null;
+          taux_tva_ligne?: number | null;
+          total_ht_ligne?: number | null;
+          total_ttc_ligne?: number | null;
+          total_tva_ligne?: number | null;
         };
         Update: {
           contrat_id?: string | null;
@@ -1340,12 +1587,20 @@ export type Database = {
           event_type?: string | null;
           facture_id?: string;
           id?: string;
+          libelle?: string | null;
           mois_relatif?: number | null;
           montant_ht?: number;
           npec_snapshot?: number | null;
           opco_code?: string | null;
+          ordre?: number | null;
+          prix_unitaire_ht?: number | null;
+          quantite?: number | null;
           quote_part?: number | null;
           taux_commission_snapshot?: number | null;
+          taux_tva_ligne?: number | null;
+          total_ht_ligne?: number | null;
+          total_ttc_ligne?: number | null;
+          total_tva_ligne?: number | null;
         };
         Relationships: [
           {
@@ -1373,9 +1628,11 @@ export type Database = {
           created_by: string | null;
           date_echeance: string | null;
           date_emission: string | null;
+          devis_id: string | null;
           email_envoye: boolean;
           email_erreur: string | null;
           email_last_attempt_at: string | null;
+          est_acompte: boolean;
           est_avoir: boolean;
           facture_origine_id: string | null;
           id: string;
@@ -1402,9 +1659,11 @@ export type Database = {
           created_by?: string | null;
           date_echeance?: string | null;
           date_emission?: string | null;
+          devis_id?: string | null;
           email_envoye?: boolean;
           email_erreur?: string | null;
           email_last_attempt_at?: string | null;
+          est_acompte?: boolean;
           est_avoir?: boolean;
           facture_origine_id?: string | null;
           id?: string;
@@ -1431,9 +1690,11 @@ export type Database = {
           created_by?: string | null;
           date_echeance?: string | null;
           date_emission?: string | null;
+          devis_id?: string | null;
           email_envoye?: boolean;
           email_erreur?: string | null;
           email_last_attempt_at?: string | null;
+          est_acompte?: boolean;
           est_avoir?: boolean;
           facture_origine_id?: string | null;
           id?: string;
@@ -1465,6 +1726,13 @@ export type Database = {
             columns: ['created_by'];
             isOneToOne: false;
             referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'factures_devis_id_fkey';
+            columns: ['devis_id'];
+            isOneToOne: false;
+            referencedRelation: 'devis';
             referencedColumns: ['id'];
           },
           {
@@ -2536,6 +2804,7 @@ export type Database = {
           est_defaut: boolean;
           forme_juridique: string | null;
           id: string;
+          legacy_ref_format: boolean;
           logo_url: string | null;
           mentions_legales: string | null;
           odoo_company_id: number | null;
@@ -2564,6 +2833,7 @@ export type Database = {
           est_defaut?: boolean;
           forme_juridique?: string | null;
           id?: string;
+          legacy_ref_format?: boolean;
           logo_url?: string | null;
           mentions_legales?: string | null;
           odoo_company_id?: number | null;
@@ -2592,6 +2862,7 @@ export type Database = {
           est_defaut?: boolean;
           forme_juridique?: string | null;
           id?: string;
+          legacy_ref_format?: boolean;
           logo_url?: string | null;
           mentions_legales?: string | null;
           odoo_company_id?: number | null;
@@ -2794,7 +3065,21 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      accept_devis_public: {
+        Args: {
+          p_email: string;
+          p_ip?: unknown;
+          p_nom: string;
+          p_token: string;
+          p_user_agent?: string;
+        };
+        Returns: Json;
+      };
       delete_user_cascade: { Args: { p_user_id: string }; Returns: undefined };
+      get_devis_public: {
+        Args: { p_ip?: unknown; p_token: string; p_user_agent?: string };
+        Returns: Json;
+      };
       get_prospect_time_in_stage_median: {
         Args: never;
         Returns: {
@@ -2818,6 +3103,10 @@ export type Database = {
         }[];
       };
       opcos_check_prefixes: { Args: { prefixes: string[] }; Returns: boolean };
+      refuse_devis_public: {
+        Args: { p_motif: string; p_token: string };
+        Returns: Json;
+      };
     };
     Enums: {
       absence_type: 'conges' | 'maladie';
@@ -2825,6 +3114,14 @@ export type Database = {
       role_utilisateur: 'admin' | 'cdp' | 'superadmin' | 'commercial';
       scope_kpi: 'global' | 'projet' | 'cdp';
       stage_prospect: 'non_contacte' | 'r1' | 'r2' | 'signe';
+      statut_devis:
+        | 'brouillon'
+        | 'envoye'
+        | 'accepte'
+        | 'refuse'
+        | 'expire'
+        | 'remplace'
+        | 'annule';
       statut_facture: 'a_emettre' | 'emise' | 'payee' | 'en_retard' | 'avoir';
       statut_idee: 'proposee' | 'validee' | 'implementee' | 'rejetee';
       statut_projet: 'actif' | 'en_pause' | 'termine' | 'archive';
@@ -2978,6 +3275,15 @@ export const Constants = {
       role_utilisateur: ['admin', 'cdp', 'superadmin', 'commercial'],
       scope_kpi: ['global', 'projet', 'cdp'],
       stage_prospect: ['non_contacte', 'r1', 'r2', 'signe'],
+      statut_devis: [
+        'brouillon',
+        'envoye',
+        'accepte',
+        'refuse',
+        'expire',
+        'remplace',
+        'annule',
+      ],
       statut_facture: ['a_emettre', 'emise', 'payee', 'en_retard', 'avoir'],
       statut_idee: ['proposee', 'validee', 'implementee', 'rejetee'],
       statut_projet: ['actif', 'en_pause', 'termine', 'archive'],

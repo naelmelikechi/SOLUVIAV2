@@ -13,6 +13,7 @@ export type EmailParams = {
   from: string;
   to: string | string[];
   cc?: string | string[];
+  replyTo?: string;
   subject: string;
   html: string;
   attachments?: Attachment[];
@@ -75,6 +76,7 @@ export async function sendEmail(params: EmailParams): Promise<{
       from: params.from,
       to: finalTo,
       cc: finalCc,
+      replyTo: params.replyTo,
       subject: finalSubject,
       html: params.html,
       attachments: params.attachments,

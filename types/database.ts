@@ -2771,6 +2771,7 @@ export type Database = {
           est_defaut: boolean;
           forme_juridique: string | null;
           id: string;
+          legacy_ref_format: boolean;
           logo_url: string | null;
           mentions_legales: string | null;
           odoo_company_id: number | null;
@@ -2799,6 +2800,7 @@ export type Database = {
           est_defaut?: boolean;
           forme_juridique?: string | null;
           id?: string;
+          legacy_ref_format?: boolean;
           logo_url?: string | null;
           mentions_legales?: string | null;
           odoo_company_id?: number | null;
@@ -2827,6 +2829,7 @@ export type Database = {
           est_defaut?: boolean;
           forme_juridique?: string | null;
           id?: string;
+          legacy_ref_format?: boolean;
           logo_url?: string | null;
           mentions_legales?: string | null;
           odoo_company_id?: number | null;

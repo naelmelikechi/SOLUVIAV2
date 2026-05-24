@@ -35,7 +35,7 @@ export async function GET(request: Request) {
         supabase
           .from('factures')
           .select(
-            'montant_ht, statut, est_avoir, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+            'montant_ttc, statut, est_avoir, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
           )
           .in('statut', ['emise', 'payee', 'en_retard'])
           .eq('projet.client.is_demo', false)
@@ -65,9 +65,9 @@ export async function GET(request: Request) {
     const facturesEnRetard = factures.filter(
       (f) => f.statut === 'en_retard',
     ).length;
-    const totalFactureHt = factures
+    const totalFactureTtc = factures
       .filter((f) => !f.est_avoir)
-      .reduce((sum, f) => sum + f.montant_ht, 0);
+      .reduce((sum, f) => sum + f.montant_ttc, 0);
     const totalEncaisse = (paiementsRes.data ?? []).reduce(
       (sum, p) => sum + p.montant,
       0,
@@ -97,8 +97,8 @@ export async function GET(request: Request) {
       },
       {
         mois,
-        type_kpi: 'total_facture_ht',
-        valeur: totalFactureHt,
+        type_kpi: 'total_facture_ttc',
+        valeur: totalFactureTtc,
         scope: 'global' as const,
         scope_id: null,
       },

@@ -171,13 +171,19 @@ export function DashboardPageClient({
     return Math.round(((current - previousValue) / previousValue) * 1000) / 10;
   }
 
-  // Map current KPIs to their M-1 snapshot keys
-  const prevTotalFacture = previousKpis['total_facture_ht'];
+  // Map current KPIs to their M-1 snapshot keys.
+  // Dashboard affiche en TTC. Snapshots TTC depuis 2026-05-24, fallback HT*1.2
+  // pour les mois anterieurs ou seul total_facture_ht etait stocke.
+  const prevTotalFacture =
+    previousKpis['total_facture_ttc'] ??
+    (previousKpis['total_facture_ht'] !== undefined
+      ? previousKpis['total_facture_ht'] * 1.2
+      : undefined);
   const prevTotalEncaisse = previousKpis['total_encaisse'];
   const prevProjetsActifs = previousKpis['projets_actifs'];
   const prevContratsActifs = previousKpis['contrats_actifs'];
 
-  // Use total_facture_ht as proxy for production in M-1 (same as current)
+  // Use facture total as proxy for production in M-1 (same as current)
   const prevProduction = prevTotalFacture;
   // Compute previous en retard amount (approximation: totalFacture - totalEncaisse)
   const prevEnRetardAmount =

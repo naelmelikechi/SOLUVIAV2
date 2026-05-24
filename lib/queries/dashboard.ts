@@ -165,11 +165,11 @@ function capitalize(s: string): string {
 // ---------------------------------------------------------------------------
 
 export interface DashboardFinancials {
-  totalProduction: number; // production OPCO theorique du mois courant (schedule 40/30/20/10)
-  totalFacture: number; // sum of factures.montant_ht (clients reels uniquement)
-  totalEncaisse: number; // sum of paiements.montant (clients reels uniquement)
-  totalEnRetard: number; // sum factures.montant_ht en retard moins paiements partiels recus
-  totalAFacturer: number; // EUR des echeances pretes a emettre (facture_id null, validee false, date <= today)
+  totalProduction: number; // production OPCO theorique du mois courant (schedule 40/30/20/10) - versements OPCO non assujettis TVA, HT=TTC
+  totalFacture: number; // sum of factures.montant_ttc (clients reels uniquement)
+  totalEncaisse: number; // sum of paiements.montant (deja TTC, c'est ce que le client paie)
+  totalEnRetard: number; // sum factures.montant_ttc en retard moins paiements partiels recus
+  totalAFacturer: number; // EUR TTC des echeances pretes a emettre (montant_prevu_ht * 1.2, TVA 20% fixe)
   nbApprenantsActifs: number; // count of active contrats
   nbFormationsEnCours: number; // count distinct formations sur contrats actifs
   nbAbandons: number; // count contrats resilie ou ANNULE (synced)
@@ -207,7 +207,7 @@ export async function getDashboardFinancials(
   let facturesQuery = supabase
     .from('factures')
     .select(
-      'montant_ht, statut, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+      'montant_ttc, statut, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
     )
     .in('statut', ['emise', 'payee', 'en_retard', 'avoir'])
     .eq('projet.client.is_demo', false)
@@ -255,7 +255,7 @@ export async function getDashboardFinancials(
     supabase
       .from('factures')
       .select(
-        'id, montant_ht, paiements(montant), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        'id, montant_ttc, paiements(montant), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
       )
       .eq('statut', 'en_retard')
       .eq('projet.client.is_demo', false)
@@ -439,7 +439,7 @@ export async function getDashboardFinancials(
     );
 
   const totalFacture = (facturesRes.data ?? []).reduce(
-    (sum, f) => sum + f.montant_ht,
+    (sum, f) => sum + f.montant_ttc,
     0,
   );
   const totalEncaisse = (paiementsRes.data ?? []).reduce(
@@ -474,7 +474,7 @@ export async function getDashboardFinancials(
       (s: number, p: { montant: number }) => s + p.montant,
       0,
     );
-    totalEnRetard += Math.max(0, f.montant_ht - encaisse);
+    totalEnRetard += Math.max(0, f.montant_ttc - encaisse);
   }
   totalEnRetard = Math.round(totalEnRetard * 100) / 100;
 
@@ -533,10 +533,11 @@ export async function getDashboardFinancials(
   type EcheanceMontant = { montant_prevu_ht: number | null };
   const echeancesPretes =
     (echeancesAFacturerRes.data as unknown as EcheanceMontant[]) ?? [];
+  // TVA 20% fixe (France metropole) - les echeances n'ont que le HT en base
   const totalAFacturer =
     Math.round(
       echeancesPretes.reduce(
-        (sum, e) => sum + Number(e.montant_prevu_ht ?? 0),
+        (sum, e) => sum + Number(e.montant_prevu_ht ?? 0) * 1.2,
         0,
       ) * 100,
     ) / 100;
@@ -613,7 +614,7 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
   const [facturesRes, paiementsRes, contratsRes] = await Promise.all([
     supabase
       .from('factures')
-      .select('montant_ht, statut, mois_concerne')
+      .select('montant_ttc, statut, mois_concerne')
       .gte('mois_concerne', firstMonth)
       .lte('mois_concerne', lastMonth)
       .neq('statut', 'avoir'),
@@ -671,9 +672,9 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
   for (const f of facturesRes.data ?? []) {
     if (!f.mois_concerne) continue;
     const key = f.mois_concerne.slice(0, 7);
-    factureByMonth.set(key, (factureByMonth.get(key) ?? 0) + f.montant_ht);
+    factureByMonth.set(key, (factureByMonth.get(key) ?? 0) + f.montant_ttc);
     if (f.statut === 'en_retard') {
-      enRetardByMonth.set(key, (enRetardByMonth.get(key) ?? 0) + f.montant_ht);
+      enRetardByMonth.set(key, (enRetardByMonth.get(key) ?? 0) + f.montant_ttc);
     }
   }
 

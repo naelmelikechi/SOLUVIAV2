@@ -31,6 +31,7 @@ const odooMock = {
   pushCreditNote: vi.fn(),
   pullPayments: vi.fn(),
   pullCancellations: vi.fn(),
+  registerPayment: vi.fn(),
 };
 
 vi.mock('@/lib/odoo/client', () => ({

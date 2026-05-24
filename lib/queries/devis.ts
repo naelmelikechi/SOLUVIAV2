@@ -11,6 +11,16 @@ export interface DevisListItem extends DevisRow {
   societe_emettrice: { code: string; raison_sociale: string } | null;
 }
 
+export interface FactureLieeRow {
+  id: string;
+  ref: string | null;
+  statut: string;
+  montant_ht: number;
+  montant_ttc: number;
+  est_acompte: boolean;
+  date_emission: string | null;
+}
+
 export interface DevisDetail extends DevisRow {
   client: {
     id: string;
@@ -38,6 +48,7 @@ export interface DevisDetail extends DevisRow {
     validite_devis_jours: number;
   } | null;
   lignes: DevisLigneRow[];
+  factures_liees: FactureLieeRow[];
 }
 
 export async function listDevis(): Promise<DevisListItem[]> {
@@ -59,18 +70,19 @@ export async function listDevis(): Promise<DevisListItem[]> {
   return data as DevisListItem[];
 }
 
+const DEVIS_DETAIL_SELECT = `
+  *,
+  client:clients(id, trigramme, raison_sociale, adresse),
+  societe_emettrice:societes_emettrices(*),
+  lignes:devis_lignes(*),
+  factures_liees:factures!factures_devis_id_fkey(id, ref, statut, montant_ht, montant_ttc, est_acompte, date_emission)
+`;
+
 export async function getDevisByRef(ref: string): Promise<DevisDetail | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('devis')
-    .select(
-      `
-      *,
-      client:clients(id, trigramme, raison_sociale, adresse),
-      societe_emettrice:societes_emettrices(*),
-      lignes:devis_lignes(*)
-    `,
-    )
+    .select(DEVIS_DETAIL_SELECT)
     .eq('ref', ref)
     .maybeSingle();
   if (error) {
@@ -90,14 +102,7 @@ export async function getDevisById(id: string): Promise<DevisDetail | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('devis')
-    .select(
-      `
-      *,
-      client:clients(id, trigramme, raison_sociale, adresse),
-      societe_emettrice:societes_emettrices(*),
-      lignes:devis_lignes(*)
-    `,
-    )
+    .select(DEVIS_DETAIL_SELECT)
     .eq('id', id)
     .maybeSingle();
   if (error) {

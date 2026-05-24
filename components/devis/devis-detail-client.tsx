@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { DevisStatusBadge } from './devis-status-badge';
 import { DevisLignesEditor } from './devis-lignes-editor';
 import { SendDevisDialog } from './send-devis-dialog';
+import { CreateFactureFromDevisDialog } from './create-facture-from-devis-dialog';
 import { cancelDevis, reviseDevis } from '@/lib/actions/devis';
 import type { DevisDetail } from '@/lib/queries/devis';
 
@@ -19,11 +20,18 @@ interface DevisDetailClientProps {
 export function DevisDetailClient({ devis }: DevisDetailClientProps) {
   const router = useRouter();
   const [sendOpen, setSendOpen] = useState(false);
+  const [factureDialogOpen, setFactureDialogOpen] = useState(false);
   const [cancelPending, startCancel] = useTransition();
   const [revisePending, startRevise] = useTransition();
 
   const isBrouillon = devis.statut === 'brouillon';
   const isEnvoye = devis.statut === 'envoye';
+  const isAccepte = devis.statut === 'accepte';
+
+  const totalDejaFactureHt = (devis.factures_liees ?? []).reduce(
+    (sum, f) => sum + Number(f.montant_ht),
+    0,
+  );
 
   const publicLink = devis.acceptation_token
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/devis/public/${devis.acceptation_token}`
@@ -113,6 +121,11 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
                 Copier le lien
               </Button>
             </>
+          )}
+          {isAccepte && (
+            <Button onClick={() => setFactureDialogOpen(true)}>
+              Creer une facture
+            </Button>
           )}
           {isEnvoye && (
             <Button
@@ -271,10 +284,62 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
         </div>
       )}
 
+      {/* Factures emises depuis ce devis */}
+      {devis.factures_liees && devis.factures_liees.length > 0 && (
+        <div className="rounded-md border p-4">
+          <h2 className="mb-3 text-sm font-medium">
+            Factures emises depuis ce devis
+          </h2>
+          <table className="w-full text-sm">
+            <thead className="border-b text-left text-gray-500">
+              <tr>
+                <th className="py-2">Reference</th>
+                <th>Statut</th>
+                <th>Type</th>
+                <th className="text-right">HT</th>
+                <th className="text-right">TTC</th>
+                <th>Date emission</th>
+              </tr>
+            </thead>
+            <tbody>
+              {devis.factures_liees.map((f) => (
+                <tr key={f.id} className="border-b last:border-0">
+                  <td className="py-2 font-mono text-xs">
+                    {f.ref ?? f.id.slice(0, 8)}
+                  </td>
+                  <td>{f.statut}</td>
+                  <td>{f.est_acompte ? 'Acompte' : 'Solde / Personnalisee'}</td>
+                  <td className="text-right tabular-nums">
+                    {Number(f.montant_ht).toFixed(2).replace('.', ',')} €
+                  </td>
+                  <td className="text-right tabular-nums">
+                    {Number(f.montant_ttc).toFixed(2).replace('.', ',')} €
+                  </td>
+                  <td>
+                    {f.date_emission
+                      ? new Date(f.date_emission).toLocaleDateString('fr-FR')
+                      : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <SendDevisDialog
         devisId={devis.id}
         open={sendOpen}
         onOpenChange={setSendOpen}
+      />
+
+      <CreateFactureFromDevisDialog
+        open={factureDialogOpen}
+        onOpenChange={setFactureDialogOpen}
+        devisId={devis.id}
+        devisRef={devis.ref}
+        totalHt={Number(devis.montant_ht)}
+        totalDejaFactureHt={totalDejaFactureHt}
       />
     </div>
   );

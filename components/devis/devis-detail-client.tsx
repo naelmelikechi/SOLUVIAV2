@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { DevisStatusBadge } from './devis-status-badge';
 import { DevisLignesEditor } from './devis-lignes-editor';
 import { SendDevisDialog } from './send-devis-dialog';
-import { cancelDevis } from '@/lib/actions/devis';
+import { cancelDevis, reviseDevis } from '@/lib/actions/devis';
 import type { DevisDetail } from '@/lib/queries/devis';
 
 interface DevisDetailClientProps {
@@ -20,6 +20,7 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
   const router = useRouter();
   const [sendOpen, setSendOpen] = useState(false);
   const [cancelPending, startCancel] = useTransition();
+  const [revisePending, startRevise] = useTransition();
 
   const isBrouillon = devis.statut === 'brouillon';
   const isEnvoye = devis.statut === 'envoye';
@@ -116,11 +117,26 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
           {isEnvoye && (
             <Button
               variant="secondary"
-              onClick={() =>
-                toast.info('Fonctionnalité Réviser disponible en Phase 3.')
-              }
+              disabled={revisePending}
+              onClick={() => {
+                if (
+                  !confirm(
+                    'Creer une revision de ce devis ? Le devis actuel sera marque comme remplace.',
+                  )
+                )
+                  return;
+                startRevise(async () => {
+                  const res = await reviseDevis(devis.id);
+                  if (res.success) {
+                    toast.success('Revision creee avec succes.');
+                    router.push(`/devis/${res.newDevisId}`);
+                  } else {
+                    toast.error(res.error);
+                  }
+                });
+              }}
             >
-              Réviser
+              Reviser
             </Button>
           )}
         </div>

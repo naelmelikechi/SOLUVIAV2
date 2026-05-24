@@ -292,3 +292,81 @@ export async function cancelDevis(devisId: string): Promise<Result> {
   revalidatePath('/devis');
   return { success: true };
 }
+
+export async function reviseDevis(
+  devisId: string,
+): Promise<Result<{ newDevisId: string }>> {
+  const user = await getCurrentUser();
+  if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
+
+  const supabase = await createClient();
+  const { data: oldDevis, error: oldErr } = await supabase
+    .from('devis')
+    .select('*, lignes:devis_lignes(*)')
+    .eq('id', devisId)
+    .single();
+  if (oldErr || !oldDevis)
+    return { success: false, error: 'Devis introuvable' };
+  if (oldDevis.statut !== 'envoye')
+    return { success: false, error: 'Seul un devis envoye peut etre revise' };
+
+  // 1. Cree un nouveau devis brouillon, lie au precedent (v+1)
+  const { data: newDevis, error: newErr } = await supabase
+    .from('devis')
+    .insert({
+      societe_emettrice_id: oldDevis.societe_emettrice_id,
+      client_id: oldDevis.client_id,
+      objet: oldDevis.objet,
+      date_validite: oldDevis.date_validite,
+      conditions_reglement: oldDevis.conditions_reglement,
+      notes_internes: oldDevis.notes_internes,
+      devis_parent_id: oldDevis.id,
+      version: (oldDevis.version ?? 1) + 1,
+      created_by: user!.id,
+    })
+    .select('id')
+    .single();
+  if (newErr || !newDevis)
+    return { success: false, error: newErr?.message ?? 'Erreur creation v+1' };
+
+  // 2. Copie les lignes
+  type OldLigne = {
+    ordre: number;
+    libelle: string;
+    description: string | null;
+    quantite: number;
+    prix_unitaire_ht: number;
+    taux_tva: number;
+    total_ht: number;
+    total_tva: number;
+    total_ttc: number;
+  };
+  const lignesPayload = (oldDevis.lignes as OldLigne[]).map((l) => ({
+    devis_id: newDevis.id,
+    ordre: l.ordre,
+    libelle: l.libelle,
+    description: l.description,
+    quantite: l.quantite,
+    prix_unitaire_ht: l.prix_unitaire_ht,
+    taux_tva: l.taux_tva,
+    total_ht: l.total_ht,
+    total_tva: l.total_tva,
+    total_ttc: l.total_ttc,
+  }));
+  if (lignesPayload.length > 0) {
+    await supabase.from('devis_lignes').insert(lignesPayload);
+  }
+
+  // 3. Bascule l'ancien en remplace
+  await supabase
+    .from('devis')
+    .update({ statut: 'remplace' })
+    .eq('id', oldDevis.id);
+
+  logAudit('devis_revised', 'devis', newDevis.id, {
+    from: oldDevis.id,
+    from_ref: oldDevis.ref,
+  });
+  revalidatePath('/devis');
+  return { success: true, newDevisId: newDevis.id };
+}

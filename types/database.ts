@@ -1748,6 +1748,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      opcos: {
+        Row: {
+          actif: boolean;
+          code: string;
+          created_at: string;
+          id: string;
+          nom: string;
+          prefixes_deca: string[];
+          updated_at: string;
+        };
+        Insert: {
+          actif?: boolean;
+          code: string;
+          created_at?: string;
+          id?: string;
+          nom: string;
+          prefixes_deca?: string[];
+          updated_at?: string;
+        };
+        Update: {
+          actif?: boolean;
+          code?: string;
+          created_at?: string;
+          id?: string;
+          nom?: string;
+          prefixes_deca?: string[];
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       paiements: {
         Row: {
           created_at: string;
@@ -2784,6 +2814,7 @@ export type Database = {
           id: string;
         }[];
       };
+      opcos_check_prefixes: { Args: { prefixes: string[] }; Returns: boolean };
     };
     Enums: {
       absence_type: 'conges' | 'maladie';

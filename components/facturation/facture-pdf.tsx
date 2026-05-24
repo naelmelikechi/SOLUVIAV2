@@ -137,6 +137,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Helvetica-Bold',
   },
+  // OPCO grouping
+  opcoHeader: {
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
+    marginTop: 8,
+    marginBottom: 4,
+    color: '#555',
+  },
+  opcoSubtotal: {
+    fontSize: 9,
+    textAlign: 'right',
+    marginTop: 4,
+    marginBottom: 8,
+    fontFamily: 'Helvetica-Bold',
+  },
   // Footer
   footer: {
     position: 'absolute',
@@ -346,32 +361,84 @@ export function FacturePdf({
           <Text style={[styles.colMontantTtc, styles.bold]}>Montant TTC</Text>
         </View>
 
-        {/* Table rows */}
-        {facture.lignes.map((ligne) => {
-          const ligneTtc =
-            Math.round(ligne.montant_ht * (1 + facture.taux_tva / 100) * 100) /
-            100;
-          // DECA si renseigne, sinon fallback sur la ref interne du contrat.
-          const decaLabel =
-            ligne.contrat?.contract_number ?? ligne.contrat?.ref ?? '';
-          return (
-            <View key={ligne.id} style={styles.tableRow}>
-              <Text style={styles.colDeca}>{decaLabel}</Text>
-              <Text style={styles.colApprenant}>
-                {ligne.contrat
-                  ? `${ligne.contrat.apprenant_prenom ?? ''} ${ligne.contrat.apprenant_nom ?? ''}`.trim()
-                  : ''}
-              </Text>
-              <Text style={[styles.colDescription, styles.muted]}>
-                {ligne.description}
-              </Text>
-              <Text style={styles.colMontantHt}>
-                {formatEur(ligne.montant_ht)}
-              </Text>
-              <Text style={styles.colMontantTtc}>{formatEur(ligneTtc)}</Text>
-            </View>
-          );
-        })}
+        {/* Table rows — grouped by opco_code when multiple OPCOs present */}
+        {(() => {
+          const lignes = facture.lignes;
+
+          // Build groups: opco_code -> lines. Null codes go under '_no_opco'.
+          const groupMap = new Map<string, typeof lignes>();
+          for (const l of lignes) {
+            const key = l.opco_code ?? '_no_opco';
+            const arr = groupMap.get(key) ?? [];
+            arr.push(l);
+            groupMap.set(key, arr);
+          }
+
+          // Sort: real codes alphabetically, _no_opco last.
+          const groups = Array.from(groupMap.entries()).sort(([a], [b]) => {
+            if (a === '_no_opco') return 1;
+            if (b === '_no_opco') return -1;
+            return a.localeCompare(b);
+          });
+
+          // Multi-OPCO when there are 2+ distinct keys (real or mixed real+null).
+          const distinctOpcoCount = groups.filter(
+            ([k]) => k !== '_no_opco',
+          ).length;
+          const hasMultipleOpcos =
+            distinctOpcoCount > 1 ||
+            (distinctOpcoCount === 1 && groupMap.has('_no_opco'));
+
+          const renderLine = (ligne: (typeof lignes)[number]) => {
+            const ligneTtc =
+              Math.round(
+                ligne.montant_ht * (1 + facture.taux_tva / 100) * 100,
+              ) / 100;
+            // DECA si renseigne, sinon fallback sur la ref interne du contrat.
+            const decaLabel =
+              ligne.contrat?.contract_number ?? ligne.contrat?.ref ?? '';
+            return (
+              <View key={ligne.id} style={styles.tableRow}>
+                <Text style={styles.colDeca}>{decaLabel}</Text>
+                <Text style={styles.colApprenant}>
+                  {ligne.contrat
+                    ? `${ligne.contrat.apprenant_prenom ?? ''} ${ligne.contrat.apprenant_nom ?? ''}`.trim()
+                    : ''}
+                </Text>
+                <Text style={[styles.colDescription, styles.muted]}>
+                  {ligne.description}
+                </Text>
+                <Text style={styles.colMontantHt}>
+                  {formatEur(ligne.montant_ht)}
+                </Text>
+                <Text style={styles.colMontantTtc}>{formatEur(ligneTtc)}</Text>
+              </View>
+            );
+          };
+
+          if (!hasMultipleOpcos) {
+            // Single-OPCO or no OPCO: flat render as before.
+            return lignes.map(renderLine);
+          }
+
+          // Multi-OPCO: render with group headers and subtotals.
+          return groups.map(([key, groupLines]) => {
+            const label = key === '_no_opco' ? 'Non specifie' : `OPCO : ${key}`;
+            const subtotalHt =
+              Math.round(
+                groupLines.reduce((s, l) => s + l.montant_ht, 0) * 100,
+              ) / 100;
+            return (
+              <View key={key}>
+                <Text style={styles.opcoHeader}>{label}</Text>
+                {groupLines.map(renderLine)}
+                <Text style={styles.opcoSubtotal}>
+                  {`Sous-total HT ${key === '_no_opco' ? '' : key} : ${formatEur(subtotalHt)}`}
+                </Text>
+              </View>
+            );
+          });
+        })()}
 
         {/* Totals */}
         <View style={styles.totalsContainer}>

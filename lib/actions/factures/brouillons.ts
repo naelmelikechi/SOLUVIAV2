@@ -63,6 +63,10 @@ const CreateFactureFromEventsSchema = z.object({
     .array(SelectedEventSchema)
     .min(1, 'Aucun événement sélectionné')
     .max(500, 'Trop d’événements sélectionnés'),
+  opcoCodesFilter: z
+    .array(z.string().regex(/^[A-Z][A-Z0-9_]*$/))
+    .min(1, 'Au moins un OPCO requis si filtre fourni')
+    .optional(),
 });
 
 const BlankBrouillonLigneSchema = z.object({
@@ -726,6 +730,7 @@ export interface SelectedEvent {
 export async function createFactureFromEvents(params: {
   projetId: string;
   events: SelectedEvent[];
+  opcoCodesFilter?: string[];
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   const parsed = CreateFactureFromEventsSchema.safeParse(params);
   if (!parsed.success) {
@@ -800,6 +805,23 @@ export async function createFactureFromEvents(params: {
     };
   }
 
+  // Filtre OPCO (si fourni)
+  const opcoCodesFilter = parsed.data.opcoCodesFilter;
+  const filteredResolved = opcoCodesFilter
+    ? resolved.filter(
+        (e) => e.opco_code && opcoCodesFilter.includes(e.opco_code),
+      )
+    : resolved;
+
+  if (filteredResolved.length === 0) {
+    return {
+      success: false,
+      error: opcoCodesFilter
+        ? `Aucun event correspondant aux OPCO selectionnes : ${opcoCodesFilter.join(', ')}`
+        : 'Aucun event a facturer',
+    };
+  }
+
   // 4. Verifie l'exclusion engagement <-> opco_step DANS la selection
   //    (un meme contrat ne peut pas avoir engagement + opco_step coches en
   //    meme temps - on tient ca cote front aussi mais ceinture+bretelle).
@@ -855,7 +877,7 @@ export async function createFactureFromEvents(params: {
   {
     const stepInvoiceIds = Array.from(
       new Set(
-        resolved.flatMap(
+        filteredResolved.flatMap(
           (e) => live.auditInvoiceIdsBySource.get(e.source_id) ?? [],
         ),
       ),
@@ -902,7 +924,7 @@ export async function createFactureFromEvents(params: {
 
   const tauxTva = resolveTvaRegime(projet.client?.tva_intracommunautaire).taux;
   const { totalTtc, totalHt, montantTva, lignesHt } =
-    computeFactureTotauxTtcInclus(resolved, tauxTva);
+    computeFactureTotauxTtcInclus(filteredResolved, tauxTva);
   const montantTtc = totalTtc;
 
   if (totalTtc <= 0) {
@@ -942,7 +964,7 @@ export async function createFactureFromEvents(params: {
 
   // 8. INSERT lignes avec event_type + event_source_id
   //    L'index UNIQUE partial peut rejeter si race condition - on rollback.
-  const lignes = resolved.map((e, i) => {
+  const lignes = filteredResolved.map((e, i) => {
     const typeLabel =
       e.type === 'engagement'
         ? 'Engagement contrat'
@@ -964,6 +986,7 @@ export async function createFactureFromEvents(params: {
       taux_commission_snapshot: taux,
       event_type: e.type,
       event_source_id: e.source_id,
+      opco_code: e.opco_code,
     };
   });
 
@@ -994,9 +1017,9 @@ export async function createFactureFromEvents(params: {
     'facture',
     facture.id,
     {
-      eventCount: resolved.length,
+      eventCount: filteredResolved.length,
       montantHt: totalHt,
-      types: Array.from(new Set(resolved.map((e) => e.type))),
+      types: Array.from(new Set(filteredResolved.map((e) => e.type))),
     },
     user.id,
   );

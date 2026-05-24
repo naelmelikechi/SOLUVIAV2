@@ -337,28 +337,76 @@ export async function GET(request: Request) {
       computeKpisForScope(supabase, 'cdp', u.id, mois),
     );
 
-    const allRows = [...globalRows, ...projetRows.flat(), ...cdpRows.flat()];
+    const scopedRows = [...projetRows.flat(), ...cdpRows.flat()];
 
-    // Upsert idempotent - ignoreDuplicates=true : safe a rejouer plusieurs fois
-    const { error } = await supabase.from('kpi_snapshots').upsert(allRows, {
-      onConflict: 'mois,type_kpi,scope,scope_id',
-      ignoreDuplicates: true,
-    });
+    // Upsert global : scope_id IS NULL — l'index COALESCE empeche les doublons
+    // mais PostgREST ne peut pas cibler un index fonctionnel via onConflict.
+    // On utilise INSERT avec ignoreDuplicates via un index partiel dedie
+    // (uq_snapshot_scoped WHERE scope_id IS NOT NULL ne couvre pas le global),
+    // donc on supprime + reinsere pour l'idempotence du CRON mensuel.
+    const { error: delGlobalError } = await supabase
+      .from('kpi_snapshots')
+      .delete()
+      .eq('mois', mois)
+      .eq('scope', 'global')
+      .is('scope_id', null);
 
-    if (error) {
-      logger.error('cron.snapshot', error, { mois });
+    if (delGlobalError) {
+      logger.error('cron.snapshot', delGlobalError, {
+        mois,
+        step: 'delete_global',
+      });
       return NextResponse.json(
-        { success: false, error: error.message },
+        { success: false, error: delGlobalError.message },
         { status: 500 },
       );
     }
 
+    const { error: insGlobalError } = await supabase
+      .from('kpi_snapshots')
+      .insert(globalRows);
+
+    if (insGlobalError) {
+      logger.error('cron.snapshot', insGlobalError, {
+        mois,
+        step: 'insert_global',
+      });
+      return NextResponse.json(
+        { success: false, error: insGlobalError.message },
+        { status: 500 },
+      );
+    }
+
+    // Upsert projet/cdp : scope_id NOT NULL — uq_snapshot_scoped (index partiel)
+    // permet l'onConflict standard de PostgREST
+    if (scopedRows.length > 0) {
+      const { error: scopedError } = await supabase
+        .from('kpi_snapshots')
+        .upsert(scopedRows, {
+          onConflict: 'mois,type_kpi,scope,scope_id',
+          ignoreDuplicates: true,
+        });
+
+      if (scopedError) {
+        logger.error('cron.snapshot', scopedError, {
+          mois,
+          step: 'upsert_scoped',
+        });
+        return NextResponse.json(
+          { success: false, error: scopedError.message },
+          { status: 500 },
+        );
+      }
+    }
+
     const ms = Date.now() - start;
+    const projetFlat = projetRows.flat();
+    const cdpFlat = cdpRows.flat();
     logger.info('cron.snapshot', `KPI snapshot captured for ${mois}`, {
       mois,
       global: globalRows.length,
-      projet: projetRows.flat().length,
-      cdp: cdpRows.flat().length,
+      projet: projetFlat.length,
+      cdp: cdpFlat.length,
       ms,
     });
 
@@ -367,8 +415,8 @@ export async function GET(request: Request) {
       mois,
       counts: {
         global: globalRows.length,
-        projet: projetRows.flat().length,
-        cdp: cdpRows.flat().length,
+        projet: projetFlat.length,
+        cdp: cdpFlat.length,
       },
       ms,
     });

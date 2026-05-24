@@ -11,6 +11,7 @@ import {
   Clock,
   TrendingUp,
   FileText,
+  ScrollText,
   BarChart3,
   Users,
   UsersRound,
@@ -60,6 +61,7 @@ const mainNavItems: MainNavItem[] = [
   { href: '/temps', label: 'Temps', icon: Clock },
   { href: '/production', label: 'Production', icon: TrendingUp },
   { href: '/facturation', label: 'Facturation', icon: FileText },
+  { href: '/devis', label: 'Devis', icon: ScrollText, adminOnly: true },
   { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   {
     href: '/indicateurs',

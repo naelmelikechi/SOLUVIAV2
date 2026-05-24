@@ -1539,11 +1539,19 @@ export type Database = {
           event_type: string | null;
           facture_id: string;
           id: string;
+          libelle: string | null;
           mois_relatif: number | null;
           montant_ht: number;
           npec_snapshot: number | null;
+          ordre: number | null;
+          prix_unitaire_ht: number | null;
+          quantite: number | null;
           quote_part: number | null;
           taux_commission_snapshot: number | null;
+          taux_tva_ligne: number | null;
+          total_ht_ligne: number | null;
+          total_ttc_ligne: number | null;
+          total_tva_ligne: number | null;
         };
         Insert: {
           contrat_id?: string | null;
@@ -1554,11 +1562,19 @@ export type Database = {
           event_type?: string | null;
           facture_id: string;
           id?: string;
+          libelle?: string | null;
           mois_relatif?: number | null;
           montant_ht: number;
           npec_snapshot?: number | null;
+          ordre?: number | null;
+          prix_unitaire_ht?: number | null;
+          quantite?: number | null;
           quote_part?: number | null;
           taux_commission_snapshot?: number | null;
+          taux_tva_ligne?: number | null;
+          total_ht_ligne?: number | null;
+          total_ttc_ligne?: number | null;
+          total_tva_ligne?: number | null;
         };
         Update: {
           contrat_id?: string | null;
@@ -1569,11 +1585,19 @@ export type Database = {
           event_type?: string | null;
           facture_id?: string;
           id?: string;
+          libelle?: string | null;
           mois_relatif?: number | null;
           montant_ht?: number;
           npec_snapshot?: number | null;
+          ordre?: number | null;
+          prix_unitaire_ht?: number | null;
+          quantite?: number | null;
           quote_part?: number | null;
           taux_commission_snapshot?: number | null;
+          taux_tva_ligne?: number | null;
+          total_ht_ligne?: number | null;
+          total_ttc_ligne?: number | null;
+          total_tva_ligne?: number | null;
         };
         Relationships: [
           {
@@ -1601,9 +1625,11 @@ export type Database = {
           created_by: string | null;
           date_echeance: string | null;
           date_emission: string | null;
+          devis_id: string | null;
           email_envoye: boolean;
           email_erreur: string | null;
           email_last_attempt_at: string | null;
+          est_acompte: boolean;
           est_avoir: boolean;
           facture_origine_id: string | null;
           id: string;
@@ -1630,9 +1656,11 @@ export type Database = {
           created_by?: string | null;
           date_echeance?: string | null;
           date_emission?: string | null;
+          devis_id?: string | null;
           email_envoye?: boolean;
           email_erreur?: string | null;
           email_last_attempt_at?: string | null;
+          est_acompte?: boolean;
           est_avoir?: boolean;
           facture_origine_id?: string | null;
           id?: string;
@@ -1659,9 +1687,11 @@ export type Database = {
           created_by?: string | null;
           date_echeance?: string | null;
           date_emission?: string | null;
+          devis_id?: string | null;
           email_envoye?: boolean;
           email_erreur?: string | null;
           email_last_attempt_at?: string | null;
+          est_acompte?: boolean;
           est_avoir?: boolean;
           facture_origine_id?: string | null;
           id?: string;
@@ -1693,6 +1723,13 @@ export type Database = {
             columns: ['created_by'];
             isOneToOne: false;
             referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'factures_devis_id_fkey';
+            columns: ['devis_id'];
+            isOneToOne: false;
+            referencedRelation: 'devis';
             referencedColumns: ['id'];
           },
           {

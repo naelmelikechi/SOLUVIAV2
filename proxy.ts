@@ -1,8 +1,21 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
+// Alias URLs "naturelles" vers leurs routes reelles. Evite un 404 quand un
+// utilisateur ou un lien externe tape l URL intuitive plutot que la route
+// imbriquee. Garde 308 (permanent) pour que les bookmarks soient mis a jour.
+const REDIRECTS: Record<string, string> = {
+  '/qualite': '/qualiopi',
+  '/pipeline': '/commercial/pipeline',
+};
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const redirectTarget = REDIRECTS[pathname];
+  if (redirectTarget) {
+    return NextResponse.redirect(new URL(redirectTarget, request.url), 308);
+  }
 
   // Note : la verification du cookie ici est uniquement un check de
   // PRESENCE pour decider du routing (login vs redirect). La VALIDATION

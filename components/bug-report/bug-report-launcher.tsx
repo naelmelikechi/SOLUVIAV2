@@ -62,7 +62,7 @@ export function BugReportLauncher() {
         onClick={handleOpen}
         disabled={capturing}
         data-tour="bug-report"
-        className="fixed right-4 bottom-4 z-40 size-10 rounded-full shadow-lg"
+        className="fixed right-4 bottom-4 z-40 size-10 rounded-full shadow-lg sm:right-6 sm:bottom-6 print:hidden"
       >
         <Bug className="size-4" />
       </Button>

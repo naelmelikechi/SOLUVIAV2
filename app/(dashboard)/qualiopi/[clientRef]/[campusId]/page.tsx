@@ -209,6 +209,7 @@ export default async function QualiopiCampusPage({
                           </span>
                         </div>
                         <StatusBadge
+                          className="shrink-0"
                           label={completion.valid ? 'Conforme' : 'Non conforme'}
                           color={completion.valid ? 'green' : 'orange'}
                         />

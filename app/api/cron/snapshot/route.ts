@@ -11,6 +11,7 @@ import {
   groupContratsByType,
 } from '@/lib/utils/kpi-computations';
 import { ACTIVE_CONTRACT_STATES } from '@/lib/utils/contrat-states';
+import { computeQualiopiCompletionForClients } from '@/lib/queries/qualiopi-stats';
 
 export const maxDuration = 300;
 
@@ -24,20 +25,69 @@ type SnapshotRow = {
   scope_id: string | null;
 };
 
-// Calcule taux_qualiopi. V1 : scope=global uniquement (qualite_taches non disponible).
-// TODO: adapter quand schema qualite_taches verifie
+// Calcule taux_qualiopi via l'API Eduvia (deliverables conform / total).
+// La donnee Qualiopi vit cote Eduvia, pas dans une table SOLUVIA.
+// Agrege par CFA (client) du scope, puis sum(conform) / sum(total).
 async function computeTauxQualiopi(
-  _supabase: SupabaseClient,
+  supabase: SupabaseClient,
   scope: Scope,
-  _scopeId: string | null,
+  scopeId: string | null,
 ): Promise<number> {
-  // En scope=projet/cdp : Qualiopi est par CFA, retourne 0 en V1
-  if (scope !== 'global') return 0;
+  try {
+    // Recupere les client_ids du scope
+    let clientIds: string[] = [];
 
-  // La table qualite_taches n'existe pas encore dans le schema courant.
-  // Retourne 0 jusqu'a ce que la table soit cree.
-  // TODO: adapter quand qualite_taches est disponible avec colonne statut='conforme'
-  return 0;
+    if (scope === 'global') {
+      const { data } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('is_demo', false)
+        .eq('archive', false);
+      clientIds = (data ?? []).map((c) => c.id as string);
+    } else if (scope === 'projet') {
+      const { data } = await supabase
+        .from('projets')
+        .select('client_id')
+        .eq('id', scopeId as string)
+        .single();
+      if (data?.client_id) clientIds = [data.client_id as string];
+    } else if (scope === 'cdp') {
+      const { data } = (await supabase
+        .from('projets')
+        .select(
+          'client_id, client:clients!projets_client_id_fkey!inner(is_demo, archive)',
+        )
+        .eq('archive', false)
+        .eq('client.is_demo', false)
+        .eq('client.archive', false)
+        .or(`cdp_id.eq.${scopeId},backup_cdp_id.eq.${scopeId}`)) as unknown as {
+        data: Array<{ client_id: string }>;
+      };
+      clientIds = Array.from(
+        new Set((data ?? []).map((p) => p.client_id).filter(Boolean)),
+      );
+    }
+
+    if (clientIds.length === 0) return 0;
+
+    // Eduvia API calls (peut etre lent + reseau). Fallback 0 si erreur.
+    const completions = await computeQualiopiCompletionForClients(clientIds);
+    let realise = 0;
+    let total = 0;
+    for (const c of completions.values()) {
+      realise += c.realise;
+      total += c.total;
+    }
+    if (total === 0) return 0;
+    return Math.round((realise / total) * 10000) / 100;
+  } catch (err) {
+    logger.error('cron.snapshot', err, {
+      step: 'compute_taux_qualiopi',
+      scope,
+      scopeId,
+    });
+    return 0;
+  }
 }
 
 // Traite les items en chunks pour limiter le parallelisme Supabase
@@ -377,23 +427,37 @@ export async function GET(request: Request) {
       );
     }
 
-    // Upsert projet/cdp : scope_id NOT NULL — uq_snapshot_scoped (index partiel)
-    // permet l'onConflict standard de PostgREST
+    // Projet/cdp : DELETE + INSERT (PostgREST ne sait pas cibler un index
+    // partiel via onConflict). Atomique-ish pour un CRON mensuel.
     if (scopedRows.length > 0) {
-      const { error: scopedError } = await supabase
+      const { error: delScopedError } = await supabase
         .from('kpi_snapshots')
-        .upsert(scopedRows, {
-          onConflict: 'mois,type_kpi,scope,scope_id',
-          ignoreDuplicates: true,
-        });
+        .delete()
+        .eq('mois', mois)
+        .in('scope', ['projet', 'cdp']);
 
-      if (scopedError) {
-        logger.error('cron.snapshot', scopedError, {
+      if (delScopedError) {
+        logger.error('cron.snapshot', delScopedError, {
           mois,
-          step: 'upsert_scoped',
+          step: 'delete_scoped',
         });
         return NextResponse.json(
-          { success: false, error: scopedError.message },
+          { success: false, error: delScopedError.message },
+          { status: 500 },
+        );
+      }
+
+      const { error: insScopedError } = await supabase
+        .from('kpi_snapshots')
+        .insert(scopedRows);
+
+      if (insScopedError) {
+        logger.error('cron.snapshot', insScopedError, {
+          mois,
+          step: 'insert_scoped',
+        });
+        return NextResponse.json(
+          { success: false, error: insScopedError.message },
           { status: 500 },
         );
       }

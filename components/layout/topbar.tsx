@@ -20,6 +20,8 @@ const routeLabels: Record<string, string> = {
   idees: 'Idées',
   commercial: 'Commercial',
   pipeline: 'Pipeline',
+  devis: 'Devis',
+  opcos: 'Référentiel OPCO',
   admin: 'Administration',
   clients: 'Clients',
   utilisateurs: 'Utilisateurs',

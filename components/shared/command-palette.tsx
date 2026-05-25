@@ -12,10 +12,18 @@ import {
   Bell,
   Building2,
   Users,
+  UsersRound,
   Settings,
   User,
   Plus,
   FileText,
+  Sparkles,
+  ScrollText,
+  LineChart,
+  Lightbulb,
+  Target,
+  Bug,
+  Landmark,
 } from 'lucide-react';
 import {
   CommandDialog,
@@ -47,7 +55,7 @@ interface CommandPaletteItem {
 }
 
 const items: CommandPaletteItem[] = [
-  // Pages
+  // Pilotage
   {
     label: 'Tableau de bord',
     href: '/dashboard',
@@ -55,17 +63,25 @@ const items: CommandPaletteItem[] = [
     icon: LayoutDashboard,
   },
   {
+    label: 'Indicateurs',
+    href: '/indicateurs',
+    section: 'Pages',
+    icon: LineChart,
+  },
+  // Operations
+  {
     label: 'Projets',
     href: '/projets',
     section: 'Pages',
     icon: FolderKanban,
   },
   {
-    label: 'Facturation',
-    href: '/facturation',
+    label: 'Projets internes',
+    href: '/projets/internes',
     section: 'Pages',
-    icon: Receipt,
+    icon: Sparkles,
   },
+  { label: 'Temps', href: '/temps', section: 'Pages', icon: Clock },
   {
     label: 'Qualité',
     href: '/qualiopi',
@@ -78,7 +94,27 @@ const items: CommandPaletteItem[] = [
     section: 'Pages',
     icon: BarChart3,
   },
-  { label: 'Temps', href: '/temps', section: 'Pages', icon: Clock },
+  // Commercial
+  {
+    label: 'Pipeline',
+    href: '/commercial/pipeline',
+    section: 'Pages',
+    icon: Target,
+  },
+  // Facturation
+  {
+    label: 'Devis',
+    href: '/devis',
+    section: 'Pages',
+    icon: ScrollText,
+  },
+  {
+    label: 'Facturation',
+    href: '/facturation',
+    section: 'Pages',
+    icon: Receipt,
+  },
+  // Equipe
   {
     label: 'Équipe',
     href: '/equipe',
@@ -86,11 +122,18 @@ const items: CommandPaletteItem[] = [
     icon: Users,
   },
   {
+    label: 'Idées',
+    href: '/idees',
+    section: 'Pages',
+    icon: Lightbulb,
+  },
+  {
     label: 'Notifications',
     href: '/notifications',
     section: 'Pages',
     icon: Bell,
   },
+  // Administration
   {
     label: 'Clients',
     href: '/admin/clients',
@@ -104,10 +147,28 @@ const items: CommandPaletteItem[] = [
     icon: Users,
   },
   {
+    label: 'Intercontrat',
+    href: '/admin/intercontrat',
+    section: 'Pages',
+    icon: UsersRound,
+  },
+  {
+    label: 'Bugs',
+    href: '/admin/bugs',
+    section: 'Pages',
+    icon: Bug,
+  },
+  {
     label: 'Paramètres',
     href: '/admin/parametres',
     section: 'Pages',
     icon: Settings,
+  },
+  {
+    label: 'Référentiel OPCO',
+    href: '/admin/parametres/opcos',
+    section: 'Pages',
+    icon: Landmark,
   },
   {
     label: 'Mon compte',

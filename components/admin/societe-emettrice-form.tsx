@@ -41,6 +41,8 @@ export function SocieteEmettriceForm({ societe }: Props) {
     mentions_legales: societe?.mentions_legales ?? '',
     conditions_reglement_default: societe?.conditions_reglement_default ?? '',
     validite_devis_jours: societe?.validite_devis_jours ?? 90,
+    odoo_company_id: societe?.odoo_company_id ?? null,
+    odoo_journal_id: societe?.odoo_journal_id ?? null,
     est_defaut: societe?.est_defaut ?? false,
   });
 
@@ -263,6 +265,54 @@ export function SocieteEmettriceForm({ societe }: Props) {
           <Label htmlFor="se-defaut">
             Societe par defaut (utilisee si une seule active)
           </Label>
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-3 rounded-md border p-4">
+        <legend className="px-2 text-sm font-semibold">Integration Odoo</legend>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="se-odoo-company">Odoo company ID</Label>
+            <Input
+              id="se-odoo-company"
+              type="number"
+              min={1}
+              step={1}
+              value={form.odoo_company_id ?? ''}
+              onChange={(e) =>
+                set(
+                  'odoo_company_id',
+                  e.target.value ? Number(e.target.value) : null,
+                )
+              }
+              placeholder="ex: 1"
+              className="w-40"
+            />
+            <p className="text-muted-foreground text-xs">
+              ID interne Odoo pour cette societe (multi-company)
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="se-odoo-journal">Odoo journal ID</Label>
+            <Input
+              id="se-odoo-journal"
+              type="number"
+              min={1}
+              step={1}
+              value={form.odoo_journal_id ?? ''}
+              onChange={(e) =>
+                set(
+                  'odoo_journal_id',
+                  e.target.value ? Number(e.target.value) : null,
+                )
+              }
+              placeholder="ex: 7"
+              className="w-40"
+            />
+            <p className="text-muted-foreground text-xs">
+              Journal de ventes Odoo associe
+            </p>
+          </div>
         </div>
       </fieldset>
 

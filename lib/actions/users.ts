@@ -626,8 +626,8 @@ export async function inviteUser(
         user_id: a.id,
         subject_user_id: newUser.user.id,
         type: 'collaborateur_a_affecter' as const,
-        titre: 'Nouveau collaborateur a affecter',
-        message: `${fullName} vient d etre invite et attend une affectation projet.`,
+        titre: 'Nouveau collaborateur à affecter',
+        message: `${fullName} vient d'être invité et attend une affectation projet.`,
         lien: '/admin/intercontrat',
       }));
       const { error: notifsError } = await adminClient

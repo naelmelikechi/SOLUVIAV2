@@ -10,9 +10,15 @@ import { formatDateLong } from '@/lib/utils/formatters';
 import { Button } from '@/components/ui/button';
 
 const roleBadge: Record<string, { label: string; color: BadgeColor }> = {
+  superadmin: { label: 'Superadmin', color: 'orange' },
   admin: { label: 'Admin', color: 'purple' },
   cdp: { label: 'CDP', color: 'blue' },
+  commercial: { label: 'Commercial', color: 'green' },
 };
+
+function formatRoleLabel(role: string): string {
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
 
 export function getUserListColumns(
   onEdit: (user: UserListItem) => void,
@@ -47,7 +53,7 @@ export function getUserListColumns(
       ),
       cell: ({ row }) => {
         const badge = roleBadge[row.original.role] ?? {
-          label: row.original.role,
+          label: formatRoleLabel(row.original.role),
           color: 'gray' as const,
         };
         return <StatusBadge label={badge.label} color={badge.color} />;

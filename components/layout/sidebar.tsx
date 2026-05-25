@@ -42,37 +42,70 @@ type MainNavItem = {
   icon: typeof ClipboardList;
   adminOnly?: boolean;
   requiresIndicateursAccess?: boolean;
+  requiresPipelineAccess?: boolean;
   unassignedOnly?: boolean;
   exactMatch?: boolean;
 };
 
-const mainNavItems: MainNavItem[] = [
+type NavSection = {
+  title: string;
+  items: MainNavItem[];
+};
+
+const navSections: NavSection[] = [
   {
-    href: '/accueil',
-    label: 'Accueil',
-    icon: Sparkles,
-    unassignedOnly: true,
+    title: 'Pilotage',
+    items: [
+      {
+        href: '/accueil',
+        label: 'Accueil',
+        icon: Sparkles,
+        unassignedOnly: true,
+      },
+      { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+      {
+        href: '/indicateurs',
+        label: 'Indicateurs',
+        icon: LineChart,
+        requiresIndicateursAccess: true,
+      },
+    ],
   },
-  { href: '/projets', label: 'Projets', icon: ClipboardList },
   {
-    href: '/projets/internes',
-    label: 'Projets internes',
-    icon: Sparkles,
+    title: 'Opérations',
+    items: [
+      { href: '/projets', label: 'Projets', icon: ClipboardList },
+      { href: '/projets/internes', label: 'Projets internes', icon: Sparkles },
+      { href: '/temps', label: 'Temps', icon: Clock },
+      { href: '/qualiopi', label: 'Qualité', icon: ShieldCheck },
+      { href: '/production', label: 'Production', icon: TrendingUp },
+    ],
   },
-  { href: '/qualiopi', label: 'Qualité', icon: ShieldCheck },
-  { href: '/temps', label: 'Temps', icon: Clock },
-  { href: '/production', label: 'Production', icon: TrendingUp },
-  { href: '/facturation', label: 'Facturation', icon: FileText },
-  { href: '/devis', label: 'Devis', icon: ScrollText, adminOnly: true },
-  { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
   {
-    href: '/indicateurs',
-    label: 'Indicateurs',
-    icon: LineChart,
-    requiresIndicateursAccess: true,
+    title: 'Commercial',
+    items: [
+      {
+        href: '/commercial/pipeline',
+        label: 'Pipeline',
+        icon: Target,
+        requiresPipelineAccess: true,
+      },
+    ],
   },
-  { href: '/equipe', label: 'Équipe', icon: UsersRound },
-  { href: '/idees', label: 'Idées', icon: Lightbulb },
+  {
+    title: 'Facturation',
+    items: [
+      { href: '/devis', label: 'Devis', icon: ScrollText, adminOnly: true },
+      { href: '/facturation', label: 'Facturation', icon: FileText },
+    ],
+  },
+  {
+    title: 'Équipe',
+    items: [
+      { href: '/equipe', label: 'Équipe', icon: UsersRound },
+      { href: '/idees', label: 'Idées', icon: Lightbulb },
+    ],
+  },
 ];
 
 function canAccessIndicateurs(
@@ -83,10 +116,6 @@ function canAccessIndicateurs(
     isAdmin(role) || role === 'cdp' || canAccessPipeline(role, pipelineAccess)
   );
 }
-
-const commercialNavItems = [
-  { href: '/commercial/pipeline', label: 'Pipeline', icon: Target },
-];
 
 const adminNavItems = [
   {
@@ -261,110 +290,96 @@ export function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 space-y-0.5 px-2 py-3">
-        {mainNavItems
-          .filter((item) => {
-            if (item.adminOnly && !isAdmin(user?.role)) return false;
-            if (
-              item.requiresIndicateursAccess &&
-              !canAccessIndicateurs(user?.role, user?.pipeline_access)
-            )
-              return false;
-            if (item.unassignedOnly && !isUnassigned) return false;
-            return true;
-          })
-          .map((item) => {
-            const isActive =
-              item.href === '/projets'
-                ? pathname === '/projets' ||
-                  (pathname.startsWith('/projets/') &&
-                    !pathname.startsWith('/projets/internes'))
-                : pathname.startsWith(item.href);
-            const Icon = item.icon;
-            const badge = badgeConfig[item.href];
-            const count = badge ? badgeCounts[badge.key] : 0;
+        {(() => {
+          const visibleSections = navSections
+            .map((section) => ({
+              title: section.title,
+              items: section.items.filter((item) => {
+                if (item.adminOnly && !isAdmin(user?.role)) return false;
+                if (
+                  item.requiresIndicateursAccess &&
+                  !canAccessIndicateurs(user?.role, user?.pipeline_access)
+                )
+                  return false;
+                if (
+                  item.requiresPipelineAccess &&
+                  !canAccessPipeline(user?.role, user?.pipeline_access)
+                )
+                  return false;
+                if (item.unassignedOnly && !isUnassigned) return false;
+                return true;
+              }),
+            }))
+            .filter((section) => section.items.length > 0);
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed ? item.label : undefined}
-                onClick={mobile ? onClose : undefined}
-                data-tour={item.href}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
-                  collapsed && 'justify-center',
-                  isActive
-                    ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
-                )}
-              >
-                <span className="relative shrink-0">
-                  <Icon className="h-[18px] w-[18px]" />
-                  {collapsed && badge && count > 0 && (
-                    <span
-                      className={cn(
-                        'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
-                        badge.color,
-                      )}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </span>
-                {!collapsed && (
-                  <>
-                    <span>{item.label}</span>
-                    {badge && count > 0 && (
-                      <span
-                        className={cn(
-                          'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
-                          badge.color,
-                        )}
-                      >
-                        {count}
-                      </span>
+          return visibleSections.map((section, sectionIdx) => (
+            <div key={section.title}>
+              {sectionIdx > 0 && <Separator className="my-2" />}
+              {!collapsed && (
+                <div className="text-muted-foreground px-3 py-1 text-[10px] font-semibold tracking-wider uppercase">
+                  {section.title}
+                </div>
+              )}
+              {section.items.map((item) => {
+                const isActive =
+                  item.href === '/projets'
+                    ? pathname === '/projets' ||
+                      (pathname.startsWith('/projets/') &&
+                        !pathname.startsWith('/projets/internes'))
+                    : pathname.startsWith(item.href);
+                const Icon = item.icon;
+                const badge = badgeConfig[item.href];
+                const count = badge ? badgeCounts[badge.key] : 0;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={collapsed ? item.label : undefined}
+                    onClick={mobile ? onClose : undefined}
+                    data-tour={item.href}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
+                      collapsed && 'justify-center',
+                      isActive
+                        ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
                     )}
-                  </>
-                )}
-              </Link>
-            );
-          })}
-
-        {canAccessPipeline(user?.role, user?.pipeline_access) && (
-          <>
-            <Separator className="my-2" />
-
-            {!collapsed && (
-              <div className="text-muted-foreground px-3 py-1 text-[10px] font-semibold tracking-wider uppercase">
-                Commercial
-              </div>
-            )}
-
-            {commercialNavItems.map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  title={collapsed ? item.label : undefined}
-                  onClick={mobile ? onClose : undefined}
-                  data-tour={item.href}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
-                    collapsed && 'justify-center',
-                    isActive
-                      ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
-                  )}
-                >
-                  <Icon className="h-[18px] w-[18px] shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
-                </Link>
-              );
-            })}
-          </>
-        )}
+                  >
+                    <span className="relative shrink-0">
+                      <Icon className="h-[18px] w-[18px]" />
+                      {collapsed && badge && count > 0 && (
+                        <span
+                          className={cn(
+                            'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
+                            badge.color,
+                          )}
+                        >
+                          {count}
+                        </span>
+                      )}
+                    </span>
+                    {!collapsed && (
+                      <>
+                        <span>{item.label}</span>
+                        {badge && count > 0 && (
+                          <span
+                            className={cn(
+                              'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
+                              badge.color,
+                            )}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ));
+        })()}
 
         {isAdmin(user?.role) && (
           <>

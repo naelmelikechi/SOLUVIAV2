@@ -8,7 +8,11 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatCurrency, formatDate } from '@/lib/utils/formatters';
+import {
+  formatCurrency,
+  formatDate,
+  formatMoisConcerne,
+} from '@/lib/utils/formatters';
 import {
   STATUT_FACTURE_LABELS,
   STATUT_FACTURE_COLORS,
@@ -104,7 +108,11 @@ export function createFactureListColumns(
     },
     {
       id: 'type',
-      header: () => <span className="text-xs font-medium">Type</span>,
+      header: () => (
+        <span className="text-xs font-semibold tracking-wider uppercase">
+          Type
+        </span>
+      ),
       enableSorting: false,
       enableHiding: false,
       size: 80,
@@ -136,7 +144,9 @@ export function createFactureListColumns(
         <DataTableColumnHeader column={column} title="Mois" />
       ),
       cell: ({ row }) => (
-        <span className="text-sm">{row.original.mois_concerne ?? ''}</span>
+        <span className="text-sm">
+          {formatMoisConcerne(row.original.mois_concerne)}
+        </span>
       ),
     },
     {

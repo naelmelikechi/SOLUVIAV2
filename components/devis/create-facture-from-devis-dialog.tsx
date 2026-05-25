@@ -13,13 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { createFactureFromDevis } from '@/lib/actions/devis-to-facture';
 
 type Mode = 'acompte' | 'solde' | 'personnalisee';
@@ -104,22 +98,41 @@ export function CreateFactureFromDevisDialog({
           )}
 
           {/* Choix du mode */}
-          <div className="space-y-2">
-            <Label htmlFor="mode-select">Mode de facturation</Label>
-            <Select value={mode} onValueChange={(v) => setMode(v as Mode)}>
-              <SelectTrigger id="mode-select">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="acompte">
+          <div className="space-y-3">
+            <Label>Mode de facturation</Label>
+            <RadioGroup
+              value={mode}
+              onValueChange={(v) => setMode(v as Mode)}
+              className="space-y-2"
+            >
+              <div className="flex items-start gap-2">
+                <RadioGroupItem value="acompte" id="mode-acompte" />
+                <Label
+                  htmlFor="mode-acompte"
+                  className="cursor-pointer font-normal"
+                >
                   Acompte (pourcentage du total)
-                </SelectItem>
-                <SelectItem value="solde">Solde (reste a facturer)</SelectItem>
-                <SelectItem value="personnalisee">
+                </Label>
+              </div>
+              <div className="flex items-start gap-2">
+                <RadioGroupItem value="solde" id="mode-solde" />
+                <Label
+                  htmlFor="mode-solde"
+                  className="cursor-pointer font-normal"
+                >
+                  Solde (reste a facturer)
+                </Label>
+              </div>
+              <div className="flex items-start gap-2">
+                <RadioGroupItem value="personnalisee" id="mode-personnalisee" />
+                <Label
+                  htmlFor="mode-personnalisee"
+                  className="cursor-pointer font-normal"
+                >
                   Personnalisee (copie toutes les lignes)
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
 
           {/* Pourcentage si acompte */}

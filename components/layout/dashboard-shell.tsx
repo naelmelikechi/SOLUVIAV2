@@ -50,8 +50,8 @@ export function DashboardShell({
 
   return (
     <div className="flex h-screen">
-      {/* Desktop sidebar - hidden on mobile */}
-      <div className="hidden md:block">
+      {/* Desktop sidebar - hidden under lg (1024px) pour eviter d'ecraser le contenu en tablet */}
+      <div className="hidden lg:block">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -78,7 +78,7 @@ export function DashboardShell({
 
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             aria-label="Fermer le menu"

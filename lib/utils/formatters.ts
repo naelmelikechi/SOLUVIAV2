@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export function formatCurrency(amount: number): string {
@@ -42,6 +42,23 @@ export function formatDateShort(date: string | Date): string {
       ? new Date(date + (date.length === 10 ? 'T00:00:00' : ''))
       : date;
   return format(d, 'dd/MM/yyyy', { locale: fr });
+}
+
+// Normalise les differents formats de `mois_concerne` (ISO "2026-05",
+// "2026-05-01", ou texte deja humain "janvier 2026") en libelle FR
+// capitalise type "Mai 2026". Retourne chaine vide si vide/null.
+export function formatMoisConcerne(value: string | null | undefined): string {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}/.test(value)) {
+    try {
+      const dateStr = value.length === 7 ? value + '-01' : value;
+      const moisLabel = format(parseISO(dateStr), 'MMMM yyyy', { locale: fr });
+      return moisLabel.charAt(0).toUpperCase() + moisLabel.slice(1);
+    } catch {
+      return value;
+    }
+  }
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 export function formatHeures(h: number): string {

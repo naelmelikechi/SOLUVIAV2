@@ -7,7 +7,6 @@ import type {
   MonthlyTrendRow,
   InvoiceStatusBreakdown,
 } from '@/lib/queries/dashboard';
-import type { Scope } from '@/lib/queries/kpi-history';
 import type { Periode } from '@/lib/utils/dashboard-periode';
 import { useHiddenKpis } from '@/components/dashboard/use-hidden-kpis';
 import { DashboardAlerts } from '@/components/dashboard/dashboard-alerts';
@@ -47,8 +46,6 @@ export function DashboardPageClient({
   invoiceBreakdown,
   weekHours,
   periode,
-  scope: _scope = 'global',
-  scopeId: _scopeId = null,
   sparklines,
 }: {
   data: DashboardData;
@@ -58,8 +55,6 @@ export function DashboardPageClient({
   invoiceBreakdown: InvoiceStatusBreakdown;
   weekHours: number;
   periode?: Periode;
-  scope?: Scope;
-  scopeId?: string | null;
   sparklines?: DashboardSparklines;
 }) {
   const [editMode, setEditMode] = useState(false);

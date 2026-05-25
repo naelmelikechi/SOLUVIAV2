@@ -27,12 +27,13 @@ import type { EvolutionRow } from '@/lib/utils/build-dashboard-data';
 import { handleExportExcel } from '@/lib/utils/build-dashboard-data';
 
 // Sparkline nodes rendus cote serveur et passes en prop (composition pattern Next.js App Router).
+// Seules les cles correspondant a un type_kpi reel dans kpi_snapshots sont listees.
 export interface DashboardSparklines {
   projetsActifs?: React.ReactNode;
   contratsActifs?: React.ReactNode;
-  nbApprenantsActifs?: React.ReactNode;
-  nbFormationsEnCours?: React.ReactNode;
-  tauxSaisieTemps?: React.ReactNode;
+  facturesEmises?: React.ReactNode;
+  facturesEnRetard?: React.ReactNode;
+  totalEncaisse?: React.ReactNode;
 }
 
 interface DashboardKpiGridProps {
@@ -121,7 +122,6 @@ export function DashboardKpiGrid({
               label="Apprenants"
               value={String(nbApprenantsActifs)}
               subtitle="contrats en cours"
-              sparkline={sparklines?.nbApprenantsActifs}
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('apprenantsActifs')}
@@ -133,7 +133,6 @@ export function DashboardKpiGrid({
               label="Formations"
               value={String(nbFormationsEnCours)}
               subtitle="en cours (Eduvia)"
-              sparkline={sparklines?.nbFormationsEnCours}
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('formationsEnCours')}
@@ -145,7 +144,6 @@ export function DashboardKpiGrid({
               label="Saisie temps"
               value={`${tauxSaisieTemps}%`}
               subtitle="moyenne équipe"
-              sparkline={sparklines?.tauxSaisieTemps}
               href="/temps"
               editMode={editMode}
               onHide={() => onHide('tauxSaisieTemps')}

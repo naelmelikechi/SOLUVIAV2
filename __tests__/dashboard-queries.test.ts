@@ -195,6 +195,7 @@ describe('getDashboardData', () => {
       echeancesAFacturer: 2,
       contratsActifs: 2,
       contratsSansProgression: 0,
+      byType: { app: 0, pdc: 0, poe: 0 },
     });
   });
 

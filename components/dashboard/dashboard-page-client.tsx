@@ -10,7 +10,10 @@ import type {
 import type { Periode } from '@/lib/utils/dashboard-periode';
 import { useHiddenKpis } from '@/components/dashboard/use-hidden-kpis';
 import { DashboardAlerts } from '@/components/dashboard/dashboard-alerts';
-import { DashboardKpiGrid } from '@/components/dashboard/dashboard-kpi-grid';
+import {
+  DashboardKpiGrid,
+  type DashboardSparklines,
+} from '@/components/dashboard/dashboard-kpi-grid';
 import {
   buildAlerts,
   buildEvolutionData,
@@ -28,6 +31,7 @@ export interface DashboardData {
   echeancesAFacturer: number;
   contratsActifs: number;
   contratsSansProgression: number;
+  byType: { app: number; pdc: number; poe: number };
 }
 
 // ============================================================
@@ -42,6 +46,7 @@ export function DashboardPageClient({
   invoiceBreakdown,
   weekHours,
   periode,
+  sparklines,
 }: {
   data: DashboardData;
   financials: DashboardFinancials;
@@ -50,6 +55,7 @@ export function DashboardPageClient({
   invoiceBreakdown: InvoiceStatusBreakdown;
   weekHours: number;
   periode?: Periode;
+  sparklines?: DashboardSparklines;
 }) {
   const [editMode, setEditMode] = useState(false);
   const { isHidden, toggle, hiddenKeys, restoreAll } = useHiddenKpis();
@@ -103,6 +109,7 @@ export function DashboardPageClient({
       <DashboardKpiGrid
         projetsActifs={data.projetsActifs}
         contratsActifs={data.contratsActifs}
+        byType={data.byType}
         nbApprenantsActifs={nbApprenantsActifs}
         nbFormationsEnCours={nbFormationsEnCours}
         tauxSaisieTemps={tauxSaisieTemps}
@@ -116,6 +123,7 @@ export function DashboardPageClient({
         editMode={editMode}
         isHidden={isHidden}
         onHide={toggle}
+        sparklines={sparklines}
       />
     </div>
   );

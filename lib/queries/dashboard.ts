@@ -3,6 +3,7 @@ import { logger } from '@/lib/utils/logger';
 import { ACTIVE_CONTRACT_STATES } from '@/lib/utils/contrat-states';
 import { computeContractSchedule } from './production';
 import type { Periode } from '@/lib/utils/dashboard-periode';
+import { groupContratsByType } from '@/lib/utils/kpi-computations';
 import {
   format,
   startOfMonth,
@@ -53,7 +54,7 @@ export async function getDashboardData() {
       supabase
         .from('contrats')
         .select(
-          'id, projet:projets!contrats_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+          'id, contract_type, projet:projets!contrats_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
         )
         .in('contract_state', ACTIVE_STATES_ARRAY)
         .eq('archive', false)
@@ -143,6 +144,7 @@ export async function getDashboardData() {
     ).length;
   }
 
+  const activeContratsList = contratsRes.data ?? [];
   return {
     projetsActifs: projetsRes.data?.length ?? 0,
     facturesEnRetard:
@@ -150,8 +152,9 @@ export async function getDashboardData() {
     facturesEmises:
       facturesRes.data?.filter((f) => f.statut === 'emise').length ?? 0,
     echeancesAFacturer: echeancesRes.data?.length ?? 0,
-    contratsActifs: contratsRes.data?.length ?? 0,
+    contratsActifs: activeContratsList.length,
     contratsSansProgression,
+    byType: groupContratsByType(activeContratsList),
   };
 }
 

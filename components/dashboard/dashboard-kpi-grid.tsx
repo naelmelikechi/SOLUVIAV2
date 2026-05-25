@@ -26,10 +26,21 @@ import type {
 import type { EvolutionRow } from '@/lib/utils/build-dashboard-data';
 import { handleExportExcel } from '@/lib/utils/build-dashboard-data';
 
+// Sparkline nodes rendus cote serveur et passes en prop (composition pattern Next.js App Router).
+// Seules les cles correspondant a un type_kpi reel dans kpi_snapshots sont listees.
+export interface DashboardSparklines {
+  projetsActifs?: React.ReactNode;
+  contratsActifs?: React.ReactNode;
+  facturesEmises?: React.ReactNode;
+  facturesEnRetard?: React.ReactNode;
+  totalEncaisse?: React.ReactNode;
+}
+
 interface DashboardKpiGridProps {
   // Activite operationnelle
   projetsActifs: number;
   contratsActifs: number;
+  byType: { app: number; pdc: number; poe: number };
   nbApprenantsActifs: number;
   nbFormationsEnCours: number;
   tauxSaisieTemps: number;
@@ -47,11 +58,14 @@ interface DashboardKpiGridProps {
   editMode: boolean;
   isHidden: (key: string) => boolean;
   onHide: (key: string) => void;
+  // Sparklines (Server Component nodes injectes depuis page.tsx)
+  sparklines?: DashboardSparklines;
 }
 
 export function DashboardKpiGrid({
   projetsActifs,
   contratsActifs,
+  byType,
   nbApprenantsActifs,
   nbFormationsEnCours,
   tauxSaisieTemps,
@@ -65,6 +79,7 @@ export function DashboardKpiGrid({
   editMode,
   isHidden,
   onHide,
+  sparklines,
 }: DashboardKpiGridProps) {
   const renderIfVisible = (key: string, node: React.ReactNode) =>
     isHidden(key) ? null : node;
@@ -83,6 +98,7 @@ export function DashboardKpiGrid({
               label="Projets actifs"
               value={String(projetsActifs)}
               subtitle="en cours de suivi"
+              sparkline={sparklines?.projetsActifs}
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('projetsActifs')}
@@ -93,7 +109,8 @@ export function DashboardKpiGrid({
             <MiniKpiCard
               label="Contrats"
               value={String(contratsActifs)}
-              subtitle="tous projets confondus"
+              subtitle={`dont ${byType.app} APP · ${byType.pdc} PDC · ${byType.poe} POE`}
+              sparkline={sparklines?.contratsActifs}
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('contratsActifs')}

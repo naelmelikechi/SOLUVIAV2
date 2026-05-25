@@ -190,7 +190,7 @@ export function ProspectRow({
               render={
                 <span
                   className={cn(
-                    'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium tabular-nums',
+                    'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap tabular-nums',
                     fresh.className,
                   )}
                 >
@@ -203,7 +203,7 @@ export function ProspectRow({
             </TooltipContent>
           </Tooltip>
         ) : (
-          <span className="text-muted-foreground/40 text-[10px] tabular-nums">
+          <span className="text-muted-foreground/40 px-1 text-[11px] whitespace-nowrap tabular-nums">
             {days !== null ? `${days}j` : ''}
           </span>
         )}

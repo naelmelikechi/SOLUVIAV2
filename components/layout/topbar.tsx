@@ -75,12 +75,12 @@ export function Topbar({
 
   return (
     <header className="border-border bg-card flex h-14 items-center justify-between border-b px-4 md:px-6">
-      {/* Mobile hamburger */}
+      {/* Mobile/tablet hamburger (visible jusqu'a lg=1024px) */}
       {onHamburgerClick && (
         <Button
           variant="ghost"
           size="icon"
-          className="mr-2 md:hidden"
+          className="mr-2 lg:hidden"
           onClick={onHamburgerClick}
           aria-label="Ouvrir le menu"
         >

@@ -34,6 +34,11 @@ interface FacturePaiementsProps {
   date_echeance: string | null;
   factureId?: string;
   montantTtc?: number;
+  // Role courant pour gating de l'action manuelle (push Odoo).
+  // Reserve aux superadmins : ecriture comptable directe dans le livre Odoo.
+  userRole?: string;
+  // Si false, la facture n'a pas d'odoo_id et le push echouerait.
+  odooSynced?: boolean;
 }
 
 export function FacturePaiements({
@@ -42,10 +47,16 @@ export function FacturePaiements({
   date_echeance,
   factureId,
   montantTtc,
+  userRole,
+  odooSynced = true,
 }: FacturePaiementsProps) {
   const isEnRetard = statut === 'en_retard';
   const hasPaiements = paiements.length > 0;
-  const canAddPayment = statut === 'emise' || statut === 'en_retard';
+  const isSuperAdmin = userRole === 'superadmin';
+  const canAddPayment =
+    isSuperAdmin &&
+    odooSynced &&
+    (statut === 'emise' || statut === 'en_retard');
 
   const [showForm, setShowForm] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -169,7 +180,7 @@ export function FacturePaiements({
         <p className="text-muted-foreground text-sm">Aucun paiement reçu</p>
       )}
 
-      {/* Manual payment form */}
+      {/* Manual payment form - superadmin only, push compta Odoo */}
       {canAddPayment && factureId && (
         <div className="pt-2">
           {!showForm ? (
@@ -184,11 +195,19 @@ export function FacturePaiements({
               }}
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Enregistrer un paiement
+              Marquer comme payée (Odoo)
             </Button>
           ) : (
             <div className="border-border space-y-3 rounded-lg border p-4">
-              <p className="text-sm font-medium">Nouveau paiement</p>
+              <p className="text-sm font-medium">
+                Enregistrer le paiement dans Odoo
+              </p>
+              <p className="text-muted-foreground text-xs">
+                Ce paiement sera poussé dans Odoo (account.payment) et lettré à
+                la facture. L&apos;écriture comptable est inscrite immédiatement
+                dans le livre - un retour en arrière nécessite une intervention
+                manuelle dans Odoo (contre-écriture).
+              </p>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-1">
                   <label

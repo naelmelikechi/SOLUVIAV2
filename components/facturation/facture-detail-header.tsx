@@ -9,9 +9,7 @@ import {
   STATUT_FACTURE_LABELS,
   STATUT_FACTURE_COLORS,
 } from '@/lib/utils/constants';
-import { formatDate } from '@/lib/utils/formatters';
-import { format, parseISO } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { formatDate, formatMoisConcerne } from '@/lib/utils/formatters';
 
 interface FactureDetailHeaderProps {
   facture: FactureDetail;
@@ -22,30 +20,7 @@ export function FactureDetailHeader({
   facture,
   avoirRef,
 }: FactureDetailHeaderProps) {
-  let moisCapitalized = '';
-  if (facture.mois_concerne) {
-    // mois_concerne can be ISO date "2025-03-01" or French text "janvier 2025"
-    if (/^\d{4}-\d{2}/.test(facture.mois_concerne)) {
-      try {
-        const dateStr =
-          facture.mois_concerne.length === 7
-            ? facture.mois_concerne + '-01'
-            : facture.mois_concerne;
-        const moisLabel = format(parseISO(dateStr), 'MMMM yyyy', {
-          locale: fr,
-        });
-        moisCapitalized =
-          moisLabel.charAt(0).toUpperCase() + moisLabel.slice(1);
-      } catch {
-        moisCapitalized = facture.mois_concerne;
-      }
-    } else {
-      // Already human-readable (e.g. "janvier 2025")
-      moisCapitalized =
-        facture.mois_concerne.charAt(0).toUpperCase() +
-        facture.mois_concerne.slice(1);
-    }
-  }
+  const moisCapitalized = formatMoisConcerne(facture.mois_concerne);
 
   return (
     <div className="mb-6 space-y-2">

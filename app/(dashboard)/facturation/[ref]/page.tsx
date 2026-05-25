@@ -9,6 +9,7 @@ import {
 } from '@/lib/queries/factures';
 import { getContactsByClientId } from '@/lib/queries/clients';
 import { getEmetteurInfo } from '@/lib/queries/parametres';
+import { getCurrentUser } from '@/lib/queries/users';
 
 export async function generateMetadata({
   params,
@@ -51,6 +52,7 @@ export default async function FactureDetailPage({
     EMETTEUR,
     projetData,
     contacts,
+    currentUser,
   ] = await Promise.all([
     getPaiementsByFactureId(facture.id),
     facture.est_avoir ? Promise.resolve(null) : getAvoirForFacture(facture.id),
@@ -62,6 +64,7 @@ export default async function FactureDetailPage({
       ? getProjetActiveContratsForFacturation(projetId)
       : Promise.resolve(null),
     clientId ? getContactsByClientId(clientId) : Promise.resolve([]),
+    getCurrentUser(),
   ]);
 
   const isBrouillon = facture.statut === 'a_emettre';
@@ -163,6 +166,8 @@ export default async function FactureDetailPage({
         date_echeance={facture.date_echeance}
         factureId={facture.id}
         montantTtc={facture.montant_ttc}
+        userRole={currentUser?.role ?? undefined}
+        odooSynced={Boolean(facture.odoo_id)}
       />
     </div>
   );

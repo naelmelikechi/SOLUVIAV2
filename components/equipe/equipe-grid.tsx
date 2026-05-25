@@ -141,11 +141,11 @@ function MemberCard({ member }: { member: EquipeMember }) {
           name={fullName}
           size={48}
         />
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <p className="text-foreground truncate font-medium">{fullName}</p>
           <a
             href={`mailto:${member.email}`}
-            className="text-muted-foreground hover:text-foreground inline-flex max-w-full items-center gap-1 truncate text-xs transition-colors"
+            className="text-muted-foreground hover:text-foreground flex max-w-full items-center gap-1 truncate text-xs transition-colors"
           >
             <Mail className="h-3 w-3 shrink-0" />
             <span className="truncate">{member.email}</span>
@@ -153,7 +153,7 @@ function MemberCard({ member }: { member: EquipeMember }) {
           {member.telephone && (
             <a
               href={`tel:${member.telephone.replace(/\s+/g, '')}`}
-              className="text-muted-foreground hover:text-foreground mt-0.5 inline-flex items-center gap-1 text-xs transition-colors"
+              className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors"
             >
               <Phone className="h-3 w-3 shrink-0" />
               <span>{member.telephone}</span>

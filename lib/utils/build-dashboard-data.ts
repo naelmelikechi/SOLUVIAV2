@@ -98,7 +98,13 @@ export function buildEvolutionData(
 ): EvolutionRow[] {
   const hasPrevious = Object.keys(previousKpis).length > 0;
 
-  const prevTotalFacture = previousKpis['total_facture_ht'];
+  // Dashboard affiche en TTC. Snapshots TTC depuis 2026-05-24, fallback HT*1.2
+  // pour les mois anterieurs ou seul total_facture_ht etait stocke.
+  const prevTotalFacture =
+    previousKpis['total_facture_ttc'] ??
+    (previousKpis['total_facture_ht'] !== undefined
+      ? previousKpis['total_facture_ht'] * 1.2
+      : undefined);
   const prevTotalEncaisse = previousKpis['total_encaisse'];
   const prevProjetsActifs = previousKpis['projets_actifs'];
   const prevContratsActifs = previousKpis['contrats_actifs'];

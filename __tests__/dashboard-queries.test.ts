@@ -471,7 +471,7 @@ describe('getDashboardFinancials(periode)', () => {
     expect(hasDateFilter).toBe(false);
   });
 
-  it('totalAFacturer somme les montant_prevu_ht des echeances pretes a emettre', async () => {
+  it('totalAFacturer somme les montant_prevu_ht des echeances pretes a emettre converti en TTC (HT*1.2)', async () => {
     const supa = buildSupabase({
       echeances: {
         data: [
@@ -487,7 +487,8 @@ describe('getDashboardFinancials(periode)', () => {
     );
     const { getDashboardFinancials } = await import('@/lib/queries/dashboard');
     const result = await getDashboardFinancials();
-    expect(result.totalAFacturer).toBe(3600.5);
+    // 3600.5 HT * 1.2 = 4320.6 TTC (TVA 20% fixe)
+    expect(result.totalAFacturer).toBe(4320.6);
   });
 
   it('totalAFacturer = 0 quand aucune echeance prete', async () => {

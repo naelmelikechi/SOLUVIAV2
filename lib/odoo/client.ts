@@ -55,6 +55,24 @@ export interface OdooClient {
   pushCreditNote(payload: OdooInvoicePayload): Promise<{ odoo_id: string }>;
   pullPayments(since: string): Promise<OdooPayment[]>;
   pullCancellations(since: string): Promise<OdooCancelledMove[]>;
+  /**
+   * Enregistre un paiement sur une facture posted dans Odoo via le wizard
+   * account.payment.register. Le wizard cree un account.payment, le poste, et
+   * lettre automatiquement avec la facture. Retourne l'id du payment cree.
+   *
+   * Comptablement : ecriture debit Banque / credit Client, avec reconciliation
+   * sur la ligne de la facture. Statut de la facture passe a payment_state=paid
+   * (ou in_payment) cote Odoo.
+   */
+  registerPayment(params: OdooPaymentInput): Promise<{ odoo_id: string }>;
+}
+
+export interface OdooPaymentInput {
+  invoice_odoo_id: string;
+  amount: number;
+  payment_date: string; // YYYY-MM-DD
+  // Communication libre (par defaut : ref de la facture cote Odoo)
+  communication?: string;
 }
 
 const SCOPE = 'odoo.client';
@@ -401,6 +419,147 @@ class OdooJsonRpcClient implements OdooClient {
     return result;
   }
 
+  // -------- Register payment (manual reconciliation) --------
+
+  /**
+   * Cree un paiement client lettre a la facture via le wizard standard Odoo
+   * (account.payment.register). Le wizard se charge de :
+   * - selectionner le journal bancaire de la societe de la facture
+   * - generer l'ecriture comptable (debit Banque / credit Client)
+   * - poster le payment (state=posted)
+   * - lettrer la ligne client de la facture avec celle du payment
+   *
+   * En cas d'erreur Odoo (facture deja payee, etat invalide, journal absent),
+   * une OdooRpcError est levee avec le message Odoo.
+   */
+  async registerPayment(
+    params: OdooPaymentInput,
+  ): Promise<{ odoo_id: string }> {
+    const moveId = Number(params.invoice_odoo_id);
+    if (!Number.isFinite(moveId) || moveId <= 0) {
+      throw new OdooRpcError(
+        `invoice_odoo_id invalide: ${params.invoice_odoo_id}`,
+      );
+    }
+
+    // Verifie que la facture existe et est posted (sinon le wizard refusera)
+    type MoveCheck = {
+      id: number;
+      state: string;
+      payment_state: string;
+      move_type: string;
+      amount_residual: number;
+      name: string | false;
+    };
+    const moves = await this.executeKw<MoveCheck[]>('account.move', 'read', [
+      [moveId],
+      ['id', 'state', 'payment_state', 'move_type', 'amount_residual', 'name'],
+    ]);
+    const move = moves[0];
+    if (!move) {
+      throw new OdooRpcError(`Facture Odoo ${moveId} introuvable`);
+    }
+    if (move.state !== 'posted') {
+      throw new OdooRpcError(
+        `Facture Odoo ${moveId} non posted (state=${move.state}) - impossible d'enregistrer un paiement`,
+      );
+    }
+    if (move.move_type !== 'out_invoice') {
+      throw new OdooRpcError(
+        `Move Odoo ${moveId} n'est pas une facture client (move_type=${move.move_type})`,
+      );
+    }
+    if (move.payment_state === 'paid' || move.payment_state === 'in_payment') {
+      throw new OdooRpcError(
+        `Facture Odoo ${moveId} deja payee (payment_state=${move.payment_state})`,
+      );
+    }
+    if (params.amount > move.amount_residual + 0.01) {
+      throw new OdooRpcError(
+        `Montant ${params.amount} superieur au reste a payer ${move.amount_residual}`,
+      );
+    }
+
+    // Cree le wizard avec active_ids contextualise sur la facture.
+    // Odoo charge alors les default_amount/journal_id/payment_type a partir
+    // de la facture, on ne surcharge que ce qui est necessaire.
+    const communication = params.communication ?? (move.name || undefined);
+    const wizardId = await this.executeKw<number>(
+      'account.payment.register',
+      'create',
+      [
+        {
+          amount: params.amount,
+          payment_date: params.payment_date,
+          ...(communication ? { communication } : {}),
+        },
+      ],
+      {
+        context: {
+          active_model: 'account.move',
+          active_ids: [moveId],
+          active_id: moveId,
+        },
+      },
+    );
+
+    // Declenche la creation effective du payment. action_create_payments
+    // retourne une action dict avec res_id (single) ou domain (multi).
+    type ActionResult =
+      | {
+          res_id?: number;
+          res_ids?: number[];
+          domain?: unknown;
+        }
+      | false;
+    const action = await this.executeKw<ActionResult>(
+      'account.payment.register',
+      'action_create_payments',
+      [[wizardId]],
+    );
+
+    // Recupere l'id du payment cree. Selon Odoo, l'action peut contenir res_id
+    // directement (single payment) ou un domain avec id. On fait un fallback
+    // robuste via account.payment.search_read.
+    let paymentId: number | undefined;
+    if (action && typeof action === 'object') {
+      if (typeof action.res_id === 'number') paymentId = action.res_id;
+      else if (Array.isArray(action.res_ids) && action.res_ids.length > 0) {
+        paymentId = action.res_ids[0];
+      }
+    }
+    if (!paymentId) {
+      // Fallback: recherche le dernier payment lettre a cette facture.
+      const linked = await this.executeKw<Array<{ id: number }>>(
+        'account.payment',
+        'search_read',
+        [
+          [
+            ['reconciled_invoice_ids', 'in', [moveId]],
+            ['state', '=', 'posted'],
+          ],
+        ],
+        { fields: ['id'], order: 'id desc', limit: 1 },
+      );
+      paymentId = linked[0]?.id;
+    }
+    if (!paymentId) {
+      throw new OdooRpcError(
+        `Payment cree mais id introuvable apres action_create_payments (move ${moveId})`,
+      );
+    }
+
+    logger.info(SCOPE, 'Registered payment', {
+      move_id: moveId,
+      payment_id: paymentId,
+      amount: params.amount,
+    });
+
+    // Format coherent avec pullPayments : odoo_id = `${paymentId}-${moveId}`
+    // pour eviter doublons lors du pull suivant (qui upsert sur odoo_id).
+    return { odoo_id: `${paymentId}-${moveId}` };
+  }
+
   // -------- Pull cancellations --------
 
   async pullCancellations(since: string): Promise<OdooCancelledMove[]> {
@@ -479,6 +638,16 @@ function createStubOdooClient(): OdooClient {
     async pullCancellations(since) {
       logger.info(SCOPE, 'pullCancellations (stub)', { since });
       return [];
+    },
+    async registerPayment(params) {
+      const odoo_id = `ODOO-STUB-PAY-${Date.now()}-${params.invoice_odoo_id}`;
+      logger.info(SCOPE, 'registerPayment (stub)', {
+        invoice_odoo_id: params.invoice_odoo_id,
+        amount: params.amount,
+        date: params.payment_date,
+        odoo_id,
+      });
+      return { odoo_id };
     },
   };
 }

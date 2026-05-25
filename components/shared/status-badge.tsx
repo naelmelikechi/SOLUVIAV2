@@ -27,7 +27,7 @@ export function StatusBadge({ label, color, className }: StatusBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
+        'inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap',
         colorStyles[color] || colorStyles.gray,
         className,
       )}

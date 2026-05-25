@@ -10,10 +10,8 @@ import {
 import { PageHeader } from '@/components/shared/page-header';
 import { DashboardPageClient } from '@/components/dashboard/dashboard-page-client';
 import { PeriodSelector } from '@/components/dashboard/period-selector';
-import {
-  resolvePeriode,
-  type PeriodeKey,
-} from '@/lib/utils/dashboard-periode';
+import { Sparkline } from '@/components/shared/sparkline';
+import { resolvePeriode, type PeriodeKey } from '@/lib/utils/dashboard-periode';
 import { format, startOfMonth, addMonths } from 'date-fns';
 
 export const metadata: Metadata = { title: 'Tableau de bord - SOLUVIA' };
@@ -54,6 +52,26 @@ export default async function DashboardPage({
     getUserWeekHours(),
   ]);
 
+  // Sparklines sont des Server Components async : on les instancie ici (Server Component)
+  // et on les passe comme ReactNode au client via la prop sparklines.
+  const sparklines = {
+    projetsActifs: (
+      <Sparkline kpiType="projets_actifs" scope="global" color="blue" />
+    ),
+    contratsActifs: (
+      <Sparkline kpiType="contrats_actifs" scope="global" color="blue" />
+    ),
+    nbApprenantsActifs: (
+      <Sparkline kpiType="nb_apprenants_actifs" scope="global" color="blue" />
+    ),
+    nbFormationsEnCours: (
+      <Sparkline kpiType="nb_formations_en_cours" scope="global" color="blue" />
+    ),
+    tauxSaisieTemps: (
+      <Sparkline kpiType="taux_saisie_temps" scope="global" color="blue" />
+    ),
+  };
+
   return (
     <div>
       <PageHeader
@@ -70,6 +88,7 @@ export default async function DashboardPage({
         invoiceBreakdown={invoiceBreakdown}
         weekHours={weekHours}
         periode={periode}
+        sparklines={sparklines}
       />
     </div>
   );

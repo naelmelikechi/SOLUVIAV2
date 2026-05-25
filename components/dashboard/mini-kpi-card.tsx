@@ -6,6 +6,7 @@ export interface MiniKpiCardProps {
   label: string;
   value: string;
   subtitle?: string;
+  sparkline?: React.ReactNode;
   href?: string;
   editMode?: boolean;
   onHide?: () => void;
@@ -15,6 +16,7 @@ export function MiniKpiCard({
   label,
   value,
   subtitle,
+  sparkline,
   href,
   editMode,
   onHide,
@@ -30,6 +32,7 @@ export function MiniKpiCard({
           {subtitle}
         </div>
       )}
+      {sparkline && <div className="mt-2">{sparkline}</div>}
     </>
   );
 

@@ -26,10 +26,20 @@ import type {
 import type { EvolutionRow } from '@/lib/utils/build-dashboard-data';
 import { handleExportExcel } from '@/lib/utils/build-dashboard-data';
 
+// Sparkline nodes rendus cote serveur et passes en prop (composition pattern Next.js App Router).
+export interface DashboardSparklines {
+  projetsActifs?: React.ReactNode;
+  contratsActifs?: React.ReactNode;
+  nbApprenantsActifs?: React.ReactNode;
+  nbFormationsEnCours?: React.ReactNode;
+  tauxSaisieTemps?: React.ReactNode;
+}
+
 interface DashboardKpiGridProps {
   // Activite operationnelle
   projetsActifs: number;
   contratsActifs: number;
+  byType: { app: number; pdc: number; poe: number };
   nbApprenantsActifs: number;
   nbFormationsEnCours: number;
   tauxSaisieTemps: number;
@@ -47,11 +57,14 @@ interface DashboardKpiGridProps {
   editMode: boolean;
   isHidden: (key: string) => boolean;
   onHide: (key: string) => void;
+  // Sparklines (Server Component nodes injectes depuis page.tsx)
+  sparklines?: DashboardSparklines;
 }
 
 export function DashboardKpiGrid({
   projetsActifs,
   contratsActifs,
+  byType,
   nbApprenantsActifs,
   nbFormationsEnCours,
   tauxSaisieTemps,
@@ -65,6 +78,7 @@ export function DashboardKpiGrid({
   editMode,
   isHidden,
   onHide,
+  sparklines,
 }: DashboardKpiGridProps) {
   const renderIfVisible = (key: string, node: React.ReactNode) =>
     isHidden(key) ? null : node;
@@ -83,6 +97,7 @@ export function DashboardKpiGrid({
               label="Projets actifs"
               value={String(projetsActifs)}
               subtitle="en cours de suivi"
+              sparkline={sparklines?.projetsActifs}
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('projetsActifs')}
@@ -93,7 +108,8 @@ export function DashboardKpiGrid({
             <MiniKpiCard
               label="Contrats"
               value={String(contratsActifs)}
-              subtitle="tous projets confondus"
+              subtitle={`dont ${byType.app} APP · ${byType.pdc} PDC · ${byType.poe} POE`}
+              sparkline={sparklines?.contratsActifs}
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('contratsActifs')}
@@ -105,6 +121,7 @@ export function DashboardKpiGrid({
               label="Apprenants"
               value={String(nbApprenantsActifs)}
               subtitle="contrats en cours"
+              sparkline={sparklines?.nbApprenantsActifs}
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('apprenantsActifs')}
@@ -116,6 +133,7 @@ export function DashboardKpiGrid({
               label="Formations"
               value={String(nbFormationsEnCours)}
               subtitle="en cours (Eduvia)"
+              sparkline={sparklines?.nbFormationsEnCours}
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('formationsEnCours')}
@@ -127,6 +145,7 @@ export function DashboardKpiGrid({
               label="Saisie temps"
               value={`${tauxSaisieTemps}%`}
               subtitle="moyenne équipe"
+              sparkline={sparklines?.tauxSaisieTemps}
               href="/temps"
               editMode={editMode}
               onHide={() => onHide('tauxSaisieTemps')}

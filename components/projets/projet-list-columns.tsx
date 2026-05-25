@@ -130,7 +130,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
     accessorKey: 'apprentisActifs',
     meta: { label: 'Apprentis actifs' },
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Apprentis" />
+      <DataTableColumnHeader column={column} title="Apprentis actifs" />
     ),
     cell: ({ row }) => (
       <span className="text-sm tabular-nums">

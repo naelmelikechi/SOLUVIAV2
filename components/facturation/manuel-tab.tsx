@@ -299,7 +299,21 @@ export function ManuelTab({ projets }: ManuelTabProps) {
               }}
             >
               <SelectTrigger className="min-w-[280px]">
-                <SelectValue placeholder="Sélectionner un projet" />
+                <SelectValue placeholder="Sélectionner un projet">
+                  {(value) => {
+                    const p = projets.find((x) => x.projetId === value);
+                    if (!p) return 'Sélectionner un projet';
+                    return (
+                      <>
+                        <span className="font-mono text-xs">{p.projetRef}</span>
+                        <span className="text-muted-foreground">
+                          {' '}
+                          {NDASH} {p.clientRaisonSociale}
+                        </span>
+                      </>
+                    );
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {projets.map((p) => (

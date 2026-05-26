@@ -176,7 +176,7 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
                 );
               })
             ) : (
-              <TableRow>
+              <TableRow className="border-b-0 hover:bg-transparent">
                 <TableCell
                   colSpan={6}
                   className="text-muted-foreground h-24 text-center"

@@ -32,10 +32,23 @@ const odooMock = {
   pullPayments: vi.fn(),
   pullCancellations: vi.fn(),
   registerPayment: vi.fn(),
+  attachInvoicePdf: vi.fn(async () => ({ attachment_id: null, skipped: true })),
+  pushAnalyticLineForMove: vi.fn(async () => ({
+    analytic_line_odoo_id: null,
+    skipped: true,
+    reason: 'mocked',
+  })),
 };
 
 vi.mock('@/lib/odoo/client', () => ({
   createOdooClient: () => odooMock,
+}));
+
+// Stub l'attache PDF : depend de @react-pdf/renderer + server-only qui ne sont
+// pas chargeables sous vitest (node). On testera l'idempotence du push, pas
+// le rendu PDF (best-effort, deja log + non bloquant).
+vi.mock('@/lib/odoo/attach-pdf', () => ({
+  pushFacturePdfToOdoo: vi.fn(async () => ({ ok: true, skipped: true })),
 }));
 
 // --- Supabase mock chainable -------------------------------------------------

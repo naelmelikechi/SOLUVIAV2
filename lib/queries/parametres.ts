@@ -92,7 +92,7 @@ export interface EmetteurInfo {
   titulaire_compte?: string | null;
 }
 
-const EMETTEUR_FALLBACK: EmetteurInfo = {
+export const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA',
   adresse: '27 Rue Jacqueline Cochran, 79000 Niort',
   siret: '994 241 537 00012',

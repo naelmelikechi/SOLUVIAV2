@@ -71,6 +71,46 @@ export interface OdooClient {
    * (ou in_payment) cote Odoo.
    */
   registerPayment(params: OdooPaymentInput): Promise<{ odoo_id: string }>;
+  /**
+   * Attache un PDF (ex: facture rendue cote Soluvia) a un account.move Odoo
+   * via ir.attachment. Idempotent : skip si une attachment du meme name existe
+   * deja sur ce move. Retourne attachmentId ou null si skipped.
+   */
+  attachInvoicePdf(params: OdooAttachmentInput): Promise<{
+    attachment_id: number | null;
+    skipped: boolean;
+  }>;
+  /**
+   * Crée une account.analytic.line sur le compte analytique identifié par
+   * `code_analytique`. Synergie #1 : ventile le CA d'émission par projet/société
+   * pour que FINANCES-WISEMANH y voie le réel sans saisie manuelle.
+   *
+   * Retourne {analytic_line_odoo_id: null, skipped: true} si le code analytique
+   * n'existe pas côté Odoo (l'appelant log et continue, pas d'erreur fatale).
+   */
+  pushAnalyticLineForMove(
+    params: OdooAnalyticLineInput,
+  ): Promise<{
+    analytic_line_odoo_id: number | null;
+    skipped: boolean;
+    reason?: string;
+  }>;
+}
+
+export interface OdooAttachmentInput {
+  move_odoo_id: string;
+  name: string; // ex. "FAC-SOL-0042.pdf"
+  pdf_base64: string;
+  company_id?: number | null;
+}
+
+export interface OdooAnalyticLineInput {
+  code_analytique: string; // ex. "41.01"
+  amount: number; // signé : positif = recette (out_invoice), négatif = dépense
+  date: string; // YYYY-MM-DD
+  name: string; // libellé visible Odoo, ex "[SOLUVIA-AUTO] FAC-SOL-0042 - ligne 1"
+  company_id?: number | null;
+  partner_id?: number | null;
 }
 
 export interface OdooPaymentInput {
@@ -402,6 +442,113 @@ class OdooJsonRpcClient implements OdooClient {
     return this.pushMove({ ...payload, is_credit_note: true });
   }
 
+  // -------- Attach invoice PDF (ir.attachment) --------
+
+  async attachInvoicePdf(params: OdooAttachmentInput): Promise<{
+    attachment_id: number | null;
+    skipped: boolean;
+  }> {
+    const moveId = Number(params.move_odoo_id);
+    if (!Number.isFinite(moveId)) {
+      throw new OdooRpcError(
+        `attachInvoicePdf: move_odoo_id invalide (${params.move_odoo_id})`,
+      );
+    }
+
+    // Idempotence : skip si une attachment du meme name existe deja sur ce
+    // move. Necessaire car le sync peut re-tourner (ex: retry apres erreur
+    // partielle) et on ne veut pas accumuler des doublons cote Odoo.
+    const existingDomain: unknown[] = [
+      ['res_model', '=', 'account.move'],
+      ['res_id', '=', moveId],
+      ['name', '=', params.name],
+    ];
+    const existing = await this.executeKw<number[]>(
+      'ir.attachment',
+      'search',
+      [existingDomain],
+      { limit: 1 },
+    );
+    if (existing.length > 0) {
+      return { attachment_id: existing[0] ?? null, skipped: true };
+    }
+
+    const vals: Record<string, unknown> = {
+      name: params.name,
+      res_model: 'account.move',
+      res_id: moveId,
+      type: 'binary',
+      datas: params.pdf_base64,
+      mimetype: 'application/pdf',
+    };
+    if (params.company_id) vals.company_id = params.company_id;
+
+    const attachmentId = await this.executeKw<number>(
+      'ir.attachment',
+      'create',
+      [vals],
+    );
+    logger.info(SCOPE, 'Attached invoice PDF', {
+      move_odoo_id: moveId,
+      attachment_id: attachmentId,
+      name: params.name,
+    });
+    return { attachment_id: attachmentId, skipped: false };
+  }
+
+  // -------- Push analytic line --------
+
+  async pushAnalyticLineForMove(params: OdooAnalyticLineInput): Promise<{
+    analytic_line_odoo_id: number | null;
+    skipped: boolean;
+    reason?: string;
+  }> {
+    // Lookup compte analytique par code. Si absent, skip non-bloquant : le
+    // user doit créer le compte côté Odoo (ou FINANCES-WISEMANH) puis le
+    // sync suivant repassera.
+    const accountDomain: unknown[] = [['code', '=', params.code_analytique]];
+    if (params.company_id) {
+      // Compte de la company OU global (company_id=false : compte partagé)
+      accountDomain.push('|');
+      accountDomain.push(['company_id', '=', params.company_id]);
+      accountDomain.push(['company_id', '=', false]);
+    }
+    const accountIds = await this.executeKw<number[]>(
+      'account.analytic.account',
+      'search',
+      [accountDomain],
+      { limit: 1 },
+    );
+    const accountId = accountIds[0];
+    if (!accountId) {
+      return {
+        analytic_line_odoo_id: null,
+        skipped: true,
+        reason: `account.analytic.account code=${params.code_analytique} introuvable`,
+      };
+    }
+
+    const vals: Record<string, unknown> = {
+      account_id: accountId,
+      date: params.date,
+      name: params.name,
+      amount: params.amount,
+    };
+    if (params.company_id) vals.company_id = params.company_id;
+    if (params.partner_id) vals.partner_id = params.partner_id;
+
+    const id = await this.executeKw<number>('account.analytic.line', 'create', [
+      vals,
+    ]);
+    logger.info(SCOPE, 'Pushed analytic line', {
+      analytic_line_odoo_id: id,
+      account_id: accountId,
+      code: params.code_analytique,
+      amount: params.amount,
+    });
+    return { analytic_line_odoo_id: id, skipped: false };
+  }
+
   // -------- Pull payments --------
 
   async pullPayments(since: string): Promise<OdooPayment[]> {
@@ -668,6 +815,20 @@ function createStubOdooClient(): OdooClient {
         odoo_id,
       });
       return { odoo_id };
+    },
+    async attachInvoicePdf(params) {
+      logger.info(SCOPE, 'attachInvoicePdf (stub)', {
+        move_odoo_id: params.move_odoo_id,
+        name: params.name,
+      });
+      return { attachment_id: null, skipped: true };
+    },
+    async pushAnalyticLineForMove(params) {
+      logger.info(SCOPE, 'pushAnalyticLineForMove (stub)', {
+        code: params.code_analytique,
+        amount: params.amount,
+      });
+      return { analytic_line_odoo_id: null, skipped: true, reason: 'stub' };
     },
   };
 }

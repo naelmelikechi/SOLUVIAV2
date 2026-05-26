@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createOdooClient } from '@/lib/odoo/client';
 import type { OdooInvoicePayload } from '@/lib/odoo/client';
+import { pushFacturePdfToOdoo } from '@/lib/odoo/attach-pdf';
 import { logger } from '@/lib/utils/logger';
 
 const SCOPE = 'odoo.sync';
@@ -57,7 +58,8 @@ async function pushFactures(
       montant_ht, montant_ttc, taux_tva,
       client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo),
       societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id),
-      lignes:facture_lignes(description, montant_ht)
+      projet:projets!factures_projet_id_fkey(code_analytique),
+      lignes:facture_lignes(id, description, montant_ht, analytic_line_odoo_id)
     `,
     )
     .is('odoo_id', null)
@@ -88,12 +90,19 @@ async function pushFactures(
         odoo_journal_id: number | null;
       } | null;
 
-      const lines = (
+      const projet = f.projet as unknown as {
+        code_analytique: string | null;
+      } | null;
+
+      const rawLignes =
         (f.lignes as unknown as Array<{
+          id: string;
           description: string;
           montant_ht: number;
-        }>) ?? []
-      ).map((l) => ({
+          analytic_line_odoo_id: string | null;
+        }>) ?? [];
+
+      const lines = rawLignes.map((l) => ({
         description: l.description,
         quantity: 1,
         price_unit: Number(l.montant_ht),
@@ -147,6 +156,68 @@ async function pushFactures(
         payload,
       });
       pushed++;
+
+      // Best-effort : attache le PDF facture genere par Soluvia au account.move
+      // Odoo via ir.attachment. La compta voit le PDF Soluvia (avec RIB,
+      // mentions legales) directement dans Odoo, sans avoir a aller dans
+      // l'email Resend. Echec ici = log mais le push facture est considere
+      // OK (le bonus PDF est secondaire).
+      try {
+        const pdfRes = await pushFacturePdfToOdoo(supabase, odoo, f.id);
+        if (!pdfRes.ok) {
+          logger.warn(SCOPE, 'Attach PDF failed (non bloquant)', {
+            facture_id: f.id,
+            ref: f.ref,
+            error: pdfRes.error,
+          });
+        }
+      } catch (err) {
+        logger.warn(SCOPE, 'Attach PDF exception (non bloquant)', {
+          facture_id: f.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+
+      // Synergie #1 : push analytic line par ligne facture si le projet a un
+      // code_analytique configure. Best-effort, non bloquant. Idempotence via
+      // facture_lignes.analytic_line_odoo_id (skip si deja pousse).
+      const codeAna = projet?.code_analytique;
+      if (codeAna) {
+        for (const l of rawLignes) {
+          if (l.analytic_line_odoo_id) continue; // deja pousse
+          try {
+            const r = await odoo.pushAnalyticLineForMove({
+              code_analytique: codeAna,
+              amount: Number(l.montant_ht), // positif pour out_invoice (recette)
+              date: f.date_emission ?? '',
+              name: `[SOLUVIA-AUTO] ${f.ref} - ${l.description.slice(0, 60)}`,
+              company_id: societe?.odoo_company_id ?? null,
+            });
+            if (r.skipped) {
+              logger.warn(SCOPE, 'Analytic line skipped', {
+                facture_id: f.id,
+                ligne_id: l.id,
+                reason: r.reason,
+              });
+              continue;
+            }
+            if (r.analytic_line_odoo_id !== null) {
+              await supabase
+                .from('facture_lignes')
+                .update({
+                  analytic_line_odoo_id: String(r.analytic_line_odoo_id),
+                })
+                .eq('id', l.id);
+            }
+          } catch (err) {
+            logger.warn(SCOPE, 'Push analytic line failed (non bloquant)', {
+              facture_id: f.id,
+              ligne_id: l.id,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(SCOPE, `Push facture failed: ${f.ref}`, { error: err });
@@ -273,6 +344,22 @@ async function pushAvoirs(
         payload,
       });
       pushed++;
+
+      try {
+        const pdfRes = await pushFacturePdfToOdoo(supabase, odoo, a.id);
+        if (!pdfRes.ok) {
+          logger.warn(SCOPE, 'Attach PDF (avoir) failed (non bloquant)', {
+            avoir_id: a.id,
+            ref: a.ref,
+            error: pdfRes.error,
+          });
+        }
+      } catch (err) {
+        logger.warn(SCOPE, 'Attach PDF (avoir) exception (non bloquant)', {
+          avoir_id: a.id,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(SCOPE, `Push avoir failed: ${a.ref}`, { error: err });

@@ -62,11 +62,11 @@ Générer le token : `openssl rand -hex 32`.
 2. Migration SOLUVIA : `20260526120200_bank_lines_mirror.sql` (auto via supabase db push).
 3. Le cron FINANCES `/api/cron/mirror-bank-to-soluvia` tourne à H+15min après la
    sync Odoo (Phase A doit finir avant pour avoir les nouvelles bank_lines).
-4. Côté SOLUVIA, l'UI MarquerPayeeDialog peut consommer
-   `GET /api/factures/<ref>/bank-line-suggestions` pour afficher les
-   suggestions. **Note** : intégration UI à compléter dans un second temps
-   (l'API est livrée, le composant existant doit être étendu pour fetch
-   les suggestions et les afficher en haut du dialog).
+4. Côté SOLUVIA, l'UI consomme déjà
+   `GET /api/factures/<ref>/bank-line-suggestions` via `FacturePaiements`
+   (composant intégré au détail facture). Le form "Marquer comme payée"
+   affiche les lignes bancaires correspondantes ; un clic pré-remplit
+   date + montant.
 
 ### Vérif
 
@@ -219,5 +219,5 @@ doit contenir `FAC-XXX.pdf`.
    `/admin/parametres/societes-emettrices`. Foundation pour #1 et #5.
 3. **#5** : run le script en dry-run, puis `--apply`.
 4. **#1** : remplir `projets.code_analytique` après création des comptes analytiques Odoo.
-5. **#2** : env vars + intégration UI MarquerPayeeDialog (à compléter).
+5. **#2** : env vars (UI déjà branchée sur `FacturePaiements`).
 6. **#4** : env vars + automation rule Odoo (action la plus délicate).

@@ -171,13 +171,13 @@ async function upsertReconcileModelForSociete(
     };
   }
 
-  // rule_type 'invoice_matching' : Odoo cherche une facture ouverte dont
-  // le ref/communication contient le pattern + montant proche.
-  // match_label_param accepte le regex, match_label='match_regex' l'active.
+  // Odoo 19 : `rule_type` remplace par `trigger` (manual / auto_reconcile).
+  // On reste sur 'manual' = suggestion validee par la compta (pas auto-post).
+  // match_label='match_regex' + match_label_param=<regex> active le matching
+  // par expression reguliere sur le libelle bancaire (payment_ref).
   const vals: Record<string, unknown> = {
     name,
-    rule_type: 'invoice_matching',
-    auto_reconcile: false, // suggestion seulement, pas auto (compta valide)
+    trigger: 'manual',
     match_label: 'match_regex',
     match_label_param: regex,
     company_id: s.odoo_company_id,

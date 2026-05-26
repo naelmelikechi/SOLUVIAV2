@@ -22,6 +22,12 @@ export interface OdooInvoicePayload {
   // Utilise pour les clients de demo (clients.is_demo = true) afin que les
   // factures de test n entrent pas dans les livres comptables.
   is_draft?: boolean;
+  // Multi-societes : id Odoo de la company emettrice (res.company.id) et
+  // journal de vente associe (account.journal.id). Si NULL, Odoo retombe sur
+  // la company par defaut du user technique, ce qui melange les comptabilites
+  // quand le tenant heberge plusieurs societes (SOLUVIA, EDUVIA, HEOL).
+  odoo_company_id?: number | null;
+  odoo_journal_id?: number | null;
 }
 
 export interface OdooPayment {
@@ -256,22 +262,27 @@ class OdooJsonRpcClient implements OdooClient {
     return created;
   }
 
-  private async findSaleTax(rate: number): Promise<number | null> {
-    if (rate === 20 && this.taxId20 !== null) return this.taxId20;
+  private async findSaleTax(
+    rate: number,
+    companyId?: number | null,
+  ): Promise<number | null> {
+    // Cache du tax id 20% uniquement quand pas de scope company, sinon le
+    // cache renverrait la mauvaise taxe pour une autre company.
+    if (rate === 20 && !companyId && this.taxId20 !== null) return this.taxId20;
+    const domain: unknown[] = [
+      ['type_tax_use', '=', 'sale'],
+      ['amount', '=', rate],
+      ['amount_type', '=', 'percent'],
+    ];
+    if (companyId) domain.push(['company_id', '=', companyId]);
     const ids = await this.executeKw<number[]>(
       'account.tax',
       'search',
-      [
-        [
-          ['type_tax_use', '=', 'sale'],
-          ['amount', '=', rate],
-          ['amount_type', '=', 'percent'],
-        ],
-      ],
+      [domain],
       { limit: 1 },
     );
     const id = ids[0] ?? null;
-    if (rate === 20 && id !== null) this.taxId20 = id;
+    if (rate === 20 && !companyId && id !== null) this.taxId20 = id;
     return id;
   }
 
@@ -286,10 +297,13 @@ class OdooJsonRpcClient implements OdooClient {
       payload.partner_vat,
     );
 
-    const taxId = await this.findSaleTax(payload.taux_tva);
+    const companyId = payload.odoo_company_id ?? null;
+    const journalId = payload.odoo_journal_id ?? null;
+
+    const taxId = await this.findSaleTax(payload.taux_tva, companyId);
     if (payload.taux_tva > 0 && taxId === null) {
       throw new OdooRpcError(
-        `Aucune taxe de vente "${payload.taux_tva}%" trouvee dans Odoo. Configurez le taux dans Comptabilite > Configuration > Taxes avant de re-pousser la facture ${payload.ref}.`,
+        `Aucune taxe de vente "${payload.taux_tva}%" trouvee dans Odoo${companyId ? ` pour la company ${companyId}` : ''}. Configurez le taux dans Comptabilite > Configuration > Taxes avant de re-pousser la facture ${payload.ref}.`,
       );
     }
     const taxIdsCmd: unknown[] = taxId ? [[6, 0, [taxId]]] : [[5]];
@@ -300,16 +314,18 @@ class OdooJsonRpcClient implements OdooClient {
     // Sans cette recherche, un echec de action_post apres create laissait un
     // draft cote Odoo dont l'odoo_id n'etait pas sauve cote Soluvia, et le
     // run suivant recreait un doublon draft.
+    // Scope par company_id : deux societes peuvent avoir des refs identiques
+    // (FAC-EDU-0001 vs FAC-SOL-0001 ne collisionnent pas mais FAC-001 oui).
+    const existingDomain: unknown[] = [
+      ['ref', '=', payload.ref],
+      ['move_type', '=', moveType],
+    ];
+    if (companyId) existingDomain.push(['company_id', '=', companyId]);
     type ExistingMove = { id: number; state: string };
     const existing = await this.executeKw<ExistingMove[]>(
       'account.move',
       'search_read',
-      [
-        [
-          ['ref', '=', payload.ref],
-          ['move_type', '=', moveType],
-        ],
-      ],
+      [existingDomain],
       { fields: ['id', 'state'], limit: 1 },
     );
     const existingMove = existing[0];
@@ -341,15 +357,19 @@ class OdooJsonRpcClient implements OdooClient {
         },
       ]);
 
+      const moveVals: Record<string, unknown> = {
+        move_type: moveType,
+        partner_id: partnerId,
+        invoice_date: payload.date_invoice,
+        invoice_date_due: payload.date_due,
+        ref: payload.ref,
+        invoice_line_ids: lineIds,
+      };
+      if (companyId) moveVals.company_id = companyId;
+      if (journalId) moveVals.journal_id = journalId;
+
       moveId = await this.executeKw<number>('account.move', 'create', [
-        {
-          move_type: moveType,
-          partner_id: partnerId,
-          invoice_date: payload.date_invoice,
-          invoice_date_due: payload.date_due,
-          ref: payload.ref,
-          invoice_line_ids: lineIds,
-        },
+        moveVals,
       ]);
 
       // Post the invoice (draft -> posted) sauf si is_draft (mode demo)

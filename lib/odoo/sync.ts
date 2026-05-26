@@ -56,6 +56,7 @@ async function pushFactures(
       id, ref, date_emission, date_echeance, est_avoir,
       montant_ht, montant_ttc, taux_tva,
       client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo),
+      societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id),
       lignes:facture_lignes(description, montant_ht)
     `,
     )
@@ -82,6 +83,11 @@ async function pushFactures(
         is_demo: boolean | null;
       } | null;
 
+      const societe = f.societe as unknown as {
+        odoo_company_id: number | null;
+        odoo_journal_id: number | null;
+      } | null;
+
       const lines = (
         (f.lignes as unknown as Array<{
           description: string;
@@ -104,6 +110,8 @@ async function pushFactures(
         lines,
         is_credit_note: false,
         is_draft: client?.is_demo === true,
+        odoo_company_id: societe?.odoo_company_id ?? null,
+        odoo_journal_id: societe?.odoo_journal_id ?? null,
       };
 
       const result = await odoo.pushInvoice(payload);
@@ -172,6 +180,7 @@ async function pushAvoirs(
       id, ref, date_emission, date_echeance,
       montant_ht, montant_ttc, taux_tva,
       client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo),
+      societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id),
       lignes:facture_lignes(description, montant_ht)
     `,
     )
@@ -195,6 +204,11 @@ async function pushAvoirs(
         raison_sociale: string | null;
         tva_intracommunautaire: string | null;
         is_demo: boolean | null;
+      } | null;
+
+      const societe = a.societe as unknown as {
+        odoo_company_id: number | null;
+        odoo_journal_id: number | null;
       } | null;
 
       // Sur un out_refund Odoo, les price_unit doivent etre POSITIFS.
@@ -223,6 +237,8 @@ async function pushAvoirs(
         lines,
         is_credit_note: true,
         is_draft: client?.is_demo === true,
+        odoo_company_id: societe?.odoo_company_id ?? null,
+        odoo_journal_id: societe?.odoo_journal_id ?? null,
       };
 
       const result = await odoo.pushCreditNote(payload);

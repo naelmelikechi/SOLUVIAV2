@@ -318,6 +318,8 @@ export async function syncEduviaForClient(
               contract.practical_training_start_date,
             creation_mode: contract.creation_mode,
             npec_amount: contract.npec_amount,
+            support: contract.support != null ? Number(contract.support) : null,
+            support_first_equipment: contract.support_first_equipment,
             referrer_name: contract.referrer_name,
             referrer_amount: contract.referrer_amount,
             referrer_type: contract.referrer_type,

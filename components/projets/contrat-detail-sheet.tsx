@@ -284,10 +284,30 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
                   }
                 />
                 <Row
-                  label="Prise en charge OPCO"
+                  label="Prise en charge OPCO (NPEC)"
                   value={formatCurrency(data.contrat.npec_amount ?? 0)}
                   mono
                 />
+                {data.contrat.support != null &&
+                data.contrat.npec_amount != null &&
+                Number(data.contrat.support) !==
+                  Number(data.contrat.npec_amount) ? (
+                  <Row
+                    label="Support réel OPCO"
+                    value={formatCurrency(Number(data.contrat.support))}
+                    mono
+                  />
+                ) : null}
+                {data.contrat.support_first_equipment != null &&
+                Number(data.contrat.support_first_equipment) > 0 ? (
+                  <Row
+                    label="Premier équipement"
+                    value={formatCurrency(
+                      Number(data.contrat.support_first_equipment),
+                    )}
+                    mono
+                  />
+                ) : null}
                 <Row
                   label="Apporteur"
                   value={

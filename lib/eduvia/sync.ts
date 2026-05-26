@@ -40,6 +40,8 @@ export interface SyncClientResult {
   invoice_steps: number;
   invoice_forecast_steps: number;
   invoice_lines: number;
+  /** Contrats archivés ce run parce que /contracts ne les renvoie plus (fantômes Eduvia). */
+  contrats_archived_orphan: number;
   errors: string[];
 }
 
@@ -75,6 +77,7 @@ export async function syncEduviaForClient(
     invoice_steps: 0,
     invoice_forecast_steps: 0,
     invoice_lines: 0,
+    contrats_archived_orphan: 0,
     errors: [],
   };
 
@@ -367,6 +370,56 @@ export async function syncEduviaForClient(
           `Contrat eduvia_id=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
+    }
+
+    // ── Orphan cleanup : contrats supprimes cote Eduvia (HTTP 404) ─────
+    // L'API Eduvia ne notifie pas les suppressions, on les detecte en
+    // comparant la liste des eduvia_id renvoyee par /contracts avec ce que
+    // nous avons en DB pour ce source_client_id. Les manquants sont des
+    // fantomes (ex : brouillon NOTSENT supprime cote Eduvia, doublon).
+    //
+    // Garde-fou anti-wipe : si l'API renvoie 0 contrat alors qu'on en a en
+    // DB, c'est presque toujours une panne API transitoire. Sans cette
+    // protection on archiverait toute la base au prochain run.
+    if (contracts.length > 0) {
+      const apiEduviaIds = new Set(contracts.map((c) => c.id));
+      // Note: contrats.eduvia_id est NOT NULL en DB, donc pas besoin de
+      // filtrer les NULL ici.
+      const { data: dbContrats } = await supabase
+        .from('contrats')
+        .select('id, eduvia_id, ref')
+        .eq('source_client_id', clientId)
+        .eq('archive', false);
+
+      const orphans = (dbContrats ?? []).filter(
+        (c) => c.eduvia_id != null && !apiEduviaIds.has(c.eduvia_id),
+      );
+
+      for (const orphan of orphans) {
+        const { error: archiveError } = await supabase
+          .from('contrats')
+          .update({ archive: true, deleted_in_eduvia_at: now })
+          .eq('id', orphan.id);
+        if (archiveError) {
+          result.errors.push(
+            `Archive orphan contrat ${orphan.ref ?? orphan.id}: ${archiveError.message}`,
+          );
+        } else {
+          result.contrats_archived_orphan++;
+          logger.info('eduvia_sync', 'contrat fantome archive', {
+            clientId,
+            contratId: orphan.id,
+            ref: orphan.ref,
+            eduviaId: orphan.eduvia_id,
+          });
+        }
+      }
+    } else {
+      logger.warn(
+        'eduvia_sync',
+        'API contracts vide, orphan cleanup ignore (anti-wipe)',
+        { clientId },
+      );
     }
 
     // ── Detection ajustements (NPEC / rupture) post-upsert ─────────────
@@ -783,6 +836,7 @@ export async function syncAllEduviaClients(
           invoice_steps: 0,
           invoice_forecast_steps: 0,
           invoice_lines: 0,
+          contrats_archived_orphan: 0,
           errors: [
             'Cle API non dechiffrable (ENCRYPTION_KEY manquante ou cle stockee en clair). Recreez la cle pour la reactiver.',
           ],
@@ -810,6 +864,7 @@ export async function syncAllEduviaClients(
           invoice_steps: clientResult.invoice_steps,
           invoice_forecast_steps: clientResult.invoice_forecast_steps,
           invoice_lines: clientResult.invoice_lines,
+          contrats_archived_orphan: clientResult.contrats_archived_orphan,
         });
       }
 
@@ -830,6 +885,7 @@ export async function syncAllEduviaClients(
         invoice_steps: clientResult.invoice_steps,
         invoice_forecast_steps: clientResult.invoice_forecast_steps,
         invoice_lines: clientResult.invoice_lines,
+        contrats_archived_orphan: clientResult.contrats_archived_orphan,
       });
     } catch (err) {
       syncResult.skippedClients++;

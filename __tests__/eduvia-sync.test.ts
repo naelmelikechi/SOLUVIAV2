@@ -628,6 +628,146 @@ describe('syncAllEduviaClients — orchestrateur', () => {
 // Limites documentées (tests skipped)
 // ---------------------------------------------------------------------------
 
+describe('syncEduviaForClient — orphan cleanup contrats', () => {
+  it('archive le contrat present en DB mais absent de /contracts (fantome Eduvia)', async () => {
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+
+    // API renvoie un seul contrat (id=10). En DB on en a deux :
+    // - id=10 (encore vivant cote Eduvia, sera upserté)
+    // - id=99 (orphelin : disparu cote Eduvia → doit être archivé)
+    fetchAllPagesMock.mockImplementation((_url, _key, resource: string) => {
+      if (resource === 'contracts') {
+        return Promise.resolve([
+          {
+            id: 10,
+            employee_id: 1,
+            company_id: 1,
+            formation_id: 1,
+            teacher_id: null,
+            campus_id: 1,
+            contract_number: 'C-10',
+            internal_number: null,
+            contract_type: 11,
+            contract_mode: 23,
+            contract_state: 'ENGAGE',
+            contract_start_date: '2026-01-01',
+            contract_end_date: '2027-01-01',
+            contract_conclusion_date: null,
+            practical_training_start_date: null,
+            creation_mode: 'API',
+            support: null,
+            support_first_equipment: null,
+            npec_amount: 1000,
+            referrer_name: null,
+            referrer_amount: null,
+            referrer_type: 'NONE',
+            accepted_at: null,
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    // 2 selects sur 'contrats' surviennent dans cet ordre :
+    //   1) existingContrats (filtre .in eduvia_id) → utilisé pour npec/rupture diff
+    //   2) orphan lookup    (filtre archive=false + not eduvia_id is null)
+    //   3) progressions     (filtre .in eduvia_id) → mapping uuid
+    // On distingue par compteur d'appels select.
+    let contratsSelectCall = 0;
+    const { client, ops } = buildSupabase({
+      projets: projetsRule(),
+      contrats: {
+        select: () => {
+          contratsSelectCall++;
+          if (contratsSelectCall === 2) {
+            // orphan lookup : on a un contrat id=99 qui n'est pas dans l'API
+            return {
+              data: [
+                {
+                  id: 'uuid-orphan-99',
+                  eduvia_id: 99,
+                  ref: 'CTR-99',
+                },
+                // id=10 est aussi en DB mais il est dans la liste API → pas orphelin
+                {
+                  id: 'uuid-alive-10',
+                  eduvia_id: 10,
+                  ref: 'CTR-10',
+                },
+              ],
+              error: null,
+            };
+          }
+          return { data: [], error: null };
+        },
+        upsert: () => ({ error: null }),
+        update: () => ({ error: null }),
+      },
+    });
+
+    const res = await syncEduviaForClient(
+      client,
+      'client-X',
+      'inst.eduvia.app',
+      'key',
+    );
+
+    expect(res.contrats_archived_orphan).toBe(1);
+
+    const updateOps = ops.filter(
+      (o) => o.table === 'contrats' && o.op === 'update',
+    );
+    expect(updateOps).toHaveLength(1);
+    const updated = updateOps[0]!;
+    expect(updated.payload).toMatchObject({
+      archive: true,
+      deleted_in_eduvia_at: expect.any(String),
+    });
+    expect(updated.filters).toEqual([{ col: 'id', val: 'uuid-orphan-99' }]);
+  });
+
+  it('si /contracts renvoie 0 contrat, n archive rien (garde-fou anti-wipe)', async () => {
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+
+    // API rend 0 contrat (panne transitoire). DB a un contrat actif.
+    fetchAllPagesMock.mockResolvedValue([]);
+
+    const { client, ops } = buildSupabase({
+      projets: projetsRule(),
+      contrats: {
+        select: () => ({
+          data: [
+            {
+              id: 'uuid-existing',
+              eduvia_id: 42,
+              ref: 'CTR-42',
+            },
+          ],
+          error: null,
+        }),
+        upsert: () => ({ error: null }),
+        update: () => ({ error: null }),
+      },
+    });
+
+    const res = await syncEduviaForClient(
+      client,
+      'client-X',
+      'inst.eduvia.app',
+      'key',
+    );
+
+    expect(res.contrats_archived_orphan).toBe(0);
+    // Aucune update n'a été émise sur contrats (la garde anti-wipe a coupé court).
+    const updateOps = ops.filter(
+      (o) => o.table === 'contrats' && o.op === 'update',
+    );
+    expect(updateOps).toHaveLength(0);
+  });
+});
+
 describe('syncEduviaForClient — limites connues', () => {
   it.skip('apprenant supprimé chez Eduvia → archive côté Soluvia (requires diff/tombstone refactor)', () => {
     // sync.ts ne diff pas la liste reçue avec ce qui existe en base ; il fait

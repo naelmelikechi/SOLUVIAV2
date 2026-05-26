@@ -210,6 +210,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      bank_lines_mirror: {
+        Row: {
+          created_at: string;
+          date: string;
+          id: string;
+          montant: number;
+          partner_name: string | null;
+          payment_ref: string | null;
+          raw: Json | null;
+          societe_slug: string | null;
+          source_app: string;
+          source_external_id: number;
+          synced_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          date: string;
+          id?: string;
+          montant: number;
+          partner_name?: string | null;
+          payment_ref?: string | null;
+          raw?: Json | null;
+          societe_slug?: string | null;
+          source_app?: string;
+          source_external_id: number;
+          synced_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          date?: string;
+          id?: string;
+          montant?: number;
+          partner_name?: string | null;
+          payment_ref?: string | null;
+          raw?: Json | null;
+          societe_slug?: string | null;
+          source_app?: string;
+          source_external_id?: number;
+          synced_at?: string;
+        };
+        Relationships: [];
+      };
       bug_reports: {
         Row: {
           ai_category: string | null;
@@ -594,6 +636,7 @@ export type Database = {
           creation_mode: string | null;
           date_debut: string | null;
           date_fin: string | null;
+          deleted_in_eduvia_at: string | null;
           duree_mois: number | null;
           eduvia_campus_id: number | null;
           eduvia_company_id: number | null;
@@ -631,6 +674,7 @@ export type Database = {
           creation_mode?: string | null;
           date_debut?: string | null;
           date_fin?: string | null;
+          deleted_in_eduvia_at?: string | null;
           duree_mois?: number | null;
           eduvia_campus_id?: number | null;
           eduvia_company_id?: number | null;
@@ -668,6 +712,7 @@ export type Database = {
           creation_mode?: string | null;
           date_debut?: string | null;
           date_fin?: string | null;
+          deleted_in_eduvia_at?: string | null;
           duree_mois?: number | null;
           eduvia_campus_id?: number | null;
           eduvia_company_id?: number | null;
@@ -1517,6 +1562,7 @@ export type Database = {
       };
       facture_lignes: {
         Row: {
+          analytic_line_odoo_id: string | null;
           contrat_id: string | null;
           created_at: string;
           description: string;
@@ -1535,6 +1581,7 @@ export type Database = {
           taux_tva_ligne: number | null;
         };
         Insert: {
+          analytic_line_odoo_id?: string | null;
           contrat_id?: string | null;
           created_at?: string;
           description: string;
@@ -1553,6 +1600,7 @@ export type Database = {
           taux_tva_ligne?: number | null;
         };
         Update: {
+          analytic_line_odoo_id?: string | null;
           contrat_id?: string | null;
           created_at?: string;
           description?: string;
@@ -2245,6 +2293,7 @@ export type Database = {
           categorie_interne_id: string | null;
           cdp_id: string | null;
           client_id: string;
+          code_analytique: string | null;
           created_at: string;
           date_debut: string | null;
           echeancier_override: Json | null;
@@ -2264,6 +2313,7 @@ export type Database = {
           categorie_interne_id?: string | null;
           cdp_id?: string | null;
           client_id: string;
+          code_analytique?: string | null;
           created_at?: string;
           date_debut?: string | null;
           echeancier_override?: Json | null;
@@ -2283,6 +2333,7 @@ export type Database = {
           categorie_interne_id?: string | null;
           cdp_id?: string | null;
           client_id?: string;
+          code_analytique?: string | null;
           created_at?: string;
           date_debut?: string | null;
           echeancier_override?: Json | null;

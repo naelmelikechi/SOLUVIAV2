@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import type { Json } from '@/types/database';
 
 // Endpoint d'ingestion des bank_lines miroirs depuis FINANCES-WISEMANH.
 // Auth : header x-mirror-token (env BANK_LINES_MIRROR_TOKEN, partagé avec FIN).
@@ -19,7 +20,7 @@ interface IngestEntry {
   payment_ref?: string | null;
   partner_name?: string | null;
   societe_slug?: string | null;
-  raw?: Record<string, unknown>;
+  raw?: Json;
 }
 
 interface IngestBody {
@@ -70,12 +71,9 @@ export async function POST(request: Request) {
   }));
 
   const supabase = createAdminClient();
-  // bank_lines_mirror : table créée par la migration 20260526120200_bank_lines_mirror.sql
-  // mais pas encore présente dans types/database.ts (à régénérer après
-  // supabase db push). Cast pour ne pas bloquer le déploiement.
   const { error } = await supabase
-    .from('bank_lines_mirror' as never)
-    .upsert(rows as never, { onConflict: 'source_app,source_external_id' });
+    .from('bank_lines_mirror')
+    .upsert(rows, { onConflict: 'source_app,source_external_id' });
 
   if (error) {
     return NextResponse.json(

@@ -58,17 +58,13 @@ export async function GET(
   const minM = ttc - 0.01;
   const maxM = ttc + 0.01;
 
-  // bank_lines_mirror : pas encore typée (régénérer types/database.ts après
-  // supabase db push). On caste le retour pour débloquer le build.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sbAny = supabase as any;
-  const { data: lines } = (await sbAny
+  const { data: lines } = await supabase
     .from('bank_lines_mirror')
     .select('id, date, montant, payment_ref, partner_name, societe_slug')
     .gte('montant', minM)
     .lte('montant', maxM)
     .order('date', { ascending: false })
-    .limit(50)) as { data: BankLineRow[] | null };
+    .limit(50);
 
   const refUpper = (facture.ref ?? '').toUpperCase();
   const dateEch = facture.date_echeance

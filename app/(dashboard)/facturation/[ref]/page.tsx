@@ -165,6 +165,7 @@ export default async function FactureDetailPage({
         statut={facture.statut}
         date_echeance={facture.date_echeance}
         factureId={facture.id}
+        factureRef={facture.ref ?? undefined}
         montantTtc={facture.montant_ttc}
         userRole={currentUser?.role ?? undefined}
         odooSynced={Boolean(facture.odoo_id)}

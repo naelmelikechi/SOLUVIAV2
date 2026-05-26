@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   Table,
   TableBody,
@@ -19,7 +19,7 @@ import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { differenceInDays, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { addManualPayment } from '@/lib/actions/factures';
-import { Plus } from 'lucide-react';
+import { Plus, Sparkles } from 'lucide-react';
 
 interface Paiement {
   id: string;
@@ -28,11 +28,23 @@ interface Paiement {
   saisie_manuelle: boolean;
 }
 
+interface BankLineSuggestion {
+  id: string;
+  date: string;
+  montant: number;
+  payment_ref: string | null;
+  partner_name: string | null;
+  societe_slug: string | null;
+  score: number;
+  reasons: string[];
+}
+
 interface FacturePaiementsProps {
   paiements: Paiement[];
   statut: string;
   date_echeance: string | null;
   factureId?: string;
+  factureRef?: string;
   montantTtc?: number;
   // Role courant pour gating de l'action manuelle (push Odoo).
   // Reserve aux superadmins : ecriture comptable directe dans le livre Odoo.
@@ -46,6 +58,7 @@ export function FacturePaiements({
   statut,
   date_echeance,
   factureId,
+  factureRef,
   montantTtc,
   userRole,
   odooSynced = true,
@@ -74,6 +87,43 @@ export function FacturePaiements({
   );
   const [dateReception, setDateReception] = useState(today);
   const [search, setSearch] = useState('');
+  // Sentinelle : null = loading (en cours de fetch), array = résultat reçu.
+  // Évite un setState séparé pour le loading (le linter `react-hooks/
+  // set-state-in-effect` interdit setState synchrone dans un effect).
+  const [suggestions, setSuggestions] = useState<BankLineSuggestion[] | null>(
+    null,
+  );
+  const suggestionsLoading =
+    showForm && Boolean(factureRef) && suggestions === null;
+
+  // Synergie #2 : fetch les bank_lines miroir qui matchent (montant ± 0.01€,
+  // ref dans payment_ref, date proche échéance) dès que le form s'ouvre.
+  // L'utilisateur peut cliquer sur une suggestion pour pré-remplir date +
+  // montant en 1 clic au lieu de saisir à la main.
+  useEffect(() => {
+    if (!showForm || !factureRef) return;
+    let cancelled = false;
+    fetch(
+      `/api/factures/${encodeURIComponent(factureRef)}/bank-line-suggestions`,
+    )
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.statusText)))
+      .then((data: { suggestions?: BankLineSuggestion[] }) => {
+        if (!cancelled) setSuggestions(data.suggestions ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestions([]);
+      });
+    return () => {
+      cancelled = true;
+      // Reset au unmount/close pour que la prochaine ouverture re-fetch frais
+      setSuggestions(null);
+    };
+  }, [showForm, factureRef]);
+
+  const applySuggestion = (s: BankLineSuggestion) => {
+    setMontant(String(s.montant));
+    setDateReception(s.date);
+  };
 
   const filteredPaiements = useMemo(
     () =>
@@ -208,6 +258,56 @@ export function FacturePaiements({
                 dans le livre - un retour en arrière nécessite une intervention
                 manuelle dans Odoo (contre-écriture).
               </p>
+
+              {/* Synergie #2 : suggestions depuis bank_lines_mirror (FINANCES) */}
+              {suggestionsLoading && (
+                <p className="text-muted-foreground text-xs italic">
+                  Recherche dans le compte bancaire...
+                </p>
+              )}
+              {!suggestionsLoading && suggestions && suggestions.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
+                    <Sparkles className="h-3 w-3" />
+                    Lignes bancaires correspondantes
+                  </p>
+                  <div className="space-y-1.5">
+                    {suggestions.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => applySuggestion(s)}
+                        className="border-border hover:bg-accent flex w-full items-start justify-between gap-3 rounded-md border p-2.5 text-left text-xs transition-colors"
+                      >
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-medium">
+                              {formatCurrency(s.montant)}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {formatDate(s.date)}
+                            </span>
+                            <span className="bg-muted text-muted-foreground inline-block rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                              score {s.score}
+                            </span>
+                          </div>
+                          {s.payment_ref && (
+                            <p className="text-muted-foreground truncate">
+                              {s.payment_ref}
+                            </p>
+                          )}
+                          <p className="text-muted-foreground text-[10px]">
+                            {s.reasons.join(' - ')}
+                          </p>
+                        </div>
+                        <span className="text-muted-foreground shrink-0 text-[10px]">
+                          Utiliser
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-1">
                   <label

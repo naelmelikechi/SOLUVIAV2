@@ -158,7 +158,7 @@ function checkSiretServer(
       };
     }
     if (!isValidSiretLuhn(cleaned)) {
-      logger.warn('actions.clients', 'SIRET Luhn invalide (non bloquant)', {
+      logger.info('actions.clients', 'SIRET Luhn invalide (non bloquant)', {
         clientId: options.clientId,
         siret: cleaned,
       });

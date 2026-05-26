@@ -7,12 +7,17 @@ export async function register() {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) return;
 
+  const environment = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
+  // Skip non-production envs: evite de polluer Sentry avec les events HMR/dev
+  // local (cf. SOLUVIA-P: 196 events `localhost:3000`).
+  const isProd = environment === 'production';
+
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     Sentry.init({
       dsn,
-      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
+      environment,
       tracesSampleRate: 0.1,
-      // Serveur: on capture tout niveau error, pas de replay.
+      enabled: isProd,
     });
     return;
   }
@@ -20,8 +25,9 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'edge') {
     Sentry.init({
       dsn,
-      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
+      environment,
       tracesSampleRate: 0.05,
+      enabled: isProd,
     });
   }
 }

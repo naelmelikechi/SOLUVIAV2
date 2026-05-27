@@ -223,6 +223,39 @@ export function AjustementsList({ ajustements }: Props) {
                   <div className="border-border mt-2 space-y-2 rounded border p-2 text-xs">
                     {detail.breakdown.map((b, idx) => {
                       if (aj.type === 'npec_change') {
+                        // Legacy : pas de mois_relatif, on a delta_ligne par
+                        // facture (ancien format pre-fix #1). On l'affiche
+                        // tel quel pour ne pas casser l'UI sur les pending
+                        // historiques.
+                        const isLegacy =
+                          b.mois_relatif == null && b.facture_ref != null;
+                        if (isLegacy) {
+                          const legacyDelta =
+                            (b as { delta_ligne?: number }).delta_ligne ?? 0;
+                          return (
+                            <div
+                              key={b.facture_id ?? `legacy-${idx}`}
+                              className="flex items-center justify-between gap-2"
+                            >
+                              <span className="font-mono">{b.facture_ref}</span>
+                              <span className="text-muted-foreground tabular-nums">
+                                émis {formatCurrency(b.montant_emis ?? 0)} /
+                                attendu {formatCurrency(b.montant_attendu ?? 0)}{' '}
+                                ={' '}
+                                <span
+                                  className={
+                                    legacyDelta > 0
+                                      ? 'font-semibold text-[var(--warning)]'
+                                      : 'font-semibold text-[var(--destructive)]'
+                                  }
+                                >
+                                  {legacyDelta > 0 ? '+' : ''}
+                                  {formatCurrency(legacyDelta)}
+                                </span>
+                              </span>
+                            </div>
+                          );
+                        }
                         const moisLabel = `M+${b.mois_relatif ?? '?'}`;
                         return (
                           <div

@@ -289,7 +289,7 @@ export function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-0.5 px-2 py-3">
+      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
         {(() => {
           const visibleSections = navSections
             .map((section) => ({

@@ -242,6 +242,7 @@ describe('computeDerivance', () => {
       {
         facture_id: 'f1',
         facture_ref: 'FAC-1',
+        mois_relatif: 3,
         montant_ht: 300, // emis sur npec=12000, qp=0.25
         npec_snapshot: 12000,
         taux_commission_snapshot: 10,
@@ -251,7 +252,8 @@ describe('computeDerivance', () => {
     // attendu = 15000 × 10/100 × 0.25 = 375
     // delta = 375 - 300 = 75
     expect(r.delta_ht).toBe(75);
-    expect(r.breakdown[0]?.delta_ligne).toBe(75);
+    expect(r.breakdown[0]?.delta_jalon).toBe(75);
+    expect(r.breakdown[0]?.mois_relatif).toBe(3);
   });
 
   it('detecte une derive negative (NPEC reduit)', () => {
@@ -259,6 +261,7 @@ describe('computeDerivance', () => {
       {
         facture_id: 'f1',
         facture_ref: 'FAC-1',
+        mois_relatif: 3,
         montant_ht: 300,
         npec_snapshot: 12000,
         taux_commission_snapshot: 10,
@@ -276,6 +279,7 @@ describe('computeDerivance', () => {
         {
           facture_id: 'f1',
           facture_ref: 'FAC-1',
+          mois_relatif: 3,
           montant_ht: 300,
           npec_snapshot: 12000,
           taux_commission_snapshot: 10,
@@ -283,6 +287,205 @@ describe('computeDerivance', () => {
         },
       ]).delta_ht,
     ).toBe(0);
+  });
+
+  it('utilise le taux SNAPSHOT de la ligne (pas le taux projet courant)', () => {
+    // Scenario : projet taux courant 40%, mais la facture a ete emise a 50%.
+    // On veut detecter UNIQUEMENT la derive NPEC, pas le changement de taux.
+    // Si NPEC inchange, delta doit etre 0 meme si taux a change.
+    const r = computeDerivance(12000, 40, [
+      {
+        facture_id: 'f1',
+        facture_ref: 'FAC-1',
+        mois_relatif: 3,
+        montant_ht: 1500, // = 12000 × 50/100 × 0.25 (taux snapshot 50)
+        npec_snapshot: 12000,
+        taux_commission_snapshot: 50,
+        quote_part: 0.25,
+      },
+    ]);
+    expect(r.delta_ht).toBe(0);
+    expect(r.breakdown[0]?.taux_commission_snapshot).toBe(50);
+  });
+
+  it('groupe par jalon : evite le double comptage sur 2e changement NPEC', () => {
+    // Scenario reel du bug #1 :
+    //  - Originale : NPEC=5000, qp=1/12, taux=40 → emis 16.67 (cents : on prend 16.67)
+    //    Calcul exact : 5000 × 40/100 × (1/12) = 166.6666... → arrondi a 166.67
+    //  - Complement emis : 33.33 (delta NPEC 5000→6000)
+    //  - 2e changement : NPEC 6000 → 7000
+    //  - On attend delta = (7000-6000) × 40/100 × (1/12) = 33.33
+    //    PAS 233.33 + 233.33 - 200 = 266.67 (ancien bug).
+    const qp = 1 / 12;
+    const r = computeDerivance(7000, 40, [
+      {
+        facture_id: 'f1',
+        facture_ref: 'FAC-1',
+        mois_relatif: 1,
+        montant_ht: 166.67,
+        npec_snapshot: 5000,
+        taux_commission_snapshot: 40,
+        quote_part: qp,
+      },
+      {
+        facture_id: 'f2',
+        facture_ref: 'FAC-2',
+        mois_relatif: 1,
+        montant_ht: 33.33,
+        npec_snapshot: 6000,
+        taux_commission_snapshot: 40,
+        quote_part: qp,
+      },
+    ]);
+    // attendu_jalon = 7000 × 40/100 × 1/12 = 233.33
+    // sum_emis = 166.67 + 33.33 = 200
+    // delta = 33.33
+    expect(r.delta_ht).toBeCloseTo(33.33, 2);
+    expect(r.breakdown).toHaveLength(1);
+    expect(r.breakdown[0]?.mois_relatif).toBe(1);
+    expect(r.breakdown[0]?.lignes).toHaveLength(2);
+  });
+
+  it('deduit les avoirs deja emis (creditsExisting) du delta net', () => {
+    // Scenario bug #2 :
+    //  - Originale : 200€ emis (NPEC=6000, qp=1/12, taux=40)
+    //  - Avoir deja emis : -33€ (creditsExisting = -33)
+    //  - Nouvel NPEC : 5000
+    //  - attendu_brut = 5000 × 40/100 × 1/12 = 166.67
+    //  - delta_brut = 166.67 - 200 = -33.33
+    //  - delta_net = -33.33 - (-33) = -0.33 (quasi nul, l'avoir compense)
+    const r = computeDerivance(
+      5000,
+      40,
+      [
+        {
+          facture_id: 'f1',
+          facture_ref: 'FAC-1',
+          mois_relatif: 1,
+          montant_ht: 200,
+          npec_snapshot: 6000,
+          taux_commission_snapshot: 40,
+          quote_part: 1 / 12,
+        },
+      ],
+      -33,
+    );
+    expect(r.delta_ht_brut).toBeCloseTo(-33.33, 2);
+    expect(r.credits_existing).toBe(-33);
+    expect(r.delta_ht).toBeCloseTo(-0.33, 2);
+  });
+
+  it('creditsExisting=0 par defaut (retro-compat)', () => {
+    const r = computeDerivance(15000, 10, [
+      {
+        facture_id: 'f1',
+        facture_ref: 'FAC-1',
+        mois_relatif: 3,
+        montant_ht: 300,
+        npec_snapshot: 12000,
+        taux_commission_snapshot: 10,
+        quote_part: 0.25,
+      },
+    ]);
+    expect(r.credits_existing).toBe(0);
+    expect(r.delta_ht).toBe(r.delta_ht_brut);
+  });
+
+  it('idempotence cross-resolved : 2e NPEC change apres complement emis', () => {
+    // Scenario complet :
+    //  1. Original emis : NPEC=5000, qp=1/12, taux=40 -> montant 166.67
+    //  2. NPEC -> 6000 : pending +33.33 cree
+    //  3. User emet complement : ligne facture 33.33, qp=1/12, snap=6000
+    //     -> resolveAjustement(emitted, factureId=complement.id)
+    //  4. NPEC -> 7000 : nouvelle detection
+    //     attendu calcul correct = (7000-6000) × 40 / 100 × 1/12 = 33.33
+    //     (et PAS 266.67 via le bug double-counting d'origine)
+    const qp = 1 / 12;
+    const r = computeDerivance(
+      7000,
+      40,
+      [
+        {
+          facture_id: 'orig',
+          facture_ref: 'FAC-1',
+          mois_relatif: 1,
+          montant_ht: 166.67,
+          npec_snapshot: 5000,
+          taux_commission_snapshot: 40,
+          quote_part: qp,
+        },
+        {
+          facture_id: 'cmp',
+          facture_ref: 'FAC-2',
+          mois_relatif: 1,
+          montant_ht: 33.33,
+          npec_snapshot: 6000,
+          taux_commission_snapshot: 40,
+          quote_part: qp,
+        },
+      ],
+      0, // pas d'avoir emis
+    );
+    expect(r.delta_ht).toBeCloseTo(33.33, 2);
+  });
+
+  it('idempotence cross-resolved : 2e NPEC change apres avoir emis', () => {
+    // Scenario :
+    //  1. Original emis : NPEC=6000, qp=1/12, taux=40 -> 200
+    //  2. NPEC -> 5000 : pending -33.33
+    //  3. User emet avoir de -33.33 -> creditsExisting = -33.33
+    //  4. NPEC -> 4000 : nouvelle detection
+    //     attendu_brut = 4000 × 40/100 × 1/12 = 133.33
+    //     sum_emis_jalon = 200 (l'avoir est compte separement)
+    //     delta_brut = 133.33 - 200 = -66.67
+    //     delta_net = -66.67 - (-33.33) = -33.34
+    //     (vs ancien bug : -66.67, qui aurait sur-credite de -33.33)
+    const qp = 1 / 12;
+    const r = computeDerivance(
+      4000,
+      40,
+      [
+        {
+          facture_id: 'orig',
+          facture_ref: 'FAC-1',
+          mois_relatif: 1,
+          montant_ht: 200,
+          npec_snapshot: 6000,
+          taux_commission_snapshot: 40,
+          quote_part: qp,
+        },
+      ],
+      -33.33,
+    );
+    expect(r.delta_ht_brut).toBeCloseTo(-66.67, 2);
+    expect(r.delta_ht).toBeCloseTo(-33.34, 2);
+  });
+
+  it('groupe par jalon : qp canonique = max du groupe', () => {
+    // Complement emis manuellement avec qp fractionnaire plus petite : on
+    // garde la qp de la ligne originale pour calculer l'attendu, pas la qp
+    // du complement.
+    const r = computeDerivance(7000, 40, [
+      {
+        facture_id: 'f1',
+        facture_ref: 'FAC-1',
+        mois_relatif: 1,
+        montant_ht: 166.67,
+        npec_snapshot: 5000,
+        taux_commission_snapshot: 40,
+        quote_part: 1 / 12, // canonique
+      },
+      {
+        facture_id: 'f2',
+        facture_ref: 'FAC-2',
+        mois_relatif: 1,
+        montant_ht: 33.33,
+        npec_snapshot: 6000,
+        taux_commission_snapshot: 40,
+        quote_part: 0.005, // qp arbitraire petite, ne doit pas etre prise
+      },
+    ]);
+    expect(r.breakdown[0]?.quote_part).toBeCloseTo(1 / 12, 5);
   });
 });
 
@@ -295,6 +498,7 @@ describe('computeProrataRupture', () => {
         {
           facture_id: 'f1',
           facture_ref: 'FAC-1',
+          mois_relatif: 3,
           montant_ht: 1200,
           npec_snapshot: 12000,
           taux_commission_snapshot: 10,
@@ -314,6 +518,7 @@ describe('computeProrataRupture', () => {
         {
           facture_id: 'f1',
           facture_ref: 'FAC-1',
+          mois_relatif: 3,
           montant_ht: 1200,
           npec_snapshot: 12000,
           taux_commission_snapshot: 10,
@@ -332,6 +537,7 @@ describe('computeProrataRupture', () => {
         {
           facture_id: 'f1',
           facture_ref: 'FAC-1',
+          mois_relatif: 3,
           montant_ht: 1200,
           npec_snapshot: 12000,
           taux_commission_snapshot: 10,

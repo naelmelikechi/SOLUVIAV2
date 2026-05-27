@@ -323,6 +323,8 @@ export interface BilledLine {
   /** Reference de la facture origine (juste pour breakdown) */
   facture_id: string;
   facture_ref: string;
+  /** Jalon auquel la ligne se rattache (mois_relatif a date_debut du contrat) */
+  mois_relatif: number;
   /** Montant HT facture (positif pour facture standard, negatif pour avoir) */
   montant_ht: number;
   /** Snapshot du NPEC au moment de l'emission */
@@ -334,15 +336,32 @@ export interface BilledLine {
 }
 
 export interface DerivanceResult {
-  /** delta_ht > 0 : facture complementaire a emettre ; < 0 : avoir */
+  /**
+   * delta_ht NET, prend en compte les avoirs/credits deja emis sur le contrat.
+   * > 0 : facture complementaire a emettre ; < 0 : avoir restant a emettre.
+   */
   delta_ht: number;
-  /** Detail par facture : ce qui aurait du etre facture vs ce qui l'a ete */
+  /** delta_ht BRUT (avant deduction des avoirs deja emis). */
+  delta_ht_brut: number;
+  /** Somme des avoirs deja emis (negatif). 0 si aucun. */
+  credits_existing: number;
+  /**
+   * Detail par jalon : ce qui aurait du etre facture sur l'ensemble du jalon
+   * vs ce qui l'a ete (somme des lignes standards du jalon, complements inclus).
+   */
   breakdown: Array<{
-    facture_id: string;
-    facture_ref: string;
+    mois_relatif: number;
+    quote_part: number;
+    taux_commission_snapshot: number;
     montant_emis: number;
     montant_attendu: number;
-    delta_ligne: number;
+    delta_jalon: number;
+    /** Lignes facture_lignes contribuant a ce jalon */
+    lignes: Array<{
+      facture_id: string;
+      facture_ref: string;
+      montant_ht: number;
+    }>;
   }>;
 }
 
@@ -353,30 +372,77 @@ export interface DerivanceResult {
  * Utilise dans le hook NPEC change : si npec change, on appelle cette fonction
  * sur toutes les facture_lignes du contrat, et on cumule pour proposer un
  * ajustement.
+ *
+ * Groupement par jalon (mois_relatif) : un jalon peut avoir plusieurs lignes
+ * (originale + complement(s) suite a un ajustement precedent). Le calcul du
+ * "attendu" se fait UNE fois par jalon avec la quote_part canonique (max du
+ * groupe) et le taux SNAPSHOT (pour ne pas re-facturer un changement de taux
+ * projet). Sum_emis = somme des lignes standards du jalon (complements inclus).
+ *
+ * creditsExisting : somme NEGATIVE des avoirs deja emis sur le contrat. On
+ * la retranche du delta brut pour ne pas re-proposer un avoir deja donne.
  */
 export function computeDerivance(
   npecActuel: number,
-  tauxCommissionActuel: number,
+  // garde le parametre pour compat appelants, mais on utilise les snapshots par ligne
+  _tauxCommissionActuel: number,
   billedLines: BilledLine[],
+  creditsExisting = 0,
 ): DerivanceResult {
+  // Group lines by mois_relatif
+  const byJalon = new Map<number, BilledLine[]>();
+  for (const line of billedLines) {
+    const arr = byJalon.get(line.mois_relatif) ?? [];
+    arr.push(line);
+    byJalon.set(line.mois_relatif, arr);
+  }
+
   const breakdown: DerivanceResult['breakdown'] = [];
   let delta = 0;
 
-  for (const line of billedLines) {
-    const baseAttendu = (npecActuel * tauxCommissionActuel) / 100;
-    const montantAttendu = round2(baseAttendu * line.quote_part);
-    const deltaLigne = round2(montantAttendu - line.montant_ht);
-    delta += deltaLigne;
+  // Sort by mois_relatif for stable output
+  const sortedJalons = Array.from(byJalon.entries()).sort(([a], [b]) => a - b);
+
+  for (const [moisRelatif, lines] of sortedJalons) {
+    // quote_part canonique = max du jalon (l'originale, pas les complements
+    // qui peuvent etre fractionnaires si emis manuellement).
+    const quotePartCanon = Math.max(...lines.map((l) => l.quote_part));
+    // taux snapshot canonique = taux de la ligne ayant la qp canonique
+    const lineCanon =
+      lines.find((l) => l.quote_part === quotePartCanon) ?? lines[0]!;
+    const tauxSnapshot = lineCanon.taux_commission_snapshot;
+
+    const baseAttendu = (npecActuel * tauxSnapshot) / 100;
+    const montantAttendu = round2(baseAttendu * quotePartCanon);
+    const montantEmis = round2(lines.reduce((s, l) => s + l.montant_ht, 0));
+    const deltaJalon = round2(montantAttendu - montantEmis);
+    delta += deltaJalon;
+
     breakdown.push({
-      facture_id: line.facture_id,
-      facture_ref: line.facture_ref,
-      montant_emis: line.montant_ht,
+      mois_relatif: moisRelatif,
+      quote_part: quotePartCanon,
+      taux_commission_snapshot: tauxSnapshot,
+      montant_emis: montantEmis,
       montant_attendu: montantAttendu,
-      delta_ligne: deltaLigne,
+      delta_jalon: deltaJalon,
+      lignes: lines.map((l) => ({
+        facture_id: l.facture_id,
+        facture_ref: l.facture_ref,
+        montant_ht: l.montant_ht,
+      })),
     });
   }
 
-  return { delta_ht: round2(delta), breakdown };
+  const deltaBrut = round2(delta);
+  // Net : si on a deja rendu X via un avoir, le delta restant a emettre est
+  // delta_brut - credits_existing (credits negatifs -> ajoute en valeur).
+  const deltaNet = round2(deltaBrut - creditsExisting);
+  return {
+    delta_ht: deltaNet,
+    delta_ht_brut: deltaBrut,
+    credits_existing: round2(creditsExisting),
+    breakdown,
+  };
 }
 
 // ---------------------------------------------------------------------------

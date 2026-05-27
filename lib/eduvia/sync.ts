@@ -25,6 +25,7 @@ import {
   detectNpecChangeAjustement,
   detectRuptureAjustement,
 } from '@/lib/echeancier/ajustements';
+import { isContratRompu } from '@/lib/utils/contrat-states';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -342,10 +343,15 @@ export async function syncEduviaForClient(
           if (previous?.id) {
             const oldNpec = Number(previous.npec_amount ?? 0);
             const newNpec = Number(contract.npec_amount ?? 0);
+            // Seuil bas (1 centime) : on laisse computeDerivance filtrer le
+            // bruit final via son propre seuil delta_ht >= 0.01. Sinon un
+            // changement de 0.50 € NPEC ignore ici pourrait quand meme
+            // produire un delta cumule > 0.01 (jalons multiples × contrats
+            // multiples) qu'on raterait silencieusement.
             if (
               oldNpec > 0 &&
               newNpec > 0 &&
-              Math.abs(oldNpec - newNpec) >= 1
+              Math.abs(oldNpec - newNpec) >= 0.01
             ) {
               npecChanges.push({
                 contratId: previous.id,
@@ -353,12 +359,8 @@ export async function syncEduviaForClient(
               });
             }
             const wasActive =
-              !previous.archive &&
-              previous.contract_state !== 'resilie' &&
-              previous.contract_state !== 'ANNULE';
-            const isInactive =
-              contract.contract_state === 'resilie' ||
-              contract.contract_state === 'ANNULE';
+              !previous.archive && !isContratRompu(previous.contract_state);
+            const isInactive = isContratRompu(contract.contract_state);
             if (wasActive && isInactive) {
               const dateRupture =
                 contract.contract_end_date ??

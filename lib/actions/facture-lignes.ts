@@ -207,6 +207,9 @@ export async function addLigneToBrouillon(
     };
   }
 
+  // NULL plutot que 0 quand non fourni : une ligne libre/manuelle ne
+  // participe pas a la formule NPEC × taux × qp et ne doit pas leurrer
+  // detectNpecChangeAjustement (cf. bug #4 audit).
   const { data: ligne, error: insertError } = await supabase
     .from('facture_lignes')
     .insert({
@@ -214,10 +217,10 @@ export async function addLigneToBrouillon(
       contrat_id: data.contratId,
       description: data.description,
       montant_ht: montantHtSigned,
-      mois_relatif: data.moisRelatif ?? 0,
-      quote_part: data.quotePart ?? 0,
-      npec_snapshot: data.npecSnapshot ?? 0,
-      taux_commission_snapshot: data.tauxCommissionSnapshot ?? 0,
+      mois_relatif: data.moisRelatif ?? null,
+      quote_part: data.quotePart ?? null,
+      npec_snapshot: data.npecSnapshot ?? null,
+      taux_commission_snapshot: data.tauxCommissionSnapshot ?? null,
     })
     .select('id')
     .single();

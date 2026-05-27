@@ -6,6 +6,10 @@ import { requireAdmin } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import { parseJalons, validateJalons } from '@/lib/echeancier/calc';
+import {
+  listCandidateFacturesForAjustement as queryCandidateFactures,
+  type CandidateFacture,
+} from '@/lib/queries/ajustements';
 import type { Json } from '@/types/database';
 
 const SCOPE = 'actions.echeanciers';
@@ -65,11 +69,20 @@ const UpdateEcheancierTemplateSchema = z.object({
   jalons: JalonsArraySchema,
 });
 
-const ResolveAjustementSchema = z.object({
-  id: z.string().uuid('Ajustement ID doit être un UUID'),
-  action: z.enum(['emitted', 'ignored']),
-  factureId: z.string().uuid('Facture ID doit être un UUID').optional(),
-});
+// "emitted" requiert factureId : on veut un lien fort avec la facture qui
+// materialise l'ajustement (complement ou avoir). Sans ce lien, un clic
+// distrait peut fermer un pending sans contrepartie comptable.
+// "ignored" n'a pas besoin de factureId (decision explicite "on ne facture pas").
+const ResolveAjustementSchema = z
+  .object({
+    id: z.string().uuid('Ajustement ID doit être un UUID'),
+    action: z.enum(['emitted', 'ignored']),
+    factureId: z.string().uuid('Facture ID doit être un UUID').optional(),
+  })
+  .refine((d) => d.action !== 'emitted' || !!d.factureId, {
+    message: 'factureId requis quand action=emitted',
+    path: ['factureId'],
+  });
 
 const SetProjetEcheancierOverrideSchema = z.object({
   projetId: projetIdSchema,
@@ -293,6 +306,18 @@ export async function archiveEcheancierTemplate(
 // Ajustements pending : resolution manuelle
 // ---------------------------------------------------------------------------
 
+/**
+ * Wrapper server-action pour lister les factures candidates a partir d'un
+ * composant client. Restrict admin only.
+ */
+export async function listCandidateFacturesForAjustement(
+  ajustementId: string,
+): Promise<CandidateFacture[]> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return [];
+  return queryCandidateFactures(ajustementId);
+}
+
 export async function resolveAjustement(params: {
   id: string;
   action: 'emitted' | 'ignored';
@@ -308,6 +333,47 @@ export async function resolveAjustement(params: {
 
   const auth = await requireAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
+
+  // Validation forte du factureId quand 'emitted' : la facture doit exister,
+  // appartenir au meme contrat que l'ajustement, et etre une facture standard
+  // OU un avoir coherent avec le signe du delta_ht.
+  if (parsed.data.action === 'emitted' && parsed.data.factureId) {
+    const { data: aj } = await auth.supabase
+      .from('facturation_ajustements_pending')
+      .select('contrat_id, delta_ht')
+      .eq('id', parsed.data.id)
+      .maybeSingle();
+    if (!aj) return { success: false, error: 'Ajustement introuvable' };
+
+    const { data: fac } = await auth.supabase
+      .from('factures')
+      .select('id, est_avoir, montant_ht, statut, facture_lignes(contrat_id)')
+      .eq('id', parsed.data.factureId)
+      .maybeSingle();
+    if (!fac) return { success: false, error: 'Facture introuvable' };
+
+    const linesContratIds = new Set(
+      (fac.facture_lignes ?? []).map((l) => l.contrat_id),
+    );
+    if (!linesContratIds.has(aj.contrat_id)) {
+      return {
+        success: false,
+        error:
+          'La facture ne porte aucune ligne sur le contrat de l’ajustement',
+      };
+    }
+    // Coherence signe : ajustement positif (a facturer) -> facture standard ;
+    // negatif (avoir) -> est_avoir=true.
+    const isAvoirExpected = aj.delta_ht < 0;
+    if (isAvoirExpected !== fac.est_avoir) {
+      return {
+        success: false,
+        error: isAvoirExpected
+          ? 'Un ajustement négatif doit être lié à un avoir, pas une facture standard'
+          : 'Un ajustement positif doit être lié à une facture standard, pas un avoir',
+      };
+    }
+  }
 
   const { error } = await auth.supabase
     .from('facturation_ajustements_pending')

@@ -12,7 +12,13 @@ const SCOPE = 'echeancier.ajustements';
 type Client = SupabaseClient<Database>;
 
 /**
- * Lit les facture_lignes deja emises pour un contrat donne avec snapshots.
+ * Lit les facture_lignes "jalon-aware" (standards, avec snapshots) pour le
+ * calcul de derivance par jalon.
+ *
+ * Exclusions :
+ *  - lignes d'avoirs (est_avoir=true) : comptees separement via loadAvoirsCredit.
+ *  - lignes hors jalon (mois_relatif <= 0 ou quote_part <= 0) : lignes libres/
+ *    manuelles qui ne participent pas a la formule NPEC × taux × qp.
  */
 async function loadBilledLines(
   supabase: Client,
@@ -21,11 +27,12 @@ async function loadBilledLines(
   const { data, error } = await supabase
     .from('facture_lignes')
     .select(
-      'montant_ht, npec_snapshot, taux_commission_snapshot, quote_part, factures!inner(id, ref, est_avoir)',
+      'montant_ht, npec_snapshot, taux_commission_snapshot, quote_part, mois_relatif, factures!inner(id, ref, est_avoir)',
     )
     .eq('contrat_id', contratId)
     .not('npec_snapshot', 'is', null)
-    .not('quote_part', 'is', null);
+    .gt('quote_part', 0)
+    .gt('mois_relatif', 0);
   if (error) {
     logger.error(SCOPE, 'load billed lines failed', { error, contratId });
     return [];
@@ -42,13 +49,15 @@ async function loadBilledLines(
       row.montant_ht == null ||
       row.npec_snapshot == null ||
       row.taux_commission_snapshot == null ||
-      row.quote_part == null
+      row.quote_part == null ||
+      row.mois_relatif == null
     ) {
       continue;
     }
     lines.push({
       facture_id: f.id,
       facture_ref: f.ref ?? f.id,
+      mois_relatif: Number(row.mois_relatif),
       montant_ht: Number(row.montant_ht),
       npec_snapshot: Number(row.npec_snapshot),
       taux_commission_snapshot: Number(row.taux_commission_snapshot),
@@ -56,6 +65,36 @@ async function loadBilledLines(
     });
   }
   return lines;
+}
+
+/**
+ * Somme des avoirs deja emis sur le contrat (montant_ht negatif).
+ * Sert a la detection NPEC pour ne pas re-proposer un avoir deja compense.
+ *
+ * On compte tous les avoirs (statut quelconque) : un avoir en brouillon mais
+ * destine a ce contrat est un engagement, mieux vaut prudent (sous-estime le
+ * delta a emettre plutot que sur-credite).
+ */
+async function loadAvoirsCredit(
+  supabase: Client,
+  contratId: string,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('facture_lignes')
+    .select('montant_ht, factures!inner(est_avoir)')
+    .eq('contrat_id', contratId);
+  if (error) {
+    logger.error(SCOPE, 'load avoirs credit failed', { error, contratId });
+    return 0;
+  }
+  let total = 0;
+  for (const row of data ?? []) {
+    const f = row.factures as { est_avoir: boolean } | null;
+    if (!f?.est_avoir) continue;
+    if (row.montant_ht == null) continue;
+    total += Number(row.montant_ht);
+  }
+  return total;
 }
 
 /**
@@ -69,15 +108,17 @@ export async function detectNpecChangeAjustement(
   contratId: string,
   npecActuel: number,
 ): Promise<number> {
-  // contrat + billedLines en parallele : les 2 dependent juste de contratId.
-  // Si contrat fail, on a paye loadBilledLines pour rien (cas rare).
-  const [contratRes, billedLines] = await Promise.all([
+  // contrat + billedLines + creditsAvoirs en parallele : tous dependent juste
+  // de contratId. Si contrat fail, on a paye les autres queries pour rien
+  // (cas rare).
+  const [contratRes, billedLines, creditsExisting] = await Promise.all([
     supabase
       .from('contrats')
       .select('id, projet_id, projets!inner(taux_commission)')
       .eq('id', contratId)
       .maybeSingle(),
     loadBilledLines(supabase, contratId),
+    loadAvoirsCredit(supabase, contratId),
   ]);
 
   const { data: contrat, error: contratErr } = contratRes;
@@ -89,7 +130,12 @@ export async function detectNpecChangeAjustement(
 
   if (billedLines.length === 0) return 0;
 
-  const result = computeDerivance(npecActuel, tauxActuel, billedLines);
+  const result = computeDerivance(
+    npecActuel,
+    tauxActuel,
+    billedLines,
+    creditsExisting,
+  );
   if (Math.abs(result.delta_ht) < 0.01) return 0;
 
   const { error: existingErr, data: existing } = await supabase
@@ -104,10 +150,34 @@ export async function detectNpecChangeAjustement(
     return 0;
   }
 
+  // Audit trail : trace le dernier ajustement resolu pour ce contrat+type.
+  // Permet a la lecture du detail de reconstituer l'historique sans avoir a
+  // joindre la table elle-meme.
+  const { data: lastResolved } = await supabase
+    .from('facturation_ajustements_pending')
+    .select('id, delta_ht, resolved_action, resolved_facture_id, resolved_at')
+    .eq('contrat_id', contratId)
+    .eq('type', 'npec_change')
+    .not('resolved_at', 'is', null)
+    .order('resolved_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const detail = {
     npec_actuel: npecActuel,
     taux_commission: tauxActuel,
+    delta_ht_brut: result.delta_ht_brut,
+    credits_existing: result.credits_existing,
     breakdown: result.breakdown,
+    previous_resolved: lastResolved
+      ? {
+          id: lastResolved.id,
+          delta_ht: Number(lastResolved.delta_ht),
+          resolved_action: lastResolved.resolved_action,
+          resolved_facture_id: lastResolved.resolved_facture_id,
+          resolved_at: lastResolved.resolved_at,
+        }
+      : null,
   } as unknown as Json;
 
   if (existing?.id) {
@@ -153,14 +223,15 @@ export async function detectRuptureAjustement(
   contratId: string,
   dateRupture: string,
 ): Promise<number> {
-  // contrat + billedLines en parallele : independants.
-  const [contratRes, billedLines] = await Promise.all([
+  // contrat + billedLines + creditsAvoirs en parallele : tous independants.
+  const [contratRes, billedLines, creditsExisting] = await Promise.all([
     supabase
       .from('contrats')
       .select('id, projet_id, date_debut, duree_mois')
       .eq('id', contratId)
       .maybeSingle(),
     loadBilledLines(supabase, contratId),
+    loadAvoirsCredit(supabase, contratId),
   ]);
 
   const { data: contrat, error: contratErr } = contratRes;
@@ -176,11 +247,17 @@ export async function detectRuptureAjustement(
       dateRupture,
       billedLines,
     );
-    // Avoir : delta_ht negatif (SOLUVIA doit rendre)
-    deltaHt = -result.avoir_total_ht;
+    // Avoir BRUT : delta_ht negatif (SOLUVIA doit rendre)
+    const avoirBrut = -result.avoir_total_ht;
+    // Net : retire les avoirs deja emis. creditsExisting negatif -> ajoute en
+    // valeur (ex: brut -600, deja rendu -200 => reste a rendre -400).
+    const avoirNet = Math.round((avoirBrut - creditsExisting) * 100) / 100;
+    deltaHt = avoirNet;
     detail = {
       date_rupture: dateRupture,
       avoir_total_ht: result.avoir_total_ht,
+      avoir_total_ht_net: Math.abs(avoirNet),
+      credits_existing: Math.round(creditsExisting * 100) / 100,
       breakdown: result.breakdown,
     } as unknown as Json;
   }
@@ -199,6 +276,29 @@ export async function detectRuptureAjustement(
     .eq('type', 'rupture')
     .is('resolved_at', null)
     .maybeSingle();
+
+  // Audit trail : dernier ajustement rupture resolu pour ce contrat
+  const { data: lastResolved } = await supabase
+    .from('facturation_ajustements_pending')
+    .select('id, delta_ht, resolved_action, resolved_facture_id, resolved_at')
+    .eq('contrat_id', contratId)
+    .eq('type', 'rupture')
+    .not('resolved_at', 'is', null)
+    .order('resolved_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lastResolved) {
+    detail = {
+      ...(detail as object),
+      previous_resolved: {
+        id: lastResolved.id,
+        delta_ht: Number(lastResolved.delta_ht),
+        resolved_action: lastResolved.resolved_action,
+        resolved_facture_id: lastResolved.resolved_facture_id,
+        resolved_at: lastResolved.resolved_at,
+      },
+    } as unknown as Json;
+  }
 
   const motif = `Rupture anticipee au ${dateRupture} -> avoir de ${Math.abs(deltaHt).toFixed(2)} EUR HT`;
 

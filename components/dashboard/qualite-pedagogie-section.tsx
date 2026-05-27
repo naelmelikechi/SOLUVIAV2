@@ -1,4 +1,10 @@
+import { Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { Sparkline } from '@/components/shared/sparkline';
 import { KpiCardPlaceholder } from './kpi-card-placeholder';
 import { getLatestKpiValue, type Scope } from '@/lib/queries/kpi-history';
@@ -59,7 +65,61 @@ export async function QualitePedagogieSection({
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold">Qualite &amp; Pedagogie</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold">Qualite &amp; Pedagogie</h2>
+          <Popover>
+            <PopoverTrigger
+              aria-label="Explication des calculs"
+              className="text-muted-foreground hover:text-foreground inline-flex items-center justify-center rounded-full p-0.5 transition-colors"
+            >
+              <Info className="h-4 w-4" />
+            </PopoverTrigger>
+            <PopoverContent
+              side="bottom"
+              align="start"
+              className="w-[360px] text-xs"
+            >
+              <div className="space-y-2">
+                <p className="text-foreground font-medium">
+                  Calcul en multi-CFA
+                </p>
+                <p className="text-muted-foreground">
+                  Aucun KPI n&apos;est une moyenne par CFA. Tout est agrege sur
+                  le scope en sommant numerateurs et denominateurs bruts : un
+                  gros CFA pese plus qu&apos;un petit.
+                </p>
+                <ul className="text-muted-foreground space-y-1.5 pl-1">
+                  <li>
+                    <span className="text-foreground font-medium">
+                      Qualiopi
+                    </span>{' '}
+                    : livrables conform / livrables attendus (referentiel x nb
+                    campus), tous CFA confondus.
+                  </li>
+                  <li>
+                    <span className="text-foreground font-medium">
+                      Pedagogie
+                    </span>{' '}
+                    : moyenne des progressions saisies sur tous les contrats
+                    actifs. Une progression = une saisie ponderee 1.
+                  </li>
+                  <li>
+                    <span className="text-foreground font-medium">
+                      Financement
+                    </span>{' '}
+                    : montant HT facture / NPEC total des contrats actifs.
+                  </li>
+                  <li>
+                    <span className="text-foreground font-medium">
+                      Abandons
+                    </span>{' '}
+                    : contrats resilies ou annules / total contrats (12 mois).
+                  </li>
+                </ul>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
         <p className="text-muted-foreground text-sm">
           Indicateurs §5 : sources Eduvia (contrats, progressions, Qualiopi).
         </p>

@@ -56,6 +56,16 @@ const nextConfig: NextConfig = {
     // qui reduisent significativement le bundle client.
     optimizePackageImports: ['lucide-react', 'date-fns'],
   },
+  // Typecheck est execute dans la CI GitHub (workflows/ci.yml).
+  // Skip cote Vercel pour reduire le temps de build (et donc le cout).
+  // Si le check CI passe, le build Vercel est garanti type-safe.
+  // (Next 16 n'execute deja plus ESLint au build par defaut.)
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  // Source maps client en prod = upload Sentry uniquement. Pas servies
+  // au navigateur (le bundle final n'inclut pas le mapping).
+  productionBrowserSourceMaps: false,
   images: {
     remotePatterns: [
       {
@@ -74,7 +84,23 @@ const nextConfig: NextConfig = {
 // Sentry: tunnelRoute proxie les envelopes via /monitoring (meme-origine),
 // ce qui contourne les bloqueurs de pub qui filtrent *.ingest.sentry.io
 // et evite les erreurs ERR_BLOCKED_BY_CLIENT en console.
+//
+// disableLogger + automaticVercelMonitors=false reduisent le bundle.
+// Source maps uploadees uniquement sur prod (VERCEL_ENV=production) :
+// les previews ne polluent plus la release Sentry et le build est plus
+// rapide (skip upload + skip Sentry CLI).
+const isVercelProd = process.env.VERCEL_ENV === 'production';
 export default withSentryConfig(nextConfig, {
   tunnelRoute: '/monitoring',
   silent: !process.env.CI,
+  telemetry: false,
+  sourcemaps: {
+    disable: !isVercelProd,
+  },
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+    automaticVercelMonitors: false,
+  },
 });

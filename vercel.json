@@ -1,5 +1,16 @@
 {
   "regions": ["cdg1"],
+  "git": {
+    "deploymentEnabled": {
+      "fix/sprint-1-security": false,
+      "fix/sprint-2-hardening": false,
+      "fix/sprint-3-polish": false,
+      "fix/sprint-4-finalize": false,
+      "chore/e2e-auth-setup": false,
+      "chore/sprint-7-ci-pgtap": false,
+      "feat/dashboard-premium": false
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/snapshot",
@@ -19,11 +30,11 @@
     },
     {
       "path": "/api/sync/odoo",
-      "schedule": "0 8-19 * * 1-5"
+      "schedule": "0 9,12,15,18 * * 1-5"
     },
     {
       "path": "/api/cron/chat-cleanup",
-      "schedule": "0 * * * *"
+      "schedule": "0 */4 * * *"
     },
     {
       "path": "/api/cron/email-temps-non-saisi",

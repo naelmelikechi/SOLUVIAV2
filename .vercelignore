@@ -7,8 +7,13 @@
 .claude/
 .superpowers/
 .husky/
+.worktrees/
+.github/
 docs/
 specs/
+scripts/
+e2e/
+__tests__/
 supabase/migrations/
 supabase/snippets/
 supabase/.branches/
@@ -19,3 +24,11 @@ _local/
 *.xlsx
 *.xls
 *.csv
+
+# Documentation et configs locales
+*.md
+!app/**/*.md
+playwright.config.ts
+vitest.config.ts
+.lintstagedrc.json
+.prettierrc

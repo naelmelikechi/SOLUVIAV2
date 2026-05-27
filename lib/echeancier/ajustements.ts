@@ -12,13 +12,19 @@ const SCOPE = 'echeancier.ajustements';
 type Client = SupabaseClient<Database>;
 
 /**
- * Lit les facture_lignes "jalon-aware" (standards, avec snapshots) pour le
- * calcul de derivance par jalon.
+ * Lit les facture_lignes "jalon-aware" (echeancier-driven) pour le calcul de
+ * derivance par jalon. UN SEUL modele de facturation s'applique : NPEC × taux
+ * × quote_part avec quote_part = fraction d'un jalon (ex 1/12).
  *
  * Exclusions :
  *  - lignes d'avoirs (est_avoir=true) : comptees separement via loadAvoirsCredit.
+ *  - lignes engagement/opco_step (event_type IS NOT NULL) : modele HEOL ou
+ *    similaire base sur l'encaissement OPCO reel, pas sur NPEC contractuel.
+ *    Pour ces lignes : npec_snapshot=montant_brut event, quote_part=taux/100
+ *    (artificiel), donc la formule NPEC × taux × qp ne reconstitue PAS
+ *    montant_ht. Ne PAS les inclure dans le delta NPEC.
  *  - lignes hors jalon (mois_relatif <= 0 ou quote_part <= 0) : lignes libres/
- *    manuelles qui ne participent pas a la formule NPEC × taux × qp.
+ *    manuelles qui ne participent pas a la formule.
  */
 async function loadBilledLines(
   supabase: Client,
@@ -27,9 +33,10 @@ async function loadBilledLines(
   const { data, error } = await supabase
     .from('facture_lignes')
     .select(
-      'montant_ht, npec_snapshot, taux_commission_snapshot, quote_part, mois_relatif, factures!inner(id, ref, est_avoir)',
+      'montant_ht, npec_snapshot, taux_commission_snapshot, quote_part, mois_relatif, event_type, factures!inner(id, ref, est_avoir)',
     )
     .eq('contrat_id', contratId)
+    .is('event_type', null)
     .not('npec_snapshot', 'is', null)
     .gt('quote_part', 0)
     .gt('mois_relatif', 0);

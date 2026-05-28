@@ -26,8 +26,14 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Refresh the session -- important for Server Components
-  await supabase.auth.getUser();
+  // Refresh the session -- important for Server Components.
+  // On retourne aussi le user : un cookie sb-*-auth-token peut etre present
+  // mais invalide (ex. apres migration vers une autre instance Supabase = JWT
+  // secret different). getUser() valide reellement le token cote serveur et,
+  // s il est invalide, @supabase/ssr expire le cookie dans supabaseResponse.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  return supabaseResponse;
+  return { supabaseResponse, user };
 }

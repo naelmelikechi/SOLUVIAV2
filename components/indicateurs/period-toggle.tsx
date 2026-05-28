@@ -26,9 +26,8 @@ function PeriodToggleInner({
   const { replace } = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { get: getSearchParam } = searchParams;
 
-  const current = getSearchParam(paramName) ?? defaultValue;
+  const current = searchParams.get(paramName) ?? defaultValue;
 
   const setValue = (next: string) => {
     const params = new URLSearchParams(searchParams.toString());

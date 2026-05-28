@@ -47,7 +47,6 @@ export function ProductionPageClient(props: { data: ProductionRow[] }) {
 
 function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
   const searchParams = useSearchParams();
-  const { get: getSearchParam } = searchParams;
   const { replace } = useRouter();
   const pathname = usePathname();
 
@@ -56,7 +55,7 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
 
   // Multi-select projet filter - persisted in URL as ?projets=ref1,ref2
   const [filterProjets, setFilterProjets] = useState<string[]>(() => {
-    const fromUrl = getSearchParam('projets');
+    const fromUrl = searchParams.get('projets');
     return fromUrl ? fromUrl.split(',').filter(Boolean) : [];
   });
 

@@ -43,11 +43,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (isAuthRoute && hasSession) {
-    return NextResponse.redirect(new URL('/projets', request.url));
-  }
   if (isAuthRoute) {
-    return NextResponse.next();
+    // Pas de cookie -> on sert directement la page (login, etc.).
+    if (!hasSession) {
+      return NextResponse.next();
+    }
+    // Cookie present : on VALIDE avant de rediriger. Un cookie perime (ex.
+    // ancienne instance Supabase apres migration) ne doit pas declencher une
+    // redirection /login -> /projets -> /login en boucle (ERR_TOO_MANY_REDIRECTS).
+    // updateSession() expire le cookie invalide ; on rend alors la page auth.
+    const { supabaseResponse, user } = await updateSession(request);
+    if (!user) {
+      return supabaseResponse;
+    }
+    const redirect = NextResponse.redirect(new URL('/projets', request.url));
+    supabaseResponse.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+    return redirect;
   }
 
   // Not logged in → redirect to login (no session refresh needed)
@@ -65,8 +76,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const response = await updateSession(request);
-  response.cookies.set('sb-last-refresh', String(now), {
+  const { supabaseResponse, user } = await updateSession(request);
+
+  // Session invalide (ex. cookie d une ancienne instance Supabase apres
+  // migration) : updateSession a deja expire le cookie. On redirige vers
+  // /login en conservant ce nettoyage, plutot que de laisser passer (ce qui
+  // provoquait la boucle /projets <-> /login = ERR_TOO_MANY_REDIRECTS).
+  if (!user) {
+    const redirect = NextResponse.redirect(new URL('/login', request.url));
+    supabaseResponse.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+    return redirect;
+  }
+
+  supabaseResponse.cookies.set('sb-last-refresh', String(now), {
     httpOnly: true,
     // In dev over HTTP, secure:true prevents the browser from storing the
     // cookie, which silently breaks the 5-min throttle (every request re-runs
@@ -76,7 +98,7 @@ export async function proxy(request: NextRequest) {
     maxAge: 3600,
   });
 
-  return response;
+  return supabaseResponse;
 }
 
 /**

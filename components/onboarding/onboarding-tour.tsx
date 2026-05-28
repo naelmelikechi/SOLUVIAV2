@@ -62,12 +62,11 @@ function OnboardingTourInner({ role, completedAt }: OnboardingTourProps) {
   const { replace } = router;
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { get: getSearchParam } = searchParams;
   const pathnameRef = useRef(pathname);
   const startedRef = useRef(false);
 
   // Mode preview pour superadmin/admin : ?tour-preview=cdp ou commercial
-  const previewRoleRaw = getSearchParam(PREVIEW_PARAM);
+  const previewRoleRaw = searchParams.get(PREVIEW_PARAM);
   const previewRole =
     previewRoleRaw && PREVIEW_ROLES.has(previewRoleRaw) ? previewRoleRaw : null;
   const isPreview = previewRole !== null;

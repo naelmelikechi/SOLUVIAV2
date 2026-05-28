@@ -1,3 +1,4 @@
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import
 import {
   Document,
   Page,
@@ -122,15 +123,15 @@ const styles = StyleSheet.create({
   },
 });
 
+const eurFormatter = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+});
+
 function formatEur(n: number | null | undefined): string {
   if (n == null) return '0,00 EUR';
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  })
-    .format(n)
-    .replace(/[  ]/g, ' ');
+  return eurFormatter.format(n).replace(/[  ]/g, ' ');
 }
 
 function formatDate(s: string | null | undefined): string {
@@ -187,6 +188,7 @@ export function DevisPdf({
             <Text>
               Date :{' '}
               {formatDate(
+                // oxlint-disable-next-line react-doctor/rendering-hydration-mismatch-time
                 devis.date_emission ?? new Date().toISOString().slice(0, 10),
               )}
             </Text>

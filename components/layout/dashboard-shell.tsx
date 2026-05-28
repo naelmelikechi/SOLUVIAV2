@@ -11,7 +11,7 @@ import { useBadgeCounts } from '@/hooks/use-badge-counts';
 
 /**
  * Forme exacte attendue par <Sidebar>. Le layout server-side construit cet
- * objet depuis getCurrentUser() pour eviter le double round-trip cote client
+ * objet depuis getUser() pour eviter le double round-trip cote client
  * qu il y avait avant le sprint 5 #3.
  */
 export interface DashboardShellUser {

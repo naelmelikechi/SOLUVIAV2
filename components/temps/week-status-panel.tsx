@@ -115,7 +115,7 @@ function ListView({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5 px-3 py-3">
+      <div className="flex flex-col gap-1.5 p-3">
         {weekdays.map((date) => {
           const d = parseISO(date);
           const ferie = joursFeries[date];
@@ -148,7 +148,7 @@ function ListView({
                 state={absenceInfo.type}
                 title={`${ABSENCE_LABEL[absenceInfo.type]}${isHalf ? ' (1/2)' : ''}`}
                 hours={absenceInfo.hours}
-                actionIcon={<Pencil className="h-3.5 w-3.5" />}
+                actionIcon={<Pencil className="size-3.5" />}
                 onClick={() => onEdit(period)}
               />
             );
@@ -162,7 +162,7 @@ function ListView({
                 state="travail"
                 title="Travaillé"
                 hours={projectHours}
-                actionIcon={<Plus className="h-3.5 w-3.5" />}
+                actionIcon={<Plus className="size-3.5" />}
                 onClick={() => onNew(date)}
               />
             );
@@ -174,16 +174,16 @@ function ListView({
               dayLabel={dayLabel}
               state="empty"
               title="Aucune saisie"
-              actionIcon={<Plus className="h-3.5 w-3.5" />}
+              actionIcon={<Plus className="size-3.5" />}
               onClick={() => onNew(date)}
             />
           );
         })}
       </div>
 
-      <div className="border-border border-t px-3 py-3">
+      <div className="border-border border-t p-3">
         <Button size="sm" className="w-full" onClick={() => onNew(undefined)}>
-          <Plus className="mr-1 h-4 w-4" />
+          <Plus className="mr-1 size-4" />
           Ajouter une absence
         </Button>
       </div>
@@ -242,7 +242,7 @@ function DayRow({
           {dayLabel}
         </span>
         <div className="flex min-w-0 items-center gap-1.5">
-          {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
+          {Icon && <Icon className="size-3.5 shrink-0" />}
           <span className="truncate text-xs font-semibold">{title}</span>
           {typeof hours === 'number' && (
             <span className="text-[11px] font-medium opacity-75">
@@ -278,6 +278,7 @@ function FormView({
   weekDates,
   onCancel,
   onSaved,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: FormViewProps) {
   const isEdit = !!absence;
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -388,10 +389,10 @@ function FormView({
           variant="ghost"
           size="icon"
           onClick={onCancel}
-          className="h-7 w-7"
+          className="size-7"
           aria-label="Fermer le formulaire"
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </Button>
       </div>
 

@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { UserAvatar } from '@/components/shared/user-avatar';
 import { cn } from '@/lib/utils';
 import { formatHeures } from '@/lib/utils/formatters';
@@ -46,7 +46,7 @@ export function IntercontratList({
   data,
   tauxBillable,
 }: IntercontratListProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
 
   // Realtime : rafraichit la page quand un projet ou un user change
   // (affectation, archive, role, pipeline_access).
@@ -62,7 +62,7 @@ export function IntercontratList({
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const scheduleRefresh = () => {
       if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => router.refresh(), 2000);
+      debounceTimer = setTimeout(() => refresh(), 2000);
     };
     try {
       supabase = createClient();
@@ -97,7 +97,7 @@ export function IntercontratList({
       if (debounceTimer) clearTimeout(debounceTimer);
       if (supabase && channel) supabase.removeChannel(channel);
     };
-  }, [router]);
+  }, [refresh]);
 
   const moyenneBillable = (() => {
     const valid = tauxBillable.filter((t) => t.taux_billable !== null);
@@ -280,17 +280,17 @@ export function IntercontratList({
                               u.jours_sans_projet,
                             )}
                           >
-                            <Calendar className="mr-1 h-3 w-3" />
+                            <Calendar className="mr-1 size-3" />
                             {u.jours_sans_projet} j sans projet
                           </Badge>
                         </div>
                         <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-3 text-xs">
                           <span className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
+                            <Mail className="size-3" />
                             {u.email}
                           </span>
                           <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
+                            <Clock className="size-3" />
                             {formatHeures(u.heures_internes_30j)} interne (30j)
                           </span>
                         </div>

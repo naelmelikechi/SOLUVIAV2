@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getClientsList } from '@/lib/queries/clients';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { ClientsDataTable } from '@/components/admin/clients-data-table';
@@ -13,10 +13,7 @@ export const revalidate = 120;
 export default async function ClientsPage() {
   // user + clients en parallele. Si non-admin on paye getClientsList pour
   // rien (cas rare : sidebar gate).
-  const [user, clients] = await Promise.all([
-    getCurrentUser(),
-    getClientsList(),
-  ]);
+  const [user, clients] = await Promise.all([getUser(), getClientsList()]);
   if (!isAdmin(user?.role)) {
     redirect('/projets');
   }

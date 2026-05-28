@@ -2,22 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
-
-const ACCEPTED_TYPES = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-];
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+import { ACCEPTED_TYPES, MAX_FILE_SIZE } from './documents-constants';
 
 export type DocumentBucket = 'client-documents' | 'project-documents';
 
@@ -119,7 +107,7 @@ export async function uploadClientDocument(
   }
   clientId = parsed.data.clientId;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -208,7 +196,7 @@ export async function uploadProjetDocument(
   projetId = parsed.data.projetId;
   projetRef = parsed.data.projetRef;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -287,7 +275,7 @@ export async function getDocumentDownloadUrl(
   storagePath = parsed.data.storagePath;
   bucket = parsed.data.bucket;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
 
@@ -321,7 +309,7 @@ export async function deleteClientDocument(
   documentId = parsed.data.documentId;
   clientId = parsed.data.clientId;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -393,7 +381,7 @@ export async function deleteProjetDocument(
   documentId = parsed.data.documentId;
   projetRef = parsed.data.projetRef;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

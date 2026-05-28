@@ -8,8 +8,7 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
-  const { token } = await params;
-  const supabase = await createClient();
+  const [{ token }, supabase] = await Promise.all([params, createClient()]);
 
   // Verifier le token + recuperer le devis_id
   const { data: row, error } = await supabase

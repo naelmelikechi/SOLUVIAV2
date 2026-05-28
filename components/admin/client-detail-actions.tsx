@@ -15,7 +15,7 @@ interface ClientDetailActionsProps {
 }
 
 export function ClientDetailActions({ client }: ClientDetailActionsProps) {
-  const router = useRouter();
+  const { push, refresh } = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -29,7 +29,7 @@ export function ClientDetailActions({ client }: ClientDetailActionsProps) {
         if (result.success) {
           toast.success('Client restauré');
           setConfirmOpen(false);
-          router.refresh();
+          refresh();
         } else {
           toast.error(result.error ?? 'Erreur lors de la restauration');
         }
@@ -38,7 +38,7 @@ export function ClientDetailActions({ client }: ClientDetailActionsProps) {
         if (result.success) {
           toast.success('Client archivé');
           setConfirmOpen(false);
-          router.push('/admin/clients');
+          push('/admin/clients');
         } else {
           toast.error(result.error ?? "Erreur lors de l'archivage");
         }
@@ -50,7 +50,7 @@ export function ClientDetailActions({ client }: ClientDetailActionsProps) {
     <>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-          <Pencil className="mr-2 h-3.5 w-3.5" />
+          <Pencil className="mr-2 size-3.5" />
           Modifier
         </Button>
         {isArchived ? (
@@ -60,7 +60,7 @@ export function ClientDetailActions({ client }: ClientDetailActionsProps) {
             onClick={() => setConfirmOpen(true)}
             disabled={isPending}
           >
-            <ArchiveRestore className="mr-2 h-3.5 w-3.5" />
+            <ArchiveRestore className="mr-2 size-3.5" />
             Restaurer
           </Button>
         ) : (
@@ -71,7 +71,7 @@ export function ClientDetailActions({ client }: ClientDetailActionsProps) {
             disabled={isPending}
             className="text-destructive hover:text-destructive"
           >
-            <Archive className="mr-2 h-3.5 w-3.5" />
+            <Archive className="mr-2 size-3.5" />
             Archiver
           </Button>
         )}

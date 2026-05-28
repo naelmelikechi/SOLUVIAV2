@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { UserAvatar } from '@/components/shared/user-avatar';
@@ -87,11 +87,11 @@ function describeAction(
 
 export default async function AuditPage() {
   const supabase = await createClient();
-  // Parallelise getCurrentUser + audit_logs select : independants. Si user
+  // Parallelise getUser + audit_logs select : independants. Si user
   // pas admin on paye le SELECT pour rien (cas rare : la page est gatee
   // par la sidebar).
   const [user, full] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     // Full select - requires migration 00041 (avatar_mode). Fall back to legacy
     // schema without avatar_mode if the column doesn't exist yet on prod.
     supabase
@@ -131,7 +131,7 @@ export default async function AuditPage() {
         href="/admin/parametres"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft className="size-4" />
         Retour aux paramètres
       </Link>
 

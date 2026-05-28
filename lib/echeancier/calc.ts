@@ -405,11 +405,13 @@ export function computeDerivance(
 
   for (const [moisRelatif, lines] of sortedJalons) {
     // quote_part canonique = max du jalon (l'originale, pas les complements
-    // qui peuvent etre fractionnaires si emis manuellement).
-    const quotePartCanon = Math.max(...lines.map((l) => l.quote_part));
-    // taux snapshot canonique = taux de la ligne ayant la qp canonique
-    const lineCanon =
-      lines.find((l) => l.quote_part === quotePartCanon) ?? lines[0]!;
+    // qui peuvent etre fractionnaires si emis manuellement). Une seule passe
+    // pour determiner max + ligne canonique.
+    const lineCanon = lines.reduce(
+      (best, l) => (l.quote_part > best.quote_part ? l : best),
+      lines[0]!,
+    );
+    const quotePartCanon = lineCanon.quote_part;
     const tauxSnapshot = lineCanon.taux_commission_snapshot;
 
     const baseAttendu = (npecActuel * tauxSnapshot) / 100;

@@ -111,6 +111,7 @@ export function ProspectRow({
 
   return (
     <div
+      // oxlint-disable-next-line react-doctor/prefer-tag-over-role
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -167,7 +168,7 @@ export function ProspectRow({
         {prospect.commercial ? (
           <>
             <span
-              className="bg-muted text-muted-foreground inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold"
+              className="bg-muted text-muted-foreground inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold"
               aria-hidden
             >
               {initials(prospect.commercial.prenom, prospect.commercial.nom)}
@@ -223,7 +224,7 @@ export function ProspectRow({
             <span className="flex items-center gap-1.5">
               <span
                 className={cn(
-                  'h-1.5 w-1.5 rounded-full',
+                  'size-1.5 rounded-full',
                   STAGE_DOT[prospect.stage],
                 )}
                 aria-hidden
@@ -241,7 +242,7 @@ export function ProspectRow({
               <SelectItem key={s} value={s} label={STAGE_PROSPECT_LABELS[s]}>
                 <span className="flex items-center gap-1.5">
                   <span
-                    className={cn('h-1.5 w-1.5 rounded-full', STAGE_DOT[s])}
+                    className={cn('size-1.5 rounded-full', STAGE_DOT[s])}
                     aria-hidden
                   />
                   {STAGE_PROSPECT_LABELS[s]}

@@ -154,6 +154,7 @@ export async function POST(request: Request) {
         },
         body: rawBody,
         signal: AbortSignal.timeout(5_000),
+        cache: 'no-store',
       });
       financesStatus = res.ok ? 'sent' : 'error';
     } catch {

@@ -41,8 +41,8 @@ vi.mock('@/lib/email/client', () => ({
 const mockUser = { id: 'user-1', email: 'admin@test.com' };
 const requireUserMock = vi.fn();
 vi.mock('@/lib/auth/guards', () => ({
-  requireUser: () => requireUserMock(),
-  requireAdmin: () => requireUserMock(),
+  requireAuth: () => requireUserMock(),
+  checkAuth: () => requireUserMock(),
 }));
 
 interface RecordedOp {

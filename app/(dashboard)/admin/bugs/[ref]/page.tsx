@@ -2,12 +2,18 @@ import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { getBugReportByRef } from '@/lib/queries/bug-reports';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Button } from '@/components/ui/button';
 import { BugDetail } from './bug-detail';
+
+const REPORTED_AT_FORMATTER = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: 'Europe/Paris',
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
 
 export const metadata: Metadata = { title: 'Bug - SOLUVIA' };
 
@@ -19,10 +25,7 @@ export default async function BugDetailPage({
   const { ref } = await params;
   // user + bug en parallele : independants. On paye getBugReportByRef si
   // l user n est pas admin (rare, la page est gated par la sidebar).
-  const [user, bug] = await Promise.all([
-    getCurrentUser(),
-    getBugReportByRef(ref),
-  ]);
+  const [user, bug] = await Promise.all([getUser(), getBugReportByRef(ref)]);
   if (!isAdmin(user?.role)) redirect('/projets');
   if (!bug) notFound();
 
@@ -56,11 +59,7 @@ export default async function BugDetailPage({
   // Server Component : toLocaleString sans timeZone afficherait l UTC sur
   // Vercel (workers en UTC). On force Europe/Paris pour rester coherent
   // avec la liste qui utilise Intl.DateTimeFormat({ timeZone }).
-  const reportedAt = new Intl.DateTimeFormat('fr-FR', {
-    timeZone: 'Europe/Paris',
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(new Date(bug.created_at));
+  const reportedAt = REPORTED_AT_FORMATTER.format(new Date(bug.created_at));
 
   return (
     <div className="space-y-6">

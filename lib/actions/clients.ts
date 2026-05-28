@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireAdmin, requireUser } from '@/lib/auth/guards';
+import { checkAuth, requireAuth } from '@/lib/auth/guards';
 import { encryptApiKey, decryptApiKey } from '@/lib/utils/encryption';
 import {
   baseUrlFrom,
@@ -225,7 +225,7 @@ export async function createClientAction(
     return { success: false, error: siretCheck.error };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -282,7 +282,7 @@ export async function updateClientAction(
     return { success: false, error: siretCheck.error };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -340,7 +340,7 @@ export async function updateClientApporteur(
   }
   const validated = parsed.data;
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -410,7 +410,7 @@ async function setClientArchive(
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -440,12 +440,16 @@ async function setClientArchive(
 export async function archiveClient(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
   return setClientArchive(id, true);
 }
 
 export async function unarchiveClient(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
   return setClientArchive(id, false);
 }
 
@@ -488,7 +492,7 @@ export async function addClientContact(
   }
   const validated = parsed.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -542,7 +546,7 @@ export async function updateClientContact(
   }
   const validated = parsed.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -599,7 +603,7 @@ export async function deleteClientContact(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -639,7 +643,7 @@ export async function addClientNote(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -679,7 +683,7 @@ export async function addClientApiKey(
   }
   const validated = parsed.data;
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -737,7 +741,7 @@ export async function deleteClientApiKey(
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -748,6 +752,7 @@ export async function deleteClientApiKey(
     .eq('id', parsed.data.keyId)
     .single();
 
+  // oxlint-disable-next-line react-doctor/server-sequential-independent-await
   const { error } = await supabase
     .from('client_api_keys')
     .delete()
@@ -772,7 +777,7 @@ export async function toggleClientApiKeyActive(
   keyId: string,
   isActive: boolean,
 ): Promise<{ success: boolean; error?: string }> {
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -806,7 +811,7 @@ export async function toggleClientApiKeyActive(
 export async function testApiKeyConnection(
   keyId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase } = auth;
 

@@ -9,7 +9,8 @@ import type { ProjetListEnriched } from '@/lib/queries/projets';
 import { DataTable } from '@/components/shared/data-table';
 import type { FilterOption } from '@/components/shared/data-table';
 import { projetListColumns } from '@/components/projets/projet-list-columns';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { EmptyState } from '@/components/shared/empty-state';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_PROJET_LABELS } from '@/lib/utils/constants';
@@ -46,14 +47,13 @@ export function ProjetsDataTable({
   data: ProjetListEnriched[];
   userRole?: string;
 }) {
-  const router = useRouter();
+  const { push } = useRouter();
   const { favorites, toggle, isFavorite } = useFavorites();
 
-  const [includeInternes, setIncludeInternes] = useState(false);
-  useEffect(() => {
-    const stored = localStorage.getItem(INCLUDE_INTERNES_STORAGE_KEY);
-    if (stored === 'true') setIncludeInternes(true);
-  }, []);
+  const [includeInternes, setIncludeInternes] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(INCLUDE_INTERNES_STORAGE_KEY) === 'true';
+  });
   useEffect(() => {
     localStorage.setItem(
       INCLUDE_INTERNES_STORAGE_KEY,
@@ -62,7 +62,7 @@ export function ProjetsDataTable({
   }, [includeInternes]);
 
   const handleRowClick = (row: ProjetListEnriched) => {
-    router.push(`/projets/${row.ref}`);
+    push(`/projets/${row.ref}`);
   };
 
   const handleExport = async () => {
@@ -104,7 +104,7 @@ export function ProjetsDataTable({
             }}
           >
             <Star
-              className={`h-4 w-4 ${fav ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
+              className={`size-4 ${fav ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
             />
           </button>
         );
@@ -121,7 +121,7 @@ export function ProjetsDataTable({
     const filtered = includeInternes
       ? data
       : data.filter((p) => !p.est_interne);
-    return [...filtered].sort((a, b) => {
+    return filtered.toSorted((a, b) => {
       const aFav = favorites.has(a.id) ? 0 : 1;
       const bFav = favorites.has(b.id) ? 0 : 1;
       return aFav - bFav;
@@ -147,14 +147,14 @@ export function ProjetsDataTable({
               href="/accueil"
               className={buttonVariants({ variant: 'default', size: 'sm' })}
             >
-              <Sparkles className="mr-1 h-3.5 w-3.5" />
+              <Sparkles className="mr-1 size-3.5" />
               Mon accueil
             </Link>
             <Link
               href="/temps"
               className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >
-              <Clock className="mr-1 h-3.5 w-3.5" />
+              <Clock className="mr-1 size-3.5" />
               Saisir mon temps interne
             </Link>
           </div>
@@ -179,13 +179,14 @@ export function ProjetsDataTable({
               type="checkbox"
               checked={includeInternes}
               onChange={(e) => setIncludeInternes(e.target.checked)}
-              className="h-3.5 w-3.5 cursor-pointer rounded"
+              aria-label="Inclure projets internes"
+              className="size-3.5 cursor-pointer rounded"
             />
             Inclure projets internes ({internesCount})
           </label>
         )}
         <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="mr-1.5 h-4 w-4" />
+          <Download className="mr-1.5 size-4" />
           Export Excel
         </Button>
       </div>

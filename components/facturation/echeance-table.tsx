@@ -13,10 +13,8 @@ import {
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { toast } from 'sonner';
 import { createFactures } from '@/lib/actions/factures';
@@ -152,7 +150,7 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
                             onPreview(echeance.id);
                           }}
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye className="size-4" />
                         </Button>
                       )}
                     </TableCell>

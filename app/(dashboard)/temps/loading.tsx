@@ -10,9 +10,9 @@ export default function TempsLoading() {
       </div>
       {/* Week navigator */}
       <div className="flex items-center justify-center gap-4">
-        <Skeleton className="h-9 w-9" />
+        <Skeleton className="size-9" />
         <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-9 w-9" />
+        <Skeleton className="size-9" />
       </div>
       {/* Time grid skeleton - 7 columns */}
       <div className="rounded-lg border">

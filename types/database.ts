@@ -3308,6 +3308,7 @@ export type CompositeTypes<
     ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
     : never;
 
+// oxlint-disable-next-line deslop/unused-export
 export const Constants = {
   graphql_public: {
     Enums: {},

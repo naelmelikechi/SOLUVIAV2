@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Suspense, useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   TrendingUp,
@@ -37,26 +37,31 @@ import { MonthlyView } from '@/components/production/views/monthly-view';
 // Component
 // ---------------------------------------------------------------------------
 
-export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
+export function ProductionPageClient(props: { data: ProductionRow[] }) {
+  return (
+    <Suspense fallback={null}>
+      <ProductionPageClientInner {...props} />
+    </Suspense>
+  );
+}
+
+function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const { get: getSearchParam } = searchParams;
+  const { replace } = useRouter();
   const pathname = usePathname();
 
   const [perspective, setPerspective] =
     useState<ProductionPerspective>('soluvia');
 
   // Multi-select projet filter - persisted in URL as ?projets=ref1,ref2
-  const [filterProjets, setFilterProjets] = useState<string[]>([]);
+  const [filterProjets, setFilterProjets] = useState<string[]>(() => {
+    const fromUrl = getSearchParam('projets');
+    return fromUrl ? fromUrl.split(',').filter(Boolean) : [];
+  });
 
   // Available projets discovered lazily as users expand rows
   const [availableProjets, setAvailableProjets] = useState<string[]>([]);
-
-  // Hydrate filter from URL on mount
-  useEffect(() => {
-    const fromUrl = searchParams.get('projets');
-    if (fromUrl) setFilterProjets(fromUrl.split(',').filter(Boolean));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Sync filter to URL on change
   useEffect(() => {
@@ -64,7 +69,8 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
     if (filterProjets.length === 0) next.delete('projets');
     else next.set('projets', filterProjets.join(','));
     const qs = next.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false });
+    replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false });
+    // oxlint-disable-next-line react-doctor/exhaustive-deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterProjets]);
 
@@ -178,13 +184,14 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                 {filterProjets.length}
               </span>
             )}
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="size-3.5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
             <DropdownMenuLabel className="flex items-center justify-between gap-4">
               <span>Filtrer par projet</span>
               <div className="flex gap-1">
                 <button
+                  type="button"
                   className="text-muted-foreground hover:text-foreground text-[10px] underline"
                   onClick={() => setFilterProjets(availableProjets)}
                 >
@@ -192,6 +199,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
                 </button>
                 <span className="text-muted-foreground text-[10px]">/</span>
                 <button
+                  type="button"
                   className="text-muted-foreground hover:text-foreground text-[10px] underline"
                   onClick={() => setFilterProjets([])}
                 >
@@ -230,7 +238,7 @@ export function ProductionPageClient({ data }: { data: ProductionRow[] }) {
             className="p-3 transition-shadow hover:shadow-md"
           >
             <div className="text-muted-foreground mb-1 flex items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase">
-              <kpi.icon className={cn('h-3.5 w-3.5', kpi.color)} />
+              <kpi.icon className={cn('size-3.5', kpi.color)} />
               {kpi.label}
             </div>
             <div

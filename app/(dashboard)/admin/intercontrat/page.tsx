@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import {
   getIntercontratUsers,
   getTauxBillableTeam30j,
@@ -15,7 +15,7 @@ export default async function IntercontratPage() {
   // user + queries en parallele. Si l user n est pas admin on paye 2
   // queries pour rien (cas rare : sidebar gate).
   const [currentUser, users, tauxBillable] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     getIntercontratUsers(),
     getTauxBillableTeam30j(),
   ]);

@@ -28,7 +28,7 @@ function TechCard({ title, value, subtitle }: TechCardProps) {
           {value > 0 && (
             <span
               aria-hidden
-              className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500"
+              className="inline-block size-2.5 rounded-full bg-emerald-500"
             />
           )}
         </div>

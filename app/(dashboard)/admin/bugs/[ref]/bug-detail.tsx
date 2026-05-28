@@ -123,8 +123,8 @@ export function BugDetail({
                   Hypothèses
                 </p>
                 <ul className="list-disc space-y-1 pl-5 text-sm">
-                  {hypotheses.map((h, i) => (
-                    <li key={i}>{h}</li>
+                  {hypotheses.map((h) => (
+                    <li key={h}>{h}</li>
                   ))}
                 </ul>
               </>
@@ -143,7 +143,7 @@ export function BugDetail({
 
         {bug.ai_status === 'pending' && (
           <Card className="border-amber-300/50 bg-amber-50 p-4">
-            <p className="text-sm text-amber-900">Analyse IA en cours...</p>
+            <p className="text-sm text-amber-900">Analyse IA en cours…</p>
           </Card>
         )}
 

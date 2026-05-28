@@ -62,9 +62,9 @@ export function DataTablePagination<TData>({
             onClick={() => table.firstPage()}
             disabled={!table.getCanPreviousPage()}
             aria-label="Première page"
-            className="h-8 w-8 p-0"
+            className="size-8 p-0"
           >
-            <ChevronsLeft className="h-4 w-4" />
+            <ChevronsLeft className="size-4" />
           </Button>
           <Button
             variant="outline"
@@ -72,9 +72,9 @@ export function DataTablePagination<TData>({
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
             aria-label="Page précédente"
-            className="h-8 w-8 p-0"
+            className="size-8 p-0"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="size-4" />
           </Button>
           <span className="px-2 tabular-nums">
             Page {pageIndex + 1} sur {Math.max(pageCount, 1)}
@@ -85,9 +85,9 @@ export function DataTablePagination<TData>({
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
             aria-label="Page suivante"
-            className="h-8 w-8 p-0"
+            className="size-8 p-0"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="size-4" />
           </Button>
           <Button
             variant="outline"
@@ -95,9 +95,9 @@ export function DataTablePagination<TData>({
             onClick={() => table.lastPage()}
             disabled={!table.getCanNextPage()}
             aria-label="Dernière page"
-            className="h-8 w-8 p-0"
+            className="size-8 p-0"
           >
-            <ChevronsRight className="h-4 w-4" />
+            <ChevronsRight className="size-4" />
           </Button>
         </div>
       </div>

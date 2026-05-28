@@ -120,7 +120,7 @@ export default async function IndicatorPage({
       <div className="mb-4">
         <Link href={`/qualiopi/${p.clientRef}/${campusId}/${criterionId}`}>
           <Button variant="ghost" size="sm" className="-ml-2">
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            <ArrowLeft className="mr-1.5 size-4" />
             {criterion.title}
           </Button>
         </Link>

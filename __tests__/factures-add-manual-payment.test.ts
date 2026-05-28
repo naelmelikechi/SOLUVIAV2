@@ -9,7 +9,7 @@ import type { User } from '@supabase/supabase-js';
  * Tests pour lib/actions/factures/payments.ts (addManualPayment).
  *
  * Couvre les invariants critiques :
- * - Reserve aux superadmins (requireSuperAdmin) : un admin classique se voit
+ * - Reserve aux superadmins (validateSession) : un admin classique se voit
  *   refuser l'acces.
  * - Push Odoo (account.payment.register) AVANT l'insert local. Si Odoo echoue,
  *   rien n'est ecrit cote Soluvia.
@@ -49,7 +49,7 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('@/lib/auth/guards', () => ({
-  requireSuperAdmin: vi.fn(async () => mocks.getAuth()),
+  validateSession: vi.fn(async () => mocks.getAuth()),
 }));
 
 vi.mock('@/lib/odoo/client', () => ({

@@ -79,7 +79,7 @@ interface NotificationsPageClientProps {
 export function NotificationsPageClient({
   notifications,
 }: NotificationsPageClientProps) {
-  const router = useRouter();
+  const { push, refresh } = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const hasUnread = notifications.some((n) => !n.read_at);
@@ -87,21 +87,21 @@ export function NotificationsPageClient({
   const handleMarkRead = (id: string) => {
     startTransition(async () => {
       await markNotificationRead(id);
-      router.refresh();
+      refresh();
     });
   };
 
   const handleMarkAllRead = () => {
     startTransition(async () => {
       await markAllNotificationsRead();
-      router.refresh();
+      refresh();
     });
   };
 
   const handleDelete = (id: string) => {
     startTransition(async () => {
       await deleteNotification(id);
-      router.refresh();
+      refresh();
     });
   };
 
@@ -110,13 +110,13 @@ export function NotificationsPageClient({
       startTransition(async () => {
         await markNotificationRead(notification.id);
         if (notification.lien) {
-          router.push(notification.lien);
+          push(notification.lien);
         } else {
-          router.refresh();
+          refresh();
         }
       });
     } else if (notification.lien) {
-      router.push(notification.lien);
+      push(notification.lien);
     }
   };
 
@@ -141,7 +141,7 @@ export function NotificationsPageClient({
             disabled={isPending}
             onClick={handleMarkAllRead}
           >
-            <CheckCheck data-icon="inline-start" className="h-4 w-4" />
+            <CheckCheck data-icon="inline-start" className="size-4" />
             Tout marquer comme lu
           </Button>
         </div>
@@ -180,11 +180,11 @@ export function NotificationsPageClient({
               {/* Icon */}
               <div
                 className={cn(
-                  'bg-muted flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                  'bg-muted flex size-9 shrink-0 items-center justify-center rounded-lg',
                   iconColor,
                 )}
               >
-                <Icon className="h-[18px] w-[18px]" />
+                <Icon className="size-[18px]" />
               </div>
 
               {/* Content */}
@@ -228,7 +228,7 @@ export function NotificationsPageClient({
                     disabled={isPending}
                     onClick={() => handleMarkRead(notification.id)}
                   >
-                    <CheckCheck className="h-3.5 w-3.5" />
+                    <CheckCheck className="size-3.5" />
                   </Button>
                 )}
                 <Button
@@ -239,7 +239,7 @@ export function NotificationsPageClient({
                   disabled={isPending}
                   onClick={() => handleDelete(notification.id)}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="size-3.5" />
                 </Button>
               </div>
             </div>

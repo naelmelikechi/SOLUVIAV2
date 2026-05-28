@@ -123,27 +123,25 @@ export async function getProjetPerformance(
   // ─── Pédagogie ──────────────────────────────────────────────────────
   // Moyenne (progression_reelle / progression_theorique × 100) sur les contrats actifs.
   // 100 % = on time. Au-dessus = en avance, en-dessous = en retard.
-  const pedagogieRows = contrats
-    .filter((c) => isContratActif(c.contract_state))
-    .map((c) => {
-      const prog = Array.isArray(c.contrats_progressions)
-        ? c.contrats_progressions[0]
-        : c.contrats_progressions;
-      const realPct = prog?.progression_percentage;
-      if (realPct == null || c.date_debut == null || c.date_fin == null) {
-        return null;
-      }
-      const start = new Date(c.date_debut).getTime();
-      const end = new Date(c.date_fin).getTime();
-      const now = Date.now();
-      const total = end - start;
-      if (total <= 0) return null;
-      const elapsed = Math.max(0, Math.min(total, now - start));
-      const theoretical = (elapsed / total) * 100;
-      if (theoretical <= 0) return null;
-      return { real: realPct, theoretical };
-    })
-    .filter((x): x is { real: number; theoretical: number } => x !== null);
+  const pedagogieRows = contrats.flatMap((c) => {
+    if (!isContratActif(c.contract_state)) return [];
+    const prog = Array.isArray(c.contrats_progressions)
+      ? c.contrats_progressions[0]
+      : c.contrats_progressions;
+    const realPct = prog?.progression_percentage;
+    if (realPct == null || c.date_debut == null || c.date_fin == null) {
+      return [];
+    }
+    const start = new Date(c.date_debut).getTime();
+    const end = new Date(c.date_fin).getTime();
+    const now = Date.now();
+    const total = end - start;
+    if (total <= 0) return [];
+    const elapsed = Math.max(0, Math.min(total, now - start));
+    const theoretical = (elapsed / total) * 100;
+    if (theoretical <= 0) return [];
+    return [{ real: realPct, theoretical }];
+  });
 
   let pedagogie: VoletPerformance;
   if (pedagogieRows.length === 0) {
@@ -289,10 +287,11 @@ export async function getProjetPerformance(
 
     type UserCostRow = { id: string } & EmployeeCostInputs;
     const usersCost = (usersCostRes.data ?? []) as UserCostRow[];
+    const usersCostById = new Map(usersCost.map((u) => [u.id, u]));
 
     for (const userId of userIds) {
       const hours = hoursPerUser.get(userId) ?? 0;
-      const u = usersCost.find((x) => x.id === userId);
+      const u = usersCostById.get(userId);
       const inputs: EmployeeCostInputs = u ?? {
         salaire_brut_annuel: null,
         primes_annuelles: null,

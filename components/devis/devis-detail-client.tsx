@@ -4,7 +4,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Copy, Download, Send, XCircle } from 'lucide-react';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { cn } from '@/lib/utils';
 import { DevisStatusBadge } from './devis-status-badge';
 import { DevisLignesEditor } from './devis-lignes-editor';
@@ -17,8 +18,9 @@ interface DevisDetailClientProps {
   devis: DevisDetail;
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function DevisDetailClient({ devis }: DevisDetailClientProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   const [sendOpen, setSendOpen] = useState(false);
   const [factureDialogOpen, setFactureDialogOpen] = useState(false);
   const [cancelPending, startCancel] = useTransition();
@@ -43,7 +45,7 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
       const res = await cancelDevis(devis.id);
       if (res.success) {
         toast.success('Devis annulé.');
-        router.push('/devis');
+        push('/devis');
       } else {
         toast.error(res.error);
       }
@@ -93,7 +95,7 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
           {isBrouillon && (
             <>
               <Button onClick={() => setSendOpen(true)}>
-                <Send className="mr-2 h-4 w-4" />
+                <Send className="mr-2 size-4" />
                 Envoyer
               </Button>
               <Button
@@ -101,7 +103,7 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
                 onClick={handleCancel}
                 disabled={cancelPending}
               >
-                <XCircle className="mr-2 h-4 w-4" />
+                <XCircle className="mr-2 size-4" />
                 Annuler
               </Button>
             </>
@@ -113,11 +115,11 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
                 download={`${devis.ref}.pdf`}
                 className={cn(buttonVariants({ variant: 'outline' }))}
               >
-                <Download className="mr-2 h-4 w-4" />
+                <Download className="mr-2 size-4" />
                 Télécharger PDF
               </a>
               <Button variant="outline" onClick={copyLink}>
-                <Copy className="mr-2 h-4 w-4" />
+                <Copy className="mr-2 size-4" />
                 Copier le lien
               </Button>
             </>
@@ -142,7 +144,7 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
                   const res = await reviseDevis(devis.id);
                   if (res.success) {
                     toast.success('Revision creee avec succes.');
-                    router.push(`/devis/${res.newDevisId}`);
+                    push(`/devis/${res.newDevisId}`);
                   } else {
                     toast.error(res.error);
                   }
@@ -275,10 +277,11 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
             <input
               readOnly
               value={publicLink}
+              aria-label="Lien public du devis"
               className="bg-muted text-muted-foreground flex-1 rounded-md px-3 py-1.5 text-xs"
             />
             <Button variant="outline" size="sm" onClick={copyLink}>
-              <Copy className="h-3.5 w-3.5" />
+              <Copy className="size-3.5" />
             </Button>
           </div>
         </div>

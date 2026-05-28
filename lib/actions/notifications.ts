@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 
 const notificationIdSchema = z
   .string()
@@ -19,7 +19,7 @@ export async function markNotificationRead(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -40,7 +40,7 @@ export async function markAllNotificationsRead(): Promise<{
   success: boolean;
   error?: string;
 }> {
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -68,7 +68,7 @@ export async function deleteNotification(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

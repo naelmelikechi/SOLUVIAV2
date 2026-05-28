@@ -51,7 +51,7 @@ export async function tryAcquireEmailLock(
  * email (ex: tous les envois Resend ont echoue). Sans release, l'idempotence
  * bloquerait le retry sur la meme periode meme apres correction du probleme.
  */
-export async function releaseEmailLock(
+async function releaseEmailLock(
   supabase: SupabaseClient<Database>,
   job: string,
   periodeKey: string,

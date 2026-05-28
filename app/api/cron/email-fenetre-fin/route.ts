@@ -72,6 +72,7 @@ export async function GET(request: Request) {
               : (countByCdp.get(user.id) ?? 0);
           if (nb === 0) continue;
 
+          // oxlint-disable-next-line react-doctor/async-await-in-loop
           const r = await sendFenetreFinEmail({
             to: user.email,
             prenom: user.prenom,

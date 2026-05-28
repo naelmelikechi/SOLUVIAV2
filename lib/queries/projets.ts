@@ -4,7 +4,7 @@ import { logger } from '@/lib/utils/logger';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-export async function getProjetsList() {
+async function getProjetsList() {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -62,8 +62,10 @@ export interface ProjetListEnriched extends ProjetListItem {
 }
 
 export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
-  const supabase = await createClient();
-  const projets = await getProjetsList();
+  const [supabase, projets] = await Promise.all([
+    createClient(),
+    getProjetsList(),
+  ]);
 
   if (projets.length === 0) return [];
 
@@ -403,14 +405,18 @@ export async function getProjetTempsStats(projetId: string) {
     axeMap.set(row.axe, (axeMap.get(row.axe) ?? 0) + row.heures);
   }
 
-  const axes = (axesDefs ?? [])
-    .filter((a) => axeMap.has(a.code))
-    .map((a) => ({
-      code: a.code,
-      label: a.libelle,
-      heures: axeMap.get(a.code) ?? 0,
-      color: a.couleur ?? '#6b7280',
-    }));
+  const axes = (axesDefs ?? []).flatMap((a) =>
+    axeMap.has(a.code)
+      ? [
+          {
+            code: a.code,
+            label: a.libelle,
+            heures: axeMap.get(a.code) ?? 0,
+            color: a.couleur ?? '#6b7280',
+          },
+        ]
+      : [],
+  );
 
   return { total, mois_label, axes, totalAnnee, annee, sparkline };
 }

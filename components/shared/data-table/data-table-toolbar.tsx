@@ -42,10 +42,12 @@ interface DataTableToolbarProps<TData> {
   filters?: FilterOption[];
 }
 
+const EMPTY_FILTERS: FilterOption[] = [];
+
 export function DataTableToolbar<TData>({
   table,
   searchPlaceholder = 'Rechercher...',
-  filters = [],
+  filters = EMPTY_FILTERS,
 }: DataTableToolbarProps<TData>) {
   const activeFilterCount = filters.reduce((count, filter) => {
     const value = table.getColumn(filter.column)?.getFilterValue();
@@ -59,7 +61,7 @@ export function DataTableToolbar<TData>({
     <div className="flex items-center justify-between">
       <div className="flex flex-1 flex-wrap items-center gap-2">
         <div className="relative max-w-sm flex-1">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             placeholder={searchPlaceholder}
             value={globalFilter}
@@ -81,7 +83,7 @@ export function DataTableToolbar<TData>({
           return (
             <DropdownMenu key={filter.column}>
               <DropdownMenuTrigger className="bg-background border-input hover:bg-accent hover:text-accent-foreground inline-flex h-7 items-center justify-center gap-1 rounded-lg border px-2.5 text-[0.8rem] font-medium whitespace-nowrap transition-colors">
-                <ListFilter className="h-3.5 w-3.5" />
+                <ListFilter className="size-3.5" />
                 {filter.label}
                 {selectedValues.length > 0 && (
                   <Badge
@@ -117,7 +119,7 @@ export function DataTableToolbar<TData>({
                 })}
                 {selectedValues.length > 0 && (
                   <DropdownMenuItem onClick={() => setValues([])}>
-                    <X className="mr-1.5 h-3.5 w-3.5" />
+                    <X className="mr-1.5 size-3.5" />
                     Effacer
                   </DropdownMenuItem>
                 )}
@@ -133,7 +135,7 @@ export function DataTableToolbar<TData>({
           return (
             <DropdownMenu>
               <DropdownMenuTrigger className="bg-background border-input hover:bg-accent hover:text-accent-foreground inline-flex h-7 items-center justify-center gap-1 rounded-lg border px-2.5 text-[0.8rem] font-medium whitespace-nowrap transition-colors">
-                <Settings2 className="h-3.5 w-3.5" />
+                <Settings2 className="size-3.5" />
                 Colonnes
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
@@ -162,7 +164,7 @@ export function DataTableToolbar<TData>({
               }
             }}
           >
-            <X className="mr-1.5 h-3.5 w-3.5" />
+            <X className="mr-1.5 size-3.5" />
             Effacer les filtres
           </Button>
         )}

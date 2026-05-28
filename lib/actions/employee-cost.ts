@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAdmin } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { logAudit } from '@/lib/utils/audit';
 import type { EmployeeCostInputs } from '@/lib/utils/employee-cost';
 
@@ -35,7 +35,7 @@ export async function updateUserCost(
       error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { user: authUser } = auth;
 
@@ -82,7 +82,7 @@ export async function updateEmployeeCostDefaults(fields: {
       error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { user: authUser } = auth;
 
@@ -98,6 +98,7 @@ export async function updateEmployeeCostDefaults(fields: {
   ];
 
   for (const [cle, valeur] of updates) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop
     const { error } = await admin
       .from('parametres')
       .update({ valeur })

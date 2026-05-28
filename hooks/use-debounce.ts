@@ -12,9 +12,10 @@ export function useDebounce<T extends (...args: unknown[]) => unknown>(
   }, [callback]);
 
   useEffect(() => {
+    const timeoutAtMount = timeoutRef;
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      if (timeoutAtMount.current) {
+        clearTimeout(timeoutAtMount.current);
       }
     };
   }, []);

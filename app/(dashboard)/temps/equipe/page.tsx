@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { getWeekDates, getTeamWeekSummary } from '@/lib/queries/temps';
 import { TeamRecapClient } from '@/components/temps/team-recap-client';
@@ -12,7 +12,7 @@ export default async function TempsEquipePage() {
   // user + teamSummary en parallele. Si non-admin on paye teamSummary
   // pour rien (cas rare : sidebar gate).
   const [user, teamSummary] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     getTeamWeekSummary(weekDates),
   ]);
   if (!isAdmin(user?.role)) {

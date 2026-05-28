@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { waitUntil } from '@vercel/functions';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { sendEmailForFacture } from '@/lib/email/client';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -60,7 +60,7 @@ export async function sendFacture(
   }
   const override = parsedRecipients.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -123,15 +123,16 @@ export async function sendFacture(
 
   const missingDecaRefs = Array.from(
     new Set(
-      lignes
-        .filter(
-          (l) =>
-            l.contrat &&
-            (!l.contrat.contract_number ||
-              l.contrat.contract_number.trim() === ''),
-        )
-        .map((l) => l.contrat?.ref)
-        .filter((ref): ref is string => Boolean(ref)),
+      lignes.flatMap((l) => {
+        if (
+          !l.contrat ||
+          (l.contrat.contract_number && l.contrat.contract_number.trim() !== '')
+        ) {
+          return [];
+        }
+        const ref = l.contrat.ref;
+        return ref ? [ref] : [];
+      }),
     ),
   );
 
@@ -206,6 +207,13 @@ export async function sendFacturesBulk(factureIds: string[]): Promise<{
   sent: { id: string; ref: string }[];
   errors: { id: string; error: string }[];
 }> {
+  const auth = await requireAuth();
+  if (!auth.ok)
+    return {
+      success: false,
+      sent: [],
+      errors: [{ id: '', error: auth.error }],
+    };
   const parsed = SendFacturesBulkSchema.safeParse(factureIds);
   if (!parsed.success) {
     return {
@@ -224,6 +232,7 @@ export async function sendFacturesBulk(factureIds: string[]): Promise<{
   const sent: { id: string; ref: string }[] = [];
   const errors: { id: string; error: string }[] = [];
   for (const id of factureIds) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop
     const r = await sendFacture(id);
     if (r.success && r.ref) sent.push({ id, ref: r.ref });
     else errors.push({ id, error: r.error ?? 'Erreur inconnue' });

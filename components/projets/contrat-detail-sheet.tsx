@@ -136,7 +136,7 @@ function Section({
   return (
     <section className="space-y-2">
       <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase">
-        <Icon className="h-3.5 w-3.5" />
+        <Icon className="size-3.5" />
         {title}
       </h3>
       <div className="space-y-1 rounded-md border p-3 text-sm">{children}</div>
@@ -166,6 +166,7 @@ function Row({
   );
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
   const [data, setData] = useState<ContratDetail | null>(null);
 
@@ -194,7 +195,7 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
       >
         {loading || !data ? (
           <div className="flex flex-1 items-center justify-center py-20">
-            <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+            <Loader2 className="text-muted-foreground size-6 animate-spin" />
           </div>
         ) : (
           <>
@@ -219,7 +220,7 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
               </div>
             </SheetHeader>
 
-            <div className="space-y-5 px-4 py-4">
+            <div className="space-y-5 p-4">
               <Section icon={Hash} title="Identifiants">
                 <Row
                   label="DECA / OPCO"

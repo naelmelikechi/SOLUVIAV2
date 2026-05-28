@@ -134,23 +134,26 @@ export async function syncEduviaForClient(
     // ── PASS 1 - reference tables ──────────────────────────────────────
     // Endpoint /employees (ancienne route /employee_learners toujours live
     // mais vide côté API Eduvia — confirmation Ilies 2026-04-22).
-    const learners = await safeFetchList<EduviaLearner>(
-      () => fetchAllPages<EduviaLearner>(instanceUrl, apiKey, 'employees'),
-      'employees',
-    );
-    const formations = await safeFetchList<EduviaFormation>(
-      () => fetchAllPages<EduviaFormation>(instanceUrl, apiKey, 'formations'),
-      'formations',
-    );
-    const companies = await safeFetchList<EduviaCompany>(
-      () => fetchAllPages<EduviaCompany>(instanceUrl, apiKey, 'companies'),
-      'companies',
-    );
+    const [learners, formations, companies] = await Promise.all([
+      safeFetchList<EduviaLearner>(
+        () => fetchAllPages<EduviaLearner>(instanceUrl, apiKey, 'employees'),
+        'employees',
+      ),
+      safeFetchList<EduviaFormation>(
+        () => fetchAllPages<EduviaFormation>(instanceUrl, apiKey, 'formations'),
+        'formations',
+      ),
+      safeFetchList<EduviaCompany>(
+        () => fetchAllPages<EduviaCompany>(instanceUrl, apiKey, 'companies'),
+        'companies',
+      ),
+    ]);
 
     for (const learner of learners) {
       // formation_id / internal_number / learning_start/end_date ont quitté
       // la réponse employees ; ils sont désormais portés par les contrats.
       // On les laisse à NULL dans apprenants (les colonnes existent toujours).
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { error: upsertError } = await supabase.from('apprenants').upsert(
         {
           eduvia_id: learner.id,
@@ -180,6 +183,7 @@ export async function syncEduviaForClient(
     }
 
     for (const formation of formations) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { error: upsertError } = await supabase.from('formations').upsert(
         {
           eduvia_id: formation.id,
@@ -204,6 +208,7 @@ export async function syncEduviaForClient(
     }
 
     for (const company of companies) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { error: upsertError } = await supabase
         .from('eduvia_companies')
         .upsert(
@@ -285,6 +290,7 @@ export async function syncEduviaForClient(
               )
             : null;
 
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
         const { error: upsertError } = await supabase.from('contrats').upsert(
           {
             eduvia_id: contract.id,
@@ -400,6 +406,7 @@ export async function syncEduviaForClient(
       );
 
       for (const orphan of orphans) {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
         const { error: archiveError } = await supabase
           .from('contrats')
           .update({ archive: true, deleted_in_eduvia_at: now })
@@ -429,6 +436,7 @@ export async function syncEduviaForClient(
     // ── Detection ajustements (NPEC / rupture) post-upsert ─────────────
     for (const { contratId, npecActuel } of npecChanges) {
       try {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
         await detectNpecChangeAjustement(supabase, contratId, npecActuel);
       } catch (err) {
         logger.error('eduvia.sync', 'detect npec ajustement failed', {
@@ -439,6 +447,7 @@ export async function syncEduviaForClient(
     }
     for (const { contratId, dateRupture } of ruptures) {
       try {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
         await detectRuptureAjustement(supabase, contratId, dateRupture);
       } catch (err) {
         logger.error('eduvia.sync', 'detect rupture ajustement failed', {
@@ -475,6 +484,7 @@ export async function syncEduviaForClient(
       if (!contratId) continue;
 
       try {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
         const progression = await fetchOne<EduviaProgression>(
           instanceUrl,
           apiKey,
@@ -529,12 +539,14 @@ export async function syncEduviaForClient(
       // Hoisted so Phase 5 (line sync) can iterate over the same array.
       let steps: EduviaInvoiceStep[] = [];
       try {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
         steps = await fetchList<EduviaInvoiceStep>(
           instanceUrl,
           apiKey,
           `contracts/${contract.id}/invoice_steps`,
         );
         for (const step of steps) {
+          // oxlint-disable-next-line react-doctor/async-await-in-loop
           const { error: upsertError } = await supabase
             .from('eduvia_invoice_steps')
             .upsert(
@@ -591,12 +603,14 @@ export async function syncEduviaForClient(
       for (const step of steps) {
         if (!step.invoice_id) continue;
         try {
+          // oxlint-disable-next-line react-doctor/async-await-in-loop
           const lines = await fetchInvoiceLines(
             instanceUrl,
             apiKey,
             step.invoice_id,
           );
           for (const line of lines) {
+            // oxlint-disable-next-line react-doctor/async-await-in-loop
             const { error: lineErr } = await supabase
               .from('eduvia_invoice_lines')
               .upsert(
@@ -688,6 +702,7 @@ export async function syncEduviaForClient(
           `contracts/${contract.id}/invoice_forecast_steps`,
         );
         for (const forecast of forecasts) {
+          // oxlint-disable-next-line react-doctor/async-await-in-loop
           const { error: upsertError } = await supabase
             .from('eduvia_invoice_forecast_steps')
             .upsert(

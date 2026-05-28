@@ -166,7 +166,7 @@ function makeInMemorySupabase() {
       auth,
       from(table: string) {
         if (table === 'users') {
-          // Mock minimal users profile for requireUser guard.
+          // Mock minimal users profile for requireAuth guard.
           return {
             select() {
               return this;

@@ -69,8 +69,8 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('@/lib/auth/guards', () => ({
-  requireAdmin: vi.fn(async () => mocks.getAuth()),
-  requireSuperAdmin: vi.fn(async () => mocks.getAuth()),
+  checkAuth: vi.fn(async () => mocks.getAuth()),
+  validateSession: vi.fn(async () => mocks.getAuth()),
 }));
 
 vi.mock('@/lib/supabase/admin', () => ({

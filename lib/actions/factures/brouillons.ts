@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireAdmin, requireUser } from '@/lib/auth/guards';
+import { checkAuth, requireAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import { lastDayOfNextMonthUtcISO } from '@/lib/utils/dates';
@@ -117,7 +117,7 @@ const CreateFreeBrouillonSchema = z.object({
 // l'audit et des revalidatePath.
 
 type SupabaseServerClient = Extract<
-  Awaited<ReturnType<typeof requireUser>>,
+  Awaited<ReturnType<typeof requireAuth>>,
   { ok: true }
 >['supabase'];
 
@@ -256,15 +256,19 @@ async function processBrouillonGroup(
 
   if (!contratsRaw || contratsRaw.length === 0) return null;
 
-  const contratsCtx: ContratEcheancierContext[] = contratsRaw
-    .filter((c) => c.date_debut && c.duree_mois)
-    .map((c) => ({
-      contrat_id: c.id,
-      npec_amount: c.npec_amount ?? 0,
-      date_debut: c.date_debut!,
-      duree_mois: c.duree_mois!,
-      archive: c.archive ?? false,
-    }));
+  const contratsCtx: ContratEcheancierContext[] = contratsRaw.flatMap((c) =>
+    c.date_debut && c.duree_mois
+      ? [
+          {
+            contrat_id: c.id,
+            npec_amount: c.npec_amount ?? 0,
+            date_debut: c.date_debut,
+            duree_mois: c.duree_mois,
+            archive: c.archive ?? false,
+          },
+        ]
+      : [],
+  );
 
   const resolved = resolveProjetEcheancier(
     {
@@ -330,7 +334,7 @@ async function processBrouillonGroup(
 
   if (lignes.length === 0) return null;
 
-  const sortedMois = [...group.moisConcernes].sort();
+  const sortedMois = group.moisConcernes.toSorted();
   const moisLabel =
     sortedMois.length === 1
       ? sortedMois[0]!
@@ -439,7 +443,7 @@ export async function createFactures(
   }
   echeanceIds = parsed.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, ids: [], error: auth.error };
   const { supabase, user } = auth;
 
@@ -554,7 +558,7 @@ export async function deleteBrouillon(
   }
   factureId = parsed.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -576,15 +580,15 @@ export async function deleteBrouillon(
     };
   }
 
-  // Detache les echeances liees (validee=false, facture_id=NULL)
-  await supabase
-    .from('echeances')
-    .update({ facture_id: null, validee: false })
-    .eq('facture_id', factureId);
-
-  // Supprime les lignes (puis la facture). CASCADE serait plus propre mais
-  // on est explicite ici pour eviter les surprises.
-  await supabase.from('facture_lignes').delete().eq('facture_id', factureId);
+  // Detache les echeances + supprime lignes en parallele (independants).
+  // CASCADE serait plus propre mais on est explicite ici pour eviter les surprises.
+  await Promise.all([
+    supabase
+      .from('echeances')
+      .update({ facture_id: null, validee: false })
+      .eq('facture_id', factureId),
+    supabase.from('facture_lignes').delete().eq('facture_id', factureId),
+  ]);
 
   const { error: deleteError } = await supabase
     .from('factures')
@@ -614,7 +618,7 @@ export async function deleteBrouillon(
 //   - statut / est_avoir : flow controle (sendFacture, createAvoir)
 //
 // Admin only - une edition tardive de date/conditions est sensible cote
-// audit. Si CDP doit pouvoir le faire un jour, basculer en requireUser.
+// audit. Si CDP doit pouvoir le faire un jour, basculer en requireAuth.
 export async function updateBrouillonInfo(input: {
   factureId: string;
   date_emission?: string;
@@ -631,7 +635,7 @@ export async function updateBrouillonInfo(input: {
   }
   const { factureId, ...rest } = parsed.data;
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -741,7 +745,7 @@ export async function createFactureFromEvents(params: {
   }
   const { projetId, events } = parsed.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -826,6 +830,7 @@ export async function createFactureFromEvents(params: {
   //    (un meme contrat ne peut pas avoir engagement + opco_step coches en
   //    meme temps - on tient ca cote front aussi mais ceinture+bretelle).
   const typesByContrat = new Map<string, Set<string>>();
+  const firstByContrat = new Map<string, (typeof resolved)[number]>();
   for (const e of resolved) {
     let s = typesByContrat.get(e.contrat_id);
     if (!s) {
@@ -833,10 +838,11 @@ export async function createFactureFromEvents(params: {
       typesByContrat.set(e.contrat_id, s);
     }
     s.add(e.type);
+    if (!firstByContrat.has(e.contrat_id)) firstByContrat.set(e.contrat_id, e);
   }
   for (const [cid, types] of typesByContrat) {
     if (types.has('engagement') && types.has('opco_step')) {
-      const e = resolved.find((x) => x.contrat_id === cid);
+      const e = firstByContrat.get(cid);
       return {
         success: false,
         error: `Sélection invalide : ${e?.apprenant_prenom ?? ''} ${e?.apprenant_nom ?? ''} a un engagement ET un règlement OPCO cochés. Choisissez l'un OU l'autre.`,
@@ -1058,7 +1064,7 @@ export async function createBlankBrouillon(params: {
   }
   const { projetId, lignes } = parsed.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -1147,7 +1153,7 @@ export async function createFreeBrouillon(params: {
   // Admin only : les factures libres sont hors perimetre CDP (pas de projet
   // -> pas de rattachement metier). Garantit que la RLS CDP (EXISTS sur
   // projet) ne soit pas contournee par un appel direct au server action.
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

@@ -135,6 +135,8 @@ const MOCK_CRITERIA: QualityCriterion[] = [
   },
 ];
 
+const MOCK_CRITERIA_BY_ID = new Map(MOCK_CRITERIA.map((c) => [c.id, c]));
+
 // 32 indicateurs Qualiopi reels + indicateurs Eduvia. On simule en repartissant
 // 3-8 indicateurs par critere, chacun pointant sur 1-4 livrables.
 const MOCK_INDICATORS: QualityIndicator[] = (() => {
@@ -156,7 +158,7 @@ const MOCK_INDICATORS: QualityIndicator[] = (() => {
   let idCounter = 1;
   for (const [criterionId, count] of distribution) {
     for (let n = 1; n <= count; n++) {
-      const c = MOCK_CRITERIA.find((cr) => cr.id === criterionId)!;
+      const c = MOCK_CRITERIA_BY_ID.get(criterionId)!;
       out.push({
         id: idCounter++,
         code: `${c.prefix}-${String(n).padStart(2, '0')}`,
@@ -201,7 +203,7 @@ const MOCK_DELIVERABLES: QualityDeliverable[] = (() => {
     const target = DELIVERABLES_PER_CRITERION[indicator.criterion_id] ?? 0;
     const count = Math.max(1, Math.floor(target / 5));
     for (let n = 1; n <= count; n++) {
-      const c = MOCK_CRITERIA.find((cr) => cr.id === indicator.criterion_id)!;
+      const c = MOCK_CRITERIA_BY_ID.get(indicator.criterion_id)!;
       out.push({
         id: idCounter++,
         code: `LIV-${c.prefix}-${String(idCounter).padStart(4, '0')}`,
@@ -303,11 +305,13 @@ export class EduviaQualityMockClient implements EduviaQualityClient {
       if (evidences.length > 0) {
         if (evidences.some((e) => e.status === 'conform')) {
           status = 'conform';
-          nextExpiry =
-            evidences
-              .filter((e) => e.status === 'conform' && e.expires_at)
-              .map((e) => e.expires_at!)
-              .sort()[0] ?? null;
+          nextExpiry = evidences
+            .flatMap((e) =>
+              e.status === 'conform' && e.expires_at ? [e.expires_at] : [],
+            )
+            .reduce<
+              string | null
+            >((min, cur) => (min === null || cur < min ? cur : min), null);
         } else if (evidences.some((e) => e.status === 'to_review')) {
           status = 'to_review';
         } else if (evidences.some((e) => e.status === 'rejected')) {

@@ -1,8 +1,5 @@
 import { redirect } from 'next/navigation';
-import {
-  getCurrentUser,
-  getCurrentUserActiveProjetsCount,
-} from '@/lib/queries/users';
+import { getUser, getCurrentUserActiveProjetsCount } from '@/lib/queries/users';
 import { createClient } from '@/lib/supabase/server';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import {
@@ -29,7 +26,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [user, projetsCount] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     getCurrentUserActiveProjetsCount(),
   ]);
 

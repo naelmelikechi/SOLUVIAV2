@@ -34,7 +34,7 @@ export function ClientApporteurSection({
   apporteurDate,
   users,
 }: ClientApporteurSectionProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -62,7 +62,7 @@ export function ClientApporteurSection({
       if (result.success) {
         toast.success('Apporteur commercial mis à jour');
         setEditing(false);
-        router.refresh();
+        refresh();
       } else {
         toast.error(result.error ?? 'Erreur lors de la mise à jour');
       }
@@ -73,11 +73,11 @@ export function ClientApporteurSection({
     <Card className="mb-6 p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <HandCoins className="h-4 w-4" /> Apporteur commercial
+          <HandCoins className="size-4" /> Apporteur commercial
         </h3>
         {!editing && (
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-            <Pencil className="mr-2 h-3.5 w-3.5" />
+            <Pencil className="mr-2 size-3.5" />
             Modifier
           </Button>
         )}
@@ -122,7 +122,7 @@ export function ClientApporteurSection({
                     onClick={() => setDate('')}
                     aria-label="Effacer la date"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="size-4" />
                   </Button>
                 )}
               </div>

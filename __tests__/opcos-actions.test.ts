@@ -12,7 +12,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 const requireAdminMock = vi.fn();
 vi.mock('@/lib/auth/guards', () => ({
-  requireAdmin: () => requireAdminMock(),
+  checkAuth: () => requireAdminMock(),
 }));
 
 const mockUser = { id: 'user-admin-1', email: 'admin@test.com' };

@@ -22,10 +22,8 @@ import {
   updateClientContact,
 } from '@/lib/actions/clients';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import type { ClientContact } from '@/lib/queries/clients';
 
 interface ClientContactsSectionProps {
@@ -36,6 +34,7 @@ interface ClientContactsSectionProps {
 export function ClientContactsSection({
   clientId,
   contacts,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: ClientContactsSectionProps) {
   const [showForm, setShowForm] = useState(false);
   const [nom, setNom] = useState('');
@@ -140,11 +139,11 @@ export function ClientContactsSection({
     <Card className="mb-6 p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <Users className="h-4 w-4" /> Contacts
+          <Users className="size-4" /> Contacts
         </h3>
         {!showForm && (
           <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
-            <Plus className="mr-2 h-3.5 w-3.5" />
+            <Plus className="mr-2 size-3.5" />
             Ajouter
           </Button>
         )}
@@ -298,7 +297,7 @@ export function ClientContactsSection({
                         aria-label={`Supprimer ${c.nom}`}
                         className="text-muted-foreground hover:text-destructive"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="size-3.5" />
                       </Button>
                     </TableCell>
                   </TableRow>

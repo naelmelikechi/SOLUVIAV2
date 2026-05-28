@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
 import type { AbsenceType } from '@/lib/utils/absences';
@@ -71,7 +71,7 @@ export async function createAbsenceAction(
   }
   data = parsed.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -129,7 +129,7 @@ export async function updateAbsenceAction(
   id = parsed.data.id;
   data = parsed.data.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -184,7 +184,7 @@ export async function deleteAbsenceAction(
   }
   id = parsed.data.id;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -9,16 +10,25 @@ interface PeriodToggleProps {
   defaultValue: string;
 }
 
-export function PeriodToggle({
+export function PeriodToggle(props: PeriodToggleProps) {
+  return (
+    <Suspense fallback={null}>
+      <PeriodToggleInner {...props} />
+    </Suspense>
+  );
+}
+
+function PeriodToggleInner({
   paramName,
   values,
   defaultValue,
 }: PeriodToggleProps) {
-  const router = useRouter();
+  const { replace } = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { get: getSearchParam } = searchParams;
 
-  const current = searchParams.get(paramName) ?? defaultValue;
+  const current = getSearchParam(paramName) ?? defaultValue;
 
   const setValue = (next: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -28,7 +38,7 @@ export function PeriodToggle({
       params.set(paramName, next);
     }
     const qs = params.toString();
-    router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false });
+    replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false });
   };
 
   return (

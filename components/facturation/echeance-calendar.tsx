@@ -73,7 +73,7 @@ export function EcheanceCalendar({ echeances }: EcheanceCalendarProps) {
               onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
               aria-label="Mois précédent"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="size-4" />
             </Button>
             <h3 className="text-sm font-semibold capitalize">
               {format(currentMonth, 'MMMM yyyy', { locale: fr })}
@@ -84,7 +84,7 @@ export function EcheanceCalendar({ echeances }: EcheanceCalendarProps) {
               onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
               aria-label="Mois suivant"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="size-4" />
             </Button>
           </div>
 
@@ -124,7 +124,7 @@ export function EcheanceCalendar({ echeances }: EcheanceCalendarProps) {
                 >
                   <span
                     className={cn(
-                      'flex h-6 w-6 items-center justify-center rounded-full text-xs',
+                      'flex size-6 items-center justify-center rounded-full text-xs',
                       today && 'bg-primary font-bold text-white',
                     )}
                   >

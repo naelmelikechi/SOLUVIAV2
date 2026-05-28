@@ -15,6 +15,7 @@ describe('encryptApiKey / decryptApiKey roundtrip', () => {
   });
 
   it('roundtrips a plaintext through AES-256-GCM', () => {
+    // oxlint-disable-next-line react-doctor/no-secrets-in-client-code
     const plaintext = 'sk_live_abc123_top_secret';
     const enc = encryptApiKey(plaintext);
     expect(enc).not.toBe(plaintext);

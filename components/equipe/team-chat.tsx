@@ -9,6 +9,7 @@ import {
   useState,
   useTransition,
 } from 'react';
+import Image from 'next/image';
 import { ArrowDown, Bell, BellOff, Send, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -36,7 +37,7 @@ const NOTIFY_LS_KEY = 'soluvia.team_chat.notify';
 
 interface TeamChatProps {
   initialMessages: TeamMessage[];
-  currentUser: {
+  getUser: {
     id: string;
     prenom: string;
     nom: string;
@@ -58,15 +59,27 @@ interface TeamChatProps {
  *   4. Parent page is `dynamic = 'force-dynamic'` so server-side initialMessages
  *      are always fresh at the RSC boundary.
  */
-export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
-  const currentUserId = currentUser.id;
+// oxlint-disable-next-line react-doctor/no-giant-component, react-doctor/prefer-useReducer
+export function TeamChat({ initialMessages, getUser }: TeamChatProps) {
+  const currentUserId = getUser.id;
   const [messages, setMessages] = useState<TeamMessage[]>(initialMessages);
   const [contenu, setContenu] = useState('');
   const [pendingGif, setPendingGif] = useState<string | null>(null);
   const [sending, startSending] = useTransition();
   const [pendingCount, setPendingCount] = useState(0);
-  const [notifyEnabled, setNotifyEnabled] = useState(false);
-  const [canAskNotify, setCanAskNotify] = useState(false);
+  const [notifyEnabled, setNotifyEnabled] = useState(() => {
+    if (typeof window === 'undefined' || !('Notification' in window))
+      return false;
+    return (
+      window.localStorage.getItem(NOTIFY_LS_KEY) === '1' &&
+      Notification.permission === 'granted'
+    );
+  });
+  const [canAskNotify, setCanAskNotify] = useState(() => {
+    if (typeof window === 'undefined' || !('Notification' in window))
+      return false;
+    return Notification.permission === 'default';
+  });
 
   // Outer wrapper of the chat card. We use it to scroll the whole chat into
   // view of the dashboard <main> scroll container on mount (the team grid
@@ -89,19 +102,9 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
   // Tracks previous Realtime status so we only resync on true reconnections.
   const lastRealtimeStatusRef = useRef<string | null>(null);
 
-  // ----- Initial opt-in state for browser notifications -------------------
+  // ----- Mount tracking for delayed setState guards ------------------------
   useEffect(() => {
     mountedRef.current = true;
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setCanAskNotify(false);
-      setNotifyEnabled(false);
-      return () => {
-        mountedRef.current = false;
-      };
-    }
-    const stored = window.localStorage.getItem(NOTIFY_LS_KEY) === '1';
-    setNotifyEnabled(stored && Notification.permission === 'granted');
-    setCanAskNotify(Notification.permission === 'default');
     return () => {
       mountedRef.current = false;
     };
@@ -184,6 +187,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
   // re-sync, Realtime INSERT/DELETE subscription, and reconnect-triggered
   // re-sync. All setState calls happen inside subscription/event callbacks
   // or via queueMicrotask — never synchronously in the effect body.
+  // oxlint-disable-next-line react-doctor/exhaustive-deps
   useEffect(() => {
     const supabase = createClient();
 
@@ -209,6 +213,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'team_messages' },
         async (payload) => {
+          if (!mountedRef.current) return;
           const row = payload.new as {
             id: string;
             user_id: string;
@@ -216,6 +221,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
             gif_url: string | null;
             created_at: string;
           };
+          // oxlint-disable-next-line react-doctor/async-defer-await
           const { data: author } = await supabase
             .from('users')
             .select(
@@ -312,6 +318,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
     };
     // currentUserId + deltaFetch are stable for the lifetime of the mount;
     // listing them would just re-subscribe needlessly on every render.
+    // oxlint-disable-next-line react-doctor/exhaustive-deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -430,12 +437,12 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
                     gif_url: own.gif_url,
                     created_at: own.created_at,
                     author: {
-                      prenom: currentUser.prenom,
-                      nom: currentUser.nom,
-                      email: currentUser.email,
-                      avatar_mode: currentUser.avatar_mode,
-                      avatar_seed: currentUser.avatar_seed,
-                      avatar_regen_date: currentUser.avatar_regen_date,
+                      prenom: getUser.prenom,
+                      nom: getUser.nom,
+                      email: getUser.email,
+                      avatar_mode: getUser.avatar_mode,
+                      avatar_seed: getUser.avatar_seed,
+                      avatar_regen_date: getUser.avatar_regen_date,
                     },
                   },
                 ],
@@ -448,7 +455,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
         toast.error(res.error ?? "Impossible d'envoyer");
       }
     });
-  }, [contenu, pendingGif, currentUser]);
+  }, [contenu, pendingGif, getUser]);
 
   const handleDelete = useCallback(async (id: string) => {
     const res = await deleteTeamMessage(id);
@@ -511,9 +518,9 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
               onClick={disableNotifications}
               title="Désactiver les notifications"
               aria-label="Désactiver les notifications"
-              className="h-7 w-7 p-0"
+              className="size-7 p-0"
             >
-              <Bell className="h-3.5 w-3.5" />
+              <Bell className="size-3.5" />
             </Button>
           ) : canAskNotify ? (
             <Button
@@ -524,7 +531,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
               title="Activer les notifications navigateur"
               className="text-muted-foreground h-7 gap-1 px-2 text-xs"
             >
-              <BellOff className="h-3.5 w-3.5" />
+              <BellOff className="size-3.5" />
               Activer les notifs
             </Button>
           ) : null}
@@ -560,7 +567,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
             className="bg-primary text-primary-foreground hover:bg-primary/90 absolute right-4 bottom-3 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium shadow-md transition-colors"
             aria-label={`Voir les ${pendingCount} nouveaux messages`}
           >
-            <ArrowDown className="h-3 w-3" />
+            <ArrowDown className="size-3" />
             {pendingCount} nouveau{pendingCount > 1 ? 'x' : ''}
           </button>
         )}
@@ -569,11 +576,13 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
       <div className="border-border border-t p-3">
         {pendingGif && (
           <div className="relative mb-2 inline-block">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={pendingGif}
               alt="GIF à envoyer"
-              className="max-h-32 rounded"
+              width={200}
+              height={128}
+              unoptimized
+              className="h-auto max-h-32 w-auto rounded"
             />
             <button
               type="button"
@@ -581,7 +590,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
               onClick={() => setPendingGif(null)}
               aria-label="Retirer le GIF"
             >
-              <X className="h-3 w-3" />
+              <X className="size-3" />
             </button>
           </div>
         )}
@@ -598,6 +607,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
             placeholder="Écrire un message (Entrée pour envoyer, Maj+Entrée pour saut de ligne)"
             maxLength={MAX_CONTENU}
             rows={2}
+            aria-label="Message"
             className="border-input bg-background flex-1 resize-none rounded-md border px-3 py-2 text-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ring)]"
           />
           <GiphyPicker onPick={(url) => setPendingGif(url)} />
@@ -607,7 +617,7 @@ export function TeamChat({ initialMessages, currentUser }: TeamChatProps) {
             onClick={handleSend}
             disabled={!canSend}
           >
-            <Send className="h-3.5 w-3.5" />
+            <Send className="size-3.5" />
           </Button>
         </div>
         <div className="mt-1 flex items-center justify-end">
@@ -668,7 +678,7 @@ function ChatMessage({
           size={28}
         />
       ) : (
-        <div className="bg-muted h-7 w-7 rounded-full" />
+        <div className="bg-muted size-7 rounded-full" />
       )}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
@@ -692,7 +702,7 @@ function ChatMessage({
               aria-label="Supprimer le message"
               title="Annuler l'envoi"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="size-3" />
             </button>
           )}
         </div>
@@ -703,11 +713,13 @@ function ChatMessage({
         )}
         {message.gif_url && (
           <div className="mt-1">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={message.gif_url}
               alt="GIF"
-              className="max-h-48 rounded"
+              width={300}
+              height={192}
+              unoptimized
+              className="h-auto max-h-48 w-auto rounded"
               loading="lazy"
             />
           </div>

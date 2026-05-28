@@ -13,7 +13,7 @@ import type { User } from '@supabase/supabase-js';
  * Invariants couverts :
  * - Validation Zod : clientId UUID, lignes non vides, description requise,
  *   montant strictement positif.
- * - Admin only : requireAdmin → 403 si pas admin.
+ * - Admin only : checkAuth → 403 si pas admin.
  * - Client doit exister et ne pas être archivé.
  * - Insert facture avec projet_id=NULL, status=a_emettre, sans ref/numero_seq.
  * - Insert facture_lignes avec contrat_id=NULL.
@@ -129,7 +129,7 @@ function buildSupabase() {
 }
 
 vi.mock('@/lib/auth/guards', () => ({
-  requireAdmin: vi.fn(async () => {
+  checkAuth: vi.fn(async () => {
     if (!mockState.authResult.ok) {
       return { ok: false, error: mockState.authResult.error };
     }
@@ -139,7 +139,7 @@ vi.mock('@/lib/auth/guards', () => ({
       user: mockState.authResult.user,
     };
   }),
-  requireUser: vi.fn(),
+  requireAuth: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -204,7 +204,7 @@ describe('createFreeBrouillon', () => {
     expect(result.error).toMatch(/[Mm]ontant/);
   });
 
-  it('refuse si pas admin (requireAdmin échoue)', async () => {
+  it('refuse si pas admin (checkAuth échoue)', async () => {
     mockState.authResult = { ok: false, error: 'Accès refusé' };
     const { createFreeBrouillon } =
       await import('@/lib/actions/factures/brouillons');

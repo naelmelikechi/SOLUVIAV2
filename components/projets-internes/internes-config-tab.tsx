@@ -17,6 +17,7 @@ interface Props {
   projets: ProjetInterneEnrichi[];
 }
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer
 export function InternesConfigTab({ categories, projets }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<CategorieInterne | undefined>();
@@ -61,7 +62,9 @@ export function InternesConfigTab({ categories, projets }: Props) {
           `Attention : ${result.data.recentSaisies} saisies dans les 30 derniers jours. Catégorie archivée quand même.`,
         );
       } else {
-        toast.success(cat.archive ? 'Catégorie désarchivée' : 'Catégorie archivée');
+        toast.success(
+          cat.archive ? 'Catégorie désarchivée' : 'Catégorie archivée',
+        );
       }
     });
   };

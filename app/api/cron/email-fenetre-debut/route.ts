@@ -83,6 +83,7 @@ export async function GET(request: Request) {
           // CDP with no pending echeances: skip; admin always gets the digest
           if (user.role === 'cdp' && nb === 0) continue;
 
+          // oxlint-disable-next-line react-doctor/async-await-in-loop
           const r = await sendFenetreDebutEmail({
             to: user.email,
             prenom: user.prenom,

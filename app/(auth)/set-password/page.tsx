@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { FormErrorBanner } from '@/components/shared/form-error-banner';
 
 export default function SetPasswordPage() {
-  const router = useRouter();
+  const { push } = useRouter();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -41,7 +41,7 @@ export default function SetPasswordPage() {
       return;
     }
 
-    router.push('/projets');
+    push('/projets');
   }
 
   return (

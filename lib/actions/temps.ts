@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import {
   getWeekDates,
   getSaisiesForWeek,
@@ -70,7 +70,7 @@ export async function saveSaisieTemps(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -121,7 +121,7 @@ export async function saveSaisieTempsAxes(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -146,13 +146,17 @@ export async function saveSaisieTempsAxes(
   if (deleteError) return { success: false, error: deleteError.message };
 
   // Insert new axes (only non-zero)
-  const rows = Object.entries(parsed.data.axes)
-    .filter(([, h]) => h > 0)
-    .map(([axe, heures]) => ({
-      saisie_id: saisie.id,
-      axe,
-      heures,
-    }));
+  const rows = Object.entries(parsed.data.axes).flatMap(([axe, heures]) =>
+    heures > 0
+      ? [
+          {
+            saisie_id: saisie.id,
+            axe,
+            heures,
+          },
+        ]
+      : [],
+  );
 
   if (rows.length > 0) {
     const { error: insertError } = await supabase
@@ -171,6 +175,8 @@ export async function saveSaisieTempsAxes(
 // ---------------------------------------------------------------------------
 
 export async function fetchWeekData(weekOffset: number) {
+  const auth = await requireAuth();
+  if (!auth.ok) throw new Error(auth.error);
   const parsed = WeekOffsetSchema.safeParse(weekOffset);
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? 'weekOffset invalide');
@@ -203,6 +209,8 @@ export async function fetchWeekData(weekOffset: number) {
 // ---------------------------------------------------------------------------
 
 export async function fetchAbsencesForWeek(weekDates: string[]) {
+  const auth = await requireAuth();
+  if (!auth.ok) throw new Error(auth.error);
   const parsed = CurrentWeekDatesSchema.safeParse(weekDates);
   if (!parsed.success) {
     throw new Error(
@@ -219,6 +227,8 @@ export async function fetchAbsencesForWeek(weekDates: string[]) {
 // ---------------------------------------------------------------------------
 
 export async function fetchTeamWeekData(weekOffset: number) {
+  const auth = await requireAuth();
+  if (!auth.ok) throw new Error(auth.error);
   const parsed = WeekOffsetSchema.safeParse(weekOffset);
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? 'weekOffset invalide');
@@ -245,7 +255,7 @@ export async function copyPreviousWeek(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, copied: 0, error: auth.error };
   const { supabase, user } = auth;
   // Re-bind to the validated array for the rest of the function.
@@ -326,18 +336,19 @@ export async function copyPreviousWeek(
 
   // Build rows to insert (skip entries that already exist, or land on a
   // blocked target date)
-  const rowsToInsert = prevSaisies
-    .filter((s) => {
-      const targetDate = dateMapping[s.date]!;
-      if (blockedTargetDates.has(targetDate)) return false;
-      return !existingKeys.has(`${s.projet_id}|${targetDate}`);
-    })
-    .map((s) => ({
-      user_id: user.id,
-      projet_id: s.projet_id,
-      date: dateMapping[s.date]!,
-      heures: s.heures,
-    }));
+  const rowsToInsert = prevSaisies.flatMap((s) => {
+    const targetDate = dateMapping[s.date]!;
+    if (blockedTargetDates.has(targetDate)) return [];
+    if (existingKeys.has(`${s.projet_id}|${targetDate}`)) return [];
+    return [
+      {
+        user_id: user.id,
+        projet_id: s.projet_id,
+        date: targetDate,
+        heures: s.heures,
+      },
+    ];
+  });
 
   if (rowsToInsert.length === 0) return { success: true, copied: 0 };
 

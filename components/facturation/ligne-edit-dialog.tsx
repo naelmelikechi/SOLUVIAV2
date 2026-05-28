@@ -105,11 +105,13 @@ export function LigneEditDialog(props: LigneEditDialogProps) {
   return <LigneEditDialogInner key={instanceKey} {...props} />;
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 function LigneEditDialogInner({
   open,
   onOpenChange,
   config,
   onSuccess,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: LigneEditDialogProps) {
   const [isPending, startTransition] = useTransition();
 

@@ -2,7 +2,6 @@
 
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { matchesSearch } from '@/lib/utils/search';
 
 interface TableSearchInputProps {
   value: string;
@@ -19,7 +18,7 @@ export function TableSearchInput({
 }: TableSearchInputProps) {
   return (
     <div className={`relative max-w-sm flex-1 ${className ?? ''}`}>
-      <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+      <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
       <Input
         type="search"
         aria-label={placeholder}
@@ -30,18 +29,4 @@ export function TableSearchInput({
       />
     </div>
   );
-}
-
-/**
- * Filtre une liste sur une recherche multi-token, accent-insensitive.
- * `getHaystack` retourne la chaine brute concatenant les champs cherchables
- * (titre, ref, notes, etc.). Le helper se charge de la normalisation.
- */
-export function filterBySearch<T>(
-  rows: T[],
-  search: string,
-  getHaystack: (row: T) => string,
-): T[] {
-  if (!search.trim()) return rows;
-  return rows.filter((row) => matchesSearch(getHaystack(row), search));
 }

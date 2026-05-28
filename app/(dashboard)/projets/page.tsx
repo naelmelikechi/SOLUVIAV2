@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getProjetsListEnriched } from '@/lib/queries/projets';
 import { getClientsList } from '@/lib/queries/clients';
 import { getTypologies } from '@/lib/queries/parametres';
-import { getUsersList, getCurrentUser } from '@/lib/queries/users';
+import { getUsersList, getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { ProjetsDataTable } from '@/components/projets/projets-data-table';
@@ -17,7 +17,7 @@ export default async function ProjetsPage() {
     getClientsList(),
     getTypologies(),
     getUsersList(),
-    getCurrentUser(),
+    getUser(),
   ]);
 
   const adminUser = isAdmin(currentUser?.role);
@@ -29,7 +29,7 @@ export default async function ProjetsPage() {
     termine: 2,
     archive: 3,
   };
-  const sorted = [...projets].sort(
+  const sorted = projets.toSorted(
     (a, b) => (order[a.statut] ?? 99) - (order[b.statut] ?? 99),
   );
 
@@ -45,12 +45,12 @@ export default async function ProjetsPage() {
               id: c.id,
               raison_sociale: c.raison_sociale,
             }))}
-            typologies={typologies
-              .filter((t) => t.actif)
-              .map((t) => ({ id: t.id, code: t.code, libelle: t.libelle }))}
-            users={users
-              .filter((u) => u.actif)
-              .map((u) => ({ id: u.id, nom: u.nom, prenom: u.prenom }))}
+            typologies={typologies.flatMap((t) =>
+              t.actif ? [{ id: t.id, code: t.code, libelle: t.libelle }] : [],
+            )}
+            users={users.flatMap((u) =>
+              u.actif ? [{ id: u.id, nom: u.nom, prenom: u.prenom }] : [],
+            )}
           />
         )}
       </PageHeader>

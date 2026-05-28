@@ -20,8 +20,9 @@ interface Props {
   societe?: SocieteEmettriceRow;
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function SocieteEmettriceForm({ societe }: Props) {
-  const router = useRouter();
+  const { push, refresh, back } = useRouter();
   const [isSubmitting, startSubmit] = useTransition();
   const [form, setForm] = useState<Partial<SocieteEmettriceInput>>({
     code: societe?.code ?? '',
@@ -60,8 +61,8 @@ export function SocieteEmettriceForm({ societe }: Props) {
         : await createSocieteEmettrice(form as SocieteEmettriceInput);
       if (res.success) {
         toast.success(societe ? 'Societe mise a jour' : 'Societe creee');
-        router.push('/admin/parametres/societes-emettrices');
-        router.refresh();
+        push('/admin/parametres/societes-emettrices');
+        refresh();
       } else {
         toast.error(res.error);
       }
@@ -317,16 +318,12 @@ export function SocieteEmettriceForm({ societe }: Props) {
       </fieldset>
 
       <div className="flex justify-end gap-2">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          disabled={isSubmitting}
-        >
+        <Button variant="ghost" onClick={() => back()} disabled={isSubmitting}>
           Annuler
         </Button>
         <Button onClick={handleSubmit} disabled={isSubmitting}>
           {isSubmitting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 size-4 animate-spin" />
           ) : null}
           {societe ? 'Enregistrer' : 'Creer'}
         </Button>

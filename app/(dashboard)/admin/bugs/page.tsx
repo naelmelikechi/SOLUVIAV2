@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import {
   getBugReports,
@@ -35,7 +35,7 @@ export default async function AdminBugsPage({
 
   // user + reports + counts en parallele.
   const [user, reports, counts] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     getBugReports(currentTab),
     getBugReportCounts(),
   ]);

@@ -64,17 +64,3 @@ export async function listOpcos(includeArchived = false): Promise<OpcoRow[]> {
   }
   return (data ?? []) as OpcoRow[];
 }
-
-export async function getOpcoById(id: string): Promise<OpcoRow | null> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('opcos')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle();
-  if (error) {
-    logger.error('queries.opcos', 'getOpcoById failed', { id, error });
-    return null;
-  }
-  return (data as OpcoRow) ?? null;
-}

@@ -19,10 +19,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { LigneEditDialog, type LigneEditMode } from './ligne-edit-dialog';
 import { formatCurrency } from '@/lib/utils/formatters';
@@ -46,7 +44,7 @@ export function FactureLignesTable({
   isBrouillon,
   tauxCommission,
 }: FactureLignesTableProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [search, setSearch] = useState('');
   const [editConfig, setEditConfig] = useState<LigneEditMode | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -106,7 +104,7 @@ export function FactureLignesTable({
         toast.info('Événement Eduvia libéré, à nouveau facturable');
       }
       setPendingDeleteId(null);
-      router.refresh();
+      refresh();
     });
   }
 
@@ -126,7 +124,7 @@ export function FactureLignesTable({
               onClick={openAddDialog}
               className="gap-1.5"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="size-4" />
               Ajouter une ligne
             </Button>
           )}
@@ -190,7 +188,7 @@ export function FactureLignesTable({
                               />
                             }
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="size-4" />
                           </TooltipTrigger>
                           <TooltipContent side="top">Modifier</TooltipContent>
                         </Tooltip>
@@ -205,7 +203,7 @@ export function FactureLignesTable({
                               />
                             }
                           >
-                            <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                            <Trash2 className="size-4 text-red-600 dark:text-red-400" />
                           </TooltipTrigger>
                           <TooltipContent side="top">Supprimer</TooltipContent>
                         </Tooltip>
@@ -226,7 +224,7 @@ export function FactureLignesTable({
               if (!o) setEditConfig(null);
             }}
             config={editConfig}
-            onSuccess={() => router.refresh()}
+            onSuccess={() => refresh()}
           />
         )}
 

@@ -248,6 +248,7 @@ export async function getDashboardFinancials(
     usersRes,
     feriesRes,
     echeancesAFacturerRes,
+    operationalRes,
   ] = await Promise.all([
     // Factures pour totalFacture (exclut clients demo/archives) - filtre periode optionnel
     facturesQuery,
@@ -314,17 +315,17 @@ export async function getDashboardFinancials(
       .lte('date_emission_prevue', format(now, 'yyyy-MM-dd'))
       .eq('projet.client.is_demo', false)
       .eq('projet.client.archive', false),
+    // Separate query : KPIs operationnels (formations, abandons, pedagogie).
+    // On charge tous les contrats Eduvia non archives une fois et on derive.
+    // join apprenants pour le KPI Qualiopi handicap (RQTH).
+    supabase
+      .from('contrats')
+      .select(
+        'eduvia_formation_id, contract_state, eduvia_employee_id, source_client_id, contrats_progressions(progression_percentage)',
+      )
+      .eq('archive', false),
   ]);
 
-  // Separate query : KPIs operationnels (formations, abandons, pedagogie).
-  // On charge tous les contrats Eduvia non archives une fois et on derive.
-  // join apprenants pour le KPI Qualiopi handicap (RQTH).
-  const operationalRes = await supabase
-    .from('contrats')
-    .select(
-      'eduvia_formation_id, contract_state, eduvia_employee_id, source_client_id, contrats_progressions(progression_percentage)',
-    )
-    .eq('archive', false);
   if (operationalRes.error) {
     logger.error(
       'queries.dashboard',
@@ -338,7 +339,7 @@ export async function getDashboardFinancials(
   let progSum = 0;
   let progCount = 0;
   for (const c of opContrats) {
-    const isActive = ACTIVE_STATES_ARRAY.includes(c.contract_state ?? '');
+    const isActive = ACTIVE_CONTRACT_STATES.has(c.contract_state ?? '');
     const isAbandon =
       c.contract_state === 'resilie' || c.contract_state === 'ANNULE';
     if (isActive && c.eduvia_formation_id != null) {
@@ -364,7 +365,7 @@ export async function getDashboardFinancials(
   const activeEmployeePairs = new Set<string>();
   for (const c of opContrats) {
     if (
-      ACTIVE_STATES_ARRAY.includes(c.contract_state ?? '') &&
+      ACTIVE_CONTRACT_STATES.has(c.contract_state ?? '') &&
       c.eduvia_employee_id != null &&
       c.source_client_id
     ) {

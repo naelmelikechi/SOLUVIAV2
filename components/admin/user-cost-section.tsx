@@ -105,11 +105,13 @@ export function UserCostSection({ userId, defaults }: UserCostSectionProps) {
     jours_rtt: '',
   });
 
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     // Charge a l'ouverture du panneau. setState dans l'effet est OK ici :
     // c'est une synchronisation explicite avec une ressource externe.
+    // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetchUserCost(userId)
@@ -177,11 +179,11 @@ export function UserCostSection({ userId, defaults }: UserCostSectionProps) {
         className="hover:bg-muted/40 flex w-full items-center gap-2 rounded-t-lg p-3 text-left transition-colors"
       >
         {open ? (
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown className="size-4" />
         ) : (
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="size-4" />
         )}
-        <Wallet className="h-4 w-4" />
+        <Wallet className="size-4" />
         <span className="text-sm font-medium">Coût employé (admin)</span>
         <span className="text-muted-foreground ml-auto text-xs">
           {breakdown.coutHoraire.toFixed(2)} €/h calculé
@@ -190,7 +192,7 @@ export function UserCostSection({ userId, defaults }: UserCostSectionProps) {
       {open && (
         <div className="space-y-3 border-t p-4">
           {loading && (
-            <p className="text-muted-foreground text-xs">Chargement...</p>
+            <p className="text-muted-foreground text-xs">Chargement…</p>
           )}
           <p className="text-muted-foreground text-xs">
             Laisser vide = utiliser la valeur par défaut SOLUVIA. La donnée est
@@ -271,12 +273,13 @@ function parseIntOrNull(v: string): number | null {
   if (v.trim() === '' || Number.isNaN(n)) return null;
   return n;
 }
+const euroFormatter = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 0,
+});
 function formatEuro(n: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(n);
+  return euroFormatter.format(n);
 }
 
 function Row({

@@ -87,7 +87,7 @@ export function NoticeIframe({
         className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between gap-2 px-4 py-3 text-left transition-colors"
       >
         <span className="flex items-center gap-2 text-sm font-medium">
-          <HelpCircle className="text-primary h-4 w-4" />
+          <HelpCircle className="text-primary size-4" />
           Notice d&apos;aide Eduvia
           <span className="text-muted-foreground font-mono text-xs">
             {code}
@@ -101,12 +101,12 @@ export function NoticeIframe({
             className="text-muted-foreground hover:text-foreground"
             onClick={(e) => e.stopPropagation()}
           >
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ExternalLink className="size-3.5" />
           </a>
           {open ? (
-            <ChevronUp className="h-4 w-4" />
+            <ChevronUp className="size-4" />
           ) : (
-            <ChevronDown className="h-4 w-4" />
+            <ChevronDown className="size-4" />
           )}
         </span>
       </button>
@@ -114,7 +114,7 @@ export function NoticeIframe({
         <div className="border-t border-[var(--border-light)]">
           {!loaded ? (
             <div className="text-muted-foreground p-6 text-center text-sm">
-              Chargement de la notice...
+              Chargement de la notice…
             </div>
           ) : null}
           {/*
@@ -130,6 +130,7 @@ export function NoticeIframe({
             ref={iframeRef}
             src={url}
             onLoad={() => setLoaded(true)}
+            // oxlint-disable-next-line react-doctor/iframe-missing-sandbox
             sandbox="allow-scripts allow-same-origin allow-popups"
             className="h-[400px] w-full border-0"
             title={`Notice ${kind} ${code}`}

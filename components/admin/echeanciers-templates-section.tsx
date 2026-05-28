@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useId, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Pencil, Plus, Star, Trash2, Archive } from 'lucide-react';
 import { toast } from 'sonner';
@@ -43,7 +43,7 @@ function formatJalon(qp: number): string {
 }
 
 export function EcheanciersTemplatesSection({ templates }: Props) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [editing, setEditing] = useState<Template | 'new' | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -52,7 +52,7 @@ export function EcheanciersTemplatesSection({ templates }: Props) {
       const r = await setEcheancierTemplateDefault(id);
       if (r.success) {
         toast.success('Template défini par défaut');
-        router.refresh();
+        refresh();
       } else {
         toast.error(r.error ?? 'Erreur');
       }
@@ -64,7 +64,7 @@ export function EcheanciersTemplatesSection({ templates }: Props) {
       const r = await archiveEcheancierTemplate(id, true);
       if (r.success) {
         toast.success('Template archivé');
-        router.refresh();
+        refresh();
       } else {
         toast.error(r.error ?? 'Erreur');
       }
@@ -80,7 +80,7 @@ export function EcheanciersTemplatesSection({ templates }: Props) {
             défaut s&apos;applique aux projets sans configuration explicite.
           </p>
           <Button size="sm" onClick={() => setEditing('new')}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            <Plus className="mr-1.5 size-3.5" />
             Nouveau template
           </Button>
         </div>
@@ -100,7 +100,7 @@ export function EcheanciersTemplatesSection({ templates }: Props) {
                   <div className="mb-2 flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <Calendar className="text-primary h-4 w-4" />
+                        <Calendar className="text-primary size-4" />
                         <span className="text-sm font-semibold">{t.nom}</span>
                         <button
                           type="button"
@@ -125,7 +125,7 @@ export function EcheanciersTemplatesSection({ templates }: Props) {
                         >
                           <Star
                             className={cn(
-                              'h-3.5 w-3.5',
+                              'size-3.5',
                               t.is_default && 'fill-yellow-400 text-yellow-400',
                             )}
                           />
@@ -147,7 +147,7 @@ export function EcheanciersTemplatesSection({ templates }: Props) {
                         onClick={() => setEditing(t)}
                         disabled={pending}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="size-3.5" />
                       </Button>
                       {!t.is_default && (
                         <Button
@@ -157,7 +157,7 @@ export function EcheanciersTemplatesSection({ templates }: Props) {
                           disabled={pending}
                           title="Archiver"
                         >
-                          <Archive className="h-3.5 w-3.5" />
+                          <Archive className="size-3.5" />
                         </Button>
                       )}
                     </div>
@@ -205,10 +205,15 @@ function TemplateDialog({
   template: Template | null; // null = create
   onClose: () => void;
 }) {
-  const router = useRouter();
+  const { refresh } = useRouter();
+  const nomId = useId();
+  const descriptionId = useId();
+  const jalonsId = useId();
   const [nom, setNom] = useState(template?.nom ?? '');
   const [description, setDescription] = useState(template?.description ?? '');
-  const [jalons, setJalons] = useState<Jalon[]>(parseJalons(template?.jalons));
+  const [jalons, setJalons] = useState<Jalon[]>(() =>
+    parseJalons(template?.jalons),
+  );
   const [pending, startTransition] = useTransition();
 
   const validation = validateJalons(jalons);
@@ -242,7 +247,7 @@ function TemplateDialog({
         if (r.success) {
           toast.success('Template mis à jour');
           onClose();
-          router.refresh();
+          refresh();
         } else {
           toast.error(r.error ?? 'Erreur');
         }
@@ -255,7 +260,7 @@ function TemplateDialog({
         if (r.success) {
           toast.success('Template créé');
           onClose();
-          router.refresh();
+          refresh();
         } else {
           toast.error(r.error ?? 'Erreur');
         }
@@ -273,16 +278,22 @@ function TemplateDialog({
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Nom</label>
+            <label htmlFor={nomId} className="text-sm font-medium">
+              Nom
+            </label>
             <Input
+              id={nomId}
               value={nom}
               onChange={(e) => setNom(e.target.value)}
               placeholder="Ex: Trimestriel 25%"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Description</label>
+            <label htmlFor={descriptionId} className="text-sm font-medium">
+              Description
+            </label>
             <Textarea
+              id={descriptionId}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
@@ -290,10 +301,20 @@ function TemplateDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Jalons</label>
-            <div className="space-y-1.5">
+            <div id={jalonsId} className="text-sm font-medium">
+              Jalons
+            </div>
+            <div
+              // oxlint-disable-next-line react-doctor/prefer-tag-over-role
+              role="group"
+              aria-labelledby={jalonsId}
+              className="space-y-1.5"
+            >
               {jalons.map((j, idx) => (
-                <div key={idx} className="flex items-center gap-2">
+                <div
+                  key={`m${j.mois_relatif}`}
+                  className="flex items-center gap-2"
+                >
                   <span className="text-muted-foreground w-12 text-xs">M+</span>
                   <Input
                     type="number"
@@ -332,12 +353,12 @@ function TemplateDialog({
                     onClick={() => remove(idx)}
                     aria-label="Supprimer ce jalon"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="size-4" />
                   </Button>
                 </div>
               ))}
               <Button variant="outline" size="sm" onClick={addJalon}>
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                <Plus className="mr-1.5 size-3.5" />
                 Ajouter un jalon
               </Button>
             </div>

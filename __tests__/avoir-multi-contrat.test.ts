@@ -13,7 +13,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 const mockUser = { id: 'user-creator', email: 'admin@test.com' };
 const requireUserMock = vi.fn();
 vi.mock('@/lib/auth/guards', () => ({
-  requireUser: () => requireUserMock(),
+  requireAuth: () => requireUserMock(),
 }));
 
 // Mock supabase via createClient (used inside createAvoir + computeProrataAvoir).

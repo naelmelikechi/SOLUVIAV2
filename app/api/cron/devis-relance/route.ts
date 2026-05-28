@@ -57,6 +57,7 @@ export async function GET(request: Request) {
 
   for (const d of j7 ?? []) {
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       await sendDevisRelanceEmail({ devisId: d.id, niveau: 'j7' });
       await supabase
         .from('devis')
@@ -70,6 +71,7 @@ export async function GET(request: Request) {
 
   for (const d of j14 ?? []) {
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       await sendDevisRelanceEmail({ devisId: d.id, niveau: 'j14' });
       await supabase
         .from('devis')

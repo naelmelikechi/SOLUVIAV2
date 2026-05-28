@@ -7,7 +7,7 @@ import {
   getInvoiceStatusBreakdown,
   getUserWeekHours,
 } from '@/lib/queries/dashboard';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { DashboardPageClient } from '@/components/dashboard/dashboard-page-client';
@@ -39,7 +39,7 @@ export default async function DashboardPage({
   const periode = resolvePeriode(periodeKey, now);
   const previousMonth = format(startOfMonth(addMonths(now, -1)), 'yyyy-MM-dd');
 
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!user) return null;
 
   const scope: 'global' | 'cdp' = isAdmin(user.role) ? 'global' : 'cdp';

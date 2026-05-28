@@ -6,14 +6,14 @@
  * dans lib/actions/*.ts). Le risque : un oubli sur une nouvelle action ne
  * leve aucune erreur, l'autorisation est silencieusement contournee.
  *
- * Apres : un appel a requireUser() ou requireAdmin() en haut de l'action.
+ * Apres : un appel a requireAuth() ou checkAuth() en haut de l'action.
  *
  * Pattern d'utilisation :
- *   const auth = await requireUser();
+ *   const auth = await requireAuth();
  *   if (!auth.ok) return { success: false, error: auth.error };
  *   const { supabase, user } = auth;
  *
- *   const auth = await requireAdmin();
+ *   const auth = await checkAuth();
  *   if (!auth.ok) return { success: false, error: auth.error };
  *   const { supabase, user, role } = auth;
  */
@@ -40,7 +40,7 @@ export type AuthErr = {
 /**
  * Resout supabase + auth.user + profil public.users (role+actif) en une
  * passe. Utilise en interne par les 3 guards pour eviter 2 round-trips
- * (avant : requireAdmin appelait requireUser, qui fetch actif, puis fetch
+ * (avant : checkAuth appelait requireAuth, qui fetch actif, puis fetch
  * role - deux SELECT separes).
  */
 async function loadAuthProfile(): Promise<
@@ -86,7 +86,7 @@ async function loadAuthProfile(): Promise<
  * jusqu a expiration de sa session Supabase. Maintenant tout passage par un
  * guard rejette immediatement.
  */
-export async function requireUser(): Promise<BaseAuthOk | AuthErr> {
+export async function requireAuth(): Promise<BaseAuthOk | AuthErr> {
   const auth = await loadAuthProfile();
   if (!auth.ok) return auth;
   return { ok: true, supabase: auth.supabase, user: auth.user };
@@ -96,9 +96,7 @@ export async function requireUser(): Promise<BaseAuthOk | AuthErr> {
  * Verifie que l'user est admin ou superadmin (via isAdmin). Charge le role
  * en DB. Retourne { supabase, user, role } ou { ok: false, error }.
  */
-export async function requireAdmin(): Promise<
-  AuthOk<{ role: string }> | AuthErr
-> {
+export async function checkAuth(): Promise<AuthOk<{ role: string }> | AuthErr> {
   const auth = await loadAuthProfile();
   if (!auth.ok) return auth;
   if (!isAdmin(auth.profile.role)) {
@@ -116,7 +114,7 @@ export async function requireAdmin(): Promise<
  * Verifie que l'user est superadmin. Retourne { supabase, user, role } ou
  * { ok: false, error }.
  */
-export async function requireSuperAdmin(): Promise<
+export async function validateSession(): Promise<
   AuthOk<{ role: string }> | AuthErr
 > {
   const auth = await loadAuthProfile();

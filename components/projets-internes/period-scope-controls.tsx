@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useCallback } from 'react';
+import { Suspense, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import type {
   PeriodeInternes,
@@ -21,8 +21,16 @@ interface Props {
   showScope: boolean;
 }
 
-export function PeriodScopeControls({ periode, scope, showScope }: Props) {
-  const router = useRouter();
+export function PeriodScopeControls(props: Props) {
+  return (
+    <Suspense fallback={null}>
+      <PeriodScopeControlsInner {...props} />
+    </Suspense>
+  );
+}
+
+function PeriodScopeControlsInner({ periode, scope, showScope }: Props) {
+  const { replace } = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
@@ -30,9 +38,9 @@ export function PeriodScopeControls({ periode, scope, showScope }: Props) {
     (key: string, value: string) => {
       const sp = new URLSearchParams(params.toString());
       sp.set(key, value);
-      router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
+      replace(`${pathname}?${sp.toString()}`, { scroll: false });
     },
-    [params, pathname, router],
+    [params, pathname, replace],
   );
 
   return (

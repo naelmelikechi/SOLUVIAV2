@@ -22,7 +22,12 @@ export interface ProjetInterneEnrichi {
   ref: string;
   statut: string;
   archive: boolean;
-  categorie: { id: string; code: string; libelle: string; ordre: number } | null;
+  categorie: {
+    id: string;
+    code: string;
+    libelle: string;
+    ordre: number;
+  } | null;
   heures_12mois: number;
 }
 
@@ -164,7 +169,9 @@ export async function getCategoriesInternes(
 // Projets internes list (Configuration tab)
 // ---------------------------------------------------------------------------
 
-export async function getProjetsInternesList(): Promise<ProjetInterneEnrichi[]> {
+export async function getProjetsInternesList(): Promise<
+  ProjetInterneEnrichi[]
+> {
   const supabase = await createClient();
 
   // Compute 12 months ago for heures count
@@ -308,13 +315,17 @@ export async function getStatsInternes(params: {
       params.scope === 'moi'
         ? supabase
             .from('saisies_temps')
-            .select('heures, projet:projets!saisies_temps_projet_id_fkey(est_interne)')
+            .select(
+              'heures, projet:projets!saisies_temps_projet_id_fkey(est_interne)',
+            )
             .eq('user_id', user.id)
             .gte('date', prevStart)
             .lte('date', prevEnd)
         : supabase
             .from('saisies_temps')
-            .select('heures, projet:projets!saisies_temps_projet_id_fkey(est_interne)')
+            .select(
+              'heures, projet:projets!saisies_temps_projet_id_fkey(est_interne)',
+            )
             .gte('date', prevStart)
             .lte('date', prevEnd),
       params.scope === 'moi'
@@ -356,7 +367,10 @@ export async function getStatsInternes(params: {
     heures: number;
     projet: {
       est_interne: boolean | null;
-      categorie: { id: string; code: string; libelle: string } | { id: string; code: string; libelle: string }[] | null;
+      categorie:
+        | { id: string; code: string; libelle: string }
+        | { id: string; code: string; libelle: string }[]
+        | null;
     } | null;
   };
 
@@ -369,7 +383,10 @@ export async function getStatsInternes(params: {
     string,
     { code: string; libelle: string; heures: number }
   >();
-  const userInternesMap = new Map<string, { internes: number; client: number }>();
+  const userInternesMap = new Map<
+    string,
+    { internes: number; client: number }
+  >();
 
   for (const r of curRows) {
     const projet = r.projet;
@@ -406,7 +423,8 @@ export async function getStatsInternes(params: {
       code: v.code,
       libelle: v.libelle,
       heures: v.heures,
-      pct: totalHeures > 0 ? Math.round((v.heures / totalHeures) * 1000) / 10 : 0,
+      pct:
+        totalHeures > 0 ? Math.round((v.heures / totalHeures) * 1000) / 10 : 0,
     }))
     .sort((a, b) => b.heures - a.heures);
 
@@ -415,9 +433,12 @@ export async function getStatsInternes(params: {
   let prevHeuresClient = 0;
   type PrevRow = {
     heures: number;
-    projet: { est_interne: boolean | null } | { est_interne: boolean | null }[] | null;
+    projet:
+      | { est_interne: boolean | null }
+      | { est_interne: boolean | null }[]
+      | null;
   };
-  for (const r of ((prevRes.data ?? []) as unknown as PrevRow[])) {
+  for (const r of (prevRes.data ?? []) as unknown as PrevRow[]) {
     const projetRaw = r.projet;
     const projet = Array.isArray(projetRaw) ? projetRaw[0] : projetRaw;
     const h = r.heures ?? 0;
@@ -468,20 +489,24 @@ export async function getStatsInternes(params: {
       prenom: string | null;
     }>;
     parCdp = users
-      .map((u) => {
+      .flatMap((u) => {
         const stats = userInternesMap.get(u.id) ?? { internes: 0, client: 0 };
+        if (stats.internes <= 0 && stats.client <= 0) return [];
         const total = stats.internes + stats.client;
-        return {
-          user_id: u.id,
-          nom: u.nom ?? '',
-          prenom: u.prenom ?? '',
-          heuresInternes: stats.internes,
-          heuresClient: stats.client,
-          ratio:
-            total > 0 ? Math.round((stats.internes / total) * 1000) / 10 : null,
-        };
+        return [
+          {
+            user_id: u.id,
+            nom: u.nom ?? '',
+            prenom: u.prenom ?? '',
+            heuresInternes: stats.internes,
+            heuresClient: stats.client,
+            ratio:
+              total > 0
+                ? Math.round((stats.internes / total) * 1000) / 10
+                : null,
+          },
+        ];
       })
-      .filter((u) => u.heuresInternes > 0 || u.heuresClient > 0)
       .sort((a, b) => b.heuresInternes - a.heuresInternes);
   }
 

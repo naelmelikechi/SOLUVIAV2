@@ -28,7 +28,7 @@ const COMMON_OUTRO: TourStep = {
   },
 };
 
-export const CDP_TOUR: TourStep[] = [
+const CDP_TOUR: TourStep[] = [
   {
     // Pas de route : le welcome est une popup centree, on demarre la ou
     // l user est. Evite que /accueil -> redirect /projets fasse perdre le
@@ -104,7 +104,7 @@ export const CDP_TOUR: TourStep[] = [
   COMMON_OUTRO,
 ];
 
-export const COMMERCIAL_TOUR: TourStep[] = [
+const COMMERCIAL_TOUR: TourStep[] = [
   {
     popover: {
       title: 'Bienvenue dans Soluvia',

@@ -40,8 +40,7 @@ export default async function ProjetDetailPage({
 }: {
   params: Promise<{ ref: string }>;
 }) {
-  const { ref } = await params;
-  const supabase = await createClient();
+  const [{ ref }, supabase] = await Promise.all([params, createClient()]);
   // Projet + auth en parallele : independants. notFound n est verifie
   // qu apres pour ne pas perdre le round-trip auth si projet existe.
   const [projet, authUserRes] = await Promise.all([
@@ -86,7 +85,7 @@ export default async function ProjetDetailPage({
         href="/projets"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft className="size-4" />
         Retour aux projets
       </Link>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">

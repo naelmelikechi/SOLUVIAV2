@@ -15,10 +15,8 @@ import {
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils/formatters';
 import {
@@ -41,6 +39,7 @@ interface ClientApiKeysSectionProps {
 export function ClientApiKeysSection({
   clientId,
   apiKeys,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: ClientApiKeysSectionProps) {
   const [showForm, setShowForm] = useState(false);
   const [instanceUrl, setInstanceUrl] = useState('');
@@ -158,14 +157,14 @@ export function ClientApiKeysSection({
     <Card className="mb-6 p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <Key className="h-4 w-4" /> Clés API Eduvia
+          <Key className="size-4" /> Clés API Eduvia
           <span className="text-muted-foreground text-xs font-normal">
             ({apiKeys.length})
           </span>
         </h3>
         {!showForm && (
           <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
-            <Plus className="mr-2 h-3.5 w-3.5" />
+            <Plus className="mr-2 size-3.5" />
             Ajouter une clé API
           </Button>
         )}
@@ -274,9 +273,9 @@ export function ClientApiKeysSection({
                           className="text-muted-foreground hover:text-primary"
                         >
                           {testingKeyId === k.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <Loader2 className="size-3.5 animate-spin" />
                           ) : (
-                            <Wifi className="h-3.5 w-3.5" />
+                            <Wifi className="size-3.5" />
                           )}
                         </Button>
                         <Button
@@ -289,9 +288,9 @@ export function ClientApiKeysSection({
                           className="text-muted-foreground hover:text-foreground"
                         >
                           {k.is_active ? (
-                            <WifiOff className="h-3.5 w-3.5" />
+                            <WifiOff className="size-3.5" />
                           ) : (
-                            <Wifi className="h-3.5 w-3.5" />
+                            <Wifi className="size-3.5" />
                           )}
                         </Button>
                         <Button
@@ -302,7 +301,7 @@ export function ClientApiKeysSection({
                           aria-label="Supprimer cette clé"
                           className="text-muted-foreground hover:text-destructive"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="size-3.5" />
                         </Button>
                       </div>
                     </TableCell>

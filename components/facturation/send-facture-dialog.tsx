@@ -60,12 +60,16 @@ function Inner({
   title = 'Envoyer la facture par email',
 }: SendFactureDialogProps) {
   const initial = useMemo(() => {
-    const to = contacts
-      .filter((c) => c.recoit_factures && c.email && EMAIL_RE.test(c.email))
-      .map((c) => c.email as string);
-    const cc = contacts
-      .filter((c) => c.recoit_factures_cc && c.email && EMAIL_RE.test(c.email))
-      .map((c) => c.email as string);
+    const to = contacts.flatMap((c) =>
+      c.recoit_factures && c.email && EMAIL_RE.test(c.email)
+        ? [c.email as string]
+        : [],
+    );
+    const cc = contacts.flatMap((c) =>
+      c.recoit_factures_cc && c.email && EMAIL_RE.test(c.email)
+        ? [c.email as string]
+        : [],
+    );
     // Fallback si aucun contact flagge : prend le 1er contact avec email valide.
     if (to.length === 0) {
       const first = contacts.find(
@@ -137,13 +141,18 @@ function Inner({
 
   const handleSubmit = () => {
     // Flush des inputs en cours si l'utilisateur clique Envoyer sans Enter.
+    let nextToList = toList;
+    let nextCcList = ccList;
     if (toInput.trim()) {
       const email = toInput.trim().toLowerCase();
       if (!EMAIL_RE.test(email)) {
         toast.error(`Email invalide dans À : ${email}`);
         return;
       }
-      if (!usedEmails.has(email)) toList.push(email);
+      if (!usedEmails.has(email)) {
+        nextToList = [...nextToList, email];
+        setToList(nextToList);
+      }
       setToInput('');
     }
     if (ccInput.trim()) {
@@ -152,17 +161,20 @@ function Inner({
         toast.error(`Email invalide dans Cc : ${email}`);
         return;
       }
-      if (!usedEmails.has(email)) ccList.push(email);
+      if (!usedEmails.has(email)) {
+        nextCcList = [...nextCcList, email];
+        setCcList(nextCcList);
+      }
       setCcInput('');
     }
 
-    if (toList.length === 0) {
+    if (nextToList.length === 0) {
       toast.error('Au moins un destinataire (À) est requis');
       return;
     }
 
     startTransition(async () => {
-      const result = await onConfirm({ to: toList, cc: ccList });
+      const result = await onConfirm({ to: nextToList, cc: nextCcList });
       if (result.success) {
         toast.success('Email envoyé');
         onOpenChange(false);
@@ -249,7 +261,7 @@ function Inner({
                     className="hover:bg-background ml-1 rounded p-0.5"
                     title="Ajouter en À"
                   >
-                    <Plus className="h-3 w-3" />
+                    <Plus className="size-3" />
                   </button>
                   <button
                     type="button"
@@ -278,7 +290,7 @@ function Inner({
           Annuler
         </Button>
         <Button onClick={handleSubmit} disabled={isPending}>
-          <Mail className="mr-1.5 h-4 w-4" />
+          <Mail className="mr-1.5 size-4" />
           {isPending ? 'Envoi...' : confirmLabel}
         </Button>
       </DialogFooter>
@@ -323,7 +335,7 @@ function RecipientField({
               className="hover:bg-background/50 rounded p-0.5"
               aria-label={`Retirer ${email}`}
             >
-              <X className="h-3 w-3" />
+              <X className="size-3" />
             </button>
           </span>
         ))}

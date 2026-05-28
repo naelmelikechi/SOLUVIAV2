@@ -16,14 +16,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 vi.mock('@/lib/auth/guards', () => ({
-  requireAdmin: vi.fn(),
+  checkAuth: vi.fn(),
 }));
 
 vi.mock('@/lib/email/bug-report', () => ({
   sendBugReportEmail: vi.fn(),
 }));
 
-import { requireAdmin } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { sendBugReportEmail } from '@/lib/email/bug-report';
 
 const VALID_UUID = '11111111-1111-4111-a111-111111111111';
@@ -76,7 +76,7 @@ describe('updateBugReportAction', () => {
       resolutionNotes: null,
     });
     expect(res).toEqual({ success: false, error: 'Données invalides' });
-    expect(requireAdmin).not.toHaveBeenCalled();
+    expect(checkAuth).not.toHaveBeenCalled();
   });
 
   it('rejette les inputs invalides (status hors enum)', async () => {
@@ -101,7 +101,7 @@ describe('updateBugReportAction', () => {
   });
 
   it('non-admin -> 403 (relaye auth.error)', async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({
+    vi.mocked(checkAuth).mockResolvedValue({
       ok: false,
       error: 'Accès admin requis',
     });
@@ -116,7 +116,7 @@ describe('updateBugReportAction', () => {
 
   it('status resolu -> set resolved_at + resolved_by', async () => {
     const { client, calls } = buildSupabase();
-    vi.mocked(requireAdmin).mockResolvedValue({
+    vi.mocked(checkAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: client as any,
@@ -145,7 +145,7 @@ describe('updateBugReportAction', () => {
 
   it('status wontfix -> set resolved_at + resolved_by', async () => {
     const { client, calls } = buildSupabase();
-    vi.mocked(requireAdmin).mockResolvedValue({
+    vi.mocked(checkAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: client as any,
@@ -168,7 +168,7 @@ describe('updateBugReportAction', () => {
 
   it('status nouveau -> nullify resolved_at + resolved_by (rouverture)', async () => {
     const { client, calls } = buildSupabase();
-    vi.mocked(requireAdmin).mockResolvedValue({
+    vi.mocked(checkAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: client as any,
@@ -191,7 +191,7 @@ describe('updateBugReportAction', () => {
 
   it('status en_cours -> resolved_at reste null', async () => {
     const { client, calls } = buildSupabase();
-    vi.mocked(requireAdmin).mockResolvedValue({
+    vi.mocked(checkAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: client as any,
@@ -215,7 +215,7 @@ describe('updateBugReportAction', () => {
 
   it('relaye l erreur supabase', async () => {
     const { client } = buildSupabase({ error: { message: 'RLS denied' } });
-    vi.mocked(requireAdmin).mockResolvedValue({
+    vi.mocked(checkAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: client as any,
@@ -244,12 +244,12 @@ describe('resendBugReportEmailAction', () => {
       await import('@/lib/actions/bug-reports');
     const res = await resendBugReportEmailAction('not-a-uuid');
     expect(res).toEqual({ success: false, error: 'ID invalide' });
-    expect(requireAdmin).not.toHaveBeenCalled();
+    expect(checkAuth).not.toHaveBeenCalled();
     expect(sendBugReportEmail).not.toHaveBeenCalled();
   });
 
   it('non-admin -> 403', async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({
+    vi.mocked(checkAuth).mockResolvedValue({
       ok: false,
       error: 'Accès admin requis',
     });
@@ -261,7 +261,7 @@ describe('resendBugReportEmailAction', () => {
   });
 
   it('delegue a sendBugReportEmail si admin', async () => {
-    vi.mocked(requireAdmin).mockResolvedValue({
+    vi.mocked(checkAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: {} as any,

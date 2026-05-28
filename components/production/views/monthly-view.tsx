@@ -43,11 +43,14 @@ interface MonthlyViewProps {
   onProjetsDiscovered?: (refs: string[]) => void;
 }
 
+const EMPTY_FILTER_PROJETS: string[] = [];
+
 export function MonthlyView({
   data,
   perspective,
-  filterProjets = [],
+  filterProjets = EMPTY_FILTER_PROJETS,
   onProjetsDiscovered,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: MonthlyViewProps) {
   const [, startTransition] = useTransition();
 
@@ -150,7 +153,9 @@ export function MonthlyView({
         const result = await fetchProductionByProjet(mois, clientId);
         setProjetDataByClient((prev) => new Map(prev).set(key, result));
         if (onProjetsDiscovered && result.length > 0) {
-          onProjetsDiscovered(result.map((p) => p.projetRef).filter(Boolean));
+          onProjetsDiscovered(
+            result.flatMap((p) => (p.projetRef ? [p.projetRef] : [])),
+          );
         }
       } catch {
         toast.error('Erreur lors du chargement des projets');
@@ -174,7 +179,7 @@ export function MonthlyView({
             )}
           >
             Colonnes
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="size-3.5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Groupes de colonnes</DropdownMenuLabel>
@@ -358,6 +363,7 @@ interface ExpandableMonthRowsProps {
   onToggleClient: (clientId: string) => void;
 }
 
+// oxlint-disable-next-line react-doctor/no-many-boolean-props
 function ExpandableMonthRows({
   row,
   showGroups,
@@ -386,9 +392,9 @@ function ExpandableMonthRows({
         <TableCell className="font-medium">
           <span className="flex items-center gap-1.5">
             {isExpanded ? (
-              <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
+              <ChevronDown className="text-muted-foreground size-3.5" />
             ) : (
-              <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+              <ChevronRight className="text-muted-foreground size-3.5" />
             )}
             <span
               className={cn(row.isCurrent && 'text-primary font-bold italic')}
@@ -447,8 +453,8 @@ function ExpandableMonthRows({
             <div className="px-4 py-3">
               {isLoading && (
                 <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Chargement des clients...
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Chargement des clients…
                 </div>
               )}
               {!isLoading && clients && clients.length === 0 && (
@@ -650,9 +656,9 @@ function ExpandableClientRows({
         <TableCell className="font-medium">
           <span className="flex items-center gap-1.5">
             {isExpanded ? (
-              <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
+              <ChevronDown className="text-muted-foreground size-3.5" />
             ) : (
-              <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+              <ChevronRight className="text-muted-foreground size-3.5" />
             )}
             {client.clientName}
           </span>
@@ -684,8 +690,8 @@ function ExpandableClientRows({
             <div className="px-4 py-3">
               {isLoading && (
                 <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Chargement des projets...
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Chargement des projets…
                 </div>
               )}
               {!isLoading && projets && projets.length === 0 && (

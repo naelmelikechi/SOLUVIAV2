@@ -34,7 +34,7 @@ export function SendDevisDialog({
   open,
   onOpenChange,
 }: SendDevisDialogProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
   const [pending, start] = useTransition();
@@ -63,7 +63,7 @@ export function SendDevisDialog({
         toast.success(`Devis ${res.ref} envoyé.`);
         onOpenChange(false);
         reset();
-        router.refresh();
+        refresh();
       } else {
         toast.error(res.error ?? "Erreur lors de l'envoi.");
       }
@@ -118,8 +118,8 @@ export function SendDevisDialog({
           <Button onClick={handleSubmit} disabled={!to.trim() || pending}>
             {pending ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Envoi...
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Envoi…
               </>
             ) : (
               'Envoyer'

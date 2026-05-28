@@ -1,5 +1,5 @@
 import { redirect, notFound } from 'next/navigation';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { getDevisByRef, getDevisById } from '@/lib/queries/devis';
 import { DevisDetailClient } from '@/components/devis/devis-detail-client';
@@ -9,8 +9,7 @@ interface Props {
 }
 
 export default async function DevisDetailPage({ params }: Props) {
-  const { ref } = await params;
-  const user = await getCurrentUser();
+  const [{ ref }, user] = await Promise.all([params, getUser()]);
   if (!isAdmin(user?.role)) redirect('/projets');
 
   // ref peut etre un ref final (DEV-SOL-0001) ou un UUID (brouillon sans ref)

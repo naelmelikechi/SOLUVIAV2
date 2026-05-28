@@ -3,7 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { env } from '@/lib/env';
 
-export const TriageSchema = z.object({
+const TriageSchema = z.object({
   severity: z.enum(['low', 'medium', 'high', 'critical']),
   category: z.enum([
     'ui',

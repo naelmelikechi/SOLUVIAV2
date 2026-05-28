@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import * as XLSX from 'xlsx';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { canAccessPipeline, isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
@@ -71,8 +71,8 @@ const DeleteProspectSchema = z.object({
   id: z.string().uuid('Prospect ID doit être un UUID'),
 });
 
-async function getCaller() {
-  const auth = await requireUser();
+async function getAuth() {
+  const auth = await requireAuth();
   if (!auth.ok) {
     const supabase = await createClient();
     return {
@@ -106,7 +106,7 @@ export async function loadProspectDetails(id: string) {
     return { prospect: null, notes: [], convertedClient: null, rdvs: [] };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) {
     return { prospect: null, notes: [], convertedClient: null, rdvs: [] };
   }
@@ -165,7 +165,7 @@ export async function updateProspectStage(
     };
   }
 
-  const { supabase, user, role, pipelineAccess } = await getCaller();
+  const { supabase, user, role, pipelineAccess } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canAccessPipeline(role, pipelineAccess)) {
     return { success: false, error: 'Accès refusé' };
@@ -212,7 +212,7 @@ export async function updateProspectAssignment(
     };
   }
 
-  const { supabase, user, role, pipelineAccess } = await getCaller();
+  const { supabase, user, role, pipelineAccess } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canAccessPipeline(role, pipelineAccess)) {
     return { success: false, error: 'Accès refusé' };
@@ -265,7 +265,7 @@ export async function bulkUpdateProspects(
   if (parsed.data.patch.stage !== undefined)
     update.stage = parsed.data.patch.stage;
 
-  const { supabase, user, role, pipelineAccess } = await getCaller();
+  const { supabase, user, role, pipelineAccess } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canAccessPipeline(role, pipelineAccess)) {
     return { success: false, error: 'Accès refusé' };
@@ -315,7 +315,7 @@ export async function addProspectNote(
     };
   }
 
-  const { supabase, user, role, pipelineAccess } = await getCaller();
+  const { supabase, user, role, pipelineAccess } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canAccessPipeline(role, pipelineAccess)) {
     return { success: false, error: 'Accès refusé' };
@@ -355,7 +355,7 @@ export async function convertProspectToClient(
     };
   }
 
-  const { supabase, user, role } = await getCaller();
+  const { supabase, user, role } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!isAdmin(role)) {
     return {
@@ -455,7 +455,7 @@ export async function deleteProspect(
     };
   }
 
-  const { supabase, user, role } = await getCaller();
+  const { supabase, user, role } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!isAdmin(role)) {
     return {
@@ -588,7 +588,7 @@ export async function importProspectsFromExcel(formData: FormData): Promise<{
   skipped?: number;
   error?: string;
 }> {
-  const { supabase, user, role } = await getCaller();
+  const { supabase, user, role } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!isAdmin(role)) {
     return {
@@ -624,7 +624,7 @@ export async function importProspectsFromExcel(formData: FormData): Promise<{
   }
 
   // Process sheets: raw first, then enriched ("Inf à 50") so enriched wins on SIRET collision
-  const sheetOrder = [...workbook.SheetNames].sort((a) =>
+  const sheetOrder = workbook.SheetNames.toSorted((a) =>
     a.toLowerCase().includes('inf') ? 1 : -1,
   );
 
@@ -683,6 +683,7 @@ export async function importProspectsFromExcel(formData: FormData): Promise<{
 
       // Find existing SIRETs first to count created vs updated
       const sirets = slice.map((s) => s.siret!);
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { data: existing } = await supabase
         .from('prospects')
         .select('siret')
@@ -733,6 +734,7 @@ export async function importProspectsFromExcel(formData: FormData): Promise<{
     const CHUNK = 500;
     for (let i = 0; i < payload.length; i += CHUNK) {
       const slice = payload.slice(i, i + CHUNK);
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { error } = await supabase.from('prospects').insert(slice);
       if (error) {
         logger.error('actions.prospects', 'insert no-siret chunk failed', {

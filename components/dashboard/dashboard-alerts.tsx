@@ -43,24 +43,19 @@ export function DashboardAlerts({
   onRestoreAll,
   isHidden,
 }: DashboardAlertsProps) {
-  const renderIfVisible = (key: string, node: React.ReactNode) =>
-    isHidden(key) ? null : node;
-
   return (
     <>
       {/* ========== Alerts ========== */}
-      {renderIfVisible(
-        'alerts',
+      {!isHidden('alerts') && (
         <AlertsStrip
           alerts={alerts}
           editMode={editMode}
           onHide={() => onHide('alerts')}
-        />,
+        />
       )}
 
       {/* ========== Trinity Funnel ========== */}
-      {renderIfVisible(
-        'trinity',
+      {!isHidden('trinity') && (
         <TrinityFunnel
           production={totalProduction}
           facture={totalFacture}
@@ -69,19 +64,18 @@ export function DashboardAlerts({
           editMode={editMode}
           onHide={() => onHide('trinity')}
           periodeLabel={periodeLabel}
-        />,
+        />
       )}
 
       {/* ========== Context Chips ========== */}
-      {renderIfVisible(
-        'chips',
+      {!isHidden('chips') && (
         <ContextChips
           enRetard={totalEnRetard}
           aFacturer={totalAFacturer}
           weekHours={weekHours}
           editMode={editMode}
           onHide={() => onHide('chips')}
-        />,
+        />
       )}
 
       {/* ========== Personnalisation toolbar ========== */}

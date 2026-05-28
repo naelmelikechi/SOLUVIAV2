@@ -56,7 +56,7 @@ export async function getUsersList() {
 
 export type UserListItem = Awaited<ReturnType<typeof getUsersList>>[number];
 
-export async function getCurrentUser() {
+export async function getUser() {
   const supabase = await createClient();
   const {
     data: { user: authUser },
@@ -106,9 +106,7 @@ export async function getCurrentUserActiveProjetsCount(): Promise<number> {
   return count ?? 0;
 }
 
-export type CurrentUser = NonNullable<
-  Awaited<ReturnType<typeof getCurrentUser>>
->;
+export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getUser>>>;
 
 export async function getActiveUsersMinimal() {
   const supabase = await createClient();

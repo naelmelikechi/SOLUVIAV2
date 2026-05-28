@@ -24,9 +24,9 @@ export function computePedagogieAvancement(
     contrats_progressions: Array<{ progression_percentage: number }>;
   }>,
 ): number {
-  const progressions = contrats
-    .flatMap((c) => c.contrats_progressions ?? [])
-    .map((p) => p.progression_percentage);
+  const progressions = contrats.flatMap((c) =>
+    (c.contrats_progressions ?? []).map((p) => p.progression_percentage),
+  );
   if (progressions.length === 0) return 0;
   const sum = progressions.reduce((s, v) => s + v, 0);
   return Math.round((sum / progressions.length) * 100) / 100;

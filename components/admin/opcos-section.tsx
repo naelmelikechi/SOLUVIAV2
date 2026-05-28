@@ -41,7 +41,7 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
           {opcos.length} OPCO references
         </h3>
         <Button size="sm" onClick={() => setShowCreate(true)}>
-          <Plus className="mr-2 h-3.5 w-3.5" /> Nouvel OPCO
+          <Plus className="mr-2 size-3.5" /> Nouvel OPCO
         </Button>
       </div>
 
@@ -99,7 +99,7 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
                         aria-label="Modifier"
                         title="Modifier"
                       >
-                        <Edit className="h-3.5 w-3.5" />
+                        <Edit className="size-3.5" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -110,9 +110,9 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
                         title={o.actif ? 'Archiver' : 'Reactiver'}
                       >
                         {o.actif ? (
-                          <Archive className="h-3.5 w-3.5" />
+                          <Archive className="size-3.5" />
                         ) : (
-                          <ArchiveRestore className="h-3.5 w-3.5" />
+                          <ArchiveRestore className="size-3.5" />
                         )}
                       </Button>
                     </div>

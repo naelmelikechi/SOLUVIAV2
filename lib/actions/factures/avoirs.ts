@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { checkAuth, requireAuth } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/utils/audit';
 import { getDefaultSocieteEmettriceId } from '@/lib/queries/societes-emettrices';
@@ -54,6 +54,9 @@ export async function computeProrataAvoir(params: {
   breakdown?: ProrataBreakdownItem[];
   error?: string;
 }> {
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
+
   const parsed = ComputeProrataAvoirSchema.safeParse(params);
   if (!parsed.success) {
     return {
@@ -157,7 +160,7 @@ export async function createAvoir(params: {
   }
   const { factureOrigineId, motif, montant, note } = parsed.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -224,7 +227,11 @@ export async function createAvoir(params: {
     .eq('facture_id', factureOrigineId);
 
   const origineContratIds = Array.from(
-    new Set((origineLignesAll ?? []).map((l) => l.contrat_id).filter(Boolean)),
+    new Set(
+      (origineLignesAll ?? []).flatMap((l) =>
+        l.contrat_id ? [l.contrat_id] : [],
+      ),
+    ),
   ) as string[];
 
   if (origineContratIds.length === 0) {

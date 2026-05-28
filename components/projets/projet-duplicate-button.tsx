@@ -17,7 +17,7 @@ export function ProjetDuplicateButton({
   projetId,
   projetRef,
 }: ProjetDuplicateButtonProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   const [loading, setLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -27,7 +27,7 @@ export function ProjetDuplicateButton({
       const result = await duplicateProjet(projetId);
       if (result.success && result.ref) {
         toast.success(`Projet dupliqué : ${result.ref}`);
-        router.push(`/projets/${result.ref}`);
+        push(`/projets/${result.ref}`);
       } else {
         toast.error(result.error || 'Erreur lors de la duplication');
       }
@@ -49,9 +49,9 @@ export function ProjetDuplicateButton({
         title="Dupliquer le projet"
       >
         {loading ? (
-          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+          <Loader2 className="mr-2 size-3.5 animate-spin" />
         ) : (
-          <Copy className="mr-2 h-3.5 w-3.5" />
+          <Copy className="mr-2 size-3.5" />
         )}
         Dupliquer
       </Button>

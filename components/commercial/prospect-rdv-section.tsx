@@ -63,7 +63,7 @@ export function ProspectRdvSection({
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h4 className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-semibold tracking-wider uppercase">
-          <CalendarDays className="h-3 w-3" /> RDV
+          <CalendarDays className="size-3" /> RDV
         </h4>
         <Button
           variant="outline"
@@ -71,7 +71,7 @@ export function ProspectRdvSection({
           className="h-7 text-xs"
           onClick={() => setDialogOpen(true)}
         >
-          <Plus className="mr-1 h-3 w-3" />
+          <Plus className="mr-1 size-3" />
           Nouveau
         </Button>
       </div>
@@ -104,7 +104,7 @@ export function ProspectRdvSection({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0"
+                className="size-6 p-0"
                 disabled={pendingId === rdv.id}
                 onClick={() => handleToggle(rdv.id, rdv.statut)}
                 title={
@@ -114,21 +114,21 @@ export function ProspectRdvSection({
                 }
               >
                 {pendingId === rdv.id ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="size-3 animate-spin" />
                 ) : rdv.statut === 'realise' ? (
-                  <XCircle className="h-3 w-3" />
+                  <XCircle className="size-3" />
                 ) : (
-                  <CheckCircle className="h-3 w-3" />
+                  <CheckCircle className="size-3" />
                 )}
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-destructive hover:text-destructive h-6 w-6 p-0"
+                className="text-destructive hover:text-destructive size-6 p-0"
                 onClick={() => handleDelete(rdv.id)}
                 title="Supprimer"
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="size-3" />
               </Button>
             </li>
           ))}
@@ -184,7 +184,7 @@ function AddRdvCommercialDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CalendarDays className="text-primary h-4 w-4" />
+            <CalendarDays className="text-primary size-4" />
             Nouveau RDV commercial
           </DialogTitle>
         </DialogHeader>

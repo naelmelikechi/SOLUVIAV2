@@ -41,7 +41,7 @@ export function ThemeToggle() {
   if (!mounted) {
     return (
       <Button variant="ghost" size="icon-sm" aria-label="Changer le thème">
-        <Monitor className="h-4 w-4" />
+        <Monitor className="size-4" />
       </Button>
     );
   }
@@ -66,7 +66,7 @@ export function ThemeToggle() {
           />
         }
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="size-4" />
       </TooltipTrigger>
       <TooltipContent side="top">{themeLabels[currentTheme]}</TooltipContent>
     </Tooltip>

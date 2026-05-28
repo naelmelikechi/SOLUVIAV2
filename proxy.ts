@@ -20,9 +20,9 @@ export async function proxy(request: NextRequest) {
   // Note : la verification du cookie ici est uniquement un check de
   // PRESENCE pour decider du routing (login vs redirect). La VALIDATION
   // reelle de la session se fait :
-  //   - cote Server Component via requireUser() (lib/auth/guards.ts) qui
+  //   - cote Server Component via requireAuth() (lib/auth/guards.ts) qui
   //     appelle supabase.auth.getUser() et retourne ok=false si invalide
-  //   - cote dashboard layout (sprint 5 #3) qui appelle getCurrentUser()
+  //   - cote dashboard layout (sprint 5 #3) qui appelle getUser()
   //     puis redirect('/login') si null
   // Donc un cookie sb-*-auth-token=garbage passe ce check mais sera
   // rejete a la premiere lecture serveur. Defense en profondeur, voir #2.

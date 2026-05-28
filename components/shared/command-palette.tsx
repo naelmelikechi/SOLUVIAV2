@@ -190,7 +190,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS);
   const fetchAbortRef = useRef<AbortController | null>(null);
-  const router = useRouter();
+  const { push } = useRouter();
 
   // Quand on referme la palette, on reset le query et les resultats. cmdk
   // appelle onOpenChange(false) sur Escape / clic-out / select : c'est le seul
@@ -218,6 +218,7 @@ export function CommandPalette() {
   // On ne lance le fetch que quand on a une query valide. Pour les transitions
   // "query trop courte", on derive simplement l'affichage via useMemo plus bas
   // au lieu de reset l'etat ici - ca evite le warning react-hooks/set-state-in-effect.
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect
   useEffect(() => {
     if (!open) return;
     const trimmed = query.trim();
@@ -260,20 +261,20 @@ export function CommandPalette() {
     (item: CommandPaletteItem) => {
       handleOpenChange(false);
       if (item.href) {
-        router.push(item.href);
+        push(item.href);
       } else if (item.action === 'create-client') {
-        router.push('/admin/clients?action=nouveau');
+        push('/admin/clients?action=nouveau');
       }
     },
-    [router, handleOpenChange],
+    [push, handleOpenChange],
   );
 
   const navigateTo = useCallback(
     (href: string) => {
       handleOpenChange(false);
-      router.push(href);
+      push(href);
     },
-    [router, handleOpenChange],
+    [push, handleOpenChange],
   );
 
   const pages = items.filter((i) => i.section === 'Pages');
@@ -316,7 +317,7 @@ export function CommandPalette() {
                       onSelect={() => navigateTo(`/projets/${p.ref}`)}
                       className="cursor-pointer"
                     >
-                      <FolderKanban className="text-muted-foreground h-4 w-4" />
+                      <FolderKanban className="text-muted-foreground size-4" />
                       <span className="font-mono text-xs">{p.ref}</span>
                       {p.client && (
                         <span className="text-muted-foreground truncate text-xs">
@@ -336,7 +337,7 @@ export function CommandPalette() {
                       onSelect={() => navigateTo(`/admin/clients/${c.id}`)}
                       className="cursor-pointer"
                     >
-                      <Building2 className="text-muted-foreground h-4 w-4" />
+                      <Building2 className="text-muted-foreground size-4" />
                       <span className="font-mono text-xs">{c.trigramme}</span>
                       <span className="truncate text-sm">
                         {c.raison_sociale}
@@ -354,7 +355,7 @@ export function CommandPalette() {
                       onSelect={() => navigateTo(`/facturation/${f.numero}`)}
                       className="cursor-pointer"
                     >
-                      <FileText className="text-muted-foreground h-4 w-4" />
+                      <FileText className="text-muted-foreground size-4" />
                       <span className="font-mono text-xs">{f.numero}</span>
                       {f.projet && (
                         <span className="text-muted-foreground truncate text-xs">
@@ -369,41 +370,39 @@ export function CommandPalette() {
             </>
           )}
           <CommandGroup heading="Pages">
-            {pages
-              .filter((p) => !query || matchesSearch(p.label, query))
-              .map((item) => {
-                const Icon = item.icon;
-                return (
-                  <CommandItem
-                    key={item.label}
-                    value={`page-${item.label}`}
-                    onSelect={() => handleSelect(item)}
-                    className="cursor-pointer"
-                  >
-                    <Icon className="text-muted-foreground h-4 w-4" />
-                    <span>{item.label}</span>
-                  </CommandItem>
-                );
-              })}
+            {pages.flatMap((item) => {
+              if (query && !matchesSearch(item.label, query)) return [];
+              const Icon = item.icon;
+              return [
+                <CommandItem
+                  key={item.label}
+                  value={`page-${item.label}`}
+                  onSelect={() => handleSelect(item)}
+                  className="cursor-pointer"
+                >
+                  <Icon className="text-muted-foreground size-4" />
+                  <span>{item.label}</span>
+                </CommandItem>,
+              ];
+            })}
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading="Actions rapides">
-            {actions
-              .filter((a) => !query || matchesSearch(a.label, query))
-              .map((item) => {
-                const Icon = item.icon;
-                return (
-                  <CommandItem
-                    key={item.label}
-                    value={`action-${item.label}`}
-                    onSelect={() => handleSelect(item)}
-                    className="cursor-pointer"
-                  >
-                    <Icon className="text-muted-foreground h-4 w-4" />
-                    <span>{item.label}</span>
-                  </CommandItem>
-                );
-              })}
+            {actions.flatMap((item) => {
+              if (query && !matchesSearch(item.label, query)) return [];
+              const Icon = item.icon;
+              return [
+                <CommandItem
+                  key={item.label}
+                  value={`action-${item.label}`}
+                  onSelect={() => handleSelect(item)}
+                  className="cursor-pointer"
+                >
+                  <Icon className="text-muted-foreground size-4" />
+                  <span>{item.label}</span>
+                </CommandItem>,
+              ];
+            })}
           </CommandGroup>
         </CommandList>
       </Command>

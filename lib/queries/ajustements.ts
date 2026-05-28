@@ -116,14 +116,18 @@ export async function listCandidateFacturesForAjustement(
     );
   }
 
-  return (data ?? [])
-    .filter((f) => !alreadyLinked.has(f.id))
-    .map((f) => ({
-      id: f.id,
-      ref: f.ref,
-      date_emission: f.date_emission,
-      montant_ht: Number(f.montant_ht),
-      est_avoir: f.est_avoir,
-      statut: f.statut,
-    }));
+  return (data ?? []).flatMap((f) =>
+    alreadyLinked.has(f.id)
+      ? []
+      : [
+          {
+            id: f.id,
+            ref: f.ref,
+            date_emission: f.date_emission,
+            montant_ht: Number(f.montant_ht),
+            est_avoir: f.est_avoir,
+            statut: f.statut,
+          },
+        ],
+  );
 }

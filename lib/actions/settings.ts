@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { timingSafeEqual } from 'crypto';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { env } from '@/lib/env';
 import { logAudit } from '@/lib/utils/audit';
 import {
@@ -71,7 +71,7 @@ export async function updateProfile(
   nom = parsed.data.nom;
   telephone = parsed.data.telephone ?? null;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 
@@ -118,7 +118,7 @@ export async function updatePassword(
   }
   newPassword = parsed.data.newPassword;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -154,7 +154,7 @@ type AvatarActionResult = {
 
 /** Passe en mode quotidien. Le seed random éventuel est gardé en DB mais ignoré. */
 export async function setAvatarDaily(): Promise<AvatarActionResult> {
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 
@@ -179,7 +179,7 @@ export async function setAvatarDaily(): Promise<AvatarActionResult> {
 
 /** Tire un nouveau random. Rate-limit 1/jour (via avatar_regen_date). */
 export async function rollRandomAvatar(): Promise<AvatarActionResult> {
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 
@@ -221,7 +221,7 @@ export async function rollRandomAvatar(): Promise<AvatarActionResult> {
  * Idempotent si déjà figé.
  */
 export async function freezeCurrentAvatar(): Promise<AvatarActionResult> {
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
   if (!authUser.email) return { success: false, error: 'Non authentifié' };
@@ -283,7 +283,7 @@ export async function attemptUnlockFrozenAvatar(
   }
   attempt = parsed.data.attempt;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 

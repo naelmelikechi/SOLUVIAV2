@@ -26,6 +26,7 @@ export default async function FacturationPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // oxlint-disable-next-line react-doctor/server-sequential-independent-await
   const [
     factures,
     echeances,

@@ -9,10 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import { RatioCell } from '@/components/indicateurs/ratio-cell';
 
 interface Row {

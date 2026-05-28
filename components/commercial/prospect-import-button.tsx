@@ -55,9 +55,9 @@ export function ProspectImportButton() {
         onClick={() => fileInputRef.current?.click()}
       >
         {uploading ? (
-          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+          <Loader2 className="mr-2 size-3.5 animate-spin" />
         ) : (
-          <Upload className="mr-2 h-3.5 w-3.5" />
+          <Upload className="mr-2 size-3.5" />
         )}
         {uploading ? 'Import en cours...' : 'Importer Excel'}
       </Button>

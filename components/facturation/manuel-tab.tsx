@@ -55,8 +55,9 @@ function eventKey(e: Pick<BillableEvent, 'type' | 'source_id'>): EventKey {
 
 const NDASH = '-';
 
+// oxlint-disable-next-line react-doctor/no-giant-component, react-doctor/prefer-useReducer
 export function ManuelTab({ projets }: ManuelTabProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const [selectedProjetId, setSelectedProjetId] = useState<string>(
@@ -85,9 +86,11 @@ export function ManuelTab({ projets }: ManuelTabProps) {
     () =>
       Array.from(
         new Set(
-          events
-            .filter((e) => e.status === 'available' && e.opco_code)
-            .map((e) => e.opco_code as string),
+          events.flatMap((e) =>
+            e.status === 'available' && e.opco_code
+              ? [e.opco_code as string]
+              : [],
+          ),
         ),
       ),
     [events],
@@ -263,7 +266,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
           'Brouillon de facture préparé. À vérifier puis envoyer dans l’onglet Brouillons.',
         );
         setSelected(new Set());
-        router.refresh();
+        refresh();
       } else {
         toast.error(res.error ?? 'Erreur lors de la préparation du brouillon');
       }
@@ -347,7 +350,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   type="checkbox"
                   checked={showEngagements}
                   onChange={(e) => setShowEngagements(e.target.checked)}
-                  className="border-input h-4 w-4 rounded"
+                  className="border-input size-4 rounded"
                   aria-label="Afficher les engagements"
                 />
                 <span>
@@ -363,7 +366,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   type="checkbox"
                   checked={showOpcoSteps}
                   onChange={(e) => setShowOpcoSteps(e.target.checked)}
-                  className="border-input h-4 w-4 rounded"
+                  className="border-input size-4 rounded"
                   aria-label="Afficher les règlements OPCO"
                 />
                 <span>
@@ -379,7 +382,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   type="checkbox"
                   checked={includeBilled}
                   onChange={(e) => setIncludeBilled(e.target.checked)}
-                  className="border-input h-4 w-4 rounded"
+                  className="border-input size-4 rounded"
                   aria-label="Inclure les événements déjà facturés"
                 />
                 <span className="text-muted-foreground">
@@ -408,7 +411,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                         checked={allDisplayedSelected}
                         onChange={toggleAll}
                         disabled={availableInDisplay.length === 0}
-                        className="border-input h-4 w-4 rounded"
+                        className="border-input size-4 rounded"
                         aria-label="Tout sélectionner"
                       />
                     </TableHead>
@@ -460,7 +463,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                               checked={checked}
                               disabled={disabled}
                               onChange={() => toggleOne(e)}
-                              className="border-input h-4 w-4 rounded disabled:cursor-not-allowed"
+                              className="border-input size-4 rounded disabled:cursor-not-allowed"
                               aria-label={`Sélectionner ${e.type === 'engagement' ? 'engagement' : 'réglement OPCO'} ${deca}${stepSuffix}`}
                             />
                           </TableCell>
@@ -474,7 +477,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                 e.lock_reason === 'missing_deca' ? (
                                   <Tooltip>
                                     <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
-                                      <AlertTriangle className="h-3 w-3" />
+                                      <AlertTriangle className="size-3" />
                                       <span>
                                         {'Verrouillé'} : DECA manquant
                                       </span>
@@ -493,7 +496,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                 ) : e.lock_reason === 'unknown_line_type' ? (
                                   <Tooltip>
                                     <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
-                                      <AlertTriangle className="h-3 w-3" />
+                                      <AlertTriangle className="size-3" />
                                       <span>
                                         {'Verrouillé'} : type(s) OPCO inconnu(s)
                                       </span>
@@ -518,7 +521,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                 ) : e.locked_by ? (
                                   <Tooltip>
                                     <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
-                                      <Lock className="h-3 w-3" />
+                                      <Lock className="size-3" />
                                       <span>
                                         {'Verrouillé'} :{' '}
                                         {e.type === 'opco_step'
@@ -546,7 +549,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                               {isBilled && e.billed_on ? (
                                 <Tooltip>
                                   <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--success)]">
-                                    <CheckCircle2 className="h-3 w-3" />
+                                    <CheckCircle2 className="size-3" />
                                     <span>
                                       {'Déjà facturé sur '}
                                       <span className="font-mono">

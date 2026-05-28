@@ -4,7 +4,7 @@ import {
   getSaisiesForWeek,
   getCurrentUserTempsTotals,
 } from '@/lib/queries/temps';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { getJoursFeries } from '@/lib/queries/parametres';
 import { getAbsencesForUserAndPeriod } from '@/lib/queries/absences';
 import { isAdmin } from '@/lib/utils/roles';
@@ -17,7 +17,7 @@ export default async function TempsPage() {
   const weekDates = getWeekDates(0);
   const [saisies, user, joursFeries, absences, totals] = await Promise.all([
     getSaisiesForWeek(weekDates),
-    getCurrentUser(),
+    getUser(),
     getJoursFeries(new Date().getFullYear()),
     getAbsencesForUserAndPeriod(
       weekDates[0]!,

@@ -76,8 +76,7 @@ export function IdeaColumn({
     // menu deroulant "Changer de statut" existe sur chaque ligne pour assurer
     // l'accessibilite clavier.
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-    <div
-      role="region"
+    <section
       aria-label={`Colonne ${statut}`}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
@@ -121,6 +120,6 @@ export function IdeaColumn({
           ))
         )}
       </div>
-    </div>
+    </section>
   );
 }

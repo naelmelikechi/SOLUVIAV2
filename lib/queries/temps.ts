@@ -83,15 +83,17 @@ type ProjetJoinShape = {
   client: { raison_sociale: string } | null;
 };
 
-function normalizeCategorie(
-  raw: unknown,
-): CategorieInterneRef | null {
+function normalizeCategorie(raw: unknown): CategorieInterneRef | null {
   if (!raw) return null;
   // Supabase peut renvoyer un objet ou un tableau selon la cardinalite detectee
   const obj = Array.isArray(raw) ? raw[0] : raw;
   if (!obj || typeof obj !== 'object') return null;
   const r = obj as Record<string, unknown>;
-  if (typeof r.id !== 'string' || typeof r.code !== 'string' || typeof r.libelle !== 'string') {
+  if (
+    typeof r.id !== 'string' ||
+    typeof r.code !== 'string' ||
+    typeof r.libelle !== 'string'
+  ) {
     return null;
   }
   return { id: r.id, code: r.code, libelle: r.libelle };
@@ -387,64 +389,6 @@ export async function getTeamWeekSummary(
       prenom: u.prenom ?? '',
       dailyTotals,
       weekTotal,
-    };
-  });
-}
-
-// ---------------------------------------------------------------------------
-// getUserProjets - projects the user is assigned to (non-absence, active)
-// ---------------------------------------------------------------------------
-
-export async function getUserProjets(): Promise<
-  {
-    id: string;
-    ref: string;
-    label: string;
-    est_interne: boolean;
-    categorie_interne: CategorieInterneRef | null;
-  }[]
-> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
-
-  const { data, error } = await supabase
-    .from('projets')
-    .select(PROJET_INTERNE_SELECT)
-    .eq('archive', false)
-    .eq('statut', 'actif')
-    .or(`cdp_id.eq.${user.id},backup_cdp_id.eq.${user.id},est_interne.eq.true`)
-    .order('est_interne', { ascending: true })
-    .order('ref', { ascending: true });
-
-  if (error) {
-    logger.error('queries.temps', 'getUserProjets failed', { error });
-    throw new AppError(
-      'TEMPS_FETCH_FAILED',
-      'Impossible de charger les projets utilisateur',
-      { cause: error },
-    );
-  }
-
-  return ((data ?? []) as unknown as ProjetJoinShape[]).map((p) => {
-    const client = p.client;
-    const ref = p.ref ?? '';
-    const estInterne = p.est_interne ?? false;
-    const categorieInterne = normalizeCategorie(p.categorie_interne);
-    return {
-      id: p.id,
-      ref,
-      label: buildProjetLabel(
-        ref,
-        client?.raison_sociale ?? '',
-        estInterne,
-        categorieInterne,
-      ),
-      est_interne: estInterne,
-      categorie_interne: categorieInterne,
     };
   });
 }

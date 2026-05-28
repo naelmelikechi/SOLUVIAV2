@@ -147,7 +147,7 @@ function MemberCard({ member }: { member: EquipeMember }) {
             href={`mailto:${member.email}`}
             className="text-muted-foreground hover:text-foreground flex max-w-full items-center gap-1 truncate text-xs transition-colors"
           >
-            <Mail className="h-3 w-3 shrink-0" />
+            <Mail className="size-3 shrink-0" />
             <span className="truncate">{member.email}</span>
           </a>
           {member.telephone && (
@@ -155,7 +155,7 @@ function MemberCard({ member }: { member: EquipeMember }) {
               href={`tel:${member.telephone.replace(/\s+/g, '')}`}
               className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors"
             >
-              <Phone className="h-3 w-3 shrink-0" />
+              <Phone className="size-3 shrink-0" />
               <span>{member.telephone}</span>
             </a>
           )}

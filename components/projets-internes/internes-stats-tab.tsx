@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { MiniKpiCard } from '@/components/dashboard/mini-kpi-card';
 import { CategorieBarChart } from './categorie-bar-chart';
 import { CdpInternesTable } from './cdp-internes-table';
@@ -64,12 +65,12 @@ export function InternesStatsTab({ stats, scope }: Props) {
         <div className="border-border bg-muted/30 rounded-lg border p-6 text-center">
           <p className="text-muted-foreground text-sm">
             Aucune saisie interne sur cette période.{' '}
-            <a
+            <Link
               href="/temps"
               className="text-primary underline-offset-2 hover:underline"
             >
               Saisir mon temps
-            </a>
+            </Link>
           </p>
         </div>
       )}

@@ -276,6 +276,7 @@ async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
   let lastErr: unknown = null;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -367,11 +368,19 @@ export async function fetchAllPages<T>(
   );
   allItems.push(...firstPage.data);
 
+  const remainingPages: number[] = [];
   for (let page = 2; page <= firstPage.meta.total_pages; page++) {
-    const result = await fetchJson<EduviaApiResponse<T>>(
-      `${baseUrl}/api/v1/${resource}?page=${page}&per_page=${PER_PAGE}`,
-      apiKey,
-    );
+    remainingPages.push(page);
+  }
+  const remainingResults = await Promise.all(
+    remainingPages.map((page) =>
+      fetchJson<EduviaApiResponse<T>>(
+        `${baseUrl}/api/v1/${resource}?page=${page}&per_page=${PER_PAGE}`,
+        apiKey,
+      ),
+    ),
+  );
+  for (const result of remainingResults) {
     allItems.push(...result.data);
   }
 

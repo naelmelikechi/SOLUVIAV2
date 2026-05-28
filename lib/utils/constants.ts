@@ -2,18 +2,11 @@ import type { BadgeColor } from '@/components/shared/status-badge';
 
 // Time tracking
 export const MAX_HEURES_JOUR = 7;
-export const MAX_HEURES_SEMAINE = 35;
 export const DEBOUNCE_MS = 2000;
-
-// Quality
-export const FAMILLES_QUALITE_COUNT = 10;
-export const LIVRABLES_TOTAL = 109;
 
 // Invoicing
 export const FENETRE_FACTURATION_DEBUT = 25;
 export const FENETRE_FACTURATION_FIN = 3;
-export const DELAI_ECHEANCE_JOURS = 30;
-export const TAUX_TVA_DEFAUT = 20;
 
 // Project statuses
 export const STATUT_PROJET_LABELS: Record<string, string> = {

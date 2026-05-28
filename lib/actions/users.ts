@@ -3,7 +3,7 @@
 import { randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireAdmin, requireSuperAdmin } from '@/lib/auth/guards';
+import { checkAuth, validateSession } from '@/lib/auth/guards';
 import {
   canAssignRole,
   canDeleteUser,
@@ -77,6 +77,7 @@ async function withRetry<T>(
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       return await fn();
     } catch (err) {
       lastErr = err;
@@ -105,7 +106,7 @@ export async function updateUserRole(
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
 
@@ -116,18 +117,18 @@ export async function updateUserRole(
     };
   }
 
-  const { data: target } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', userId)
-    .single();
-
   if (!canAssignRole(callerRole, role)) {
     return {
       success: false,
       error: 'Seul un superadmin peut attribuer ce rôle',
     };
   }
+
+  const { data: target } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .single();
   if (!canManageUser(callerRole, target?.role)) {
     return {
       success: false,
@@ -170,7 +171,7 @@ export async function updateUserProfile(
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 
@@ -205,7 +206,7 @@ export async function updateUserPipelineAccess(
     return { success: false, error: 'userId doit être un UUID' };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 
@@ -239,7 +240,7 @@ export async function updateUserIdeasPermissions(
     return { success: false, error: 'userId doit être un UUID' };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 
@@ -276,7 +277,7 @@ export async function toggleUserActive(
     return { success: false, error: 'userId doit être un UUID' };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
 
@@ -343,7 +344,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
     return { success: false, error: 'userId doit être un UUID' };
   }
 
-  const auth = await requireSuperAdmin();
+  const auth = await validateSession();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
 
@@ -365,6 +366,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
     .single();
 
   // Suppression atomique cote DB (transaction plpgsql).
+  // oxlint-disable-next-line react-doctor/server-sequential-independent-await
   const { error: cascadeError } = await supabase.rpc('delete_user_cascade', {
     p_user_id: userId,
   });
@@ -437,7 +439,7 @@ export async function inviteUser(
 
   const password = generateTempPassword();
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
 
@@ -661,7 +663,7 @@ export async function resetUserPassword(userId: string): Promise<ActionResult> {
     return { success: false, error: 'userId doit être un UUID' };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
 

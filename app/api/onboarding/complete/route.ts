@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 
 /**
  * Marque le tour guide comme termine pour l user courant (set
@@ -7,7 +7,7 @@ import { requireUser } from '@/lib/auth/guards';
  * l user clique sur Skip.
  */
 export async function POST() {
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: 401 });
   }
@@ -29,7 +29,7 @@ export async function POST() {
  * relance le tour immediatement apres la reponse.
  */
 export async function DELETE() {
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: 401 });
   }

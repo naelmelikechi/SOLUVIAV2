@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getUsersList, getCurrentUser } from '@/lib/queries/users';
+import { getUsersList, getUser } from '@/lib/queries/users';
 import { getEmployeeCostDefaults } from '@/lib/queries/employee-cost';
 import { isAdmin } from '@/lib/utils/roles';
 import { UsersDataTable } from '@/components/admin/users-data-table';
@@ -11,7 +11,7 @@ export default async function UtilisateursPage() {
   // user + queries en parallele. Si non-admin on paye 2 queries pour
   // rien (cas rare : sidebar gate).
   const [user, users, costDefaults] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     getUsersList(),
     getEmployeeCostDefaults(),
   ]);

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { getEquipeWithProjets } from '@/lib/queries/equipe';
 import { getRecentTeamMessages } from '@/lib/queries/team-chat';
 import { PageHeader } from '@/components/shared/page-header';
@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 export default async function EquipePage() {
   // user + members + messages en parallele : independants.
   const [user, members, messages] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     getEquipeWithProjets(),
     getRecentTeamMessages(),
   ]);
@@ -37,7 +37,7 @@ export default async function EquipePage() {
 
       <TeamChat
         initialMessages={messages}
-        currentUser={{
+        getUser={{
           id: user.id,
           prenom: user.prenom,
           nom: user.nom,

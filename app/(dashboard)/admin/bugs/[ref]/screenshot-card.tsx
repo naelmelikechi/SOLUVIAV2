@@ -26,6 +26,7 @@ export function ScreenshotCard({ url, label }: ScreenshotCardProps) {
           className="group border-border relative block w-full cursor-zoom-in overflow-hidden rounded-md border"
           aria-label={`Agrandir : ${label}`}
         >
+          {/* oxlint-disable-next-line react-doctor/nextjs-no-img-element */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={url}
@@ -47,6 +48,7 @@ export function ScreenshotCard({ url, label }: ScreenshotCardProps) {
           )}
         >
           <DialogTitle className="sr-only">{label}</DialogTitle>
+          {/* oxlint-disable-next-line react-doctor/nextjs-no-img-element */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={url}

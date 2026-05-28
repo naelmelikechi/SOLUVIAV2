@@ -45,6 +45,7 @@ export default function GlobalError({
           page.
         </p>
         <button
+          type="button"
           onClick={reset}
           style={{
             padding: '0.5rem 1rem',

@@ -20,7 +20,7 @@ export function KpiCardPlaceholder({ title, tooltip, subtitle }: Props) {
           {title}
           <Tooltip>
             <TooltipTrigger>
-              <Info className="h-3.5 w-3.5 cursor-help" />
+              <Info className="size-3.5 cursor-help" />
             </TooltipTrigger>
             <TooltipContent>
               <p className="max-w-xs text-xs">{tooltip}</p>

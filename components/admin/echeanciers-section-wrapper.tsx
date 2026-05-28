@@ -20,7 +20,7 @@ export function EcheanciersSectionWrapper({
 }) {
   return (
     <SectionCard
-      icon={<CalendarClock className="h-4 w-4 shrink-0" />}
+      icon={<CalendarClock className="size-4 shrink-0" />}
       title="Échéanciers de facturation"
     >
       <EcheanciersTemplatesSection templates={templates} />

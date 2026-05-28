@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { canValidateIdeas, canShipIdeas, isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
@@ -58,8 +58,8 @@ const ReopenAndEditIdeaSchema = z.object({
   cible: cibleSchema,
 });
 
-async function getCaller() {
-  const auth = await requireUser();
+async function getAuth() {
+  const auth = await requireAuth();
   if (!auth.ok) {
     const supabase = await createClient();
     return {
@@ -104,7 +104,7 @@ export async function proposeIdea(data: {
   const titre = parsed.data.titre;
   const description = parsed.data.description?.trim() || null;
 
-  const { supabase, user } = await getCaller();
+  const { supabase, user } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
 
   const { data: idee, error } = await supabase
@@ -145,7 +145,7 @@ export async function updateProposedIdea(
     };
   }
 
-  const { supabase, user, role } = await getCaller();
+  const { supabase, user, role } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
 
   const { data: existing, error: fetchError } = await supabase
@@ -238,7 +238,7 @@ export async function validateIdea(
   }
   id = parsed.data.id;
 
-  const { supabase, user, role, canValidate } = await getCaller();
+  const { supabase, user, role, canValidate } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canValidateIdeas(role, canValidate)) {
     return { success: false, error: 'Accès refusé' };
@@ -300,7 +300,7 @@ export async function rejectIdea(
   const motifValue = parsed.data.motif;
   id = parsed.data.id;
 
-  const { supabase, user, role, canValidate } = await getCaller();
+  const { supabase, user, role, canValidate } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canValidateIdeas(role, canValidate)) {
     return { success: false, error: 'Accès refusé' };
@@ -360,7 +360,7 @@ export async function markIdeaImplemented(
   }
   id = parsed.data.id;
 
-  const { supabase, user, role, canShip } = await getCaller();
+  const { supabase, user, role, canShip } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canShipIdeas(role, canShip)) {
     return { success: false, error: 'Accès refusé' };
@@ -421,7 +421,7 @@ export async function reopenIdea(
   }
   id = parsed.data.id;
 
-  const { supabase, user, role, canValidate, canShip } = await getCaller();
+  const { supabase, user, role, canValidate, canShip } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
 
   const { data: existing, error: fetchError } = await supabase
@@ -481,7 +481,7 @@ export async function revertImplementedIdea(
   }
   id = parsed.data.id;
 
-  const { supabase, user, role, canShip } = await getCaller();
+  const { supabase, user, role, canShip } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
   if (!canShipIdeas(role, canShip)) {
     return { success: false, error: 'Accès refusé' };
@@ -529,7 +529,7 @@ export async function reopenAndEditIdea(
     };
   }
 
-  const { supabase, user, role } = await getCaller();
+  const { supabase, user, role } = await getAuth();
   if (!user) return { success: false, error: 'Non authentifié' };
 
   const { data: existing, error: fetchError } = await supabase

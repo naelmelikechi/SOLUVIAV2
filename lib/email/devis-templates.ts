@@ -152,7 +152,9 @@ export async function sendDevisRelanceEmail(p: RelanceParams): Promise<void> {
     .eq('client_id', devis.client_id)
     .eq('recoit_factures', true);
 
-  const to = (contacts ?? []).map((c) => c.email).filter(Boolean) as string[];
+  const to = (contacts ?? []).flatMap((c) =>
+    c.email ? [c.email] : [],
+  ) as string[];
   if (to.length === 0) {
     logger.warn('email.devis.relance', 'aucun contact recoit_factures', {
       ref: devis.ref,
@@ -214,7 +216,9 @@ export async function notifyAdminsDevisRefuse(
     .from('users')
     .select('email')
     .in('role', ['admin', 'superadmin']);
-  const to = (admins ?? []).map((a) => a.email).filter(Boolean) as string[];
+  const to = (admins ?? []).flatMap((a) =>
+    a.email ? [a.email] : [],
+  ) as string[];
   if (to.length === 0) return;
 
   const subject = `[Devis] ${devis.ref} refuse par le client`;

@@ -16,7 +16,7 @@ const OPTIONS: Array<{ value: 'all' | 'qualiopi' | 'eduvia'; label: string }> =
   ];
 
 export function CriteriaFilter({ basePath, current }: CriteriaFilterProps) {
-  const router = useRouter();
+  const { push } = useRouter();
 
   return (
     <div className="border-border inline-flex items-center rounded-md border bg-white p-0.5 text-xs">
@@ -29,7 +29,7 @@ export function CriteriaFilter({ basePath, current }: CriteriaFilterProps) {
               opt.value === 'all'
                 ? basePath
                 : `${basePath}?filter=${opt.value}`;
-            router.push(url);
+            push(url);
           }}
           className={cn(
             'cursor-pointer rounded px-3 py-1 font-medium transition-colors',

@@ -86,17 +86,18 @@ export async function getQualiopiClients(): Promise<QualiopiClient[]> {
     logger.error(SCOPE, 'getQualiopiClients failed', { error });
     return [];
   }
-  return (data ?? [])
-    .filter((c) => c.id && c.id !== '00000000-0000-0000-0000-000000000001')
-    .map((c) => {
-      const keys = (c.api_keys as Array<{ is_active: boolean }>) ?? [];
-      return {
+  return (data ?? []).flatMap((c) => {
+    if (!c.id || c.id === '00000000-0000-0000-0000-000000000001') return [];
+    const keys = (c.api_keys as Array<{ is_active: boolean }>) ?? [];
+    return [
+      {
         id: c.id,
         trigramme: c.trigramme,
         raison_sociale: c.raison_sociale,
         has_api_key: keys.some((k) => k.is_active),
-      };
-    });
+      },
+    ];
+  });
 }
 
 export async function getClientByRef(

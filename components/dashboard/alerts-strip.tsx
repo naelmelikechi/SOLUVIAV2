@@ -30,7 +30,7 @@ export function AlertsStrip({
       type="button"
       onClick={() => onHide?.()}
       aria-label="Masquer les alertes"
-      className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute -top-2 -right-2 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs"
+      className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute -top-2 -right-2 z-10 inline-flex size-6 items-center justify-center rounded-full border text-xs"
     >
       ×
     </button>
@@ -41,7 +41,7 @@ export function AlertsStrip({
       <div className="relative">
         {hideButton}
         <div className="border-border/60 flex items-center gap-2 rounded-lg border bg-green-50 px-3 py-2 text-xs dark:bg-green-950/20">
-          <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+          <CheckCircle2 className="size-3.5 text-green-600" />
           <span className="font-medium text-green-700 dark:text-green-300">
             Tout est sous controle
           </span>

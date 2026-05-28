@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * - Ecart = 0 (montants identiques) : logger.info NON appele
  *
  * Les tests mockent getBillableEvents pour injecter des events avec
- * _stepInvoiceIds, puis mockent supabase (via requireUser) pour retourner
+ * _stepInvoiceIds, puis mockent supabase (via requireAuth) pour retourner
  * les donnees eduvia_invoice_steps et eduvia_invoice_lines correspondantes.
  */
 
@@ -30,7 +30,7 @@ vi.mock('next/cache', () => ({
 }));
 
 vi.mock('@/lib/auth/guards', () => ({
-  requireUser: vi.fn(),
+  requireAuth: vi.fn(),
 }));
 
 vi.mock('@/lib/queries/billable-events', () => ({
@@ -46,7 +46,7 @@ vi.mock('@/lib/queries/societes-emettrices', () => ({
   getDefaultSocieteEmettriceId: vi.fn().mockResolvedValue('soc-default-id'),
 }));
 
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { getBillableEvents } from '@/lib/queries/billable-events';
 import { logger } from '@/lib/utils/logger';
 
@@ -175,9 +175,9 @@ function buildSupabase(opts: {
   };
 }
 
-// requireUser fournit le client supabase utilise dans createFactureFromEvents.
+// requireAuth fournit le client supabase utilise dans createFactureFromEvents.
 function mockRequireUser(supabaseMock: ReturnType<typeof buildSupabase>) {
-  vi.mocked(requireUser).mockResolvedValue({
+  vi.mocked(requireAuth).mockResolvedValue({
     ok: true,
     supabase: supabaseMock as never,
     user: mockUser,

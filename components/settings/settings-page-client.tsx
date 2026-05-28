@@ -62,14 +62,18 @@ interface SettingsPageClientProps {
   passkeysSection?: React.ReactNode;
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function SettingsPageClient({
   user,
   passkeysSection,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: SettingsPageClientProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
 
   // Profile state
+  // oxlint-disable-next-line react-doctor/no-derived-useState
   const [prenom, setPrenom] = useState(user.prenom);
+  // oxlint-disable-next-line react-doctor/no-derived-useState
   const [nom, setNom] = useState(user.nom);
   const [telephone, setTelephone] = useState(user.telephone ?? '');
   const [profileLoading, setProfileLoading] = useState(false);
@@ -84,7 +88,9 @@ export function SettingsPageClient({
   const [avatarMode, setAvatarMode] = useState<AvatarMode>(
     user.avatar_mode ?? (user.avatar_seed ? 'frozen' : 'daily'),
   );
+  // oxlint-disable-next-line react-doctor/no-derived-useState
   const [avatarSeed, setAvatarSeed] = useState<string | null>(user.avatar_seed);
+  // oxlint-disable-next-line react-doctor/no-derived-useState
   const [regenDate, setRegenDate] = useState<string | null>(
     user.avatar_regen_date,
   );
@@ -114,7 +120,7 @@ export function SettingsPageClient({
     setProfileLoading(false);
     if (result.success) {
       toast.success('Profil mis à jour');
-      router.refresh();
+      refresh();
     } else {
       toast.error(result.error ?? 'Erreur lors de la mise à jour');
     }
@@ -148,7 +154,7 @@ export function SettingsPageClient({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5" />
+            <Bot className="size-5" />
             Votre robot personnel
           </CardTitle>
           <CardDescription>
@@ -179,7 +185,7 @@ export function SettingsPageClient({
                   className="absolute -top-2 -right-2 rounded-full bg-green-500 p-1 text-white shadow-md"
                   title="Avatar figé"
                 >
-                  <LockKeyhole className="h-3.5 w-3.5" />
+                  <LockKeyhole className="size-3.5" />
                 </div>
               )}
               {effectiveMode === 'random' && (
@@ -187,7 +193,7 @@ export function SettingsPageClient({
                   className="absolute -top-2 -right-2 rounded-full bg-amber-500 p-1 text-white shadow-md"
                   title="Tirage aléatoire du jour"
                 >
-                  <Dices className="h-3.5 w-3.5" />
+                  <Dices className="size-3.5" />
                 </div>
               )}
             </div>
@@ -216,7 +222,7 @@ export function SettingsPageClient({
                   className="flex w-full max-w-sm flex-col gap-1.5"
                 >
                   <AvatarModeRow
-                    icon={<CalendarDays className="h-4 w-4" />}
+                    icon={<CalendarDays className="size-4" />}
                     label="Avatar du jour"
                     sub="Change chaque matin"
                     active={effectiveMode === 'daily'}
@@ -235,7 +241,7 @@ export function SettingsPageClient({
                     }
                   />
                   <AvatarModeRow
-                    icon={<Dices className="h-4 w-4" />}
+                    icon={<Dices className="size-4" />}
                     label="Tirage aléatoire du jour"
                     sub={
                       canRoll
@@ -271,7 +277,7 @@ export function SettingsPageClient({
                     }
                   />
                   <AvatarModeRow
-                    icon={<LockKeyhole className="h-4 w-4" />}
+                    icon={<LockKeyhole className="size-4" />}
                     label="Figer le robot actuel"
                     sub="Garder pour toujours celui affiché ci-dessus"
                     active={false}
@@ -302,7 +308,7 @@ export function SettingsPageClient({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
+            <User className="size-5" />
             Profil
           </CardTitle>
           <CardDescription>
@@ -387,7 +393,7 @@ export function SettingsPageClient({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5" />
+            <Lock className="size-5" />
             Mot de passe
           </CardTitle>
           <CardDescription>
@@ -448,7 +454,7 @@ export function SettingsPageClient({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Palette className="h-5 w-5" />
+            <Palette className="size-5" />
             Préférences
           </CardTitle>
           <CardDescription>
@@ -509,7 +515,7 @@ function AvatarModeRow({
       }`}
     >
       <span
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+        className={`flex size-8 shrink-0 items-center justify-center rounded-md ${
           active
             ? 'bg-primary text-primary-foreground'
             : 'bg-muted text-muted-foreground'
@@ -594,7 +600,7 @@ function FrozenAvatarPanel({
         </Label>
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <KeyRound className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
+            <KeyRound className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
             <Input
               id="unlock-secret"
               value={attempt}

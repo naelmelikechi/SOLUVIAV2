@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { sendEmailForFacture } from '@/lib/email/client';
 import { logAudit } from '@/lib/utils/audit';
 
@@ -37,7 +37,7 @@ export async function getFactureContactsAction(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase } = auth;
 
@@ -110,7 +110,7 @@ export async function sendFactureEmailAction(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -159,7 +159,7 @@ export async function sendRelanceEmailAction(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

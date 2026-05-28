@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
 import { isAdmin } from '@/lib/utils/roles';
@@ -48,7 +48,7 @@ type ActionResult<T = object> =
 export async function createSocieteEmettrice(
   input: SocieteEmettriceInput,
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) {
     return { success: false, error: 'Acces refuse (admin requis)' };
   }
@@ -86,7 +86,7 @@ export async function updateSocieteEmettrice(
   id: string,
   input: Partial<SocieteEmettriceInput>,
 ): Promise<ActionResult> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) {
     return { success: false, error: 'Acces refuse (admin requis)' };
   }
@@ -117,33 +117,5 @@ export async function updateSocieteEmettrice(
 
   revalidatePath('/admin/parametres/societes-emettrices');
   revalidatePath(`/admin/parametres/societes-emettrices/${id}`);
-  return { success: true };
-}
-
-export async function archiveSocieteEmettrice(
-  id: string,
-): Promise<ActionResult> {
-  const user = await getCurrentUser();
-  if (!isAdmin(user?.role)) {
-    return { success: false, error: 'Acces refuse (admin requis)' };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('societes_emettrices')
-    .update({ actif: false })
-    .eq('id', id);
-
-  if (error) {
-    logger.error('actions.societes_emettrices', 'archive failed', {
-      id,
-      error,
-    });
-    return { success: false, error: error.message };
-  }
-
-  logAudit('societe_emettrice_archived', 'societes_emettrices', id);
-
-  revalidatePath('/admin/parametres/societes-emettrices');
   return { success: true };
 }

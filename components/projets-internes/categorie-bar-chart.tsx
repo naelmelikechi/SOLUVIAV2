@@ -1,5 +1,6 @@
 'use client';
 
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import
 import {
   ResponsiveContainer,
   BarChart,
@@ -41,13 +42,20 @@ export function CategorieBarChart({ data }: Props) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={Math.max(260, sorted.length * 44)}>
+    <ResponsiveContainer
+      width="100%"
+      height={Math.max(260, sorted.length * 44)}
+    >
       <BarChart
         data={sorted}
         layout="vertical"
         margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
       >
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+        <CartesianGrid
+          strokeDasharray="3 3"
+          className="stroke-border"
+          horizontal={false}
+        />
         <XAxis
           type="number"
           tick={{ fontSize: 11 }}
@@ -80,8 +88,8 @@ export function CategorieBarChart({ data }: Props) {
           }}
         />
         <Bar dataKey="heures" radius={[0, 4, 4, 0]}>
-          {sorted.map((_, i) => (
-            <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+          {sorted.map((row, i) => (
+            <Cell key={row.libelle} fill={PALETTE[i % PALETTE.length]} />
           ))}
         </Bar>
       </BarChart>

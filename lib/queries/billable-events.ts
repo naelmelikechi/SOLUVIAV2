@@ -190,28 +190,29 @@ export async function getBillableEvents(
   const contratIds = contrats.map((c) => c.id);
 
   // 2b. Mapping OPCO actifs (prefixe DECA -> OPCO info)
-  const opcoMapping = await getActiveOpcoMapping();
-
   // 3. Lignes des bordereaux OPCO emis pour ces contrats.
   //    Source de verite : eduvia_invoice_lines (whitelist line_type=PEDAGOGIE).
   //    On joint avec eduvia_invoice_steps pour matcher l'invoice_id au
   //    step_number (1 = engagement, >1 = opco_step regle).
-  const { data: invoiceLines } = await supabase
-    .from('eduvia_invoice_lines')
-    .select('eduvia_invoice_id, contrat_id, amount, line_type')
-    .in('contrat_id', contratIds);
-
   // 4. Steps emis (pour savoir quels invoice_id sont en step 1 OPCO).
   //    NB: on selectionne aussi `id` (UUID PK) car il sert de event_source_id
   //    pour les events opco_step (cle d'idempotence facture_lignes).
-  const { data: emittedSteps } = await supabase
-    .from('eduvia_invoice_steps')
-    .select(
-      'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state',
-    )
-    .in('contrat_id', contratIds)
-    .not('invoice_state', 'is', null)
-    .not('eduvia_invoice_id', 'is', null);
+  const [opcoMapping, { data: invoiceLines }, { data: emittedSteps }] =
+    await Promise.all([
+      getActiveOpcoMapping(),
+      supabase
+        .from('eduvia_invoice_lines')
+        .select('eduvia_invoice_id, contrat_id, amount, line_type')
+        .in('contrat_id', contratIds),
+      supabase
+        .from('eduvia_invoice_steps')
+        .select(
+          'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state',
+        )
+        .in('contrat_id', contratIds)
+        .not('invoice_state', 'is', null)
+        .not('eduvia_invoice_id', 'is', null),
+    ]);
 
   // Index : invoice_id -> step infos (pour retrouver step_number et le step.id)
   type StepRow = NonNullable<typeof emittedSteps>[number];
@@ -498,11 +499,15 @@ export async function listBillableProjets(): Promise<
     return [];
   }
 
-  return (data ?? [])
-    .filter((p) => (p.contrats ?? []).length > 0)
-    .map((p) => ({
-      id: p.id,
-      ref: p.ref ?? '',
-      client_raison_sociale: p.client?.raison_sociale ?? '',
-    }));
+  return (data ?? []).flatMap((p) =>
+    (p.contrats ?? []).length > 0
+      ? [
+          {
+            id: p.id,
+            ref: p.ref ?? '',
+            client_raison_sociale: p.client?.raison_sociale ?? '',
+          },
+        ]
+      : [],
+  );
 }

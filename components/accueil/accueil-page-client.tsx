@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   CheckCircle2,
   Circle,
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card } from '@/components/ui/card';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { formatHeures } from '@/lib/utils/formatters';
@@ -43,18 +43,14 @@ export function AccueilPageClient({
   heuresParCategorie,
   wikiUrl,
 }: AccueilPageClientProps) {
-  const [teamVisited, setTeamVisited] = useState(false);
-  const [wikiVisited, setWikiVisited] = useState(false);
-
-  useEffect(() => {
-    if (localStorage.getItem(TEAM_VISITED_KEY) === '1') {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTeamVisited(true);
-    }
-    if (localStorage.getItem(WIKI_VISITED_KEY) === '1') {
-      setWikiVisited(true);
-    }
-  }, []);
+  const [teamVisited, setTeamVisited] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(TEAM_VISITED_KEY) === '1';
+  });
+  const [wikiVisited, setWikiVisited] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(WIKI_VISITED_KEY) === '1';
+  });
 
   const markTeamVisited = () => {
     localStorage.setItem(TEAM_VISITED_KEY, '1');
@@ -149,14 +145,14 @@ export function AccueilPageClient({
               >
                 <div className="mt-0.5 shrink-0">
                   {it.done ? (
-                    <CheckCircle2 className="text-primary h-5 w-5" />
+                    <CheckCircle2 className="text-primary size-5" />
                   ) : (
-                    <Circle className="text-muted-foreground h-5 w-5" />
+                    <Circle className="text-muted-foreground size-5" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <Icon className="text-muted-foreground h-4 w-4 shrink-0" />
+                    <Icon className="text-muted-foreground size-4 shrink-0" />
                     <span
                       className={cn(
                         'text-sm font-medium',
@@ -182,7 +178,7 @@ export function AccueilPageClient({
                     })}
                   >
                     {it.done ? 'Revoir' : 'Y aller'}
-                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                    <ArrowRight className="ml-1 size-3.5" />
                   </a>
                 ) : (
                   <Link
@@ -194,7 +190,7 @@ export function AccueilPageClient({
                     })}
                   >
                     {it.done ? 'Revoir' : 'Y aller'}
-                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                    <ArrowRight className="ml-1 size-3.5" />
                   </Link>
                 )}
               </li>
@@ -240,7 +236,7 @@ export function AccueilPageClient({
           <ul className="space-y-1 text-xs">
             {CATEGORIES_INTERNES.map((cat) => (
               <li key={cat} className="flex items-center gap-2">
-                <span className="bg-muted-foreground/40 h-1 w-1 rounded-full" />
+                <span className="bg-muted-foreground/40 size-1 rounded-full" />
                 <span>{getCategorieInterneLabel(cat as CategorieInterne)}</span>
               </li>
             ))}

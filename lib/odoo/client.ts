@@ -88,9 +88,7 @@ export interface OdooClient {
    * Retourne {analytic_line_odoo_id: null, skipped: true} si le code analytique
    * n'existe pas côté Odoo (l'appelant log et continue, pas d'erreur fatale).
    */
-  pushAnalyticLineForMove(
-    params: OdooAnalyticLineInput,
-  ): Promise<{
+  pushAnalyticLineForMove(params: OdooAnalyticLineInput): Promise<{
     analytic_line_odoo_id: number | null;
     skipped: boolean;
     reason?: string;
@@ -281,6 +279,7 @@ class OdooJsonRpcClient implements OdooClient {
     }
 
     for (const domain of domains) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const ids = await this.executeKw<number[]>(
         'res.partner',
         'search',

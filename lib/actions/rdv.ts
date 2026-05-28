@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -82,7 +82,7 @@ export async function createRdvFormateur(
   projetId = parsed.data.projetId;
   data = parsed.data.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -130,7 +130,7 @@ export async function updateRdvFormateurStatut(
   id = parsed.data.id;
   statut = parsed.data.statut;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -172,7 +172,7 @@ export async function deleteRdvFormateur(
   }
   id = parsed.data.id;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -201,7 +201,7 @@ export async function createRdvCommercial(
   prospectId = parsed.data.prospectId;
   data = parsed.data.data;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -247,7 +247,7 @@ export async function updateRdvCommercialStatut(
   id = parsed.data.id;
   statut = parsed.data.statut;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -289,21 +289,18 @@ export async function deleteRdvCommercial(
   }
   id = parsed.data.id;
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
-  const { data: existing } = await supabase
-    .from('rdv_commerciaux')
-    .select('commercial_id')
-    .eq('id', id)
-    .single();
-
-  const { data: caller } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const [{ data: existing }, { data: caller }] = await Promise.all([
+    supabase
+      .from('rdv_commerciaux')
+      .select('commercial_id')
+      .eq('id', id)
+      .single(),
+    supabase.from('users').select('role').eq('id', user.id).single(),
+  ]);
 
   if (
     existing &&

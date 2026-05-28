@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireAdmin } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import { parseJalons, validateJalons } from '@/lib/echeancier/calc';
@@ -21,7 +21,6 @@ const SCOPE = 'actions.echeanciers';
 // types. Sans guards, un client peut poster mois_relatif=NaN, quote_part
 // negative, ou un id non-UUID et corrompre les donnees ou crasher la query.
 
-const projetIdSchema = z.string().uuid('Projet ID doit être un UUID');
 const templateIdSchema = z.string().uuid('Template ID doit être un UUID');
 
 const JalonSchema = z.object({
@@ -42,11 +41,6 @@ const JalonsArraySchema = z
   .array(JalonSchema)
   .min(1, 'Au moins un jalon requis')
   .max(60, 'Trop de jalons (max 60)');
-
-const SetProjetEcheancierTemplateSchema = z.object({
-  projetId: projetIdSchema,
-  templateId: templateIdSchema.nullable(),
-});
 
 const CreateEcheancierTemplateSchema = z.object({
   nom: z
@@ -84,51 +78,6 @@ const ResolveAjustementSchema = z
     path: ['factureId'],
   });
 
-const SetProjetEcheancierOverrideSchema = z.object({
-  projetId: projetIdSchema,
-  jalons: JalonsArraySchema.nullable(),
-});
-
-/** Assigne un template à un projet (ou clear si null) */
-export async function setProjetEcheancierTemplate(params: {
-  projetId: string;
-  templateId: string | null;
-}): Promise<{ success: boolean; error?: string }> {
-  const parsed = SetProjetEcheancierTemplateSchema.safeParse(params);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? 'Données invalides',
-    };
-  }
-
-  const auth = await requireAdmin();
-  if (!auth.ok) return { success: false, error: auth.error };
-
-  const { error } = await auth.supabase
-    .from('projets')
-    .update({
-      echeancier_template_id: parsed.data.templateId,
-      echeancier_override: null, // reset l'override quand on change de template
-    })
-    .eq('id', parsed.data.projetId);
-  if (error) {
-    logger.error(SCOPE, 'set template failed', { error });
-    return { success: false, error: error.message };
-  }
-  logAudit(
-    'projet_echeancier_template',
-    'projet',
-    parsed.data.projetId,
-    {
-      template_id: parsed.data.templateId,
-    },
-    auth.user.id,
-  );
-  revalidatePath('/projets');
-  return { success: true };
-}
-
 // ---------------------------------------------------------------------------
 // CRUD templates (admin only)
 // ---------------------------------------------------------------------------
@@ -146,7 +95,7 @@ export async function createEcheancierTemplate(params: {
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
 
   const validation = validateJalons(parseJalons(parsed.data.jalons));
@@ -195,7 +144,7 @@ export async function updateEcheancierTemplate(params: {
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
 
   const validation = validateJalons(parseJalons(parsed.data.jalons));
@@ -235,7 +184,7 @@ export async function setEcheancierTemplateDefault(
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
 
   // Retire le flag de tous, puis le pose sur le bon (transaction implicite
@@ -281,7 +230,7 @@ export async function archiveEcheancierTemplate(
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
 
   const { error } = await auth.supabase
@@ -313,7 +262,7 @@ export async function archiveEcheancierTemplate(
 export async function listCandidateFacturesForAjustement(
   ajustementId: string,
 ): Promise<CandidateFacture[]> {
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return [];
   return queryCandidateFactures(ajustementId);
 }
@@ -331,7 +280,7 @@ export async function resolveAjustement(params: {
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
 
   // Validation forte du factureId quand 'emitted' : la facture doit exister,
@@ -399,69 +348,3 @@ export async function resolveAjustement(params: {
 }
 
 /** Override JSONB sur un projet (jalons custom) */
-export async function setProjetEcheancierOverride(params: {
-  projetId: string;
-  jalons: Array<{
-    mois_relatif: number;
-    quote_part: number;
-    label?: string;
-  }> | null;
-}): Promise<{ success: boolean; error?: string; warnings?: string[] }> {
-  const parsed = SetProjetEcheancierOverrideSchema.safeParse(params);
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? 'Données invalides',
-    };
-  }
-
-  const auth = await requireAdmin();
-  if (!auth.ok) return { success: false, error: auth.error };
-
-  if (parsed.data.jalons !== null) {
-    const validation = validateJalons(parseJalons(parsed.data.jalons));
-    if (!validation.ok) {
-      return { success: false, error: validation.errors.join(', ') };
-    }
-
-    const { error } = await auth.supabase
-      .from('projets')
-      .update({ echeancier_override: parsed.data.jalons as unknown as Json })
-      .eq('id', parsed.data.projetId);
-    if (error) {
-      logger.error(SCOPE, 'set override failed', { error });
-      return { success: false, error: error.message };
-    }
-    logAudit(
-      'projet_echeancier_override',
-      'projet',
-      parsed.data.projetId,
-      {
-        jalons: parsed.data.jalons,
-      } as unknown as Record<string, Json>,
-      auth.user.id,
-    );
-    revalidatePath('/projets');
-    return {
-      success: true,
-      warnings:
-        validation.warnings.length > 0 ? validation.warnings : undefined,
-    };
-  }
-
-  // Clear override
-  const { error } = await auth.supabase
-    .from('projets')
-    .update({ echeancier_override: null })
-    .eq('id', parsed.data.projetId);
-  if (error) return { success: false, error: error.message };
-  logAudit(
-    'projet_echeancier_override_cleared',
-    'projet',
-    parsed.data.projetId,
-    undefined,
-    auth.user.id,
-  );
-  revalidatePath('/projets');
-  return { success: true };
-}

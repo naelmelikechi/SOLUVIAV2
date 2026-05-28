@@ -43,7 +43,7 @@ export function ProspectNotesSection({
   return (
     <div>
       <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <MessageSquare className="h-4 w-4" /> Historique / Notes
+        <MessageSquare className="size-4" /> Historique / Notes
       </h4>
 
       <div className="mb-4">
@@ -59,7 +59,7 @@ export function ProspectNotesSection({
             onClick={handleSubmit}
             disabled={isPending || !contenu.trim()}
           >
-            <Send className="mr-2 h-3.5 w-3.5" />
+            <Send className="mr-2 size-3.5" />
             {isPending ? 'Envoi...' : 'Ajouter la note'}
           </Button>
         </div>

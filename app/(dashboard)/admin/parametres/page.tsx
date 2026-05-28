@@ -11,7 +11,7 @@ import {
 } from '@/lib/queries/parametres';
 import { getEmployeeCostDefaults } from '@/lib/queries/employee-cost';
 import { listEcheancierTemplates } from '@/lib/queries/echeanciers';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { ParametresForm } from '@/components/admin/parametres-form';
@@ -34,7 +34,7 @@ export default async function ParametresPage() {
     costDefaults,
     echeancierTemplates,
   ] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     getParametresByCategorie('entreprise'),
     getParametresByCategorie('facturation'),
     getTypologies(),
@@ -66,7 +66,7 @@ export default async function ParametresPage() {
           href="/admin/audit"
           className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors"
         >
-          <History className="h-3.5 w-3.5" />
+          <History className="size-3.5" />
           Historique
         </Link>
       </PageHeader>

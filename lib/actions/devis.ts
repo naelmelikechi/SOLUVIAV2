@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
 import { isAdmin } from '@/lib/utils/roles';
@@ -37,7 +37,7 @@ export type CreateDevisInput = z.input<typeof CreateDevisSchema>;
 export async function createDevis(
   input: CreateDevisInput,
 ): Promise<Result<{ id: string }>> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role))
     return { success: false, error: 'Acces refuse (admin requis)' };
 
@@ -126,7 +126,7 @@ export async function updateDevisInfo(
   id: string,
   input: z.input<typeof UpdateInfoSchema>,
 ): Promise<Result> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
   const parsed = UpdateInfoSchema.safeParse(input);
   if (!parsed.success)
@@ -155,7 +155,7 @@ export async function addLigne(
   devisId: string,
   ligne: z.input<typeof LigneSchema>,
 ): Promise<Result<{ id: string }>> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
   const parsed = LigneSchema.safeParse(ligne);
   if (!parsed.success)
@@ -198,7 +198,7 @@ export async function updateLigne(
   ligneId: string,
   input: z.input<typeof LigneSchema>,
 ): Promise<Result> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
   const parsed = LigneSchema.safeParse(input);
   if (!parsed.success)
@@ -225,7 +225,7 @@ export async function updateLigne(
 }
 
 export async function deleteLigne(ligneId: string): Promise<Result> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
   const supabase = await createClient();
   const { error } = await supabase
@@ -241,7 +241,7 @@ export async function sendDevis(
   devisId: string,
   _opts?: { to?: string[]; cc?: string[] },
 ): Promise<Result<{ ref: string }>> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
   const supabase = await createClient();
   // 1. Bascule statut a envoye (triggers : alloue ref + token)
@@ -279,7 +279,7 @@ export async function sendDevis(
 }
 
 export async function cancelDevis(devisId: string): Promise<Result> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
   const supabase = await createClient();
   const { error } = await supabase
@@ -296,7 +296,7 @@ export async function cancelDevis(devisId: string): Promise<Result> {
 export async function reviseDevis(
   devisId: string,
 ): Promise<Result<{ newDevisId: string }>> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
 
   const supabase = await createClient();

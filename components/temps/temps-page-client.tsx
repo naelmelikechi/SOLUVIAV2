@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useTransition, useMemo } from 'react';
+import { useState, useCallback, useRef, useTransition, useMemo } from 'react';
 import Link from 'next/link';
 import { Copy, Download, Users } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,15 +38,19 @@ interface TempsPageClientProps {
   };
 }
 
+const EMPTY_JOURS_FERIES: Record<string, string> = {};
+
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function TempsPageClient({
   weekDates: initialWeekDates,
   initialSaisies,
   initialAbsences,
   isAdmin,
-  joursFeries: initialJoursFeries = {},
+  joursFeries: initialJoursFeries = EMPTY_JOURS_FERIES,
   totals,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: TempsPageClientProps) {
-  const [weekOffset, setWeekOffset] = useState(0);
+  const weekOffsetRef = useRef(0);
   const [weekDates, setWeekDates] = useState(initialWeekDates);
   const [saisies, setSaisies] = useState<SaisieTemps[]>(initialSaisies);
   const [absences, setAbsences] = useState<AbsencePeriod[]>(initialAbsences);
@@ -89,7 +93,7 @@ export function TempsPageClient({
   }, [absencesPerDate]);
 
   const changeWeek = useCallback((newOffset: number) => {
-    setWeekOffset(newOffset);
+    weekOffsetRef.current = newOffset;
     setSelectedCell(null);
     startTransition(async () => {
       const result = await fetchWeekData(newOffset);
@@ -192,13 +196,13 @@ export function TempsPageClient({
       }
       toast.success(`${result.copied} saisie(s) copiée(s) depuis S-1`);
       // Refresh week data
-      const refreshed = await fetchWeekData(weekOffset);
+      const refreshed = await fetchWeekData(weekOffsetRef.current);
       setWeekDates(refreshed.weekDates);
       setSaisies(refreshed.saisies);
       setAbsences(refreshed.absences);
       setJoursFeries(refreshed.joursFeries);
     });
-  }, [weekDates, weekOffset]);
+  }, [weekDates]);
 
   const handleExport = async () => {
     const XLSX = await import('xlsx');
@@ -233,7 +237,7 @@ export function TempsPageClient({
         {isAdmin && (
           <Link href="/temps/equipe">
             <Button variant="outline" size="sm">
-              <Users className="mr-1.5 h-4 w-4" />
+              <Users className="mr-1.5 size-4" />
               Vue équipe
             </Button>
           </Link>
@@ -244,11 +248,11 @@ export function TempsPageClient({
           onClick={handleCopyPreviousWeek}
           disabled={isPending}
         >
-          <Copy className="mr-1.5 h-4 w-4" />
+          <Copy className="mr-1.5 size-4" />
           Recopier S-1
         </Button>
         <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="mr-1.5 h-4 w-4" />
+          <Download className="mr-1.5 size-4" />
           Export Excel
         </Button>
       </PageHeader>
@@ -274,8 +278,8 @@ export function TempsPageClient({
       <div className="mb-4">
         <TimeWeekNavigator
           weekDates={weekDates}
-          onPrev={() => changeWeek(weekOffset - 1)}
-          onNext={() => changeWeek(weekOffset + 1)}
+          onPrev={() => changeWeek(weekOffsetRef.current - 1)}
+          onNext={() => changeWeek(weekOffsetRef.current + 1)}
           onToday={() => changeWeek(0)}
           loading={isPending}
         />

@@ -13,7 +13,7 @@ import {
 // qu'avec le service_role (createAdminClient). Cette query verifie le role
 // du caller en amont pour eviter une fuite via une appel server-side malveillant.
 
-export async function assertAdmin(): Promise<void> {
+async function assertAdmin(): Promise<void> {
   const supabase = await createClient();
   const {
     data: { user },

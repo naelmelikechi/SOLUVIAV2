@@ -58,7 +58,7 @@ function isOpen(status: string): boolean {
 }
 
 function BugRowActions({ bug }: { bug: BugReportRow }) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const updateStatus = (status: BugStatus, successMessage: string) => {
@@ -70,7 +70,7 @@ function BugRowActions({ bug }: { bug: BugReportRow }) {
       });
       if (res.success) {
         toast.success(successMessage);
-        router.refresh();
+        refresh();
       } else {
         toast.error(res.error ?? 'Erreur lors de la mise à jour');
       }
@@ -83,7 +83,7 @@ function BugRowActions({ bug }: { bug: BugReportRow }) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-green-700 hover:bg-green-50 hover:text-green-800"
+          className="size-7 text-green-700 hover:bg-green-50 hover:text-green-800"
           title="Fermer (résolu)"
           disabled={isPending}
           onClick={(e) => {
@@ -91,12 +91,12 @@ function BugRowActions({ bug }: { bug: BugReportRow }) {
             updateStatus('resolu', 'Bug fermé');
           }}
         >
-          <Check className="h-4 w-4" />
+          <Check className="size-4" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-gray-600 hover:bg-gray-100 hover:text-gray-800"
+          className="size-7 text-gray-600 hover:bg-gray-100 hover:text-gray-800"
           title="Refuser (wontfix)"
           disabled={isPending}
           onClick={(e) => {
@@ -104,7 +104,7 @@ function BugRowActions({ bug }: { bug: BugReportRow }) {
             updateStatus('wontfix', 'Bug refusé');
           }}
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </Button>
       </div>
     );
@@ -128,7 +128,7 @@ function BugRowActions({ bug }: { bug: BugReportRow }) {
       <Button
         variant="ghost"
         size="icon"
-        className="h-7 w-7 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+        className="size-7 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
         title="Rouvrir"
         disabled={isPending}
         onClick={(e) => {
@@ -136,12 +136,12 @@ function BugRowActions({ bug }: { bug: BugReportRow }) {
           updateStatus('nouveau', 'Bug rouvert');
         }}
       >
-        <RotateCcw className="h-4 w-4" />
+        <RotateCcw className="size-4" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className={`h-7 w-7 ${lateralClasses}`}
+        className={`size-7 ${lateralClasses}`}
         title={lateralLabel}
         disabled={isPending}
         onClick={(e) => {
@@ -149,14 +149,14 @@ function BugRowActions({ bug }: { bug: BugReportRow }) {
           updateStatus(lateralTarget, lateralToast);
         }}
       >
-        <LateralIcon className="h-4 w-4" />
+        <LateralIcon className="size-4" />
       </Button>
     </div>
   );
 }
 
 export function BugsTable({ reports }: { reports: BugReportRow[] }) {
-  const router = useRouter();
+  const { push } = useRouter();
 
   const columns: ColumnDef<BugReportRow>[] = [
     {
@@ -246,7 +246,7 @@ export function BugsTable({ reports }: { reports: BugReportRow[] }) {
       data={reports}
       searchPlaceholder="Rechercher dans les bugs..."
       defaultSort={{ id: 'created_at', desc: true }}
-      onRowClick={(row) => router.push(`/admin/bugs/${row.ref}`)}
+      onRowClick={(row) => push(`/admin/bugs/${row.ref}`)}
     />
   );
 }

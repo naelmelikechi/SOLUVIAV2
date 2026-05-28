@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Fingerprint, Plus, Trash2, Check } from 'lucide-react';
 import { startRegistration } from '@simplewebauthn/browser';
@@ -38,25 +38,22 @@ function defaultDeviceName() {
   return 'Passkey';
 }
 
+// oxlint-disable-next-line react-doctor/prefer-useReducer
 export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
-  const router = useRouter();
-  const [supported, setSupported] = useState(false);
+  const { refresh } = useRouter();
+  const [supported] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.PublicKeyCredential !== 'undefined',
+  );
   const [adding, setAdding] = useState(false);
   const [open, setOpen] = useState(false);
-  const [deviceName, setDeviceName] = useState('');
+  const [deviceName, setDeviceName] = useState(() => defaultDeviceName());
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     name: string;
   } | null>(null);
-
-  useEffect(() => {
-    setSupported(
-      typeof window !== 'undefined' &&
-        typeof window.PublicKeyCredential !== 'undefined',
-    );
-    setDeviceName(defaultDeviceName());
-  }, []);
 
   const handleRegister = async () => {
     setAdding(true);
@@ -87,7 +84,7 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
 
       toast.success('Passkey ajouté');
       setOpen(false);
-      router.refresh();
+      refresh();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erreur inconnue';
       if (/NotAllowed|cancelled|abort/i.test(msg)) {
@@ -111,7 +108,7 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
     setDeleteTarget(null);
     if (result.success) {
       toast.success('Passkey supprimé');
-      router.refresh();
+      refresh();
     } else {
       toast.error(result.error ?? 'Erreur');
     }
@@ -121,7 +118,7 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Fingerprint className="h-5 w-5" />
+          <Fingerprint className="size-5" />
           Passkeys
         </CardTitle>
         <CardDescription>
@@ -148,8 +145,8 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
             {passkeys.map((p) => (
               <li key={p.id} className="flex items-center justify-between py-3">
                 <div className="flex items-center gap-3">
-                  <div className="bg-muted text-muted-foreground flex h-9 w-9 items-center justify-center rounded-md">
-                    <Fingerprint className="h-4 w-4" />
+                  <div className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-md">
+                    <Fingerprint className="size-4" />
                   </div>
                   <div>
                     <p className="text-sm font-medium">
@@ -161,7 +158,7 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
                         ` · Dernière utilisation : ${formatDate(p.last_used_at)}`}
                       {p.backed_up && (
                         <span className="ml-1 inline-flex items-center gap-0.5 text-green-600 dark:text-green-400">
-                          · <Check className="h-3 w-3" /> synchronisé
+                          · <Check className="size-3" /> synchronisé
                         </span>
                       )}
                     </p>
@@ -179,7 +176,7 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
                   disabled={deletingId === p.id}
                   aria-label="Supprimer ce passkey"
                 >
-                  <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  <Trash2 className="size-4 text-red-600 dark:text-red-400" />
                 </Button>
               </li>
             ))}
@@ -195,7 +192,7 @@ export function PasskeysSection({ passkeys }: { passkeys: PasskeyRow[] }) {
               setOpen(true);
             }}
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 size-4" />
             Ajouter un passkey
           </Button>
         )}

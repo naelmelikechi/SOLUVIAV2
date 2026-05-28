@@ -50,7 +50,7 @@ export function MiniKpiCard({
           type="button"
           onClick={() => onHide?.()}
           aria-label={`Masquer ${label}`}
-          className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute top-1 right-1 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px]"
+          className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute top-1 right-1 z-10 inline-flex size-5 items-center justify-center rounded-full border text-[10px]"
         >
           ×
         </button>

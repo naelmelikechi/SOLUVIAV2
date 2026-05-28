@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { DataTable } from '@/components/shared/data-table';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { listDevis } from '@/lib/queries/devis';
 import { listSocietesEmettricesActives } from '@/lib/queries/societes-emettrices';
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: 'Devis - SOLUVIA' };
 
 export default async function DevisPage() {
   const [user, devis, societes, clients] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     listDevis(),
     listSocietesEmettricesActives(),
     getClientsList(),

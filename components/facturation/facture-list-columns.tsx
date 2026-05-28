@@ -44,7 +44,7 @@ export function createFactureListColumns(
               onPreview(ref);
             }}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="size-4" />
           </Button>
         );
       },

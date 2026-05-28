@@ -11,15 +11,12 @@ import {
   STATUT_PROJET_COLORS,
 } from '@/lib/utils/constants';
 
-export function ProjetDetailHeader({
-  projet,
-}: {
-  projet: ProjetDetail;
-}) {
+export function ProjetDetailHeader({ projet }: { projet: ProjetDetail }) {
   return (
     <div className="flex flex-wrap items-center gap-2 md:gap-4">
       <ProjectRef ref_={projet.ref ?? ''} className="text-sm" noLink />
       <button
+        type="button"
         onClick={() => {
           navigator.clipboard.writeText(projet.ref ?? '');
           toast.success('Référence copiée');
@@ -27,7 +24,7 @@ export function ProjetDetailHeader({
         className="text-muted-foreground hover:text-foreground inline-flex items-center"
         title="Copier la référence"
       >
-        <Copy className="h-3.5 w-3.5" />
+        <Copy className="size-3.5" />
       </button>
       {projet.client?.id ? (
         <Link

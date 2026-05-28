@@ -58,7 +58,7 @@ export function NewFactureLibreDialog({
   clients,
   societes,
 }: NewFactureLibreDialogProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [clientId, setClientId] = useState<string>('');
   const [search, setSearch] = useState('');
   const [lignes, setLignes] = useState<DraftLigne[]>([emptyLigne()]);
@@ -142,7 +142,7 @@ export function NewFactureLibreDialog({
         );
         onOpenChange(false);
         reset();
-        router.refresh();
+        refresh();
       } else {
         toast.error(result.error ?? 'Erreur lors de la création du brouillon');
       }
@@ -156,7 +156,7 @@ export function NewFactureLibreDialog({
           <DialogTitle>Nouvelle facture libre</DialogTitle>
           <p className="text-muted-foreground text-xs">
             Facture rattachée à un client, sans projet ni contrats (conseil,
-            audit, prestation ponctuelle...).
+            audit, prestation ponctuelle…).
           </p>
         </DialogHeader>
 
@@ -189,7 +189,7 @@ export function NewFactureLibreDialog({
           <div className="space-y-2">
             <Label htmlFor="search-client">Client</Label>
             <div className="relative">
-              <Search className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 h-4 w-4" />
+              <Search className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 size-4" />
               <Input
                 id="search-client"
                 placeholder="Rechercher par trigramme ou raison sociale..."
@@ -243,7 +243,7 @@ export function NewFactureLibreDialog({
                 onClick={addLigne}
                 disabled={isSubmitting}
               >
-                <Plus className="mr-1 h-3.5 w-3.5" />
+                <Plus className="mr-1 size-3.5" />
                 Ajouter une ligne
               </Button>
             </div>
@@ -285,7 +285,7 @@ export function NewFactureLibreDialog({
                     aria-label="Supprimer la ligne"
                     className="text-muted-foreground hover:text-destructive shrink-0"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="size-3.5" />
                   </Button>
                 </div>
               ))}
@@ -334,8 +334,8 @@ export function NewFactureLibreDialog({
           <Button onClick={handleSubmit} disabled={!canSubmit || isSubmitting}>
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                Création...
+                <Loader2 className="mr-2 size-3.5 animate-spin" />
+                Création…
               </>
             ) : (
               'Préparer le brouillon'

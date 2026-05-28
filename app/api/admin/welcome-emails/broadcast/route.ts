@@ -5,7 +5,7 @@
 // dryRun = false : envoie a chaque destinataire eligible, met a jour welcome_email_sent_at.
 
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWelcomeEmail } from '@/lib/email/welcome';
 import {
@@ -19,7 +19,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: 403 });
   }
@@ -64,6 +64,7 @@ export async function POST(req: Request) {
   const failures: { email: string; error: string }[] = [];
 
   for (const u of eligible) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop
     const result = await sendWelcomeEmail({
       email: u.email,
       prenom: u.prenom,

@@ -57,7 +57,7 @@ export default async function QualiopiClientPage({
             <Link key={c.id} href={`/qualiopi/${clientRef}/${c.id}`}>
               <Card className="hover:border-primary/50 cursor-pointer p-4 transition-colors">
                 <div className="flex items-start gap-3">
-                  <Building2 className="text-primary h-5 w-5 shrink-0" />
+                  <Building2 className="text-primary size-5 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold">
                       {c.denomination}

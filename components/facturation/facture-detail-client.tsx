@@ -38,8 +38,9 @@ export function FactureDetailActions({
   facture,
   avoirSurCetteFacture,
   contacts,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: FactureDetailActionsProps) {
-  const router = useRouter();
+  const { replace, refresh } = useRouter();
   const [avoirOpen, setAvoirOpen] = useState(false);
   const [editInfoOpen, setEditInfoOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -55,9 +56,9 @@ export function FactureDetailActions({
     const result = await sendFacture(facture.id, recipients);
     if (result.success) {
       if (result.ref) {
-        router.replace(`/facturation/${result.ref}`);
+        replace(`/facturation/${result.ref}`);
       } else {
-        router.refresh();
+        refresh();
       }
     }
     return result;
@@ -116,7 +117,7 @@ export function FactureDetailActions({
       {/* Bandeau brouillon */}
       {isBrouillon && (
         <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <Info className="mt-0.5 size-4 shrink-0" />
           <p>
             Brouillon non envoyé. Vérifiez puis cliquez sur Envoyer pour
             finaliser et déclencher la numérotation gapless + l’envoi email.
@@ -132,7 +133,7 @@ export function FactureDetailActions({
             size="sm"
             onClick={() => setSendDialogOpen(true)}
           >
-            <Send className="mr-1.5 h-4 w-4" />
+            <Send className="mr-1.5 size-4" />
             Envoyer
           </Button>
         )}
@@ -142,13 +143,13 @@ export function FactureDetailActions({
             size="sm"
             onClick={() => setEditInfoOpen(true)}
           >
-            <Pencil className="mr-1.5 h-4 w-4" />
+            <Pencil className="mr-1.5 size-4" />
             Modifier les infos
           </Button>
         )}
         {!isBrouillon && (
           <Button variant="outline" size="sm" onClick={handleDownloadPdf}>
-            <Download className="mr-1.5 h-4 w-4" />
+            <Download className="mr-1.5 size-4" />
             Télécharger PDF
           </Button>
         )}
@@ -158,7 +159,7 @@ export function FactureDetailActions({
             size="sm"
             onClick={() => setResendDialogOpen(true)}
           >
-            <Mail className="mr-1.5 h-4 w-4" />
+            <Mail className="mr-1.5 size-4" />
             Renvoyer par email
           </Button>
         )}
@@ -169,7 +170,7 @@ export function FactureDetailActions({
             className="border-orange-200 text-orange-600 hover:bg-orange-50 dark:border-orange-900 dark:text-orange-400 dark:hover:bg-orange-950/30"
             onClick={() => setRelanceDialogOpen(true)}
           >
-            <AlertTriangle className="mr-1.5 h-4 w-4" />
+            <AlertTriangle className="mr-1.5 size-4" />
             Envoyer une relance
           </Button>
         )}
@@ -180,7 +181,7 @@ export function FactureDetailActions({
             className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
             onClick={() => setAvoirOpen(true)}
           >
-            <FileWarning className="mr-1.5 h-4 w-4" />
+            <FileWarning className="mr-1.5 size-4" />
             Émettre un avoir
           </Button>
         )}
@@ -207,22 +208,26 @@ export function FactureDetailActions({
           montantHtDefault={facture.montant_ht}
           contrats={Array.from(
             new Map(
-              (facture.lignes ?? [])
-                .filter((l) => l.contrat_id)
-                .map((l) => [
-                  l.contrat_id as string,
-                  {
-                    contratId: l.contrat_id as string,
-                    ref: l.contrat?.ref ?? null,
-                    apprenant: [
-                      l.contrat?.apprenant_prenom,
-                      l.contrat?.apprenant_nom,
+              (facture.lignes ?? []).flatMap((l) =>
+                l.contrat_id
+                  ? [
+                      [
+                        l.contrat_id as string,
+                        {
+                          contratId: l.contrat_id as string,
+                          ref: l.contrat?.ref ?? null,
+                          apprenant: [
+                            l.contrat?.apprenant_prenom,
+                            l.contrat?.apprenant_nom,
+                          ]
+                            .filter(Boolean)
+                            .join(' ')
+                            .trim(),
+                        },
+                      ] as const,
                     ]
-                      .filter(Boolean)
-                      .join(' ')
-                      .trim(),
-                  },
-                ]),
+                  : [],
+              ),
             ).values(),
           )}
           open={avoirOpen}
@@ -242,7 +247,7 @@ export function FactureDetailActions({
             objet: facture.objet,
             conditions_reglement: facture.conditions_reglement,
           }}
-          onSuccess={() => router.refresh()}
+          onSuccess={() => refresh()}
         />
       )}
 

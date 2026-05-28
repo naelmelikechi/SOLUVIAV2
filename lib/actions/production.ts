@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { computeContractSchedule } from '@/lib/queries/production';
+import { checkAuth } from '@/lib/auth/guards';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -84,6 +85,8 @@ function soluviaForMonth(
 export async function fetchProductionByClient(
   mois: string,
 ): Promise<ProductionByClientRow[]> {
+  const auth = await checkAuth();
+  if (!auth.ok) return [];
   const supabase = await createClient();
 
   const monthKey = mois.slice(0, 7);
@@ -355,6 +358,8 @@ export async function fetchProductionByProjet(
   mois: string,
   clientId: string,
 ): Promise<ProductionByProjetRow[]> {
+  const auth = await checkAuth();
+  if (!auth.ok) return [];
   const supabase = await createClient();
 
   const monthKey = mois.slice(0, 7);

@@ -64,7 +64,9 @@ async function computeTauxQualiopi(
         data: Array<{ client_id: string }>;
       };
       clientIds = Array.from(
-        new Set((data ?? []).map((p) => p.client_id).filter(Boolean)),
+        new Set(
+          (data ?? []).flatMap((p) => (p.client_id ? [p.client_id] : [])),
+        ),
       );
     }
 
@@ -99,6 +101,7 @@ async function chunked<T, R>(
   const results: R[] = [];
   for (let i = 0; i < items.length; i += size) {
     const chunk = items.slice(i, i + size);
+    // oxlint-disable-next-line react-doctor/async-await-in-loop
     const res = await Promise.all(chunk.map(fn));
     results.push(...res);
   }
@@ -353,39 +356,29 @@ export async function GET(request: Request) {
   const start = Date.now();
 
   try {
-    // 1. KPIs globaux
-    const globalRows = await computeKpisForScope(
-      supabase,
-      'global',
-      null,
-      mois,
-    );
+    // 1. KPIs globaux + listes projets/CDP en parallele (independants).
+    const [globalRows, { data: projets }, { data: cdps }] = await Promise.all([
+      computeKpisForScope(supabase, 'global', null, mois),
+      supabase
+        .from('projets')
+        .select(
+          'id, client:clients!projets_client_id_fkey!inner(is_demo, archive)',
+        )
+        .eq('statut', 'actif')
+        .eq('archive', false)
+        .eq('client.is_demo', false)
+        .eq('client.archive', false),
+      supabase.from('users').select('id').eq('role', 'cdp').eq('actif', true),
+    ]);
 
-    // 2. KPIs par projet actif (chunks de 10 pour limiter le parallelisme)
-    const { data: projets } = await supabase
-      .from('projets')
-      .select(
-        'id, client:clients!projets_client_id_fkey!inner(is_demo, archive)',
-      )
-      .eq('statut', 'actif')
-      .eq('archive', false)
-      .eq('client.is_demo', false)
-      .eq('client.archive', false);
-
-    const projetRows = await chunked(projets ?? [], 10, (p: { id: string }) =>
-      computeKpisForScope(supabase, 'projet', p.id, mois),
-    );
-
-    // 3. KPIs par CDP actif (actif=true, archive n'existe pas sur users)
-    const { data: cdps } = await supabase
-      .from('users')
-      .select('id')
-      .eq('role', 'cdp')
-      .eq('actif', true);
-
-    const cdpRows = await chunked(cdps ?? [], 10, (u: { id: string }) =>
-      computeKpisForScope(supabase, 'cdp', u.id, mois),
-    );
+    const [projetRows, cdpRows] = await Promise.all([
+      chunked(projets ?? [], 10, (p: { id: string }) =>
+        computeKpisForScope(supabase, 'projet', p.id, mois),
+      ),
+      chunked(cdps ?? [], 10, (u: { id: string }) =>
+        computeKpisForScope(supabase, 'cdp', u.id, mois),
+      ),
+    ]);
 
     const scopedRows = [...projetRows.flat(), ...cdpRows.flat()];
 

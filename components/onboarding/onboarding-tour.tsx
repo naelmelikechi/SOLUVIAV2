@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getTourForRole, type TourStep } from './tour-steps';
 import 'driver.js/dist/driver.css';
@@ -49,15 +49,25 @@ function waitForElement(selector: string, timeoutMs = 2500): Promise<void> {
   });
 }
 
-export function OnboardingTour({ role, completedAt }: OnboardingTourProps) {
+export function OnboardingTour(props: OnboardingTourProps) {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingTourInner {...props} />
+    </Suspense>
+  );
+}
+
+function OnboardingTourInner({ role, completedAt }: OnboardingTourProps) {
   const router = useRouter();
+  const { replace } = router;
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { get: getSearchParam } = searchParams;
   const pathnameRef = useRef(pathname);
   const startedRef = useRef(false);
 
   // Mode preview pour superadmin/admin : ?tour-preview=cdp ou commercial
-  const previewRoleRaw = searchParams.get(PREVIEW_PARAM);
+  const previewRoleRaw = getSearchParam(PREVIEW_PARAM);
   const previewRole =
     previewRoleRaw && PREVIEW_ROLES.has(previewRoleRaw) ? previewRoleRaw : null;
   const isPreview = previewRole !== null;
@@ -121,7 +131,7 @@ export function OnboardingTour({ role, completedAt }: OnboardingTourProps) {
           if (isPreview) {
             const url = new URL(window.location.href);
             url.searchParams.delete(PREVIEW_PARAM);
-            router.replace(url.pathname + url.search);
+            replace(url.pathname + url.search);
             startedRef.current = false;
             return;
           }
@@ -140,6 +150,7 @@ export function OnboardingTour({ role, completedAt }: OnboardingTourProps) {
     return () => {
       cancelled = true;
     };
+    // oxlint-disable-next-line react-doctor/exhaustive-deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveRole, completedAt, isPreview]);
 

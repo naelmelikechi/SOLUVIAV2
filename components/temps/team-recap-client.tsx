@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useTransition } from 'react';
+import { useState, useCallback, useRef, useTransition } from 'react';
 import Link from 'next/link';
 import { format, parseISO, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -33,13 +33,13 @@ export function TeamRecapClient({
   weekDates: initialWeekDates,
   initialSummary,
 }: TeamRecapClientProps) {
-  const [weekOffset, setWeekOffset] = useState(0);
+  const weekOffsetRef = useRef(0);
   const [weekDates, setWeekDates] = useState(initialWeekDates);
   const [summary, setSummary] = useState<TeamMemberSummary[]>(initialSummary);
   const [isPending, startTransition] = useTransition();
 
   const changeWeek = useCallback((newOffset: number) => {
-    setWeekOffset(newOffset);
+    weekOffsetRef.current = newOffset;
     startTransition(async () => {
       const result = await fetchTeamWeekData(newOffset);
       setWeekDates(result.weekDates);
@@ -61,7 +61,7 @@ export function TeamRecapClient({
       >
         <Link href="/temps">
           <Button variant="outline" size="sm">
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            <ArrowLeft className="mr-1.5 size-4" />
             Ma semaine
           </Button>
         </Link>
@@ -69,8 +69,8 @@ export function TeamRecapClient({
 
       <TimeWeekNavigator
         weekDates={weekDates}
-        onPrev={() => changeWeek(weekOffset - 1)}
-        onNext={() => changeWeek(weekOffset + 1)}
+        onPrev={() => changeWeek(weekOffsetRef.current - 1)}
+        onNext={() => changeWeek(weekOffsetRef.current + 1)}
         onToday={() => changeWeek(0)}
         loading={isPending}
       />
@@ -124,7 +124,7 @@ export function TeamRecapClient({
                 {/* Collaborator name */}
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-2">
-                    <div className="bg-primary/10 text-primary flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold">
+                    <div className="bg-primary/10 text-primary flex size-7 items-center justify-center rounded-full text-xs font-bold">
                       {(member.prenom?.[0] ?? '').toUpperCase()}
                       {(member.nom?.[0] ?? '').toUpperCase()}
                     </div>

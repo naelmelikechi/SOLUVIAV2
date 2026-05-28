@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { sendBugReportEmail } from '@/lib/email/bug-report';
 
 const UpdateSchema = z.object({
@@ -19,7 +19,7 @@ export async function updateBugReportAction(
     return { success: false, error: 'Données invalides' };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -55,7 +55,7 @@ export async function resendBugReportEmailAction(
     return { success: false, error: 'ID invalide' };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
 
   return await sendBugReportEmail(parsed.data);

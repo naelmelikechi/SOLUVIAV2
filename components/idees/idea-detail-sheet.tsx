@@ -47,6 +47,7 @@ interface IdeaDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function IdeaDetailSheet({
   idee,
   currentUserId,
@@ -128,8 +129,8 @@ export function IdeaDetailSheet({
         >
           <SheetHeader className="border-border from-primary/[0.03] border-b bg-gradient-to-b to-transparent p-5">
             <div className="flex items-start gap-3">
-              <div className="bg-primary/10 text-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-md">
-                <Lightbulb className="h-4 w-4" />
+              <div className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md">
+                <Lightbulb className="size-4" />
               </div>
               <div className="min-w-0 flex-1">
                 <SheetTitle className="text-left text-base leading-tight">
@@ -168,7 +169,7 @@ export function IdeaDetailSheet({
               </h4>
               <ol className="space-y-3">
                 <TimelineStep
-                  icon={<User className="h-3.5 w-3.5" />}
+                  icon={<User className="size-3.5" />}
                   done
                   label="Proposée"
                   detail={
@@ -185,7 +186,7 @@ export function IdeaDetailSheet({
                 />
                 {idee.validee_at && (
                   <TimelineStep
-                    icon={<CheckCircle className="h-3.5 w-3.5" />}
+                    icon={<CheckCircle className="size-3.5" />}
                     done
                     color="blue"
                     label="Validée"
@@ -205,7 +206,7 @@ export function IdeaDetailSheet({
                 )}
                 {idee.implementee_at && (
                   <TimelineStep
-                    icon={<Rocket className="h-3.5 w-3.5" />}
+                    icon={<Rocket className="size-3.5" />}
                     done
                     color="green"
                     label="Implémentée"
@@ -225,7 +226,7 @@ export function IdeaDetailSheet({
                 )}
                 {idee.statut === 'rejetee' && (
                   <TimelineStep
-                    icon={<XCircle className="h-3.5 w-3.5" />}
+                    icon={<XCircle className="size-3.5" />}
                     done
                     color="red"
                     label="Rejetée"
@@ -249,7 +250,7 @@ export function IdeaDetailSheet({
                       className="w-full"
                       onClick={() => setEditOpen(true)}
                     >
-                      <Pencil className="mr-2 h-4 w-4" />
+                      <Pencil className="mr-2 size-4" />
                       Modifier mon idée
                     </Button>
                   )}
@@ -261,9 +262,9 @@ export function IdeaDetailSheet({
                         disabled={isPending}
                       >
                         {isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="mr-2 size-4 animate-spin" />
                         ) : (
-                          <CheckCircle className="mr-2 h-4 w-4" />
+                          <CheckCircle className="mr-2 size-4" />
                         )}
                         Valider l&apos;idée
                       </Button>
@@ -272,7 +273,7 @@ export function IdeaDetailSheet({
                         className="w-full"
                         onClick={() => setRejectOpen(true)}
                       >
-                        <XCircle className="mr-2 h-4 w-4" />
+                        <XCircle className="mr-2 size-4" />
                         Rejeter
                       </Button>
                     </>
@@ -314,9 +315,9 @@ export function IdeaDetailSheet({
                       disabled={isPending}
                     >
                       {isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-2 size-4 animate-spin" />
                       ) : (
-                        <Rocket className="mr-2 h-4 w-4" />
+                        <Rocket className="mr-2 size-4" />
                       )}
                       Marquer implémentée
                     </Button>
@@ -330,9 +331,9 @@ export function IdeaDetailSheet({
                         disabled={isPending}
                       >
                         {isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Loader2 className="mr-2 size-4 animate-spin" />
                         ) : (
-                          <RotateCcw className="mr-2 h-4 w-4" />
+                          <RotateCcw className="mr-2 size-4" />
                         )}
                         Rouvrir
                       </Button>
@@ -342,7 +343,7 @@ export function IdeaDetailSheet({
                         onClick={() => setReopenEditOpen(true)}
                         disabled={isPending}
                       >
-                        <Pencil className="mr-2 h-4 w-4" />
+                        <Pencil className="mr-2 size-4" />
                         Modifier et rouvrir
                       </Button>
                     </>
@@ -409,7 +410,7 @@ function TimelineStep({
   return (
     <li className="flex items-start gap-3">
       <span
-        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${colorCls}`}
+        className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full ${colorCls}`}
       >
         {icon}
       </span>

@@ -27,8 +27,9 @@ interface Props {
   ajustements: AjustementPending[];
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function AjustementsList({ ajustements }: Props) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [pending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [pickerFor, setPickerFor] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export function AjustementsList({ ajustements }: Props) {
       const r = await resolveAjustement({ id, action: 'ignored' });
       if (r.success) {
         toast.success('Ajustement marqué comme ignoré');
-        router.refresh();
+        refresh();
       } else {
         toast.error(r.error ?? 'Erreur');
       }
@@ -69,7 +70,7 @@ export function AjustementsList({ ajustements }: Props) {
       if (r.success) {
         toast.success('Ajustement lié à la facture');
         setPickerFor(null);
-        router.refresh();
+        refresh();
       } else {
         toast.error(r.error ?? 'Erreur');
       }
@@ -140,8 +141,8 @@ export function AjustementsList({ ajustements }: Props) {
                   <AlertCircle
                     className={
                       isPositive
-                        ? 'h-4 w-4 text-[var(--warning)]'
-                        : 'h-4 w-4 text-[var(--destructive)]'
+                        ? 'size-4 text-[var(--warning)]'
+                        : 'size-4 text-[var(--destructive)]'
                     }
                   />
                   <span className="text-sm font-semibold">{apprenant}</span>
@@ -326,7 +327,7 @@ export function AjustementsList({ ajustements }: Props) {
                     href={`/facturation/${firstRef}`}
                     className="border-border hover:bg-muted inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors"
                   >
-                    <FileText className="h-3.5 w-3.5" />
+                    <FileText className="size-3.5" />
                     Voir la facture origine
                   </Link>
                 );
@@ -337,7 +338,7 @@ export function AjustementsList({ ajustements }: Props) {
                 onClick={() => ignore(aj.id)}
                 disabled={pending}
               >
-                <X className="mr-1.5 h-3.5 w-3.5" />
+                <X className="mr-1.5 size-3.5" />
                 Ignorer
               </Button>
               <Button
@@ -345,7 +346,7 @@ export function AjustementsList({ ajustements }: Props) {
                 onClick={() => openPicker(aj.id)}
                 disabled={pending}
               >
-                <Check className="mr-1.5 h-3.5 w-3.5" />
+                <Check className="mr-1.5 size-3.5" />
                 Lier à une facture
               </Button>
             </div>
@@ -361,7 +362,7 @@ export function AjustementsList({ ajustements }: Props) {
                     onClick={() => setPickerFor(null)}
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    <X className="h-3 w-3" />
+                    <X className="size-3" />
                   </button>
                 </div>
                 {loadingCandidates ? (

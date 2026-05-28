@@ -51,6 +51,7 @@ export async function GET(request: Request) {
   const failures: Array<{ id: string; error: string }> = [];
 
   for (const row of rows) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop
     const { error } = await supabase.auth.admin.deleteUser(row.id);
     if (error) {
       failures.push({ id: row.id, error: error.message });

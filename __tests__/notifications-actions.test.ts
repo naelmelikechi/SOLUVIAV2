@@ -15,9 +15,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  */
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
-vi.mock('@/lib/auth/guards', () => ({ requireUser: vi.fn() }));
+vi.mock('@/lib/auth/guards', () => ({ requireAuth: vi.fn() }));
 
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 
 const VALID_UUID = '11111111-1111-4111-a111-111111111111';
 
@@ -91,11 +91,11 @@ describe('markNotificationRead', () => {
       await import('@/lib/actions/notifications');
     const res = await markNotificationRead('pas-un-uuid');
     expect(res.success).toBe(false);
-    expect(requireUser).not.toHaveBeenCalled();
+    expect(requireAuth).not.toHaveBeenCalled();
   });
 
   it('non authentifie -> 403', async () => {
-    vi.mocked(requireUser).mockResolvedValue({
+    vi.mocked(requireAuth).mockResolvedValue({
       ok: false,
       error: 'Non authentifié',
     });
@@ -107,7 +107,7 @@ describe('markNotificationRead', () => {
 
   it('filtre par id ET user_id (defense en profondeur)', async () => {
     const { client, calls } = buildSupabase();
-    vi.mocked(requireUser).mockResolvedValue({
+    vi.mocked(requireAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: client as any,
@@ -133,7 +133,7 @@ describe('markNotificationRead', () => {
 
   it('relaye erreur supabase', async () => {
     const { client } = buildSupabase({ error: { message: 'boom' } });
-    vi.mocked(requireUser).mockResolvedValue({
+    vi.mocked(requireAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: client as any,
@@ -154,7 +154,7 @@ describe('markNotificationRead', () => {
 
 describe('markAllNotificationsRead', () => {
   it('non authentifie -> 403', async () => {
-    vi.mocked(requireUser).mockResolvedValue({
+    vi.mocked(requireAuth).mockResolvedValue({
       ok: false,
       error: 'Non authentifié',
     });
@@ -166,7 +166,7 @@ describe('markAllNotificationsRead', () => {
 
   it('filtre par user_id + read_at IS NULL', async () => {
     const { client, calls } = buildSupabase();
-    vi.mocked(requireUser).mockResolvedValue({
+    vi.mocked(requireAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: client as any,
@@ -198,11 +198,11 @@ describe('deleteNotification', () => {
     const { deleteNotification } = await import('@/lib/actions/notifications');
     const res = await deleteNotification('pas-un-uuid');
     expect(res.success).toBe(false);
-    expect(requireUser).not.toHaveBeenCalled();
+    expect(requireAuth).not.toHaveBeenCalled();
   });
 
   it('non authentifie -> 403', async () => {
-    vi.mocked(requireUser).mockResolvedValue({
+    vi.mocked(requireAuth).mockResolvedValue({
       ok: false,
       error: 'Non authentifié',
     });
@@ -213,7 +213,7 @@ describe('deleteNotification', () => {
 
   it('DELETE filtre par id ET user_id (defense en profondeur)', async () => {
     const { client, calls } = buildSupabase();
-    vi.mocked(requireUser).mockResolvedValue({
+    vi.mocked(requireAuth).mockResolvedValue({
       ok: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       supabase: client as any,

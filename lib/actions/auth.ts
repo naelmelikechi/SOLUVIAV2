@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/utils/rate-limit';
 import { logger } from '@/lib/utils/logger';
 import { getRequestId } from '@/lib/utils/request-id';
+import { getSession } from '@/lib/auth/session-shim';
 
 // Auth actions server-side. Le login etait fait client-side, ce qui rendait
 // impossible le rate limit (l'appel sortait directement vers Supabase). On
@@ -27,6 +28,7 @@ export async function loginAction(
   _prevState: unknown,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
+  await getSession();
   const email = normaliseEmail(String(formData.get('email') ?? ''));
   const password = String(formData.get('password') ?? '');
 
@@ -111,6 +113,7 @@ export async function requestPasswordResetAction(
   _prevState: unknown,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
+  await getSession();
   const email = normaliseEmail(String(formData.get('email') ?? ''));
 
   if (!email) {

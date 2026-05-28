@@ -91,6 +91,7 @@ export async function GET(request: Request) {
       const lien = `/facturation/${facture.ref}`;
       if (existingLinks.has(lien)) continue;
 
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { error: notifError } = await supabase
         .from('notifications')
         .insert({

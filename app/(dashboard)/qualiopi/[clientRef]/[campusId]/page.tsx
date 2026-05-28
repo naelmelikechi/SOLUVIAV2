@@ -63,35 +63,40 @@ export default async function QualiopiCampusPage({
   );
 
   // Calcule par critere : taux + nb indicateurs + prochaine echeance
-  const criteriaWithStats = referentiel.criteria
-    .filter((c) => filter === 'all' || c.criterion_type === filter)
-    .map((criterion) => {
-      const indicators =
-        referentiel.indicatorsByCriterion.get(criterion.id) ?? [];
-      const allDeliverables = indicators.flatMap(
-        (i) => referentiel.deliverablesByIndicator.get(i.id) ?? [],
-      );
-      const statusesForCriterion = allDeliverables
-        .map((d) => statusByDeliverable.get(d.id))
-        .filter((s): s is NonNullable<typeof s> => Boolean(s));
+  const criteriaWithStats = referentiel.criteria.flatMap((criterion) => {
+    if (filter !== 'all' && criterion.criterion_type !== filter) return [];
+    const indicators =
+      referentiel.indicatorsByCriterion.get(criterion.id) ?? [];
+    const allDeliverables = indicators.flatMap(
+      (i) => referentiel.deliverablesByIndicator.get(i.id) ?? [],
+    );
+    const statusesForCriterion = allDeliverables.flatMap((d) => {
+      const s = statusByDeliverable.get(d.id);
+      return s ? [s] : [];
+    });
 
-      const completion = computeCompletion(
-        statusesForCriterion,
-        allDeliverables.length,
-      );
-      const nextExpiry = statusesForCriterion
-        .filter((s) => s.next_expiry)
-        .map((s) => s.next_expiry!)
-        .sort()[0];
+    const completion = computeCompletion(
+      statusesForCriterion,
+      allDeliverables.length,
+    );
+    const expiries = statusesForCriterion.flatMap((s) =>
+      s.next_expiry ? [s.next_expiry] : [],
+    );
+    const nextExpiry =
+      expiries.length === 0
+        ? undefined
+        : expiries.reduce((min, v) => (v < min ? v : min));
 
-      return {
+    return [
+      {
         criterion,
         nbIndicators: indicators.length,
         nbDeliverables: allDeliverables.length,
         completion,
         nextExpiry,
-      };
-    });
+      },
+    ];
+  });
 
   // Total global = somme sur les criteres affiches (filtre 'all' / 'qualiopi'
   // / 'eduvia'). On agrege depuis criteriaWithStats pour rester coherent avec
@@ -136,7 +141,7 @@ export default async function QualiopiCampusPage({
       <Card className="mb-4 p-4">
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="text-primary h-4 w-4" />
+            <ShieldCheck className="text-primary size-4" />
             <span className="text-sm font-medium">Complétion globale</span>
           </div>
           <span className="text-sm font-semibold tabular-nums">
@@ -240,7 +245,7 @@ export default async function QualiopiCampusPage({
                             }}
                           />
                         </div>
-                        <ChevronRight className="text-muted-foreground h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
+                        <ChevronRight className="text-muted-foreground size-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
                       </div>
                     </div>
                   </div>

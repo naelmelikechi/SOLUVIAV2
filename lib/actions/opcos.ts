@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireAdmin } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 
@@ -71,7 +71,7 @@ export async function createOpco(input: {
     return { success: false, error: parsed.error.issues[0]?.message };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -113,7 +113,7 @@ export async function updateOpco(input: {
     return { success: false, error: parsed.error.issues[0]?.message };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -146,7 +146,7 @@ export async function updateOpco(input: {
 export async function archiveOpco(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -164,7 +164,7 @@ export async function archiveOpco(
 export async function unarchiveOpco(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

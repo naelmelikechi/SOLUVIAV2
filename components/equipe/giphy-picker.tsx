@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Image from 'next/image';
 import { ImagePlus, Loader2, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -52,14 +53,14 @@ export function GiphyPicker({ onPick }: GiphyPickerProps) {
         aria-label="Ajouter un GIF"
         title="Ajouter un GIF"
       >
-        <ImagePlus className="h-4 w-4" />
+        <ImagePlus className="size-4" />
       </Button>
 
       {open && (
         <div className="bg-popover border-border absolute right-0 bottom-full z-20 mb-2 w-80 rounded-lg border p-2 shadow-lg">
           <div className="mb-2 flex items-center gap-1">
             <div className="relative flex-1">
-              <Search className="text-muted-foreground absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2" />
+              <Search className="text-muted-foreground absolute top-1/2 left-2 size-3.5 -translate-y-1/2" />
               <Input
                 className="h-8 pl-7 text-sm"
                 placeholder="Rechercher un GIF..."
@@ -77,18 +78,18 @@ export function GiphyPicker({ onPick }: GiphyPickerProps) {
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="size-8"
               onClick={() => setOpen(false)}
               aria-label="Fermer"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="size-3.5" />
             </Button>
           </div>
 
           <div className="grid max-h-72 grid-cols-2 gap-1 overflow-y-auto">
             {pending ? (
               <div className="col-span-2 flex items-center justify-center py-6">
-                <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+                <Loader2 className="text-muted-foreground size-5 animate-spin" />
               </div>
             ) : results.length === 0 ? (
               <p className="text-muted-foreground col-span-2 p-4 text-center text-xs">
@@ -106,10 +107,12 @@ export function GiphyPicker({ onPick }: GiphyPickerProps) {
                   className="hover:ring-primary overflow-hidden rounded transition-all hover:ring-2"
                   aria-label={`Insérer GIF ${g.title}`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={g.preview}
                     alt={g.title || 'GIF'}
+                    width={200}
+                    height={80}
+                    unoptimized
                     className="h-20 w-full object-cover"
                     loading="lazy"
                   />

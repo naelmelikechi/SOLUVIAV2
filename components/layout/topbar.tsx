@@ -54,16 +54,16 @@ export function Topbar({
   const pathname = usePathname();
   const segments = pathname.split('/').filter(Boolean);
 
-  const breadcrumbs = segments
-    .map((segment, index) => ({
-      segment,
-      href: '/' + segments.slice(0, index + 1).join('/'),
-    }))
-    .filter(({ segment }) => !isOpaqueId(segment))
-    .map(({ segment, href }) => ({
-      href,
-      label: routeLabels[segment] || segment,
-    }));
+  const breadcrumbs = segments.flatMap((segment, index) =>
+    isOpaqueId(segment)
+      ? []
+      : [
+          {
+            href: '/' + segments.slice(0, index + 1).join('/'),
+            label: routeLabels[segment] || segment,
+          },
+        ],
+  );
 
   const openCommandPalette = () => {
     document.dispatchEvent(
@@ -86,7 +86,7 @@ export function Topbar({
           onClick={onHamburgerClick}
           aria-label="Ouvrir le menu"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="size-5" />
         </Button>
       )}
       {/* Breadcrumbs */}
@@ -97,7 +97,7 @@ export function Topbar({
         {breadcrumbs.map((crumb, index) => (
           <span key={crumb.href} className="flex items-center gap-1.5">
             {index > 0 && (
-              <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+              <ChevronRight className="text-muted-foreground size-3.5" />
             )}
             {index === breadcrumbs.length - 1 ? (
               <span className="text-foreground font-medium">{crumb.label}</span>
@@ -116,11 +116,12 @@ export function Topbar({
       {/* Actions */}
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={openCommandPalette}
           className="border-input bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-colors"
         >
-          <Search className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Rechercher...</span>
+          <Search className="size-3.5" />
+          <span className="hidden sm:inline">Rechercher…</span>
           <kbd className="bg-background pointer-events-none ml-1 hidden rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium sm:inline-flex">
             &#8984;K
           </kbd>
@@ -128,9 +129,9 @@ export function Topbar({
         <Link
           href="/notifications"
           aria-label="Notifications"
-          className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring relative inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring relative inline-flex size-9 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
-          <Bell className="h-[18px] w-[18px]" />
+          <Bell className="size-[18px]" />
           {badgeCounts.notifications > 0 && (
             <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-500 px-1 text-[9px] font-bold text-white">
               {badgeCounts.notifications}

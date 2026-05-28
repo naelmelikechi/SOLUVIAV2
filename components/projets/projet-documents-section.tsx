@@ -4,10 +4,8 @@ import { useMemo, useState } from 'react';
 import { FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import { formatDate } from '@/lib/utils/formatters';
 import {
   Table,
@@ -47,7 +45,7 @@ export function ProjetDocumentsSection({
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <FileText className="h-4 w-4" /> Documents
+          <FileText className="size-4" /> Documents
         </h3>
         <ProjetUploadButton projetId={projetId} projetRef={projetRef} />
       </div>

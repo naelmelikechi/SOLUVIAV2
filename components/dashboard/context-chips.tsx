@@ -80,7 +80,7 @@ export function ContextChips({
           type="button"
           onClick={() => onHide?.()}
           aria-label="Masquer les chips"
-          className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute -top-2 -right-2 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs"
+          className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute -top-2 -right-2 z-10 inline-flex size-6 items-center justify-center rounded-full border text-xs"
         >
           ×
         </button>
@@ -92,7 +92,7 @@ export function ContextChips({
             href={c.href}
             className="border-border/60 bg-card hover:border-foreground/20 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors"
           >
-            <span className={cn('h-1.5 w-1.5 rounded-full', dotTone[c.tone])} />
+            <span className={cn('size-1.5 rounded-full', dotTone[c.tone])} />
             <span className="text-muted-foreground">{c.label}</span>
             <span className={cn('num font-bold', valueTone[c.tone])}>
               {c.value}

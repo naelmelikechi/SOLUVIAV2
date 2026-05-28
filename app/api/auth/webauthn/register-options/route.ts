@@ -40,13 +40,15 @@ export async function POST() {
   }
 
   const admin = createAdminClient();
-  const { data: existing } = await admin
-    .from('webauthn_credentials')
-    .select('credential_id, transports')
-    .eq('user_id', user.id);
+  const [{ data: existing }, { rpID, rpName }] = await Promise.all([
+    admin
+      .from('webauthn_credentials')
+      .select('credential_id, transports')
+      .eq('user_id', user.id),
+    resolveRP(),
+  ]);
 
-  const { rpID, rpName } = await resolveRP();
-
+  // oxlint-disable-next-line react-doctor/server-sequential-independent-await
   const options = await generateRegistrationOptions({
     rpName,
     rpID,

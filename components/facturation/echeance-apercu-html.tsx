@@ -37,18 +37,21 @@ interface PreviewData {
   };
 }
 
+const eurFormatter = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+});
+
 function formatEur(n: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  }).format(n);
+  return eurFormatter.format(n);
 }
 
 export function EcheanceApercuHtml({ echeanceId }: { echeanceId: string }) {
   const [data, setData] = useState<PreviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // oxlint-disable-next-line react-doctor/no-fetch-in-effect
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/echeances/${echeanceId}/preview-data`)
@@ -78,10 +81,8 @@ export function EcheanceApercuHtml({ echeanceId }: { echeanceId: string }) {
   if (!data) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
-        <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
-        <p className="text-muted-foreground text-sm">
-          Chargement de l’aperçu...
-        </p>
+        <Loader2 className="text-muted-foreground size-6 animate-spin" />
+        <p className="text-muted-foreground text-sm">Chargement de l’aperçu…</p>
       </div>
     );
   }

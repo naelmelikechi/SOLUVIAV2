@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
 
@@ -14,7 +14,10 @@ const CodeSchema = z
   .trim()
   .min(2, 'Code trop court')
   .max(40, 'Code trop long')
-  .regex(/^[a-z][a-z0-9_]+$/, 'Code : lettres minuscules, chiffres, _ uniquement');
+  .regex(
+    /^[a-z][a-z0-9_]+$/,
+    'Code : lettres minuscules, chiffres, _ uniquement',
+  );
 
 const LibelleSchema = z
   .string()
@@ -40,7 +43,10 @@ type ActionResult<T = unknown> =
 
 function buildRef(code: string): string {
   // Pattern coherent avec le seed existant: 9001-INT-FOR, 9002-INT-IXC, etc.
-  const suffix = code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+  const suffix = code
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 3);
   return `INT-${suffix}-${Date.now().toString().slice(-6)}`;
 }
 
@@ -57,7 +63,7 @@ export async function createCategorieInterneAction(input: {
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -128,7 +134,7 @@ export async function updateCategorieInterneAction(
     };
   }
 
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -173,7 +179,7 @@ export async function archiveCategorieInterneAction(
   id: string,
   unarchive: boolean = false,
 ): Promise<ActionResult<{ blocked?: boolean; recentSaisies?: number }>> {
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

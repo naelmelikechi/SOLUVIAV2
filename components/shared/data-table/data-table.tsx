@@ -75,6 +75,7 @@ export function DataTable<TData, TValue>({
   onRowClick,
   defaultSort,
   filters,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(
     defaultSort ? [defaultSort] : [],
@@ -147,8 +148,10 @@ export function DataTable<TData, TValue>({
                       // role="separator" est non-interactif au sens ARIA mais
                       // recoit des event listeners (drag) - le pattern est
                       // accepte (cf. WAI-ARIA Authoring Practices "Separator").
+                      // oxlint-disable-next-line react-doctor/interactive-supports-focus
                       // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
                       <div
+                        // oxlint-disable-next-line react-doctor/prefer-tag-over-role
                         role="separator"
                         aria-orientation="vertical"
                         aria-label={`Redimensionner la colonne ${header.column.id}`}

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { getMyPasskeys } from '@/lib/queries/passkeys';
 import { PageHeader } from '@/components/shared/page-header';
 import { SettingsPageClient } from '@/components/settings/settings-page-client';
@@ -11,12 +11,9 @@ import { PasskeysSection } from '@/components/settings/passkeys-section';
 export const metadata: Metadata = { title: 'Mon compte - SOLUVIA' };
 
 export default async function ParametresComptePage() {
-  // getCurrentUser + getMyPasskeys utilisent le meme cookie auth donc
+  // getUser + getMyPasskeys utilisent le meme cookie auth donc
   // independants au niveau requete. Parallelisable.
-  const [user, passkeys] = await Promise.all([
-    getCurrentUser(),
-    getMyPasskeys(),
-  ]);
+  const [user, passkeys] = await Promise.all([getUser(), getMyPasskeys()]);
   if (!user) {
     redirect('/login');
   }
@@ -27,7 +24,7 @@ export default async function ParametresComptePage() {
         href="/dashboard"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft className="size-4" />
         Retour
       </Link>
       <PageHeader

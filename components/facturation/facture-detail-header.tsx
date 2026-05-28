@@ -48,6 +48,7 @@ export function FactureDetailHeader({
           {facture.ref}
         </span>
         <button
+          type="button"
           onClick={() => {
             navigator.clipboard.writeText(facture.ref ?? '');
             toast.success('Référence copiée');
@@ -55,7 +56,7 @@ export function FactureDetailHeader({
           className="text-muted-foreground hover:text-foreground ml-1 inline-flex items-center"
           title="Copier la référence"
         >
-          <Copy className="h-3.5 w-3.5" />
+          <Copy className="size-3.5" />
         </button>
         <StatusBadge
           label={STATUT_FACTURE_LABELS[facture.statut] ?? facture.statut}

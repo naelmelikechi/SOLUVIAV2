@@ -9,13 +9,15 @@ const APP_URL = getAppUrl();
 
 type SendResult = { success: boolean; error?: string };
 
+const eurFormatter = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
 function formatEur(n: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
+  return eurFormatter.format(n);
 }
 
 function wrapHtml(options: {

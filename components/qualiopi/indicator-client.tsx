@@ -67,12 +67,12 @@ export function IndicatorClient({
   currentAssignment,
   availableUsers,
 }: IndicatorClientProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   const [assignOpen, setAssignOpen] = useState(false);
 
   function selectDeliverable(deliverableId: number | null) {
     const base = `/qualiopi/${clientRef}/${campusId}/${criterionId}/${indicatorId}`;
-    router.push(deliverableId ? `${base}?d=${deliverableId}` : base);
+    push(deliverableId ? `${base}?d=${deliverableId}` : base);
   }
 
   const selectedDeliverable = deliverables.find(
@@ -92,7 +92,7 @@ export function IndicatorClient({
             size="sm"
             onClick={() => setAssignOpen(true)}
           >
-            <UserIcon className="mr-1.5 h-3.5 w-3.5" />
+            <UserIcon className="mr-1.5 size-3.5" />
             {currentAssignment?.user
               ? `Resp. ${currentAssignment.user.prenom} ${currentAssignment.user.nom}`
               : 'Assigner un responsable'}
@@ -198,7 +198,7 @@ function EvidencesPanel({
             onClick={onClose}
             aria-label="Fermer"
           >
-            <X className="h-4 w-4" />
+            <X className="size-4" />
           </Button>
         </div>
         <p className="text-muted-foreground text-xs">
@@ -225,7 +225,7 @@ function EvidencesPanel({
                     className="text-primary inline-flex items-center gap-1 text-sm font-medium hover:underline"
                   >
                     {e.file_name ?? 'Pièce sans nom'}
-                    <ExternalLink className="h-3 w-3" />
+                    <ExternalLink className="size-3" />
                   </a>
                 ) : (
                   <span className="text-muted-foreground text-sm font-medium italic">
@@ -272,7 +272,8 @@ function AssignResponsibleDialog({
   currentUserId: string | null;
   users: ActiveUserMinimal[];
 }) {
-  const router = useRouter();
+  const { refresh } = useRouter();
+  // oxlint-disable-next-line react-doctor/no-derived-useState
   const [selectedId, setSelectedId] = useState<string | null>(currentUserId);
   const [pending, startTransition] = useTransition();
 
@@ -289,7 +290,7 @@ function AssignResponsibleDialog({
           selectedId ? 'Responsable assigné' : 'Responsable retiré',
         );
         onOpenChange(false);
-        router.refresh();
+        refresh();
       } else {
         toast.error(r.error ?? 'Erreur');
       }
@@ -330,7 +331,7 @@ function AssignResponsibleDialog({
                   : 'hover:bg-muted',
               )}
             >
-              <UserIcon className="text-muted-foreground h-4 w-4" />
+              <UserIcon className="text-muted-foreground size-4" />
               <span>
                 {u.prenom} {u.nom}
               </span>

@@ -94,7 +94,7 @@ export async function getDevisByRef(ref: string): Promise<DevisDetail | null> {
   if (!data) return null;
   // Tri ascendant des lignes par ordre
   const detail = data as unknown as DevisDetail;
-  detail.lignes = [...detail.lignes].sort((a, b) => a.ordre - b.ordre);
+  detail.lignes = detail.lignes.toSorted((a, b) => a.ordre - b.ordre);
   return detail;
 }
 
@@ -113,6 +113,6 @@ export async function getDevisById(id: string): Promise<DevisDetail | null> {
   }
   if (!data) return null;
   const detail = data as unknown as DevisDetail;
-  detail.lignes = [...detail.lignes].sort((a, b) => a.ordre - b.ordre);
+  detail.lignes = detail.lignes.toSorted((a, b) => a.ordre - b.ordre);
   return detail;
 }

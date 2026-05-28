@@ -34,12 +34,12 @@ export function TimeWeekNavigator({
         onClick={onPrev}
         aria-label="Semaine précédente"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="size-4" />
       </Button>
       <span className="min-w-0 flex-1 text-center text-sm font-medium md:min-w-[220px] md:flex-none">
         {loading ? (
           <span className="text-muted-foreground animate-pulse">
-            Chargement...
+            Chargement…
           </span>
         ) : (
           rangeLabel
@@ -51,7 +51,7 @@ export function TimeWeekNavigator({
         onClick={onNext}
         aria-label="Semaine suivante"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="size-4" />
       </Button>
       <Button size="sm" onClick={onToday}>
         Aujourd&apos;hui

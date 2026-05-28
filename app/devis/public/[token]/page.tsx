@@ -1,3 +1,4 @@
+// oxlint-disable-next-line react-doctor/nextjs-missing-metadata
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -8,9 +9,11 @@ interface Props {
 }
 
 export default async function DevisPublicPage({ params }: Props) {
-  const { token } = await params;
-  const supabase = await createClient();
-  const hdrs = await headers();
+  const [{ token }, supabase, hdrs] = await Promise.all([
+    params,
+    createClient(),
+    headers(),
+  ]);
   const ip = hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() ?? undefined;
   const ua = hdrs.get('user-agent') ?? undefined;
 

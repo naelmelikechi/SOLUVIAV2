@@ -25,6 +25,7 @@ export function ClientDocumentActions({
   storagePath,
   fileName,
   typeDocument,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: ClientDocumentActionsProps) {
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -97,12 +98,12 @@ export function ClientDocumentActions({
         disabled={previewLoading}
         onClick={handlePreview}
         title="Aperçu"
-        className="h-7 w-7 p-0"
+        className="size-7 p-0"
       >
         {previewLoading ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <Loader2 className="size-3.5 animate-spin" />
         ) : (
-          <Eye className="h-3.5 w-3.5" />
+          <Eye className="size-3.5" />
         )}
       </Button>
       <Button
@@ -111,12 +112,12 @@ export function ClientDocumentActions({
         disabled={downloading}
         onClick={handleDownload}
         title="Télécharger"
-        className="h-7 w-7 p-0"
+        className="size-7 p-0"
       >
         {downloading ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <Loader2 className="size-3.5 animate-spin" />
         ) : (
-          <Download className="h-3.5 w-3.5" />
+          <Download className="size-3.5" />
         )}
       </Button>
       <Button
@@ -125,12 +126,12 @@ export function ClientDocumentActions({
         disabled={deleting}
         onClick={() => setConfirmOpen(true)}
         title="Supprimer"
-        className="text-destructive hover:text-destructive h-7 w-7 p-0"
+        className="text-destructive hover:text-destructive size-7 p-0"
       >
         {deleting ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <Loader2 className="size-3.5 animate-spin" />
         ) : (
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="size-3.5" />
         )}
       </Button>
       <ConfirmDialog

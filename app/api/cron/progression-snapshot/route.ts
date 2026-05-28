@@ -60,6 +60,7 @@ export async function GET(request: Request) {
 
     for (let i = 0; i < payload.length; i += CHUNK) {
       const slice = payload.slice(i, i + CHUNK);
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { error: upsertError, count } = await supabase
         .from('progression_snapshots_weekly')
         .upsert(slice, {

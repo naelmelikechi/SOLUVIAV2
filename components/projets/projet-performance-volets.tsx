@@ -65,9 +65,9 @@ function VoletCard({
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <div
-            className={`flex h-9 w-9 items-center justify-center rounded-lg ${STATUS_BG[volet.status]}`}
+            className={`flex size-9 items-center justify-center rounded-lg ${STATUS_BG[volet.status]}`}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="size-4" />
           </div>
           <h4 className="text-sm font-semibold">{title}</h4>
         </div>
@@ -76,7 +76,7 @@ function VoletCard({
             className="text-muted-foreground hover:text-foreground cursor-pointer rounded p-1 transition-colors"
             aria-label={`Détail formule ${title}`}
           >
-            <Info className="h-3.5 w-3.5" />
+            <Info className="size-3.5" />
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 space-y-2 p-3 text-xs">
             <p className="font-semibold">Formule</p>

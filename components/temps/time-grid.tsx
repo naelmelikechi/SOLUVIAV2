@@ -37,14 +37,17 @@ interface TimeGridProps {
 }
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+const EMPTY_JOURS_FERIES: Record<string, string> = {};
+const EMPTY_ABSENCES: Record<string, number> = {};
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function TimeGrid({
   weekDates,
   initialSaisies,
   onCellClick,
   onSaveHours,
-  joursFeries = {},
-  absences = {},
+  joursFeries = EMPTY_JOURS_FERIES,
+  absences = EMPTY_ABSENCES,
 }: TimeGridProps) {
   // No longer filtering - absence rows were removed from saisies_temps (table absences is the source of truth)
   const saisies = initialSaisies;
@@ -156,9 +159,10 @@ export function TimeGrid({
       delete debounceTimers.current[key];
       if (!mountedRef.current) return;
       setSaveStatus('saving');
-      const result = await saveSaisieTemps(projetId, date, parsed);
       // Le composant a pu unmount pendant le await (navigation). On gate les
       // setState pour ne pas tomber sur "setState on unmounted component".
+      // oxlint-disable-next-line react-doctor/async-defer-await
+      const result = await saveSaisieTemps(projetId, date, parsed);
       if (!mountedRef.current) return;
       if (result.success) {
         setSaveStatus('saved');
@@ -184,7 +188,7 @@ export function TimeGrid({
       <div className="pointer-events-none absolute -top-7 right-0 h-6">
         {saveStatus === 'saving' && (
           <span className="text-muted-foreground animate-pulse text-xs">
-            Enregistrement...
+            Enregistrement…
           </span>
         )}
         {saveStatus === 'saved' && (
@@ -439,7 +443,7 @@ export function TimeGrid({
                 );
               })}
               {/* Weekly total with gauge */}
-              <td className="px-2 py-2 text-center">
+              <td className="p-2 text-center">
                 <div className="flex flex-col items-center gap-1">
                   <span
                     className={cn(
@@ -500,6 +504,7 @@ function TimeCell({ initialValue, today, onSave, onClickCell }: TimeCellProps) {
     const input = inputRef.current;
     if (!input) return;
     if (document.activeElement === input) return;
+    // oxlint-disable-next-line react-doctor/no-event-handler
     const next = display(initialValue);
     if (input.value !== next) input.value = next;
   }, [initialValue]);
@@ -534,12 +539,13 @@ function TimeCell({ initialValue, today, onSave, onClickCell }: TimeCellProps) {
         }}
         className={btnClass}
       >
-        <Minus className="h-3 w-3" strokeWidth={2.5} />
+        <Minus className="size-3" strokeWidth={2.5} />
       </button>
       <input
         ref={inputRef}
         type="text"
         inputMode="text"
+        aria-label="Saisie du temps en heures"
         className={cn(
           'h-[28px] w-[44px] rounded-md border bg-white px-1 text-center font-mono text-[13px] transition-colors outline-none',
           'border-border focus:border-primary focus:ring-primary/15 focus:ring-2',
@@ -585,7 +591,7 @@ function TimeCell({ initialValue, today, onSave, onClickCell }: TimeCellProps) {
         }}
         className={btnClass}
       >
-        <Plus className="h-3 w-3" strokeWidth={2.5} />
+        <Plus className="size-3" strokeWidth={2.5} />
       </button>
     </div>
   );

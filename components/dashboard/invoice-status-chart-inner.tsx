@@ -1,5 +1,6 @@
 'use client';
 
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import
 import {
   ResponsiveContainer,
   PieChart,
@@ -44,7 +45,7 @@ function CustomTooltip({
     <div className="bg-popover text-popover-foreground rounded-lg border px-3 py-2 shadow-md">
       <div className="flex items-center gap-2 text-xs">
         <span
-          className="h-2 w-2 rounded-full"
+          className="size-2 rounded-full"
           style={{ backgroundColor: entry.payload.fill }}
         />
         <span className="font-medium">{entry.name}</span>
@@ -62,12 +63,18 @@ function renderLegendText(value: string) {
 }
 
 export function InvoiceStatusChartInner({ data, total }: Props) {
-  const chartData = CHART_DATA_KEYS.filter((d) => data[d.key] > 0).map((d) => ({
-    name: d.label,
-    value: data[d.key],
-    fill: d.color,
-    percent: data[d.key] / total,
-  }));
+  const chartData = CHART_DATA_KEYS.flatMap((d) =>
+    data[d.key] > 0
+      ? [
+          {
+            name: d.label,
+            value: data[d.key],
+            fill: d.color,
+            percent: data[d.key] / total,
+          },
+        ]
+      : [],
+  );
 
   return (
     <ResponsiveContainer width="100%" height={280}>

@@ -20,7 +20,7 @@ import {
  * OnboardingTour avec completedAt=null.
  */
 export function RelaunchTourCard() {
-  const router = useRouter();
+  const { push, refresh } = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleRelaunch() {
@@ -35,15 +35,15 @@ export function RelaunchTourCard() {
       return;
     }
     toast.success('Visite relancée, direction l’accueil...');
-    router.push('/accueil');
-    router.refresh();
+    push('/accueil');
+    refresh();
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Compass className="h-5 w-5" />
+          <Compass className="size-5" />
           Visite guidée
         </CardTitle>
         <CardDescription>

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { PageHeader } from '@/components/shared/page-header';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { getSocieteEmettriceById } from '@/lib/queries/societes-emettrices';
 import { SocieteEmettriceForm } from '@/components/admin/societe-emettrice-form';
@@ -15,7 +15,7 @@ interface PageProps {
 export default async function EditSocietePage({ params }: PageProps) {
   const { id } = await params;
   const [user, societe] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     getSocieteEmettriceById(id),
   ]);
   if (!isAdmin(user?.role)) redirect('/projets');

@@ -40,7 +40,7 @@ export function TrinityFunnel({
             type="button"
             onClick={() => onHide?.()}
             aria-label="Masquer le funnel"
-            className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute top-2 right-2 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs"
+            className="bg-background border-border hover:bg-destructive hover:text-destructive-foreground absolute top-2 right-2 z-10 inline-flex size-6 items-center justify-center rounded-full border text-xs"
           >
             ×
           </button>
@@ -66,9 +66,9 @@ export function TrinityFunnel({
           >
             {productionTrend !== 0 &&
               (trendUp ? (
-                <ArrowUpRight className="h-3 w-3" />
+                <ArrowUpRight className="size-3" />
               ) : (
-                <ArrowDownRight className="h-3 w-3" />
+                <ArrowDownRight className="size-3" />
               ))}
             <span className="num">
               {productionTrend === 0

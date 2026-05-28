@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { requireUser } from '@/lib/auth/guards';
+import { requireAuth } from '@/lib/auth/guards';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/utils/logger';
 import { revalidatePath } from 'next/cache';
@@ -46,7 +46,7 @@ export async function sendTeamMessage(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 
@@ -92,7 +92,7 @@ export async function deleteTeamMessage(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase } = auth;
 
@@ -139,7 +139,7 @@ export async function searchGiphy(
     };
   }
 
-  const auth = await requireUser();
+  const auth = await requireAuth();
   if (!auth.ok) return { success: false, error: auth.error };
 
   const apiKey = env.GIPHY_API_KEY;
@@ -174,23 +174,24 @@ export async function searchGiphy(
       }>;
     };
 
-    const results: GiphyResult[] = (json.data ?? [])
-      .map((g) => {
-        const preview =
-          g.images.fixed_width_small?.url ?? g.images.fixed_width?.url ?? '';
-        const full = g.images.fixed_width?.url ?? g.images.original?.url ?? '';
-        const width = Number(g.images.fixed_width?.width ?? 200);
-        const height = Number(g.images.fixed_width?.height ?? 200);
-        return {
+    const results: GiphyResult[] = (json.data ?? []).flatMap((g) => {
+      const preview =
+        g.images.fixed_width_small?.url ?? g.images.fixed_width?.url ?? '';
+      const full = g.images.fixed_width?.url ?? g.images.original?.url ?? '';
+      if (!preview || !full) return [];
+      const width = Number(g.images.fixed_width?.width ?? 200);
+      const height = Number(g.images.fixed_width?.height ?? 200);
+      return [
+        {
           id: g.id,
           title: g.title,
           preview,
           full,
           width: Number.isFinite(width) ? width : 200,
           height: Number.isFinite(height) ? height : 200,
-        };
-      })
-      .filter((g) => g.preview && g.full);
+        },
+      ];
+    });
 
     return { success: true, results };
   } catch (error) {

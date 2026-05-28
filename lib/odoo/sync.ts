@@ -123,6 +123,7 @@ async function pushFactures(
         odoo_journal_id: societe?.odoo_journal_id ?? null,
       };
 
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const result = await odoo.pushInvoice(payload);
 
       // Update facture with odoo_id
@@ -186,6 +187,7 @@ async function pushFactures(
         for (const l of rawLignes) {
           if (l.analytic_line_odoo_id) continue; // deja pousse
           try {
+            // oxlint-disable-next-line react-doctor/async-await-in-loop
             const r = await odoo.pushAnalyticLineForMove({
               code_analytique: codeAna,
               amount: Number(l.montant_ht), // positif pour out_invoice (recette)
@@ -312,6 +314,7 @@ async function pushAvoirs(
         odoo_journal_id: societe?.odoo_journal_id ?? null,
       };
 
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const result = await odoo.pushCreditNote(payload);
 
       const { error: updateErr } = await supabase
@@ -421,6 +424,7 @@ async function pullPayments(
   for (const payment of payments) {
     try {
       // Find the facture by its odoo_id
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { data: facture } = await supabase
         .from('factures')
         .select('id, montant_ttc')
@@ -568,6 +572,7 @@ async function pullCancellations(
 
   for (const move of cancellations) {
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { data: facture } = await supabase
         .from('factures')
         .select('id, ref, statut, est_avoir')
@@ -674,10 +679,13 @@ export async function syncOdoo(
   const odoo = createOdooClient();
   const errors: string[] = [];
 
-  const pushedFactures = await pushFactures(supabase, odoo, errors);
-  const pushedAvoirs = await pushAvoirs(supabase, odoo, errors);
-  const pulledPayments = await pullPayments(supabase, odoo, errors);
-  const pulledCancellations = await pullCancellations(supabase, odoo, errors);
+  const [pushedFactures, pushedAvoirs, pulledPayments, pulledCancellations] =
+    await Promise.all([
+      pushFactures(supabase, odoo, errors),
+      pushAvoirs(supabase, odoo, errors),
+      pullPayments(supabase, odoo, errors),
+      pullCancellations(supabase, odoo, errors),
+    ]);
 
   const result: OdooSyncResult = {
     pushed: pushedFactures + pushedAvoirs,

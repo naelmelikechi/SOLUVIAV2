@@ -18,19 +18,19 @@ import {
  * OnboardingTour detecte le param et lance le tour en mode simulation.
  */
 export function PreviewTourCard() {
-  const router = useRouter();
+  const { push } = useRouter();
 
   function preview(role: 'cdp' | 'commercial') {
     // On vise /projets (et non /accueil) car /accueil redirige server-side
     // vers /projets pour tout user assigne, ce qui drop le query param.
-    router.push(`/projets?tour-preview=${role}`);
+    push(`/projets?tour-preview=${role}`);
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <FlaskConical className="h-5 w-5" />
+          <FlaskConical className="size-5" />
           Tester le tour guidé
         </CardTitle>
         <CardDescription>

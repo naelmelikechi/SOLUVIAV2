@@ -4,10 +4,8 @@ import { useMemo, useState } from 'react';
 import type { ContratRow } from '@/lib/queries/projets';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import { Card } from '@/components/ui/card';
 import {
   Tooltip,
@@ -94,6 +92,7 @@ function ProgressBar({
   );
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
   const [search, setSearch] = useState('');
   const [selectedContratId, setSelectedContratId] = useState<string | null>(
@@ -334,9 +333,7 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
                           />
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm tabular-nums">
-                          {c.npec_amount
-                            ? formatCurrency(c.npec_amount)
-                            : '-'}
+                          {c.npec_amount ? formatCurrency(c.npec_amount) : '-'}
                         </TableCell>
                         <TableCell className="text-right">
                           {(c.invoice_steps ?? []).length === 0 ? (

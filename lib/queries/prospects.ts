@@ -88,29 +88,6 @@ export async function getProspectsGroupedByStage(
   return grouped;
 }
 
-export async function getProspectById(id: string) {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('prospects')
-    .select(
-      '*, commercial:users!prospects_commercial_id_fkey(id, nom, prenom), client:clients(id, raison_sociale, trigramme)',
-    )
-    .eq('id', id)
-    .maybeSingle();
-
-  if (error) {
-    logger.error('queries.prospects', 'getProspectById failed', { id, error });
-    throw new AppError(
-      'PROSPECTS_FETCH_FAILED',
-      'Impossible de charger le prospect',
-      { cause: error },
-    );
-  }
-
-  return data;
-}
-
 export async function getProspectNotes(prospectId: string) {
   const supabase = await createClient();
 
@@ -194,18 +171,4 @@ export async function getProspectTimeInStageMedian(): Promise<StageMedian[]> {
     medianDays: Number(r.median_days),
     sampleSize: Number(r.sample_size),
   }));
-}
-
-export async function getProspectActiveStageEntry(
-  prospectId: string,
-): Promise<string | null> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('prospect_stage_history' as never)
-    .select('changed_at')
-    .eq('prospect_id', prospectId)
-    .order('changed_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data as { changed_at: string } | null)?.changed_at ?? null;
 }

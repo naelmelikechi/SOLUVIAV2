@@ -35,7 +35,7 @@ export function CreateFactureFromDevisDialog({
   totalHt,
   totalDejaFactureHt,
 }: Props) {
-  const router = useRouter();
+  const { push } = useRouter();
   const [mode, setMode] = useState<Mode>('acompte');
   const [pourcentage, setPourcentage] = useState(50);
   const [pending, startTransition] = useTransition();
@@ -60,7 +60,7 @@ export function CreateFactureFromDevisDialog({
       if (res.success) {
         toast.success('Facture brouillon creee avec succes.');
         onOpenChange(false);
-        router.push('/facturation');
+        push('/facturation');
       } else {
         toast.error(res.error);
       }

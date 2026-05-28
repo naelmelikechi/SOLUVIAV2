@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
 import { isAdmin } from '@/lib/utils/roles';
@@ -34,7 +34,7 @@ type LignePayload = {
 export async function createFactureFromDevis(
   input: CreateFactureFromDevisInput,
 ): Promise<Result<{ factureId: string }>> {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role))
     return { success: false, error: 'Acces refuse (admin requis)' };
 

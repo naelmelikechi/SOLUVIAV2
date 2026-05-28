@@ -5,10 +5,8 @@ import { FolderOpen } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import {
   Table,
   TableBody,
@@ -44,7 +42,7 @@ export function ClientProjetsSection({ projets }: { projets: ClientProjet[] }) {
   return (
     <Card className="mb-6 p-6">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-        <FolderOpen className="h-4 w-4" /> Projets associés
+        <FolderOpen className="size-4" /> Projets associés
         <span className="text-muted-foreground text-xs font-normal">
           ({projets.length})
         </span>

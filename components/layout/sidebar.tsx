@@ -202,6 +202,7 @@ const INITIAL_BADGE_COUNTS: BadgeCounts = {
   bugsNouveaux: 0,
 };
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function Sidebar({
   collapsed,
   onToggle,
@@ -212,20 +213,20 @@ export function Sidebar({
   badgeCounts = INITIAL_BADGE_COUNTS,
 }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
+  const { push } = useRouter();
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/login');
+    push('/login');
   };
 
   return (
     <aside
       className={cn(
         'border-sidebar-border bg-sidebar flex flex-col border-r transition-all',
-        mobile ? 'h-full w-full' : 'sticky top-0 h-screen',
+        mobile ? 'size-full' : 'sticky top-0 h-screen',
         !mobile && (collapsed ? 'w-16' : 'w-[260px]'),
       )}
     >
@@ -238,6 +239,7 @@ export function Sidebar({
       >
         {collapsed && !mobile ? (
           <button
+            type="button"
             onClick={onToggle}
             aria-label="Ouvrir la sidebar"
             className="transition-opacity hover:opacity-80"
@@ -269,19 +271,21 @@ export function Sidebar({
             </Link>
             {mobile ? (
               <button
+                type="button"
                 onClick={onClose}
                 aria-label="Fermer le menu"
                 className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md p-1.5"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             ) : (
               <button
+                type="button"
                 onClick={onToggle}
                 aria-label="Réduire la sidebar"
                 className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-md p-1.5"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="size-4" />
               </button>
             )}
           </>
@@ -291,26 +295,24 @@ export function Sidebar({
       {/* Navigation */}
       <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
         {(() => {
-          const visibleSections = navSections
-            .map((section) => ({
-              title: section.title,
-              items: section.items.filter((item) => {
-                if (item.adminOnly && !isAdmin(user?.role)) return false;
-                if (
-                  item.requiresIndicateursAccess &&
-                  !canAccessIndicateurs(user?.role, user?.pipeline_access)
-                )
-                  return false;
-                if (
-                  item.requiresPipelineAccess &&
-                  !canAccessPipeline(user?.role, user?.pipeline_access)
-                )
-                  return false;
-                if (item.unassignedOnly && !isUnassigned) return false;
-                return true;
-              }),
-            }))
-            .filter((section) => section.items.length > 0);
+          const visibleSections = navSections.flatMap((section) => {
+            const items = section.items.filter((item) => {
+              if (item.adminOnly && !isAdmin(user?.role)) return false;
+              if (
+                item.requiresIndicateursAccess &&
+                !canAccessIndicateurs(user?.role, user?.pipeline_access)
+              )
+                return false;
+              if (
+                item.requiresPipelineAccess &&
+                !canAccessPipeline(user?.role, user?.pipeline_access)
+              )
+                return false;
+              if (item.unassignedOnly && !isUnassigned) return false;
+              return true;
+            });
+            return items.length > 0 ? [{ title: section.title, items }] : [];
+          });
 
           return visibleSections.map((section, sectionIdx) => (
             <div key={section.title}>
@@ -347,7 +349,7 @@ export function Sidebar({
                     )}
                   >
                     <span className="relative shrink-0">
-                      <Icon className="h-[18px] w-[18px]" />
+                      <Icon className="size-[18px]" />
                       {collapsed && badge && count > 0 && (
                         <span
                           className={cn(
@@ -393,73 +395,72 @@ export function Sidebar({
           </>
         )}
 
-        {adminNavItems
-          .filter((item) => !item.adminOnly || isAdmin(user?.role))
-          .map((item) => {
-            const isActive = item.exactMatch
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
-            const Icon = item.icon;
-            const badge = badgeConfig[item.href];
-            const count = badge ? badgeCounts[badge.key] : 0;
+        {adminNavItems.flatMap((item) => {
+          if (item.adminOnly && !isAdmin(user?.role)) return [];
+          const isActive = item.exactMatch
+            ? pathname === item.href
+            : pathname.startsWith(item.href);
+          const Icon = item.icon;
+          const badge = badgeConfig[item.href];
+          const count = badge ? badgeCounts[badge.key] : 0;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={collapsed ? item.label : undefined}
-                onClick={mobile ? onClose : undefined}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
-                  collapsed ? 'justify-center' : 'pl-11',
-                  isActive
-                    ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
-                    : 'text-muted-foreground hover:text-sidebar-foreground',
-                )}
-              >
-                {collapsed && (
-                  <span className="relative shrink-0">
-                    <Icon className="h-[18px] w-[18px]" />
-                    {badge && count > 0 && (
-                      <span
-                        className={cn(
-                          'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
-                          badge.color,
-                        )}
-                      >
-                        {count}
-                      </span>
-                    )}
-                  </span>
-                )}
-                {!collapsed && (
-                  <>
-                    <span>{item.label}</span>
-                    {badge && count > 0 && (
-                      <span
-                        className={cn(
-                          'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
-                          badge.color,
-                        )}
-                      >
-                        {count}
-                      </span>
-                    )}
-                  </>
-                )}
-              </Link>
-            );
-          })}
+          return [
+            <Link
+              key={item.href}
+              href={item.href}
+              title={collapsed ? item.label : undefined}
+              onClick={mobile ? onClose : undefined}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
+                collapsed ? 'justify-center' : 'pl-11',
+                isActive
+                  ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
+                  : 'text-muted-foreground hover:text-sidebar-foreground',
+              )}
+            >
+              {collapsed && (
+                <span className="relative shrink-0">
+                  <Icon className="size-[18px]" />
+                  {badge && count > 0 && (
+                    <span
+                      className={cn(
+                        'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
+                        badge.color,
+                      )}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </span>
+              )}
+              {!collapsed && (
+                <>
+                  <span>{item.label}</span>
+                  {badge && count > 0 && (
+                    <span
+                      className={cn(
+                        'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
+                        badge.color,
+                      )}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </>
+              )}
+            </Link>,
+          ];
+        })}
       </nav>
 
       {/* Profile */}
-      <div className="border-sidebar-border shrink-0 border-t px-3 py-3">
+      <div className="border-sidebar-border shrink-0 border-t p-3">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <Link
               href="/parametres-compte"
               title="Mon compte"
-              className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80"
+              className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80"
             >
               {user ? (
                 <Image
@@ -474,22 +475,23 @@ export function Sidebar({
                   width={32}
                   height={32}
                   unoptimized
-                  className="h-full w-full"
+                  className="size-full"
                 />
               ) : (
-                <span className="text-primary flex h-full w-full items-center justify-center bg-[var(--primary-bg-strong)] text-[13px] font-bold">
+                <span className="text-primary flex size-full items-center justify-center bg-[var(--primary-bg-strong)] text-[13px] font-bold">
                   ?
                 </span>
               )}
             </Link>
             <ThemeToggle />
             <button
+              type="button"
               onClick={() => setLogoutOpen(true)}
               aria-label="Se déconnecter"
               title="Déconnexion"
               className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="size-4" />
             </button>
           </div>
         ) : (
@@ -498,7 +500,7 @@ export function Sidebar({
               <Link
                 href="/parametres-compte"
                 onClick={mobile ? onClose : undefined}
-                className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80"
+                className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80"
               >
                 {user ? (
                   <Image
@@ -513,10 +515,10 @@ export function Sidebar({
                     width={32}
                     height={32}
                     unoptimized
-                    className="h-full w-full"
+                    className="size-full"
                   />
                 ) : (
-                  <span className="text-primary flex h-full w-full items-center justify-center bg-[var(--primary-bg-strong)] text-[13px] font-bold">
+                  <span className="text-primary flex size-full items-center justify-center bg-[var(--primary-bg-strong)] text-[13px] font-bold">
                     ?
                   </span>
                 )}
@@ -541,11 +543,12 @@ export function Sidebar({
                 onClick={mobile ? onClose : undefined}
                 className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-[11px] transition-colors"
               >
-                <User className="h-3 w-3" />
+                <User className="size-3" />
                 Mon compte
               </Link>
               <span className="text-border">|</span>
               <button
+                type="button"
                 onClick={() => setLogoutOpen(true)}
                 aria-label="Se déconnecter"
                 className="text-muted-foreground hover:text-foreground text-[11px] transition-colors"

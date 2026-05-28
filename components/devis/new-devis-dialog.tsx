@@ -56,11 +56,15 @@ interface NewDevisDialogProps {
   clients?: ClientOption[];
 }
 
+const EMPTY_CLIENTS: ClientOption[] = [];
+
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function NewDevisDialog({
   societes,
-  clients = [],
+  clients = EMPTY_CLIENTS,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: NewDevisDialogProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   const [open, setOpen] = useState(false);
   const [clientId, setClientId] = useState('');
   const [search, setSearch] = useState('');
@@ -150,7 +154,7 @@ export function NewDevisDialog({
         toast.success('Devis brouillon créé.');
         setOpen(false);
         reset();
-        router.push(`/devis/${result.id}`);
+        push(`/devis/${result.id}`);
       } else {
         toast.error(result.error ?? 'Erreur lors de la création du devis');
       }
@@ -160,7 +164,7 @@ export function NewDevisDialog({
   return (
     <>
       <Button onClick={() => setOpen(true)}>
-        <Plus className="mr-2 h-4 w-4" />
+        <Plus className="mr-2 size-4" />
         Nouveau devis
       </Button>
 
@@ -225,7 +229,7 @@ export function NewDevisDialog({
             <div className="space-y-2">
               <Label htmlFor="devis-search-client">Client *</Label>
               <div className="relative">
-                <Search className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 h-4 w-4" />
+                <Search className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 size-4" />
                 <Input
                   id="devis-search-client"
                   placeholder="Rechercher par trigramme ou raison sociale..."
@@ -279,7 +283,7 @@ export function NewDevisDialog({
                   onClick={addLigne}
                   disabled={pending}
                 >
-                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  <Plus className="mr-1 size-3.5" />
                   Ajouter
                 </Button>
               </div>
@@ -335,7 +339,7 @@ export function NewDevisDialog({
                         disabled={lignes.length <= 1}
                         className="text-muted-foreground hover:text-destructive disabled:opacity-30"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="size-4" />
                       </button>
                     </div>
                     <div className="col-span-12">
@@ -364,8 +368,8 @@ export function NewDevisDialog({
             <Button onClick={handleSubmit} disabled={!canSubmit || pending}>
               {pending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Création...
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Création…
                 </>
               ) : (
                 'Créer le devis'

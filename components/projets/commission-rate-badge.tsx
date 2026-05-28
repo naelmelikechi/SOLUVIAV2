@@ -18,13 +18,14 @@ export function CommissionRateBadge({
   initialValue,
   canEdit,
 }: CommissionRateBadgeProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(initialValue));
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // oxlint-disable-next-line react-doctor/no-event-handler
     if (editing) {
       inputRef.current?.focus();
       inputRef.current?.select();
@@ -62,7 +63,7 @@ export function CommissionRateBadge({
       }
       toast.success(`Taux de commission mis à jour : ${parsed}%`);
       setEditing(false);
-      router.refresh();
+      refresh();
     });
   };
 
@@ -77,6 +78,7 @@ export function CommissionRateBadge({
           max="100"
           step="0.01"
           value={value}
+          aria-label="Taux de commission en pourcentage"
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') save();
@@ -93,7 +95,7 @@ export function CommissionRateBadge({
           aria-label="Enregistrer"
           className="hover:bg-primary/20 rounded p-0.5 transition-colors disabled:opacity-50"
         >
-          <Check className="h-3 w-3" />
+          <Check className="size-3" />
         </button>
         <button
           type="button"
@@ -102,7 +104,7 @@ export function CommissionRateBadge({
           aria-label="Annuler"
           className="text-muted-foreground hover:bg-muted rounded p-0.5 transition-colors disabled:opacity-50"
         >
-          <X className="h-3 w-3" />
+          <X className="size-3" />
         </button>
       </span>
     );
@@ -119,7 +121,7 @@ export function CommissionRateBadge({
       aria-label="Modifier le taux de commission"
     >
       Commission : {initialValue}%
-      <Pencil className="h-3 w-3 opacity-50 transition-opacity group-hover:opacity-100" />
+      <Pencil className="size-3 opacity-50 transition-opacity group-hover:opacity-100" />
     </button>
   );
 }

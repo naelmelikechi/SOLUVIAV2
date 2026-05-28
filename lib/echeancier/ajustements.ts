@@ -276,24 +276,25 @@ export async function detectRuptureAjustement(
   // 3. Si delta != 0, insere/update l'ajustement
   if (Math.abs(deltaHt) < 0.01) return 0;
 
-  const { data: existing } = await supabase
-    .from('facturation_ajustements_pending')
-    .select('id')
-    .eq('contrat_id', contratId)
-    .eq('type', 'rupture')
-    .is('resolved_at', null)
-    .maybeSingle();
-
   // Audit trail : dernier ajustement rupture resolu pour ce contrat
-  const { data: lastResolved } = await supabase
-    .from('facturation_ajustements_pending')
-    .select('id, delta_ht, resolved_action, resolved_facture_id, resolved_at')
-    .eq('contrat_id', contratId)
-    .eq('type', 'rupture')
-    .not('resolved_at', 'is', null)
-    .order('resolved_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [{ data: existing }, { data: lastResolved }] = await Promise.all([
+    supabase
+      .from('facturation_ajustements_pending')
+      .select('id')
+      .eq('contrat_id', contratId)
+      .eq('type', 'rupture')
+      .is('resolved_at', null)
+      .maybeSingle(),
+    supabase
+      .from('facturation_ajustements_pending')
+      .select('id, delta_ht, resolved_action, resolved_facture_id, resolved_at')
+      .eq('contrat_id', contratId)
+      .eq('type', 'rupture')
+      .not('resolved_at', 'is', null)
+      .order('resolved_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
   if (lastResolved) {
     detail = {
       ...(detail as object),

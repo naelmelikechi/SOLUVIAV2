@@ -39,17 +39,18 @@ export function DataTableColumnHeader<TData, TValue>({
     <div className={cn('flex items-center gap-1', className)}>
       {canSort ? (
         <button
+          type="button"
           className="flex items-center gap-1 text-xs font-semibold tracking-wider uppercase"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           aria-label={`Trier par ${title}`}
         >
           {title}
           {column.getIsSorted() === 'asc' ? (
-            <ArrowUp className="h-3.5 w-3.5" />
+            <ArrowUp className="size-3.5" />
           ) : column.getIsSorted() === 'desc' ? (
-            <ArrowDown className="h-3.5 w-3.5" />
+            <ArrowDown className="size-3.5" />
           ) : (
-            <ArrowUpDown className="text-muted-foreground h-3.5 w-3.5" />
+            <ArrowUpDown className="text-muted-foreground size-3.5" />
           )}
         </button>
       ) : (
@@ -78,7 +79,7 @@ function TextFilterButton<TData, TValue>({
     column.setFilterValue(v || undefined);
   }, 200);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFilterInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const next = e.target.value;
     setValue(next);
     debouncedSetFilter(next);
@@ -90,11 +91,11 @@ function TextFilterButton<TData, TValue>({
         aria-label={`Filtrer par ${title}`}
         className="text-muted-foreground hover:text-foreground relative"
       >
-        <Search className="h-3.5 w-3.5" />
+        <Search className="size-3.5" />
         {hasFilter && (
           <span
             data-testid="filter-active-dot"
-            className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-blue-500"
+            className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-blue-500"
           />
         )}
       </PopoverTrigger>
@@ -103,7 +104,7 @@ function TextFilterButton<TData, TValue>({
           autoFocus
           placeholder={`Rechercher ${title}...`}
           value={value}
-          onChange={handleChange}
+          onChange={handleFilterInputChange}
         />
       </PopoverContent>
     </Popover>

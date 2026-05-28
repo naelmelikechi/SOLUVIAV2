@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { requireAdmin } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { listOpcos } from '@/lib/queries/opcos';
 import { OpcosSection } from '@/components/admin/opcos-section';
 
 export const metadata: Metadata = { title: 'Referentiel OPCO - SOLUVIA' };
 
 export default async function OpcosPage() {
-  const auth = await requireAdmin();
+  const auth = await checkAuth();
   if (!auth.ok) redirect('/');
 
   const opcos = await listOpcos(true);

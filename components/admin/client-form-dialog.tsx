@@ -102,6 +102,7 @@ function ClientFormContent({
 }: {
   client?: ClientDetail;
   onOpenChange: (open: boolean) => void;
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }) {
   const isEdit = !!client;
   const [isPending, startTransition] = useTransition();

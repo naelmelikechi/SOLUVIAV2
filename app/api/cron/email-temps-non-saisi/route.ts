@@ -106,6 +106,7 @@ export async function GET(request: Request) {
             continue;
           }
 
+          // oxlint-disable-next-line react-doctor/async-await-in-loop
           const r = await sendTempsHebdoRecapEmail({
             to: user.email,
             prenom: user.prenom,

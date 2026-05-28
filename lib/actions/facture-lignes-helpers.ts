@@ -5,6 +5,7 @@ import {
   getProjetActiveContratsForFacturation,
   type ProjetForFacturation,
 } from '@/lib/queries/factures';
+import { requireAuth } from '@/lib/auth/guards';
 
 // ---------------------------------------------------------------------------
 // Wrappers server-action pour exposer les queries cote client (utilises par
@@ -14,6 +15,8 @@ import {
 export async function fetchProjetContrats(
   projetId: string,
 ): Promise<ProjetForFacturation | null> {
+  const auth = await requireAuth();
+  if (!auth.ok) return null;
   return getProjetActiveContratsForFacturation(projetId);
 }
 
@@ -31,5 +34,7 @@ export async function checkDuplicate(
   moisRelatif: number,
   excludeFactureId?: string,
 ): Promise<DuplicateCheckResult> {
+  const auth = await requireAuth();
+  if (!auth.ok) return { duplicate: false };
   return checkDuplicateBilling({ contratId, moisRelatif, excludeFactureId });
 }

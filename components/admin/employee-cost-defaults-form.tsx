@@ -76,6 +76,7 @@ const FIELDS: Array<{
 ];
 
 export function EmployeeCostDefaultsForm({ initial }: Props) {
+  // oxlint-disable-next-line react-doctor/no-derived-useState
   const [values, setValues] = useState<EmployeeCostDefaults>(initial);
   const [saving, startSaving] = useTransition();
 
@@ -99,7 +100,7 @@ export function EmployeeCostDefaultsForm({ initial }: Props) {
 
   return (
     <SectionCard
-      icon={<Wallet className="h-4 w-4 shrink-0" />}
+      icon={<Wallet className="size-4 shrink-0" />}
       title="Coût employé par défaut"
     >
       <p className="text-muted-foreground text-xs">

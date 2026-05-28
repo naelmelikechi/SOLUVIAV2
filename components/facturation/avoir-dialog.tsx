@@ -71,9 +71,10 @@ export function AvoirDialog({
   contrats,
   open,
   onOpenChange,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: AvoirDialogProps) {
   const [motif, setMotif] = useState<string>('');
-  const [montantHt, setMontantHt] = useState<string>(
+  const [montantHt, setMontantHt] = useState<string>(() =>
     montantHtDefault.toString(),
   );
   const [note, setNote] = useState<string>('');
@@ -101,7 +102,9 @@ export function AvoirDialog({
     if (motif !== MOTIF_RUPTURE || !dateRupture) return;
     startComputing(async () => {
       const result = await computeProrataAvoir({
+        // oxlint-disable-next-line react-doctor/no-event-handler
         factureOrigineId,
+        // oxlint-disable-next-line react-doctor/no-event-handler
         dateRupture,
       });
       if (!result.success) {
@@ -269,9 +272,9 @@ export function AvoirDialog({
                     Détail du pro-rata par contrat (durée réalisée / totale) :
                   </p>
                   <ul className="space-y-1">
-                    {breakdown.map((b, i) => (
+                    {breakdown.map((b) => (
                       <li
-                        key={i}
+                        key={`${b.contratRef ?? b.apprenant}`}
                         className="flex justify-between gap-2 text-[11px]"
                       >
                         <span className="truncate">

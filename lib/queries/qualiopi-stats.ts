@@ -23,7 +23,7 @@ export interface QualiopiCompletion {
  *
  * Si le CFA n'a pas de cle API active, retourne { realise: 0, total: 0 }.
  */
-export async function computeQualiopiCompletion(
+async function computeQualiopiCompletion(
   clientId: string,
 ): Promise<QualiopiCompletion> {
   try {

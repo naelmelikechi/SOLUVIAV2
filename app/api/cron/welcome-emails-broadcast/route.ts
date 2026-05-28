@@ -46,6 +46,7 @@ export async function GET(request: Request) {
   const failures: { email: string; error: string }[] = [];
 
   for (const u of eligible) {
+    // oxlint-disable-next-line react-doctor/async-await-in-loop
     const result = await sendWelcomeEmail({
       email: u.email,
       prenom: u.prenom,

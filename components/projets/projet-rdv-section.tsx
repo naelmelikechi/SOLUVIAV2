@@ -30,10 +30,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/shared/status-badge';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_RDV_LABELS, STATUT_RDV_COLORS } from '@/lib/utils/constants';
@@ -99,10 +97,10 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <CalendarDays className="h-4 w-4" /> RDV formateurs
+          <CalendarDays className="size-4" /> RDV formateurs
         </h3>
         <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          <Plus className="mr-1.5 size-3.5" />
           Ajouter un RDV
         </Button>
       </div>
@@ -162,7 +160,7 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 w-7 p-0"
+                          className="size-7 p-0"
                           title={
                             rdv.statut === 'realise'
                               ? 'Remettre en prévu'
@@ -172,21 +170,21 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
                           onClick={() => handleToggleStatut(rdv.id, rdv.statut)}
                         >
                           {pendingId === rdv.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <Loader2 className="size-3.5 animate-spin" />
                           ) : rdv.statut === 'realise' ? (
-                            <XCircle className="h-3.5 w-3.5" />
+                            <XCircle className="size-3.5" />
                           ) : (
-                            <CheckCircle className="h-3.5 w-3.5" />
+                            <CheckCircle className="size-3.5" />
                           )}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-destructive hover:text-destructive h-7 w-7 p-0"
+                          className="text-destructive hover:text-destructive size-7 p-0"
                           title="Supprimer"
                           onClick={() => setConfirmDelete(rdv.id)}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="size-3.5" />
                         </Button>
                       </div>
                     </TableCell>
@@ -260,7 +258,7 @@ function AddRdvFormateurDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CalendarDays className="text-primary h-4 w-4" />
+            <CalendarDays className="text-primary size-4" />
             Nouveau RDV formateur
           </DialogTitle>
         </DialogHeader>

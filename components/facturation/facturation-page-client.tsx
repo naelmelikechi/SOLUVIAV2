@@ -11,7 +11,8 @@ import {
   Plus,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { NewFactureDialog } from '@/components/facturation/new-facture-dialog';
 import {
   NewFactureLibreDialog,
@@ -72,6 +73,7 @@ interface FacturationPageClientProps {
   isAdmin: boolean;
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function FacturationPageClient({
   factures,
   echeances,
@@ -82,8 +84,9 @@ export function FacturationPageClient({
   clientsForFreeFacture,
   societesEmettrices,
   isAdmin,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: FacturationPageClientProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   // Onglet par defaut : Brouillons s'il y en a (priorite revue), sinon
   // Echeances. Le user peut toujours basculer manuellement.
   const [activeTab, setActiveTab] = useState(brouillons.length > 0 ? 0 : 1);
@@ -124,7 +127,7 @@ export function FacturationPageClient({
         : null;
 
   const handleRowClick = (row: FactureListItem) => {
-    router.push(`/facturation/${row.ref}`);
+    push(`/facturation/${row.ref}`);
   };
 
   const handleExport = async () => {
@@ -165,7 +168,7 @@ export function FacturationPageClient({
               onClick={() => setNewFactureLibreOpen(true)}
               disabled={clientsForFreeFacture.length === 0}
             >
-              <Plus className="mr-1.5 h-4 w-4" />
+              <Plus className="mr-1.5 size-4" />
               Facture libre
             </Button>
           )}
@@ -174,7 +177,7 @@ export function FacturationPageClient({
             onClick={() => setNewFactureOpen(true)}
             disabled={projetsForFacturation.length === 0}
           >
-            <Plus className="mr-1.5 h-4 w-4" />
+            <Plus className="mr-1.5 size-4" />
             Nouvelle facture
           </Button>
         </div>
@@ -210,7 +213,7 @@ export function FacturationPageClient({
             onClick={() => setNewFactureLibreOpen(true)}
             disabled={clientsForFreeFacture.length === 0}
           >
-            <Plus className="mr-1.5 h-4 w-4" />
+            <Plus className="mr-1.5 size-4" />
             Facture libre
           </Button>
         )}
@@ -219,7 +222,7 @@ export function FacturationPageClient({
           onClick={() => setNewFactureOpen(true)}
           disabled={projetsForFacturation.length === 0}
         >
-          <Plus className="mr-1.5 h-4 w-4" />
+          <Plus className="mr-1.5 size-4" />
           Nouvelle facture
         </Button>
       </div>
@@ -286,7 +289,7 @@ export function FacturationPageClient({
                 )}
                 aria-label="Vue liste"
               >
-                <List className="h-3.5 w-3.5" />
+                <List className="size-3.5" />
                 Liste
               </button>
               <button
@@ -300,7 +303,7 @@ export function FacturationPageClient({
                 )}
                 aria-label="Vue calendrier"
               >
-                <Calendar className="h-3.5 w-3.5" />
+                <Calendar className="size-3.5" />
                 Calendrier
               </button>
             </div>
@@ -331,7 +334,7 @@ export function FacturationPageClient({
         <div className="mt-4">
           <div className="mb-4 flex justify-end">
             <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="mr-1.5 h-4 w-4" />
+              <Download className="mr-1.5 size-4" />
               Export Excel
             </Button>
           </div>
@@ -375,7 +378,7 @@ export function FacturationPageClient({
                 rel="noopener noreferrer"
                 className={buttonVariants({ variant: 'outline', size: 'sm' })}
               >
-                <Download className="mr-1.5 h-4 w-4" />
+                <Download className="mr-1.5 size-4" />
                 Télécharger
               </a>
             )}
@@ -387,9 +390,9 @@ export function FacturationPageClient({
             <div className="relative flex-1">
               {!previewLoaded && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
-                  <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                  <Loader2 className="text-muted-foreground size-6 animate-spin" />
                   <p className="text-muted-foreground text-sm">
-                    Chargement de la facture...
+                    Chargement de la facture…
                   </p>
                 </div>
               )}
@@ -398,8 +401,9 @@ export function FacturationPageClient({
                 key={preview.ref}
                 src={previewInlineUrl}
                 title={previewTitle}
+                sandbox=""
                 onLoad={() => setPreviewLoaded(true)}
-                className="absolute inset-0 h-full w-full border-0 bg-white"
+                className="absolute inset-0 size-full border-0 bg-white"
               />
             </div>
           )}

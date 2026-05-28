@@ -7,11 +7,15 @@ import {
   type PeriodeInternes,
   type ScopeInternes,
 } from '@/lib/queries/projets-internes';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { PeriodScopeControls } from '@/components/projets-internes/period-scope-controls';
-import { InternesTabs } from '@/components/projets-internes/internes-tabs';
+import {
+  InternesTabs,
+  InternesStatsPanel,
+  InternesConfigPanel,
+} from '@/components/projets-internes/internes-tabs';
 import { InternesStatsTab } from '@/components/projets-internes/internes-stats-tab';
 import { InternesConfigTab } from '@/components/projets-internes/internes-config-tab';
 
@@ -24,13 +28,21 @@ interface SearchParams {
 }
 
 function parsePeriode(value: string | undefined): PeriodeInternes {
-  if (value === 'mois' || value === 'trimestre' || value === 'annee' || value === '12mois') {
+  if (
+    value === 'mois' ||
+    value === 'trimestre' ||
+    value === 'annee' ||
+    value === '12mois'
+  ) {
     return value;
   }
   return 'mois';
 }
 
-function parseScope(value: string | undefined, allowEquipe: boolean): ScopeInternes {
+function parseScope(
+  value: string | undefined,
+  allowEquipe: boolean,
+): ScopeInternes {
   if (value === 'equipe' && allowEquipe) return 'equipe';
   return 'moi';
 }
@@ -40,7 +52,7 @@ export default async function ProjetsInternesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!user) redirect('/login');
 
   const adminUser = isAdmin(user.role);
@@ -67,14 +79,16 @@ export default async function ProjetsInternesPage({
         />
       </PageHeader>
 
-      <InternesTabs
-        stats={<InternesStatsTab stats={stats} scope={scope} />}
-        configuration={
-          adminUser ? (
+      <InternesTabs hasConfiguration={adminUser}>
+        <InternesStatsPanel>
+          <InternesStatsTab stats={stats} scope={scope} />
+        </InternesStatsPanel>
+        {adminUser && (
+          <InternesConfigPanel>
             <InternesConfigTab categories={categories} projets={projets} />
-          ) : null
-        }
-      />
+          </InternesConfigPanel>
+        )}
+      </InternesTabs>
     </div>
   );
 }

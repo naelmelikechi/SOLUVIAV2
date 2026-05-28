@@ -23,17 +23,3 @@ export async function listEcheancierTemplates(): Promise<EcheancierTemplate[]> {
   }
   return data ?? [];
 }
-
-export async function getProjetEcheancierConfig(projetId: string): Promise<{
-  echeancier_template_id: string | null;
-  echeancier_override: unknown;
-} | null> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('projets')
-    .select('echeancier_template_id, echeancier_override')
-    .eq('id', projetId)
-    .maybeSingle();
-  if (error || !data) return null;
-  return data;
-}

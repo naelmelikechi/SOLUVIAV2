@@ -23,7 +23,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import {
   Sheet,
   SheetContent,
@@ -39,10 +40,8 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import {
   deleteBrouillon,
@@ -76,8 +75,9 @@ function getMissingDecaRefs(b: BrouillonItem): string[] {
   return Array.from(refs);
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component, react-doctor/prefer-useReducer
 export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [previewBrouillon, setPreviewBrouillon] =
@@ -177,7 +177,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
         next.delete(factureId);
         return next;
       });
-      router.refresh();
+      refresh();
     }
     return result;
   };
@@ -210,7 +210,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
         }
       }
       setSelectedIds(new Set());
-      router.refresh();
+      refresh();
     });
   };
 
@@ -229,7 +229,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
           next.delete(id);
           return next;
         });
-        router.refresh();
+        refresh();
       } else {
         toast.error(result.error ?? 'Erreur lors de la suppression');
       }
@@ -267,9 +267,9 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
               onClick={() => handleSendBulk(selectedIdsArray)}
             >
               {bulkPending ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
               ) : (
-                <Send className="mr-1.5 h-4 w-4" />
+                <Send className="mr-1.5 size-4" />
               )}
               {`Envoyer la sélection (${selectedIds.size})`}
             </Button>
@@ -279,9 +279,9 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
               onClick={() => handleSendBulk(allIds)}
             >
               {bulkPending ? (
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
               ) : (
-                <Send className="mr-1.5 h-4 w-4" />
+                <Send className="mr-1.5 size-4" />
               )}
               {'Tout envoyer'}
             </Button>
@@ -363,7 +363,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                                 />
                               }
                             >
-                              <Eye className="h-4 w-4" />
+                              <Eye className="size-4" />
                             </TooltipTrigger>
                             <TooltipContent side="top">Aperçu</TooltipContent>
                           </Tooltip>
@@ -380,9 +380,9 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                               }
                             >
                               {isSendingRow ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="size-4 animate-spin" />
                               ) : (
-                                <Send className="h-4 w-4 text-[var(--primary)]" />
+                                <Send className="size-4 text-[var(--primary)]" />
                               )}
                             </TooltipTrigger>
                             <TooltipContent side="top">
@@ -404,9 +404,9 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                               }
                             >
                               {isDeletingRow ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="size-4 animate-spin" />
                               ) : (
-                                <Trash2 className="h-4 w-4 text-[var(--destructive)]" />
+                                <Trash2 className="size-4 text-[var(--destructive)]" />
                               )}
                             </TooltipTrigger>
                             <TooltipContent side="top">
@@ -435,7 +435,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                                   />
                                 }
                               >
-                                <AlertTriangle className="h-3 w-3" />
+                                <AlertTriangle className="size-3" />
                                 DECA
                               </TooltipTrigger>
                               <TooltipContent side="top" className="max-w-xs">
@@ -521,7 +521,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                   size="sm"
                   onClick={() => setEditInfoBrouillon(previewBrouillon)}
                 >
-                  <Pencil className="mr-1.5 h-4 w-4" />
+                  <Pencil className="mr-1.5 size-4" />
                   Modifier les infos
                 </Button>
                 <a
@@ -530,7 +530,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                   rel="noopener noreferrer"
                   className={buttonVariants({ variant: 'outline', size: 'sm' })}
                 >
-                  <Download className="mr-1.5 h-4 w-4" />
+                  <Download className="mr-1.5 size-4" />
                   {'Télécharger'}
                 </a>
               </div>
@@ -540,7 +540,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
             <div className="relative flex-1">
               {!previewLoaded && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
-                  <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+                  <Loader2 className="text-muted-foreground size-6 animate-spin" />
                   <p className="text-muted-foreground text-sm">
                     {'Chargement du brouillon...'}
                   </p>
@@ -551,8 +551,9 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                 key={previewBrouillon.id}
                 src={`/api/factures/brouillon/${previewBrouillon.id}/pdf?inline=true`}
                 title={'Aperçu brouillon'}
+                sandbox=""
                 onLoad={() => setPreviewLoaded(true)}
-                className="absolute inset-0 h-full w-full border-0 bg-white"
+                className="absolute inset-0 size-full border-0 bg-white"
               />
             </div>
           ) : null}
@@ -576,7 +577,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
           onSuccess={() => {
             setEditInfoBrouillon(null);
             setPreviewLoaded(false);
-            router.refresh();
+            refresh();
           }}
         />
       )}

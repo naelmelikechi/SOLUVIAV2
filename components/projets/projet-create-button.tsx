@@ -21,7 +21,7 @@ export function ProjetCreateButton({
   return (
     <>
       <Button size="sm" onClick={() => setOpen(true)}>
-        <Plus className="mr-1.5 h-4 w-4" />
+        <Plus className="mr-1.5 size-4" />
         Nouveau projet
       </Button>
       <ProjetCreateDialog

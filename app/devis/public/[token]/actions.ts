@@ -2,12 +2,14 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
+import { getSession } from '@/lib/auth/session-shim';
 
 export async function acceptDevisPublicAction(
   token: string,
   nom: string,
   email: string,
 ): Promise<{ success: true; ref: string } | { success: false; error: string }> {
+  await getSession();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('accept_devis_public', {
     p_token: token,
@@ -54,6 +56,7 @@ export async function refuseDevisPublicAction(
   token: string,
   motif: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
+  await getSession();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('refuse_devis_public', {
     p_token: token,

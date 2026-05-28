@@ -7,7 +7,7 @@ import type { Json } from '@/types/database';
  * Insert an entry in audit_logs.
  *
  * Si `userId` est fourni : aucune round-trip auth supplementaire (a privilegier
- * dans les actions qui ont deja appele requireUser/requireAdmin et ont l'user
+ * dans les actions qui ont deja appele requireAuth/checkAuth et ont l'user
  * en scope - cas typique apres le refactor I6).
  *
  * Si `userId` est omis : appelle auth.getUser() en fallback (legacy callers).

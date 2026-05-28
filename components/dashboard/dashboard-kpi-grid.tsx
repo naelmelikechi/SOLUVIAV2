@@ -81,9 +81,6 @@ export function DashboardKpiGrid({
   onHide,
   sparklines,
 }: DashboardKpiGridProps) {
-  const renderIfVisible = (key: string, node: React.ReactNode) =>
-    isHidden(key) ? null : node;
-
   return (
     <>
       {/* ========== Activite operationnelle ========== */}
@@ -92,8 +89,7 @@ export function DashboardKpiGrid({
           Activité opérationnelle
         </h2>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-5">
-          {renderIfVisible(
-            'projetsActifs',
+          {!isHidden('projetsActifs') && (
             <MiniKpiCard
               label="Projets actifs"
               value={String(projetsActifs)}
@@ -102,10 +98,9 @@ export function DashboardKpiGrid({
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('projetsActifs')}
-            />,
+            />
           )}
-          {renderIfVisible(
-            'contratsActifs',
+          {!isHidden('contratsActifs') && (
             <MiniKpiCard
               label="Contrats"
               value={String(contratsActifs)}
@@ -114,10 +109,9 @@ export function DashboardKpiGrid({
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('contratsActifs')}
-            />,
+            />
           )}
-          {renderIfVisible(
-            'apprenantsActifs',
+          {!isHidden('apprenantsActifs') && (
             <MiniKpiCard
               label="Apprenants"
               value={String(nbApprenantsActifs)}
@@ -125,10 +119,9 @@ export function DashboardKpiGrid({
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('apprenantsActifs')}
-            />,
+            />
           )}
-          {renderIfVisible(
-            'formationsEnCours',
+          {!isHidden('formationsEnCours') && (
             <MiniKpiCard
               label="Formations"
               value={String(nbFormationsEnCours)}
@@ -136,10 +129,9 @@ export function DashboardKpiGrid({
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('formationsEnCours')}
-            />,
+            />
           )}
-          {renderIfVisible(
-            'tauxSaisieTemps',
+          {!isHidden('tauxSaisieTemps') && (
             <MiniKpiCard
               label="Saisie temps"
               value={`${tauxSaisieTemps}%`}
@@ -147,7 +139,7 @@ export function DashboardKpiGrid({
               href="/temps"
               editMode={editMode}
               onHide={() => onHide('tauxSaisieTemps')}
-            />,
+            />
           )}
         </div>
       </section>
@@ -166,8 +158,7 @@ export function DashboardKpiGrid({
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-          {renderIfVisible(
-            'pedagogie',
+          {!isHidden('pedagogie') && (
             <MiniKpiCard
               label="Progression pédagogie"
               value={`${pedagogieAvgPct}%`}
@@ -175,10 +166,9 @@ export function DashboardKpiGrid({
               href="/qualiopi"
               editMode={editMode}
               onHide={() => onHide('pedagogie')}
-            />,
+            />
           )}
-          {renderIfVisible(
-            'abandons',
+          {!isHidden('abandons') && (
             <MiniKpiCard
               label="Abandons"
               value={String(nbAbandons)}
@@ -186,10 +176,9 @@ export function DashboardKpiGrid({
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('abandons')}
-            />,
+            />
           )}
-          {renderIfVisible(
-            'rqth',
+          {!isHidden('rqth') && (
             <MiniKpiCard
               label="Apprenants RQTH"
               value={`${rqthPct}%`}
@@ -197,7 +186,7 @@ export function DashboardKpiGrid({
               href="/projets"
               editMode={editMode}
               onHide={() => onHide('rqth')}
-            />,
+            />
           )}
         </div>
       </section>
@@ -224,7 +213,7 @@ export function DashboardKpiGrid({
             size="sm"
             onClick={() => handleExportExcel(evolutionData)}
           >
-            <Download className="h-3.5 w-3.5" data-icon="inline-start" />
+            <Download className="size-3.5" data-icon="inline-start" />
             Exporter
           </Button>
         </div>
@@ -269,9 +258,9 @@ export function DashboardKpiGrid({
                           )}
                         >
                           {isPositive ? (
-                            <ArrowUpRight className="h-3 w-3" />
+                            <ArrowUpRight className="size-3" />
                           ) : (
-                            <ArrowDownRight className="h-3 w-3" />
+                            <ArrowDownRight className="size-3" />
                           )}
                           {changeSign}
                           {row.change}

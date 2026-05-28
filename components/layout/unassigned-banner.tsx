@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Sparkles, ArrowRight } from 'lucide-react';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { cn } from '@/lib/utils';
 
 interface UnassignedBannerProps {
@@ -24,7 +24,7 @@ export function UnassignedBanner({ visible }: UnassignedBannerProps) {
       )}
     >
       <div className="flex items-center gap-2.5">
-        <Sparkles className="text-primary h-4 w-4 shrink-0" />
+        <Sparkles className="text-primary size-4 shrink-0" />
         <p className="text-foreground text-sm">
           <span className="font-semibold">En attente d’affectation</span>
           <span className="text-muted-foreground ml-2">
@@ -37,7 +37,7 @@ export function UnassignedBanner({ visible }: UnassignedBannerProps) {
         className={buttonVariants({ variant: 'default', size: 'sm' })}
       >
         Mon accueil
-        <ArrowRight className="ml-1 h-3.5 w-3.5" />
+        <ArrowRight className="ml-1 size-3.5" />
       </Link>
     </div>
   );

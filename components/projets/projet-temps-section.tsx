@@ -130,7 +130,7 @@ export function ProjetTempsSection({
         className="text-primary hover:text-primary/80 mt-3 inline-flex items-center gap-1 text-xs font-medium"
       >
         Voir le suivi de temps
-        <ArrowRight className="h-3 w-3" />
+        <ArrowRight className="size-3" />
       </Link>
     </Card>
   );

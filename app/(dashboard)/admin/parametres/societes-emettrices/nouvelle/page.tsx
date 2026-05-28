@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { PageHeader } from '@/components/shared/page-header';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { SocieteEmettriceForm } from '@/components/admin/societe-emettrice-form';
 
 export const metadata: Metadata = { title: 'Nouvelle societe - SOLUVIA' };
 
 export default async function NouvelleSocietePage() {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!isAdmin(user?.role)) redirect('/projets');
 
   return (

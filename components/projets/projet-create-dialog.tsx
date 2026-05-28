@@ -37,8 +37,9 @@ export function ProjetCreateDialog({
   clients,
   typologies,
   users,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: ProjetCreateDialogProps) {
-  const router = useRouter();
+  const { push } = useRouter();
   const [clientId, setClientId] = useState('');
   const [typologieId, setTypologieId] = useState('');
   const [cdpId, setCdpId] = useState('');
@@ -92,7 +93,7 @@ export function ProjetCreateDialog({
           onOpenChange(false);
           resetForm();
           if (result.ref) {
-            router.push(`/projets/${result.ref}`);
+            push(`/projets/${result.ref}`);
           }
         } else {
           toast.error(result.error ?? 'Erreur lors de la création');
@@ -107,7 +108,7 @@ export function ProjetCreateDialog({
       tauxCommission,
       dateDebut,
       onOpenChange,
-      router,
+      push,
     ],
   );
 
@@ -193,13 +194,15 @@ export function ProjetCreateDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Aucun</SelectItem>
-                {users
-                  .filter((u) => u.id !== cdpId)
-                  .map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.prenom} {u.nom}
-                    </SelectItem>
-                  ))}
+                {users.flatMap((u) =>
+                  u.id === cdpId
+                    ? []
+                    : [
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.prenom} {u.nom}
+                        </SelectItem>,
+                      ],
+                )}
               </SelectContent>
             </Select>
           </div>

@@ -48,8 +48,8 @@ export default async function QualiopiHomePage() {
                   <Link key={c.id} href={`/qualiopi/${c.trigramme}`}>
                     <Card className="hover:border-primary/50 hover:bg-muted/30 cursor-pointer p-4 transition-colors">
                       <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-                          <ShieldCheck className="h-5 w-5" />
+                        <div className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
+                          <ShieldCheck className="size-5" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-semibold">
@@ -70,7 +70,7 @@ export default async function QualiopiHomePage() {
           {missing.length > 0 && (
             <section>
               <h2 className="text-muted-foreground mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
-                <AlertTriangle className="h-4 w-4 text-[var(--warning)]" />
+                <AlertTriangle className="size-4 text-[var(--warning)]" />
                 CFA sans clé API Eduvia ({missing.length})
               </h2>
               <Card className="p-4">
@@ -95,7 +95,7 @@ export default async function QualiopiHomePage() {
                       </div>
                       <Link href={`/admin/clients/${c.id}`}>
                         <Button variant="outline" size="sm">
-                          <KeyRound className="mr-1.5 h-3.5 w-3.5" />
+                          <KeyRound className="mr-1.5 size-3.5" />
                           Configurer
                         </Button>
                       </Link>

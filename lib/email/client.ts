@@ -10,6 +10,11 @@ import type { Database } from '@/types/database';
 
 const FROM_FACTURATION = 'SOLUVIA Facturation <contact@mysoluvia.com>';
 
+const eurFormatter = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+});
+
 export async function sendFactureEmail(params: {
   to: string | string[];
   cc?: string[];
@@ -68,12 +73,12 @@ async function resolveFactureRecipients(
     .not('email', 'is', null);
 
   const list = contacts ?? [];
-  const to = list
-    .filter((c) => c.recoit_factures && c.email)
-    .map((c) => c.email as string);
-  const cc = list
-    .filter((c) => c.recoit_factures_cc && c.email)
-    .map((c) => c.email as string);
+  const to = list.flatMap((c) =>
+    c.recoit_factures && c.email ? [c.email as string] : [],
+  );
+  const cc = list.flatMap((c) =>
+    c.recoit_factures_cc && c.email ? [c.email as string] : [],
+  );
 
   if (to.length === 0) {
     // Fallback historique : premier contact avec email.
@@ -239,10 +244,7 @@ export async function sendRelanceEmail(
   );
   if (!recipients.ok) return { success: false, error: recipients.error };
 
-  const montant = new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(facture.montant_ttc);
+  const montant = eurFormatter.format(facture.montant_ttc);
 
   const dateEcheance = facture.date_echeance
     ? formatDate(facture.date_echeance)

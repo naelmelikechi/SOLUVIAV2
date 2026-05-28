@@ -13,7 +13,7 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 
 vi.mock('@/lib/queries/users', () => ({
-  getCurrentUser: vi.fn(async () => ({ id: 'u1', role: 'admin' })),
+  getUser: vi.fn(async () => ({ id: 'u1', role: 'admin' })),
 }));
 
 vi.mock('@/lib/utils/audit', () => ({

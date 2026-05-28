@@ -52,7 +52,7 @@ interface DevisLignesEditorProps {
 }
 
 export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
-  const router = useRouter();
+  const { refresh } = useRouter();
   const [rows, setRows] = useState<DraftLigne[]>(() => lignes.map(fromRow));
   const [pending, start] = useTransition();
 
@@ -69,7 +69,7 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
       const res = await deleteLigne(id);
       if (res.success) {
         setRows((prev) => prev.filter((r) => r.id !== id));
-        router.refresh();
+        refresh();
       } else {
         toast.error(res.error);
       }
@@ -111,7 +111,7 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
                 : r,
             ),
           );
-          router.refresh();
+          refresh();
         } else {
           toast.error(res.error);
         }
@@ -121,7 +121,7 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
           setRows((prev) =>
             prev.map((r) => (r.id === row.id ? { ...r, isDirty: false } : r)),
           );
-          router.refresh();
+          refresh();
         } else {
           toast.error(res.error);
         }
@@ -140,7 +140,7 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
           onClick={addRow}
           disabled={pending}
         >
-          <Plus className="mr-1 h-3.5 w-3.5" />
+          <Plus className="mr-1 size-3.5" />
           Ajouter une ligne
         </Button>
       </div>
@@ -200,7 +200,7 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
                   title="Enregistrer"
                   className="text-muted-foreground hover:text-primary disabled:opacity-30"
                 >
-                  <Save className="h-4 w-4" />
+                  <Save className="size-4" />
                 </button>
               )}
               <button
@@ -210,7 +210,7 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
                 title="Supprimer"
                 className="text-muted-foreground hover:text-destructive disabled:opacity-30"
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="size-4" />
               </button>
             </div>
             <div className="col-span-12">

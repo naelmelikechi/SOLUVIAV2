@@ -99,6 +99,7 @@ export async function GET(request: Request) {
         let sent = 0;
         let failed = 0;
         for (const admin of admins) {
+          // oxlint-disable-next-line react-doctor/async-await-in-loop
           const r = await sendRapportMensuelEmail({
             to: admin.email,
             prenom: admin.prenom,

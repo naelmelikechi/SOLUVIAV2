@@ -28,12 +28,14 @@ function stripLegalForm(raisonSociale: string): string {
   return raisonSociale.replace(LEGAL_FORM_PREFIX, '').trim() || raisonSociale;
 }
 
+const eurFormatter = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+});
+
 function formatEur(n: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  }).format(n);
+  return eurFormatter.format(n);
 }
 
 export function buildFactureEmailHtml(params: {

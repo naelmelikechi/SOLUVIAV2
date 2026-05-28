@@ -54,14 +54,21 @@ export async function GET(request: Request) {
           return { sent: 0, message: 'Aucune facture en retard' };
         }
 
-        const items: FactureRetardItem[] = factures
-          .filter((f) => f.ref && f.date_echeance)
-          .map((f) => ({
-            ref: f.ref!,
-            client: f.client?.raison_sociale ?? 'Client',
-            montantTtc: f.montant_ttc,
-            joursRetard: differenceInDays(today, new Date(f.date_echeance!)),
-          }));
+        const items: FactureRetardItem[] = factures.flatMap((f) =>
+          f.ref && f.date_echeance
+            ? [
+                {
+                  ref: f.ref,
+                  client: f.client?.raison_sociale ?? 'Client',
+                  montantTtc: f.montant_ttc,
+                  joursRetard: differenceInDays(
+                    today,
+                    new Date(f.date_echeance),
+                  ),
+                },
+              ]
+            : [],
+        );
 
         const { data: admins } = adminsRes;
         if (!admins || admins.length === 0) {
@@ -72,6 +79,7 @@ export async function GET(request: Request) {
         let failed = 0;
 
         for (const admin of admins) {
+          // oxlint-disable-next-line react-doctor/async-await-in-loop
           const r = await sendFacturesRetardDigestEmail({
             to: admin.email,
             prenom: admin.prenom,

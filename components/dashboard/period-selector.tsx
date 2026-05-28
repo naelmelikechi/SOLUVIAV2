@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { PeriodeKey } from '@/lib/utils/dashboard-periode';
 
@@ -12,14 +12,22 @@ const OPTIONS: { key: PeriodeKey; label: string }[] = [
   { key: '30j', label: '30 derniers jours' },
 ];
 
-export function PeriodSelector({
+export function PeriodSelector(props: { current: PeriodeKey; label: string }) {
+  return (
+    <Suspense fallback={null}>
+      <PeriodSelectorInner {...props} />
+    </Suspense>
+  );
+}
+
+function PeriodSelectorInner({
   current,
   label,
 }: {
   current: PeriodeKey;
   label: string;
 }) {
-  const router = useRouter();
+  const { push } = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
@@ -41,7 +49,7 @@ export function PeriodSelector({
     if (key === 'ce_mois') params.delete('periode');
     else params.set('periode', key);
     const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
+    push(qs ? `${pathname}?${qs}` : pathname);
     setOpen(false);
   };
 
@@ -51,17 +59,14 @@ export function PeriodSelector({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="border-border hover:bg-accent inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold"
-        aria-haspopup="listbox"
+        aria-haspopup="menu"
         aria-expanded={open}
       >
         {label}
-        <ChevronDown className="h-3 w-3" />
+        <ChevronDown className="size-3" />
       </button>
       {open && (
-        <div
-          role="listbox"
-          className="bg-popover border-border absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border shadow-md"
-        >
+        <div className="bg-popover border-border absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border shadow-md">
           {OPTIONS.map((opt) => (
             <button
               key={opt.key}

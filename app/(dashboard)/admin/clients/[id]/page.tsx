@@ -8,7 +8,7 @@ import {
   getDocumentsByClientId,
   getClientApiKeys,
 } from '@/lib/queries/clients';
-import { getCurrentUser, getActiveUsersMinimal } from '@/lib/queries/users';
+import { getUser, getActiveUsersMinimal } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -40,7 +40,7 @@ export default async function ClientDetailPage({
     apiKeys,
     users,
   ] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     getClientById(id),
     getProjetsByClientId(id),
     getContactsByClientId(id),
@@ -63,7 +63,7 @@ export default async function ClientDetailPage({
         href="/admin/clients"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <ArrowLeft className="size-4" />
         Retour aux clients
       </Link>
 
@@ -88,7 +88,7 @@ export default async function ClientDetailPage({
       {/* Info Card */}
       <Card className="mb-6 p-6">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-          <FileText className="h-4 w-4" /> Informations
+          <FileText className="size-4" /> Informations
         </h3>
         <div className="grid grid-cols-2 gap-4 text-sm md:grid-cols-3">
           <div>

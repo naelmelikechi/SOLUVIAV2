@@ -72,7 +72,7 @@ export async function QualitePedagogieSection({
               aria-label="Explication des calculs"
               className="text-muted-foreground hover:text-foreground inline-flex items-center justify-center rounded-full p-0.5 transition-colors"
             >
-              <Info className="h-4 w-4" />
+              <Info className="size-4" />
             </PopoverTrigger>
             <PopoverContent
               side="bottom"

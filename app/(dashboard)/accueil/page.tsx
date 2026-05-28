@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { getCollabStatus } from '@/lib/queries/collab-status';
 import { getParametreValeur } from '@/lib/queries/parametres';
 import { createClient } from '@/lib/supabase/server';
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: 'Accueil - SOLUVIA' };
 export const revalidate = 0;
 
 export default async function AccueilPage() {
-  const user = await getCurrentUser();
+  const user = await getUser();
   if (!user) redirect('/login');
 
   const status = await getCollabStatus(user.id);

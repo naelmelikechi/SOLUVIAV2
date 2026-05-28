@@ -28,7 +28,7 @@ export function TimeAxisPanel({
   onSave,
 }: TimeAxisPanelProps) {
   const existingAxes = saisie.axes[date] || {};
-  const [values, setValues] = useState<Record<string, number>>(
+  const [values, setValues] = useState<Record<string, number>>(() =>
     Object.fromEntries(
       AXES_TEMPS.map((a) => [a.code, existingAxes[a.code] || 0]),
     ),
@@ -69,10 +69,10 @@ export function TimeAxisPanel({
           variant="ghost"
           size="icon"
           onClick={onClose}
-          className="h-7 w-7"
+          className="size-7"
           aria-label="Fermer le panneau"
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </Button>
       </div>
 
@@ -86,7 +86,7 @@ export function TimeAxisPanel({
             >
               <div className="flex items-center gap-2">
                 <div
-                  className="h-3 w-3 rounded-sm"
+                  className="size-3 rounded-sm"
                   style={{ backgroundColor: axe.color }}
                 />
                 <span className="text-sm">{axe.label}</span>
@@ -94,6 +94,7 @@ export function TimeAxisPanel({
               <input
                 type="text"
                 inputMode="decimal"
+                aria-label={`Temps pour l'axe ${axe.label}`}
                 className="border-border focus:border-primary focus:ring-primary/15 w-[50px] rounded-md border bg-white px-1.5 py-1 text-center font-mono text-[13px] outline-none focus:ring-2"
                 value={values[axe.code] || ''}
                 onChange={(e) => handleChange(axe.code, e.target.value)}

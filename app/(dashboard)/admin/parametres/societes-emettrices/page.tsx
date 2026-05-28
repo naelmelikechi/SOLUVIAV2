@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Plus } from 'lucide-react';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { PageHeader } from '@/components/shared/page-header';
-import { getCurrentUser } from '@/lib/queries/users';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { listSocietesEmettrices } from '@/lib/queries/societes-emettrices';
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: 'Societes emettrices - SOLUVIA' };
 
 export default async function SocietesEmettricesPage() {
   const [user, societes] = await Promise.all([
-    getCurrentUser(),
+    getUser(),
     listSocietesEmettrices(),
   ]);
   if (!isAdmin(user?.role)) redirect('/projets');
@@ -27,7 +27,7 @@ export default async function SocietesEmettricesPage() {
           href="/admin/parametres/societes-emettrices/nouvelle"
           className={buttonVariants()}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="size-4" />
           Nouvelle societe
         </Link>
       </PageHeader>
@@ -42,7 +42,7 @@ export default async function SocietesEmettricesPage() {
               <th className="px-4 py-2">Defaut</th>
               <th className="px-4 py-2">Active</th>
               <th className="px-4 py-2">Odoo</th>
-              <th className="px-4 py-2"></th>
+              <th className="px-4 py-2" aria-label="Actions"></th>
             </tr>
           </thead>
           <tbody>

@@ -1,5 +1,6 @@
 import 'server-only';
 import { createElement, type ReactElement, type ComponentProps } from 'react';
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import
 import { renderToBuffer } from '@react-pdf/renderer';
 import { DevisPdf } from '@/components/devis/devis-pdf';
 

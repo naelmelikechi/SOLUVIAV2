@@ -39,7 +39,7 @@ export function IdeaCard({
   const StatutIcon = STATUT_ICONS[idee.statut];
   const iconColor = STATUT_ICON_COLORS[idee.statut];
 
-  function handleDragStart(e: React.DragEvent<HTMLDivElement>) {
+  function handleDragStart(e: React.DragEvent<HTMLButtonElement>) {
     if (!draggable) return;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('application/x-idee-id', idee.id);
@@ -51,22 +51,13 @@ export function IdeaCard({
     onDragEnd?.();
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onClick();
-    }
-  }
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       draggable={draggable}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={onClick}
-      onKeyDown={handleKeyDown}
       className={cn(
         'group bg-card border-border hover:border-primary/40 relative w-full cursor-pointer rounded-md border p-3 text-left transition-all duration-150 hover:-translate-y-px hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
         draggable && 'cursor-grab active:cursor-grabbing',
@@ -77,12 +68,12 @@ export function IdeaCard({
           aria-hidden
           className="text-muted-foreground/50 group-hover:text-muted-foreground pointer-events-none absolute top-2 right-1.5 transition-colors"
         >
-          <GripVertical className="h-3.5 w-3.5" />
+          <GripVertical className="size-3.5" />
         </span>
       )}
       <div className="flex items-start gap-2">
         {StatutIcon && (
-          <StatutIcon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconColor}`} />
+          <StatutIcon className={`mt-0.5 size-3.5 shrink-0 ${iconColor}`} />
         )}
         <h4 className="line-clamp-2 flex-1 pr-6 text-[13px] leading-tight font-semibold">
           {idee.titre}
@@ -102,7 +93,7 @@ export function IdeaCard({
         />
         {idee.auteur && (
           <span className="text-muted-foreground inline-flex items-center gap-1 text-[11px]">
-            <User className="h-3 w-3" />
+            <User className="size-3" />
             {idee.auteur.prenom}
           </span>
         )}
@@ -111,6 +102,6 @@ export function IdeaCard({
       <div className="text-muted-foreground mt-1.5 text-[10px]">
         {formatDateLong(idee.created_at)}
       </div>
-    </div>
+    </button>
   );
 }

@@ -15,7 +15,7 @@ const RechartsDonut = dynamic(
 function ChartSkeleton() {
   return (
     <div className="flex h-[280px] items-center justify-center">
-      <div className="text-muted-foreground text-sm">Chargement...</div>
+      <div className="text-muted-foreground text-sm">Chargement…</div>
     </div>
   );
 }

@@ -1,13 +1,15 @@
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
+const currencyFormatter = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return currencyFormatter.format(amount);
 }
 
 export function formatDate(date: string | Date): string {

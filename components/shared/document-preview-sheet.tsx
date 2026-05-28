@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Download, FileText } from 'lucide-react';
 import {
   Sheet,
@@ -7,7 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 
 interface DocumentPreviewSheetProps {
   open: boolean;
@@ -47,7 +48,7 @@ export function DocumentPreviewSheet({
               rel="noopener noreferrer"
               className={buttonVariants({ variant: 'outline', size: 'sm' })}
             >
-              <Download className="mr-1.5 h-4 w-4" />
+              <Download className="mr-1.5 size-4" />
               Télécharger
             </a>
           )}
@@ -55,7 +56,7 @@ export function DocumentPreviewSheet({
 
         {!canPreview && (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-            <FileText className="text-muted-foreground h-12 w-12" />
+            <FileText className="text-muted-foreground size-12" />
             <div className="space-y-1">
               <p className="text-base font-medium">
                 Aperçu indisponible pour ce type de fichier
@@ -73,17 +74,20 @@ export function DocumentPreviewSheet({
           <iframe
             src={url}
             title={fileName || 'Document'}
-            className="h-full w-full flex-1 border-0 bg-white"
+            sandbox=""
+            className="size-full flex-1 border-0 bg-white"
           />
         )}
 
         {canPreview && url && typeDocument === 'Image' && (
           <div className="flex flex-1 items-center justify-center overflow-auto bg-neutral-50 p-4 dark:bg-neutral-900">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={url}
               alt={fileName || 'Image'}
-              className="max-h-full max-w-full object-contain"
+              width={1920}
+              height={1080}
+              unoptimized
+              className="h-auto max-h-full w-auto max-w-full object-contain"
             />
           </div>
         )}

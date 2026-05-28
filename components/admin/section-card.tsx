@@ -30,9 +30,9 @@ export function SectionCard({
         className="flex w-full cursor-pointer items-center gap-2 px-4 text-left"
       >
         {open ? (
-          <ChevronDown className="text-muted-foreground h-4 w-4 shrink-0" />
+          <ChevronDown className="text-muted-foreground size-4 shrink-0" />
         ) : (
-          <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
+          <ChevronRight className="text-muted-foreground size-4 shrink-0" />
         )}
         {icon}
         <span className="text-sm font-semibold">{title}</span>

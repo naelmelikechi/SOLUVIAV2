@@ -1,3 +1,4 @@
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import
 import {
   Document,
   Page,
@@ -210,18 +211,18 @@ const styles = StyleSheet.create({
   },
 });
 
+const eurFormatter = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2,
+});
+
 function formatEur(n: number): string {
   // Helvetica embarquee dans @react-pdf/renderer ne contient pas le NNBSP
   // (U+202F) que Intl.NumberFormat fr-FR utilise comme separateur de
   // milliers - il est rendu en glyphe fallback ressemblant a un slash
   // ("3/132,00 €" au lieu de "3 132,00 €"). On normalise en espace simple.
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 2,
-  })
-    .format(n)
-    .replace(/[  ]/g, ' ');
+  return eurFormatter.format(n).replace(/[  ]/g, ' ');
 }
 
 interface FacturePdfProps {

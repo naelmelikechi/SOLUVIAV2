@@ -21,13 +21,13 @@ function RadioGroupItem({ className, ...props }: Radio.Root.Props) {
     <Radio.Root
       data-slot="radio-group-item"
       className={cn(
-        'border-primary text-primary focus-visible:ring-ring data-[checked]:bg-primary aspect-square h-4 w-4 rounded-full border shadow focus:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50',
+        'border-primary text-primary focus-visible:ring-ring data-[checked]:bg-primary aspect-square size-4 rounded-full border shadow focus:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
       {...props}
     >
       <Radio.Indicator className="flex items-center justify-center">
-        <span className="bg-background block h-2 w-2 rounded-full" />
+        <span className="bg-background block size-2 rounded-full" />
       </Radio.Indicator>
     </Radio.Root>
   );

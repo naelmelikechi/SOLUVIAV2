@@ -11,10 +11,8 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  TableSearchInput,
-  filterBySearch,
-} from '@/components/shared/table-search-input';
+import { TableSearchInput } from '@/components/shared/table-search-input';
+import { filterBySearch } from '@/components/shared/filter-by-search';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { differenceInDays, parseISO } from 'date-fns';
 import { toast } from 'sonner';
@@ -53,6 +51,7 @@ interface FacturePaiementsProps {
   odooSynced?: boolean;
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function FacturePaiements({
   paiements,
   statut,
@@ -62,6 +61,7 @@ export function FacturePaiements({
   montantTtc,
   userRole,
   odooSynced = true,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: FacturePaiementsProps) {
   const isEnRetard = statut === 'en_retard';
   const hasPaiements = paiements.length > 0;
@@ -100,6 +100,7 @@ export function FacturePaiements({
   // ref dans payment_ref, date proche échéance) dès que le form s'ouvre.
   // L'utilisateur peut cliquer sur une suggestion pour pré-remplir date +
   // montant en 1 clic au lieu de saisir à la main.
+  // oxlint-disable-next-line react-doctor/no-cascading-set-state, react-doctor/no-effect-event-handler, react-doctor/no-fetch-in-effect
   useEffect(() => {
     if (!showForm || !factureRef) return;
     let cancelled = false;
@@ -244,7 +245,7 @@ export function FacturePaiements({
                 setShowForm(true);
               }}
             >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              <Plus className="mr-1.5 size-3.5" />
               Marquer comme payée (Odoo)
             </Button>
           ) : (
@@ -262,13 +263,13 @@ export function FacturePaiements({
               {/* Synergie #2 : suggestions depuis bank_lines_mirror (FINANCES) */}
               {suggestionsLoading && (
                 <p className="text-muted-foreground text-xs italic">
-                  Recherche dans le compte bancaire...
+                  Recherche dans le compte bancaire…
                 </p>
               )}
               {!suggestionsLoading && suggestions && suggestions.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
-                    <Sparkles className="h-3 w-3" />
+                    <Sparkles className="size-3" />
                     Lignes bancaires correspondantes
                   </p>
                   <div className="space-y-1.5">

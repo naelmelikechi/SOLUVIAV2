@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { getContratDetail } from '@/lib/queries/contrats';
+import { requireAuth } from '@/lib/auth/guards';
 
 // ---------------------------------------------------------------------------
 // Schema Zod (validation cote serveur, defense en profondeur)
@@ -14,6 +15,8 @@ const FetchContratDetailSchema = z
   .uuid('Contrat ID doit être un UUID');
 
 export async function fetchContratDetail(contratId: string) {
+  const auth = await requireAuth();
+  if (!auth.ok) throw new Error(auth.error);
   const parsed = FetchContratDetailSchema.safeParse(contratId);
   if (!parsed.success) {
     throw new Error(parsed.error.issues[0]?.message ?? 'Contrat ID invalide');

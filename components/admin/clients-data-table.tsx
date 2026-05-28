@@ -9,10 +9,10 @@ import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils/formatters';
 
 export function ClientsDataTable({ data }: { data: ClientListItem[] }) {
-  const router = useRouter();
+  const { push } = useRouter();
 
   const handleRowClick = (row: ClientListItem) => {
-    router.push(`/admin/clients/${row.id}`);
+    push(`/admin/clients/${row.id}`);
   };
 
   const handleExport = async () => {
@@ -37,7 +37,7 @@ export function ClientsDataTable({ data }: { data: ClientListItem[] }) {
     <div>
       <div className="mb-4 flex justify-end">
         <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="mr-1.5 h-4 w-4" />
+          <Download className="mr-1.5 size-4" />
           Export Excel
         </Button>
       </div>

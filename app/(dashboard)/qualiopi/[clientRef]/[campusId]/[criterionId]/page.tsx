@@ -80,10 +80,13 @@ export default async function CriterionPage({
     return !computeCompletion(sts, dels.length).valid;
   }).length;
 
-  const nextExpiry = statusesForCriterion
-    .filter((s) => s.next_expiry)
-    .map((s) => s.next_expiry!)
-    .sort()[0];
+  const expiries = statusesForCriterion.flatMap((s) =>
+    s.next_expiry ? [s.next_expiry] : [],
+  );
+  const nextExpiry =
+    expiries.length === 0
+      ? undefined
+      : expiries.reduce((min, v) => (v < min ? v : min));
 
   return (
     <div>
@@ -91,7 +94,7 @@ export default async function CriterionPage({
       <div className="mb-4">
         <Link href={`/qualiopi/${p.clientRef}/${campusId}`}>
           <Button variant="ghost" size="sm" className="-ml-2">
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            <ArrowLeft className="mr-1.5 size-4" />
             Retour
           </Button>
         </Link>
@@ -165,10 +168,13 @@ export default async function CriterionPage({
             .map((d) => statusByDeliverable.get(d.id))
             .filter((s): s is NonNullable<typeof s> => Boolean(s));
           const c = computeCompletion(sts, dels.length);
-          const exp = sts
-            .filter((s) => s.next_expiry)
-            .map((s) => s.next_expiry!)
-            .sort()[0];
+          const expiryDates = sts.flatMap((s) =>
+            s.next_expiry ? [s.next_expiry] : [],
+          );
+          const exp =
+            expiryDates.length === 0
+              ? undefined
+              : expiryDates.reduce((min, v) => (v < min ? v : min));
           const assignment = assignments.get(indicator.id);
 
           return (
@@ -192,12 +198,12 @@ export default async function CriterionPage({
                       {indicator.title}
                     </span>
                   </div>
-                  <ChevronRight className="text-muted-foreground h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100" />
+                  <ChevronRight className="text-muted-foreground size-4 opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
                 <div className="text-muted-foreground mb-2 flex items-center gap-3 text-xs">
                   {assignment?.user ? (
                     <span className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
+                      <User className="size-3" />
                       {assignment.user.prenom} {assignment.user.nom}
                     </span>
                   ) : (

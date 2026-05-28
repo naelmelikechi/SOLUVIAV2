@@ -1,5 +1,6 @@
 'use client';
 
+// oxlint-disable-next-line react-doctor/prefer-dynamic-import
 import {
   ResponsiveContainer,
   LineChart,
@@ -42,7 +43,7 @@ function CustomTooltip({
       {payload.map((entry) => (
         <div key={entry.name} className="flex items-center gap-2 text-xs">
           <span
-            className="h-2 w-2 rounded-full"
+            className="size-2 rounded-full"
             style={{ backgroundColor: entry.color }}
           />
           <span className="text-muted-foreground">

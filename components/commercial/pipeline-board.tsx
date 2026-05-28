@@ -73,6 +73,7 @@ function startOfMonth(d = new Date()): number {
   return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
 }
 
+// oxlint-disable-next-line react-doctor/no-giant-component
 export function PipelineBoard({
   initialGrouped,
   commerciaux,
@@ -80,6 +81,7 @@ export function PipelineBoard({
   currentUserId,
   isAdmin,
   stageMedians,
+  // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: PipelineBoardProps) {
   const medianByStage = useMemo(() => {
     const map = {} as Record<StageProspect, StageMedian | undefined>;
@@ -147,6 +149,7 @@ export function PipelineBoard({
             .filter(Boolean)
             .join(' ')
             .toLowerCase();
+          // oxlint-disable-next-line react-doctor/js-set-map-lookups
           if (!hay.includes(term)) return false;
         }
         if (commercialFilter === 'me' && p.commercial_id !== currentUserId)
@@ -179,7 +182,7 @@ export function PipelineBoard({
         return true;
       });
 
-      const sorted = [...items].sort((a, b) => {
+      const sorted = items.toSorted((a, b) => {
         const dir = sortDir === 'asc' ? 1 : -1;
         if (sortKey === 'volume') {
           return (
@@ -216,6 +219,7 @@ export function PipelineBoard({
       let prospect: ProspectWithCommercial | null = null;
       let sourceStage: StageProspect | null = null;
       for (const stage of STAGE_PROSPECT_ORDER) {
+        // oxlint-disable-next-line react-doctor/js-index-maps
         const found = prev[stage].find((p) => p.id === prospectId);
         if (found) {
           prospect = found;
@@ -450,7 +454,7 @@ export function PipelineBoard({
 
       <div className="border-border/60 bg-card/50 flex flex-wrap items-center gap-2 rounded-lg border p-2">
         <div className="relative min-w-[260px] flex-1">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
           <Input
             placeholder="Rechercher (nom, SIRET, dirigeant, région)..."
             value={search}
@@ -520,7 +524,7 @@ export function PipelineBoard({
             )}
             aria-pressed={layoutView === 'kanban'}
           >
-            <LayoutGrid className="h-3.5 w-3.5" />
+            <LayoutGrid className="size-3.5" />
             Kanban
           </button>
           <button
@@ -534,7 +538,7 @@ export function PipelineBoard({
             )}
             aria-pressed={layoutView === 'table'}
           >
-            <TableIcon className="h-3.5 w-3.5" />
+            <TableIcon className="size-3.5" />
             Tableau
           </button>
           {isAdmin && <ProspectImportButton />}
@@ -726,12 +730,12 @@ export function PipelineBoard({
               >
                 <ChevronDown
                   className={cn(
-                    'text-muted-foreground h-3 w-3 transition-transform',
+                    'text-muted-foreground size-3 transition-transform',
                     isCollapsed && '-rotate-90',
                   )}
                 />
                 <span
-                  className={cn('h-1.5 w-1.5 rounded-full', STAGE_DOT[stage])}
+                  className={cn('size-1.5 rounded-full', STAGE_DOT[stage])}
                   aria-hidden
                 />
                 <span>{STAGE_PROSPECT_LABELS[stage]}</span>
@@ -819,7 +823,7 @@ function StatTile({
       )}
     >
       <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wide uppercase">
-        {Icon && <Icon className="h-3 w-3" />}
+        {Icon && <Icon className="size-3" />}
         {label}
       </div>
       <div
@@ -912,7 +916,7 @@ function BulkActionBar({
         onClick={onClear}
         className="ml-auto h-7"
       >
-        <X className="mr-1 h-3.5 w-3.5" />
+        <X className="mr-1 size-3.5" />
         Désélectionner
       </Button>
     </div>

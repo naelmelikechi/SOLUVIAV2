@@ -13,7 +13,10 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "prepare": "husky",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "npx react-doctor@latest",
+    "db:migrate": "tsx scripts/migrate-supavia.ts --apply",
+    "db:migrate:dry": "tsx scripts/migrate-supavia.ts --dry-run",
+    "db:migrate:baseline": "tsx scripts/migrate-supavia.ts --baseline"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.63",

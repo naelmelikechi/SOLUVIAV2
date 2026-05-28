@@ -19,7 +19,8 @@ and pushes invoices to Odoo. Detailed specs in `specs/` (00-09).
 - `npm run build` — Production build
 - `npm run lint` — ESLint
 - `npx supabase start` — Start local Supabase
-- `npx supabase db push` — Apply migrations
+- `npx supabase db push` — Apply migrations (local Supabase uniquement)
+- `npm run db:migrate:dry` / `npm run db:migrate` — Migrations PROD (Supavia self-hosted, via pg-meta ; cf. `scripts/migrate-supavia.ts`). PG prod non exposé → pas de `db push --linked`. Auto en CI sur push `main`.
 - `npx supabase gen types typescript --local > types/database.ts` — Regenerate types
 
 ## Architecture

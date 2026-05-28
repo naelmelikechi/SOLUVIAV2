@@ -1,0 +1,43 @@
+name: Migrate Supavia (prod)
+
+# Applique les nouvelles migrations supabase/migrations/*.sql sur l'instance
+# Supabase self-hosted (Supavia) via l'endpoint pg-meta, car le Postgres n'est
+# pas exposé en externe. Le runner est idempotent (tracking
+# supabase_migrations.schema_migrations) : seules les migrations non encore
+# appliquées sont exécutées.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/migrate-supavia.ts'
+      - '.github/workflows/migrate-supavia.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: migrate-supavia-prod
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply pending migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations
+        run: npm run db:migrate
+        env:
+          SUPAVIA_API_URL: ${{ secrets.SUPAVIA_API_URL }}
+          SUPAVIA_DASHBOARD_USER: ${{ secrets.SUPAVIA_DASHBOARD_USER }}
+          SUPAVIA_DASHBOARD_PASSWORD: ${{ secrets.SUPAVIA_DASHBOARD_PASSWORD }}

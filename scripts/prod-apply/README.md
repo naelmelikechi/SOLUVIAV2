@@ -1,5 +1,21 @@
 # Apply migrations synergies en prod
 
+> **Obsolète depuis 2026-05-28** : les migrations sont désormais appliquées
+> automatiquement par le runner `scripts/migrate-supavia.ts` (via pg-meta, vu
+> que le Postgres self-hosted n'est pas exposé). Voir l'en-tête de ce script
+> pour l'usage. En CI, le workflow `.github/workflows/migrate-supavia.yml`
+> applique les nouvelles migrations à chaque push sur `main`.
+>
+> - `npm run db:migrate:dry` — liste les migrations en attente
+> - `npm run db:migrate` — applique les migrations en attente
+>
+> Règle : **tout changement de schéma passe par un fichier `supabase/migrations/*.sql`**,
+> plus d'édition directe dans le SQL Editor (sinon le tracking re-dérive).
+>
+> Le bloc ci-dessous décrit l'ancien process manuel, conservé pour mémoire.
+
+---
+
 > Le `supabase db push --linked` standard n'est pas utilisable ici à cause d'un
 > drift d'historique existant entre les migrations locales et la prod (des
 > migrations ont été appliquées via le SQL Editor sans CLI). Pour éviter tout

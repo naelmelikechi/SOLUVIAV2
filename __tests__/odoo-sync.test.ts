@@ -610,6 +610,16 @@ describe('syncOdoo - pull paiements (facture-driven)', () => {
     expect(result.pulled).toBe(1);
     expect(result.errors.length).toBeGreaterThan(0);
 
+    // La facture OK passe payee ; celle dont l'upsert a echoue ne bascule PAS
+    // (sinon payee sans trace + sortie du set de retry).
+    const payeeUpdates = ops.filter(
+      (o) =>
+        o.op === 'update' &&
+        o.table === 'factures' &&
+        (o.payload as { statut?: string }).statut === 'payee',
+    );
+    expect(payeeUpdates).toHaveLength(1);
+
     const log = ops.find(
       (o) =>
         o.op === 'insert' &&

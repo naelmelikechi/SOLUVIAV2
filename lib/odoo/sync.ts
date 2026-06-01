@@ -455,6 +455,7 @@ async function pullPayments(
 
     try {
       // Upsert chaque reglement reconcilie (dedupe par odoo_id).
+      let upsertOk = true;
       for (const p of info.payments) {
         // oxlint-disable-next-line react-doctor/async-await-in-loop
         const { error: upsertErr } = await supabase.from('paiements').upsert(
@@ -473,6 +474,7 @@ async function pullPayments(
             error: upsertErr,
           });
           errors.push(`Upsert paiement ${p.odoo_id}: ${upsertErr.message}`);
+          upsertOk = false;
         } else {
           pulled++;
         }
@@ -480,9 +482,11 @@ async function pullPayments(
 
       // Statut paye selon la verite Odoo (payment_state), pas selon la somme
       // locale : une facture peut etre soldee par un avoir sans reglement cash.
+      // On ne bascule PAS si un reglement n'a pas pu etre enregistre, sinon la
+      // facture passerait payee sans trace ET sortirait du set de retry.
       const isPaid =
         info.payment_state === 'paid' || info.payment_state === 'in_payment';
-      if (isPaid && f.statut !== 'payee') {
+      if (isPaid && upsertOk && f.statut !== 'payee') {
         // oxlint-disable-next-line react-doctor/async-await-in-loop
         const { error: updErr } = await supabase
           .from('factures')

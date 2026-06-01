@@ -389,27 +389,54 @@ async function pullPayments(
   odoo: ReturnType<typeof createOdooClient>,
   errors: string[],
 ): Promise<number> {
-  // Determine "since" from last successful pull. Accepte 'success' ET
-  // 'partial' : un partial signifie qu'au moins certains paiements ont ete
-  // importes, donc le prochain run peut repartir de cette date.
-  const { data: lastLog } = await supabase
-    .from('odoo_sync_logs')
-    .select('created_at')
-    .eq('direction', 'pull')
-    .in('statut', ['success', 'partial'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Approche facture-driven : on re-verifie TOUTES les factures encore non
+  // payees qui ont un move Odoo, en lisant l'etat de paiement directement sur
+  // l'account.move (source de verite). Avantages vs l'ancien scrape global
+  // d'account.payment :
+  //  - attrape les reconciliations faites au niveau releve bancaire (qui ne
+  //    creent pas d'account.payment) ;
+  //  - auto-reparant : pas de checkpoint `since` qui pourrait rater une facture
+  //    reconciliee dans le passe (chaque run reconsidere l'ensemble non paye).
+  const { data: factures, error: facturesErr } = await supabase
+    .from('factures')
+    .select('id, ref, odoo_id, montant_ttc, statut')
+    .in('statut', ['emise', 'en_retard'])
+    .not('odoo_id', 'is', null)
+    .eq('est_avoir', false);
 
-  const since = lastLog?.created_at ?? '2020-01-01T00:00:00Z';
+  if (facturesErr) {
+    errors.push(`pull factures: ${facturesErr.message}`);
+    await logSync(supabase, {
+      direction: 'pull',
+      entity_type: 'paiement',
+      statut: 'error',
+      erreur: facturesErr.message,
+    });
+    return 0;
+  }
 
-  let payments;
+  const tracked = factures ?? [];
+  if (tracked.length === 0) {
+    await logSync(supabase, {
+      direction: 'pull',
+      entity_type: 'paiement',
+      statut: 'success',
+      payload: { count: 0, factures_checked: 0 },
+    });
+    return 0;
+  }
+
+  const moveIds = tracked
+    .map((f) => f.odoo_id as string | null)
+    .filter((id): id is string => Boolean(id));
+
+  let infos;
   try {
-    payments = await odoo.pullPayments(since);
+    infos = await odoo.pullInvoicePayments(moveIds);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error(SCOPE, 'pullPayments call failed', { error: err });
-    errors.push(`pullPayments: ${msg}`);
+    logger.error(SCOPE, 'pullInvoicePayments call failed', { error: err });
+    errors.push(`pullInvoicePayments: ${msg}`);
     await logSync(supabase, {
       direction: 'pull',
       entity_type: 'paiement',
@@ -419,86 +446,69 @@ async function pullPayments(
     return 0;
   }
 
+  const byMove = new Map(infos.map((i) => [i.invoice_odoo_id, i]));
   let pulled = 0;
 
-  for (const payment of payments) {
+  for (const f of tracked) {
+    const info = byMove.get(String(f.odoo_id));
+    if (!info) continue;
+
     try {
-      // Find the facture by its odoo_id
-      // oxlint-disable-next-line react-doctor/async-await-in-loop
-      const { data: facture } = await supabase
-        .from('factures')
-        .select('id, montant_ttc')
-        .eq('odoo_id', payment.invoice_odoo_id)
-        .maybeSingle();
-
-      if (!facture) {
-        logger.warn(SCOPE, 'Facture not found for payment', {
-          invoice_odoo_id: payment.invoice_odoo_id,
-        });
-        continue;
+      // Upsert chaque reglement reconcilie (dedupe par odoo_id).
+      for (const p of info.payments) {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
+        const { error: upsertErr } = await supabase.from('paiements').upsert(
+          {
+            facture_id: f.id,
+            montant: p.amount,
+            date_reception: p.date,
+            odoo_id: p.odoo_id,
+            saisie_manuelle: false,
+          },
+          { onConflict: 'odoo_id' },
+        );
+        if (upsertErr) {
+          logger.error(SCOPE, 'Upsert paiement failed', {
+            odoo_id: p.odoo_id,
+            error: upsertErr,
+          });
+          errors.push(`Upsert paiement ${p.odoo_id}: ${upsertErr.message}`);
+        } else {
+          pulled++;
+        }
       }
 
-      // Upsert payment (match on odoo_id)
-      const { error: upsertErr } = await supabase.from('paiements').upsert(
-        {
-          facture_id: facture.id,
-          montant: payment.amount,
-          date_reception: payment.date,
-          odoo_id: payment.odoo_id,
-          saisie_manuelle: false,
-        },
-        { onConflict: 'odoo_id' },
-      );
-
-      if (upsertErr) {
-        logger.error(SCOPE, 'Upsert paiement failed', {
-          odoo_id: payment.odoo_id,
-          error: upsertErr,
-        });
-        errors.push(`Upsert paiement ${payment.odoo_id}: ${upsertErr.message}`);
-        continue;
-      }
-
-      // Check if facture is fully paid
-      const { data: totalPaid } = await supabase
-        .from('paiements')
-        .select('montant')
-        .eq('facture_id', facture.id);
-
-      const sum = (totalPaid ?? []).reduce(
-        (acc, p) => acc + Number(p.montant),
-        0,
-      );
-
-      if (sum >= Number(facture.montant_ttc)) {
-        await supabase
+      // Statut paye selon la verite Odoo (payment_state), pas selon la somme
+      // locale : une facture peut etre soldee par un avoir sans reglement cash.
+      const isPaid =
+        info.payment_state === 'paid' || info.payment_state === 'in_payment';
+      if (isPaid && f.statut !== 'payee') {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
+        const { error: updErr } = await supabase
           .from('factures')
           .update({ statut: 'payee' })
-          .eq('id', facture.id);
+          .eq('id', f.id);
+        if (updErr) {
+          errors.push(`Update statut ${f.ref}: ${updErr.message}`);
+        }
       }
-
-      pulled++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      logger.error(SCOPE, 'Process payment failed', {
-        odoo_id: payment.odoo_id,
+      logger.error(SCOPE, 'Process facture payment failed', {
+        ref: f.ref,
         error: err,
       });
-      errors.push(`Payment ${payment.odoo_id}: ${msg}`);
+      errors.push(`Facture ${f.ref}: ${msg}`);
     }
   }
 
-  // Log the pull operation. 'partial' = au moins 1 paiement OK + au moins 1
-  // erreur. Le calcul de `since` au prochain run accepte success ET partial
-  // pour eviter de re-puller indefiniment ces paiements (l'upsert sur odoo_id
-  // les deduplique de toute facon, mais le re-pull est gaspillage).
   const statut: 'success' | 'partial' | 'error' =
     errors.length === 0 ? 'success' : pulled > 0 ? 'partial' : 'error';
   await logSync(supabase, {
     direction: 'pull',
     entity_type: 'paiement',
     statut,
-    payload: { since, count: pulled },
+    payload: { count: pulled, factures_checked: tracked.length },
     erreur: errors.length > 0 ? errors.join('; ') : undefined,
   });
 

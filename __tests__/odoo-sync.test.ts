@@ -29,7 +29,7 @@ const odooMock = {
   ping: vi.fn(),
   pushInvoice: vi.fn(),
   pushCreditNote: vi.fn(),
-  pullPayments: vi.fn(),
+  pullInvoicePayments: vi.fn(),
   pullCancellations: vi.fn(),
   registerPayment: vi.fn(),
   attachInvoicePdf: vi.fn(async () => ({ attachment_id: null, skipped: true })),
@@ -91,6 +91,10 @@ function buildSupabase(handlers: Record<string, FromHandler>) {
       },
       is(col: string, val: unknown) {
         op.filters.push({ kind: 'is', col, val });
+        return chain;
+      },
+      not(col: string, op2: string, val: unknown) {
+        op.filters.push({ kind: 'not', col, val: `${op2}:${val}` });
         return chain;
       },
       order() {
@@ -226,10 +230,10 @@ beforeEach(() => {
   odooMock.ping.mockReset();
   odooMock.pushInvoice.mockReset();
   odooMock.pushCreditNote.mockReset();
-  odooMock.pullPayments.mockReset();
+  odooMock.pullInvoicePayments.mockReset();
   odooMock.pullCancellations.mockReset();
   // Defaults so each test only overrides what it needs.
-  odooMock.pullPayments.mockResolvedValue([]);
+  odooMock.pullInvoicePayments.mockResolvedValue([]);
   odooMock.pullCancellations.mockResolvedValue([]);
 });
 
@@ -247,6 +251,12 @@ describe('syncOdoo - push factures', () => {
         // (est_avoir=false) et un pour pushAvoirs (est_avoir=true). On
         // distingue par l'index d'appel.
         selectResult: async (op) => {
+          // Le pull paiements selectionne aussi les factures (filtre `.not`
+          // sur odoo_id) : on l'ignore ici (aucune facture suivie).
+          const isPullFetch = op.filters.some(
+            (f) => f.kind === 'not' && f.col === 'odoo_id',
+          );
+          if (isPullFetch) return { data: [], error: null };
           const isFactureFetch = op.filters.some(
             (f) => f.kind === 'eq' && f.col === 'est_avoir' && f.val === false,
           );
@@ -395,59 +405,50 @@ describe('syncOdoo - push factures', () => {
   });
 });
 
-describe('syncOdoo - pull paiements', () => {
-  it('applique paiement Odoo a la facture matchee par odoo_id, marque payee si total >= ttc', async () => {
-    odooMock.pullPayments.mockResolvedValue([
+describe('syncOdoo - pull paiements (facture-driven)', () => {
+  // Le pull selectionne les factures emise/en_retard ayant un odoo_id via un
+  // filtre `.not('odoo_id', 'is', null)`. On distingue ce select de celui du
+  // push (qui filtre `.is('odoo_id', null)`) par la presence d'un filtre 'not'.
+  const isPullSelect = (op: RecordedOp) =>
+    op.table === 'factures' &&
+    op.filters.some((f) => f.kind === 'not' && f.col === 'odoo_id');
+
+  it('move Odoo payment_state=paid (reconcilie via releve, sans account.payment) -> upsert paiement + facture payee', async () => {
+    // Cas reel FAC-HEO-0002 : aucun account.payment, mais le move est paye via
+    // reconciliation directe d'une ligne bancaire.
+    odooMock.pullInvoicePayments.mockResolvedValue([
       {
-        odoo_id: '999-42',
-        invoice_odoo_id: '42',
-        amount: 1200,
-        date: '2026-04-15',
+        invoice_odoo_id: '134',
+        payment_state: 'paid',
+        amount_total: 34571.21,
+        amount_residual: 0,
+        payments: [
+          { odoo_id: 'recon-1', amount: 34571.21, date: '2026-05-22' },
+        ],
       },
     ]);
 
-    let totalPaidCallCount = 0;
     const { client, ops } = buildSupabase({
       factures: {
-        selectResult: async (op) => {
-          // Le push fetch a un filtre est_avoir : on retourne []
-          if (
-            op.filters.some((f) => f.kind === 'eq' && f.col === 'est_avoir')
-          ) {
-            return { data: [], error: null };
-          }
-          // Le pull paiements fait un select 'montant' filtered by facture_id
-          // qui est awaite directement (then) sans single().
-          if (
-            op.selectCols === 'montant' &&
-            op.filters.some((f) => f.col === 'facture_id')
-          ) {
-            // unreachable: 'paiements' table not 'factures'
-          }
-          return { data: [], error: null };
-        },
-        maybeSingleResult: async (op) => {
-          // Find by odoo_id = '42'
-          const m = op.filters.find(
-            (f) => f.kind === 'eq' && f.col === 'odoo_id',
-          );
-          if (m && m.val === '42') {
-            return {
-              data: { id: 'fac-local-1', montant_ttc: 1200 },
-              error: null,
-            };
-          }
-          return { data: null, error: null };
-        },
+        selectResult: async (op) =>
+          isPullSelect(op)
+            ? {
+                data: [
+                  {
+                    id: 'fac-local-1',
+                    ref: 'FAC-HEO-0001',
+                    odoo_id: '134',
+                    montant_ttc: 34571.21,
+                    statut: 'en_retard',
+                  },
+                ],
+                error: null,
+              }
+            : { data: [], error: null },
         updateResult: async () => ({ error: null }),
       },
       paiements: {
         upsertResult: async () => ({ error: null }),
-        // select('montant').eq('facture_id', ...) awaited directly
-        selectResult: async () => {
-          totalPaidCallCount++;
-          return { data: [{ montant: 1200 }], error: null };
-        },
       },
       odoo_sync_logs: {
         maybeSingleResult: async () => ({ data: null, error: null }),
@@ -462,18 +463,14 @@ describe('syncOdoo - pull paiements', () => {
     const result = await syncOdoo(client as never);
 
     expect(result.pulled).toBe(1);
-    expect(totalPaidCallCount).toBe(1);
+    expect(odooMock.pullInvoicePayments).toHaveBeenCalledWith(['134']);
 
-    // Upsert paiement avec onConflict odoo_id (idempotent cote pull)
     const upsert = ops.find(
       (o) => o.op === 'upsert' && o.table === 'paiements',
     );
     expect(upsert).toBeDefined();
-    expect(
-      (upsert!.payload as { odoo_id?: string; facture_id?: string }).odoo_id,
-    ).toBe('999-42');
+    expect((upsert!.payload as { odoo_id?: string }).odoo_id).toBe('recon-1');
 
-    // Statut payee mis a jour
     const statutUpdate = ops.find(
       (o) =>
         o.op === 'update' &&
@@ -482,7 +479,6 @@ describe('syncOdoo - pull paiements', () => {
     );
     expect(statutUpdate).toBeDefined();
 
-    // Log pull success inserte (puisque pas d'erreur)
     const log = ops.find(
       (o) =>
         o.op === 'insert' &&
@@ -490,76 +486,121 @@ describe('syncOdoo - pull paiements', () => {
         (o.payload as { direction?: string }).direction === 'pull' &&
         (o.payload as { entity_type?: string }).entity_type === 'paiement',
     );
-    expect(log).toBeDefined();
     expect((log!.payload as { statut?: string }).statut).toBe('success');
   });
 
-  it("statut 'partial' quand au moins 1 paiement OK + au moins 1 erreur", async () => {
-    odooMock.pullPayments.mockResolvedValue([
+  it('paiement partiel (payment_state=partial) -> upsert paiement mais facture PAS marquee payee', async () => {
+    odooMock.pullInvoicePayments.mockResolvedValue([
       {
-        odoo_id: 'p-OK',
-        invoice_odoo_id: 'fac-ok',
-        amount: 500,
-        date: '2026-04-15',
+        invoice_odoo_id: '200',
+        payment_state: 'partial',
+        amount_total: 1000,
+        amount_residual: 500,
+        payments: [{ odoo_id: 'recon-9', amount: 500, date: '2026-05-20' }],
+      },
+    ]);
+
+    const { client, ops } = buildSupabase({
+      factures: {
+        selectResult: async (op) =>
+          isPullSelect(op)
+            ? {
+                data: [
+                  {
+                    id: 'fac-partial',
+                    ref: 'FAC-X-0009',
+                    odoo_id: '200',
+                    montant_ttc: 1000,
+                    statut: 'emise',
+                  },
+                ],
+                error: null,
+              }
+            : { data: [], error: null },
+        updateResult: async () => ({ error: null }),
+      },
+      paiements: { upsertResult: async () => ({ error: null }) },
+      odoo_sync_logs: {
+        maybeSingleResult: async () => ({ data: null, error: null }),
+        insertResult: async () => ({ error: null }),
+      },
+      users: { selectResult: async () => ({ data: [], error: null }) },
+    });
+
+    const { syncOdoo } = await import('@/lib/odoo/sync');
+    const result = await syncOdoo(client as never);
+
+    expect(result.pulled).toBe(1);
+    // Aucune mise a jour statut payee (la facture est partiellement payee).
+    const payeeUpdate = ops.find(
+      (o) =>
+        o.op === 'update' &&
+        o.table === 'factures' &&
+        (o.payload as { statut?: string }).statut === 'payee',
+    );
+    expect(payeeUpdate).toBeUndefined();
+  });
+
+  it("statut 'partial' quand au moins 1 upsert OK + au moins 1 KO", async () => {
+    odooMock.pullInvoicePayments.mockResolvedValue([
+      {
+        invoice_odoo_id: '301',
+        payment_state: 'paid',
+        amount_total: 1000,
+        amount_residual: 0,
+        payments: [{ odoo_id: 'recon-OK', amount: 1000, date: '2026-05-15' }],
       },
       {
-        odoo_id: 'p-FAIL',
-        invoice_odoo_id: 'fac-fail',
-        amount: 700,
-        date: '2026-04-16',
+        invoice_odoo_id: '302',
+        payment_state: 'paid',
+        amount_total: 700,
+        amount_residual: 0,
+        payments: [{ odoo_id: 'recon-FAIL', amount: 700, date: '2026-05-16' }],
       },
     ]);
 
     let upsertCalls = 0;
     const { client, ops } = buildSupabase({
       factures: {
-        selectResult: async (op) => {
-          if (
-            op.filters.some((f) => f.kind === 'eq' && f.col === 'est_avoir')
-          ) {
-            return { data: [], error: null };
-          }
-          return { data: [], error: null };
-        },
-        maybeSingleResult: async (op) => {
-          const m = op.filters.find(
-            (f) => f.kind === 'eq' && f.col === 'odoo_id',
-          );
-          if (m?.val === 'fac-ok')
-            return {
-              data: { id: 'fac-ok-id', montant_ttc: 1000 },
-              error: null,
-            };
-          if (m?.val === 'fac-fail')
-            return {
-              data: { id: 'fac-fail-id', montant_ttc: 1000 },
-              error: null,
-            };
-          return { data: null, error: null };
-        },
+        selectResult: async (op) =>
+          isPullSelect(op)
+            ? {
+                data: [
+                  {
+                    id: 'fac-ok-id',
+                    ref: 'FAC-A',
+                    odoo_id: '301',
+                    montant_ttc: 1000,
+                    statut: 'en_retard',
+                  },
+                  {
+                    id: 'fac-fail-id',
+                    ref: 'FAC-B',
+                    odoo_id: '302',
+                    montant_ttc: 700,
+                    statut: 'en_retard',
+                  },
+                ],
+                error: null,
+              }
+            : { data: [], error: null },
         updateResult: async () => ({ error: null }),
       },
       paiements: {
         upsertResult: async (op) => {
           upsertCalls++;
           const odooId = (op.payload as { odoo_id?: string }).odoo_id;
-          if (odooId === 'p-FAIL') {
+          if (odooId === 'recon-FAIL') {
             return { error: { message: 'unique violation random' } };
           }
           return { error: null };
         },
-        selectResult: async () => ({
-          data: [{ montant: 500 }],
-          error: null,
-        }),
       },
       odoo_sync_logs: {
         maybeSingleResult: async () => ({ data: null, error: null }),
         insertResult: async () => ({ error: null }),
       },
-      users: {
-        selectResult: async () => ({ data: [], error: null }),
-      },
+      users: { selectResult: async () => ({ data: [], error: null }) },
     });
 
     const { syncOdoo } = await import('@/lib/odoo/sync');
@@ -576,72 +617,65 @@ describe('syncOdoo - pull paiements', () => {
         (o.payload as { direction?: string }).direction === 'pull' &&
         (o.payload as { entity_type?: string }).entity_type === 'paiement',
     );
-    expect(log).toBeDefined();
     expect((log!.payload as { statut?: string }).statut).toBe('partial');
   });
 
-  it("checkpoint 'since' : lit dernier log 'success' OU 'partial', filtre 'error' exclu", async () => {
-    odooMock.pullPayments.mockResolvedValue([]);
-
-    let observedSinceFilter: { col?: string; vals?: unknown } | undefined;
-    const { client } = buildSupabase({
+  it('aucune facture suivie -> success count 0, Odoo pas interroge', async () => {
+    const { client, ops } = buildSupabase({
       factures: {
         selectResult: async () => ({ data: [], error: null }),
-        maybeSingleResult: async () => ({ data: null, error: null }),
       },
       odoo_sync_logs: {
-        maybeSingleResult: async (op) => {
-          // Capture le filtre `in('statut', [...])` du select 'since'
-          const inFilter = op.filters.find(
-            (f) => f.kind === 'in' && f.col === 'statut',
-          );
-          if (inFilter) {
-            observedSinceFilter = { col: inFilter.col, vals: inFilter.vals };
-          }
-          return {
-            data: { created_at: '2026-04-20T10:00:00Z' },
-            error: null,
-          };
-        },
+        maybeSingleResult: async () => ({ data: null, error: null }),
         insertResult: async () => ({ error: null }),
       },
-      users: {
-        selectResult: async () => ({ data: [], error: null }),
-      },
+      users: { selectResult: async () => ({ data: [], error: null }) },
     });
 
     const { syncOdoo } = await import('@/lib/odoo/sync');
-    await syncOdoo(client as never);
+    const result = await syncOdoo(client as never);
 
-    expect(observedSinceFilter).toBeDefined();
-    const vals = observedSinceFilter!.vals as string[];
-    expect(vals).toContain('success');
-    expect(vals).toContain('partial');
-    expect(vals).not.toContain('error');
-    expect(vals).not.toContain('retry');
+    expect(result.pulled).toBe(0);
+    expect(odooMock.pullInvoicePayments).not.toHaveBeenCalled();
 
-    // Le `since` capture est passe a Odoo (preuve qu'il n'a pas ete reset
-    // a l'epoch alors qu'un log valide existait)
-    expect(odooMock.pullPayments).toHaveBeenCalledWith('2026-04-20T10:00:00Z');
+    const log = ops.find(
+      (o) =>
+        o.op === 'insert' &&
+        o.table === 'odoo_sync_logs' &&
+        (o.payload as { direction?: string }).direction === 'pull' &&
+        (o.payload as { entity_type?: string }).entity_type === 'paiement',
+    );
+    expect((log!.payload as { statut?: string }).statut).toBe('success');
   });
 
-  it("Odoo en panne (pullPayments throw) : sync se termine, log 'error', pas d'exception", async () => {
-    odooMock.pullPayments.mockRejectedValue(
+  it("Odoo en panne (pullInvoicePayments throw) : sync se termine, log 'error', pas d'exception", async () => {
+    odooMock.pullInvoicePayments.mockRejectedValue(
       new Error('Odoo unreachable: ECONNREFUSED'),
     );
 
     const { client, ops } = buildSupabase({
       factures: {
-        selectResult: async () => ({ data: [], error: null }),
-        maybeSingleResult: async () => ({ data: null, error: null }),
+        selectResult: async (op) =>
+          isPullSelect(op)
+            ? {
+                data: [
+                  {
+                    id: 'fac-1',
+                    ref: 'FAC-Z',
+                    odoo_id: '999',
+                    montant_ttc: 100,
+                    statut: 'en_retard',
+                  },
+                ],
+                error: null,
+              }
+            : { data: [], error: null },
       },
       odoo_sync_logs: {
         maybeSingleResult: async () => ({ data: null, error: null }),
         insertResult: async () => ({ error: null }),
       },
-      users: {
-        selectResult: async () => ({ data: [], error: null }),
-      },
+      users: { selectResult: async () => ({ data: [], error: null }) },
     });
 
     const { syncOdoo } = await import('@/lib/odoo/sync');
@@ -651,9 +685,8 @@ describe('syncOdoo - pull paiements', () => {
 
     expect(result.pulled).toBe(0);
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors.join(' ')).toMatch(/pullPayments/);
+    expect(result.errors.join(' ')).toMatch(/pullInvoicePayments/);
 
-    // Log 'error' inscrit pour le pull paiement
     const errorLog = ops.find(
       (o) =>
         o.op === 'insert' &&

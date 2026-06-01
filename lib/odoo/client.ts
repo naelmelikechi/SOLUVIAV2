@@ -30,11 +30,20 @@ export interface OdooInvoicePayload {
   odoo_journal_id?: number | null;
 }
 
-export interface OdooPayment {
-  odoo_id: string;
+/**
+ * Etat de paiement d'une facture Odoo, lu directement sur l'account.move (la
+ * source de verite). Robuste a toutes les methodes de reconciliation :
+ * account.payment classique, rapprochement direct d'une ligne bancaire (qui ne
+ * cree PAS d'account.payment), avoir applique, etc.
+ */
+export interface OdooInvoicePayment {
   invoice_odoo_id: string;
-  amount: number;
-  date: string;
+  /** 'not_paid' | 'in_payment' | 'paid' | 'partial' | 'reversed' */
+  payment_state: string;
+  amount_total: number;
+  amount_residual: number;
+  /** Reglements en numeraire reconcilies (avoirs exclus). */
+  payments: { odoo_id: string; amount: number; date: string }[];
 }
 
 export interface OdooCancelledMove {
@@ -59,7 +68,13 @@ export interface OdooClient {
   ping(): Promise<OdooPingResult>;
   pushInvoice(payload: OdooInvoicePayload): Promise<{ odoo_id: string }>;
   pushCreditNote(payload: OdooInvoicePayload): Promise<{ odoo_id: string }>;
-  pullPayments(since: string): Promise<OdooPayment[]>;
+  /**
+   * Lit l'etat de paiement des factures Odoo donnees (par move id). Approche
+   * facture-driven : on interroge la source de verite (account.move) plutot que
+   * de scraper account.payment, ce qui rate les reconciliations faites au niveau
+   * releve bancaire.
+   */
+  pullInvoicePayments(moveIds: string[]): Promise<OdooInvoicePayment[]>;
   pullCancellations(since: string): Promise<OdooCancelledMove[]>;
   /**
    * Enregistre un paiement sur une facture posted dans Odoo via le wizard
@@ -548,41 +563,70 @@ class OdooJsonRpcClient implements OdooClient {
     return { analytic_line_odoo_id: id, skipped: false };
   }
 
-  // -------- Pull payments --------
+  // -------- Pull invoice payments (facture-driven) --------
 
-  async pullPayments(since: string): Promise<OdooPayment[]> {
-    type PaymentRecord = {
-      id: number;
+  async pullInvoicePayments(moveIds: string[]): Promise<OdooInvoicePayment[]> {
+    const ids = moveIds
+      .map((m) => Number(m))
+      .filter((n) => Number.isInteger(n) && n > 0);
+    if (ids.length === 0) return [];
+
+    type WidgetEntry = {
       amount: number;
       date: string;
-      reconciled_invoice_ids: number[];
+      partial_id?: number;
+      is_refund?: boolean;
+      account_payment_id?: number | false;
+    };
+    type Widget = { content?: WidgetEntry[] } | false;
+    type MoveRow = {
+      id: number;
+      payment_state: string;
+      amount_total: number;
+      amount_residual: number;
+      invoice_payments_widget: Widget;
     };
 
-    const payments = await this.executeKw<PaymentRecord[]>(
-      'account.payment',
-      'search_read',
-      [
-        [
-          ['state', '=', 'posted'],
-          ['payment_type', '=', 'inbound'],
-          ['date', '>=', since.slice(0, 10)],
+    const moves = await this.executeKw<MoveRow[]>(
+      'account.move',
+      'read',
+      [ids],
+      {
+        fields: [
+          'payment_state',
+          'amount_total',
+          'amount_residual',
+          'invoice_payments_widget',
         ],
-      ],
-      { fields: ['id', 'amount', 'date', 'reconciled_invoice_ids'] },
+      },
     );
 
-    const result: OdooPayment[] = [];
-    for (const p of payments) {
-      for (const invoiceId of p.reconciled_invoice_ids) {
-        result.push({
-          odoo_id: `${p.id}-${invoiceId}`,
-          invoice_odoo_id: String(invoiceId),
-          amount: Number(p.amount),
-          date: p.date,
-        });
-      }
-    }
-    return result;
+    return moves.map((m) => {
+      const widget = m.invoice_payments_widget;
+      const content =
+        widget && typeof widget === 'object' ? (widget.content ?? []) : [];
+      // Avoirs exclus (is_refund) : ce ne sont pas des reglements en numeraire.
+      // odoo_id reste compatible avec le format des paiements manuels
+      // (`${account_payment_id}-${moveId}`) pour deduper ; fallback sur l'id de
+      // reconciliation partielle pour les rapprochements directs de releve.
+      const payments = content
+        .filter((c) => !c.is_refund)
+        .map((c, i) => ({
+          odoo_id:
+            typeof c.account_payment_id === 'number'
+              ? `${c.account_payment_id}-${m.id}`
+              : `recon-${c.partial_id ?? `${m.id}-${i}`}`,
+          amount: Number(c.amount),
+          date: c.date,
+        }));
+      return {
+        invoice_odoo_id: String(m.id),
+        payment_state: m.payment_state,
+        amount_total: Number(m.amount_total),
+        amount_residual: Number(m.amount_residual),
+        payments,
+      };
+    });
   }
 
   // -------- Register payment (manual reconciliation) --------
@@ -797,8 +841,10 @@ function createStubOdooClient(): OdooClient {
       });
       return { odoo_id };
     },
-    async pullPayments(since) {
-      logger.info(SCOPE, 'pullPayments (stub)', { since });
+    async pullInvoicePayments(moveIds) {
+      logger.info(SCOPE, 'pullInvoicePayments (stub)', {
+        count: moveIds.length,
+      });
       return [];
     },
     async pullCancellations(since) {

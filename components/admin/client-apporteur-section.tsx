@@ -93,7 +93,12 @@ export function ClientApporteurSection({
                 onValueChange={(v) => setSelectedId(v ?? NONE_VALUE)}
               >
                 <SelectTrigger className="w-full" id="apporteur-select">
-                  <SelectValue placeholder="Aucun apporteur" />
+                  <SelectValue placeholder="Aucun apporteur">
+                    {(v) => {
+                      const u = users.find((x) => x.id === v);
+                      return u ? `${u.prenom} ${u.nom}` : 'Aucun apporteur';
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE_VALUE}>Aucun apporteur</SelectItem>

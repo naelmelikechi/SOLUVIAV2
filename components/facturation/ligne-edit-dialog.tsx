@@ -308,7 +308,17 @@ function LigneEditDialogInner({
                         ? 'Chargement…'
                         : 'Sélectionner un contrat'
                     }
-                  />
+                  >
+                    {(v) => {
+                      const c = (projetData?.contrats ?? []).find(
+                        (x) => x.id === v,
+                      );
+                      if (c) return formatContratLabel(c);
+                      return loadingContrats
+                        ? 'Chargement…'
+                        : 'Sélectionner un contrat';
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {(projetData?.contrats ?? []).map((c) => (

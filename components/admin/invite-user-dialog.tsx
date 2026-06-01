@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { inviteUser } from '@/lib/actions/users';
+import { getRoleLabel } from '@/lib/utils/roles';
 
 interface InviteUserDialogProps {
   open: boolean;
@@ -124,7 +125,9 @@ export function InviteUserDialog({
             <Label htmlFor="invite-role">Rôle</Label>
             <Select value={role} onValueChange={(v) => setRole(v ?? 'cdp')}>
               <SelectTrigger className="w-full" id="invite-role">
-                <SelectValue placeholder="Sélectionner un rôle" />
+                <SelectValue placeholder="Sélectionner un rôle">
+                  {(v) => (v ? getRoleLabel(v) : 'Sélectionner un rôle')}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="cdp">CDP</SelectItem>

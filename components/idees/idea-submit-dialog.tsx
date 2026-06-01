@@ -142,7 +142,13 @@ export function IdeaSubmitDialog({
               onValueChange={(v) => setCible((v ?? 'soluvia') as CibleIdee)}
             >
               <SelectTrigger className="w-full" id="idea-cible">
-                <SelectValue />
+                <SelectValue>
+                  {(v) =>
+                    v
+                      ? (CIBLE_IDEE_LABELS[v as CibleIdee] ?? v)
+                      : 'Sélectionner'
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(CIBLE_IDEE_LABELS).map(([key, label]) => (

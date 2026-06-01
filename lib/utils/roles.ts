@@ -47,6 +47,8 @@ export function getRoleLabel(role: string | null | undefined): string {
       return 'Superadmin';
     case 'admin':
       return 'Admin';
+    case 'commercial':
+      return 'Commercial';
     case 'cdp':
       return 'CDP';
     default:

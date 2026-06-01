@@ -233,7 +233,13 @@ export function AvoirDialog({
                 onValueChange={(v) => setContratId(v ?? '')}
               >
                 <SelectTrigger className="w-full" id="contrat_avoir">
-                  <SelectValue placeholder="Sélectionner un contrat" />
+                  <SelectValue placeholder="Sélectionner un contrat">
+                    {(v) => {
+                      const c = contrats.find((x) => x.contratId === v);
+                      if (!c) return 'Sélectionner un contrat';
+                      return `${c.apprenant || '-'}${c.ref ? ` · ${c.ref}` : ''}`;
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {contrats.map((c) => (

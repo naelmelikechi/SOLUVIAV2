@@ -31,7 +31,7 @@ import {
   resetUserPassword,
 } from '@/lib/actions/users';
 import { Checkbox } from '@/components/ui/checkbox';
-import { isAdmin } from '@/lib/utils/roles';
+import { isAdmin, getRoleLabel } from '@/lib/utils/roles';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { UserCostSection } from '@/components/admin/user-cost-section';
 import type { UserListItem } from '@/lib/queries/users';
@@ -228,7 +228,9 @@ export function UserEditDialog({
             <Label htmlFor="edit-role">Rôle</Label>
             <Select value={role} onValueChange={(v) => setRole(v ?? 'cdp')}>
               <SelectTrigger className="w-full" id="edit-role">
-                <SelectValue placeholder="Sélectionner un rôle" />
+                <SelectValue placeholder="Sélectionner un rôle">
+                  {(v) => (v ? getRoleLabel(v) : 'Sélectionner un rôle')}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="cdp">CDP</SelectItem>
@@ -242,7 +244,15 @@ export function UserEditDialog({
             <Label htmlFor="edit-actif">Statut</Label>
             <Select value={actif} onValueChange={(v) => setActif(v ?? 'true')}>
               <SelectTrigger className="w-full" id="edit-actif">
-                <SelectValue placeholder="Sélectionner un statut" />
+                <SelectValue placeholder="Sélectionner un statut">
+                  {(v) =>
+                    v === 'true'
+                      ? 'Actif'
+                      : v === 'false'
+                        ? 'Inactif'
+                        : 'Sélectionner un statut'
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="true">Actif</SelectItem>

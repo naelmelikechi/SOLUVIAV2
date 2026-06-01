@@ -133,7 +133,12 @@ export function ProjetCreateDialog({
               onValueChange={(v) => setClientId(v ?? '')}
             >
               <SelectTrigger className="w-full" id="client">
-                <SelectValue placeholder="Sélectionner un client" />
+                <SelectValue placeholder="Sélectionner un client">
+                  {(v) =>
+                    clients.find((c) => c.id === v)?.raison_sociale ??
+                    'Sélectionner un client'
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {clients.map((c) => (
@@ -153,7 +158,12 @@ export function ProjetCreateDialog({
               onValueChange={(v) => setTypologieId(v ?? '')}
             >
               <SelectTrigger className="w-full" id="typologie">
-                <SelectValue placeholder="Sélectionner une typologie" />
+                <SelectValue placeholder="Sélectionner une typologie">
+                  {(v) =>
+                    activeTypologies.find((t) => t.id === v)?.libelle ??
+                    'Sélectionner une typologie'
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {activeTypologies.map((t) => (
@@ -170,7 +180,12 @@ export function ProjetCreateDialog({
             <Label htmlFor="cdp">Chef de projet</Label>
             <Select value={cdpId} onValueChange={(v) => setCdpId(v ?? '')}>
               <SelectTrigger className="w-full" id="cdp">
-                <SelectValue placeholder="Sélectionner un CDP" />
+                <SelectValue placeholder="Sélectionner un CDP">
+                  {(v) => {
+                    const u = users.find((x) => x.id === v);
+                    return u ? `${u.prenom} ${u.nom}` : 'Sélectionner un CDP';
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {users.map((u) => (
@@ -190,7 +205,12 @@ export function ProjetCreateDialog({
               onValueChange={(v) => setBackupCdpId(v ?? '')}
             >
               <SelectTrigger className="w-full" id="backup_cdp">
-                <SelectValue placeholder="Aucun" />
+                <SelectValue placeholder="Aucun">
+                  {(v) => {
+                    const u = users.find((x) => x.id === v);
+                    return u ? `${u.prenom} ${u.nom}` : 'Aucun';
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Aucun</SelectItem>

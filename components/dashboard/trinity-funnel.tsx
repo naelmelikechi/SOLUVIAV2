@@ -49,7 +49,7 @@ export function TrinityFunnel({
         {/* Card 1 - Production */}
         <div className="from-card to-muted/30 bg-gradient-to-b p-5">
           <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-            Production
+            Production HT
           </div>
           <div className="num mt-2 text-3xl font-bold tracking-tight">
             {formatCurrency(production)}
@@ -81,7 +81,7 @@ export function TrinityFunnel({
         {/* Card 2 - Facturé */}
         <div className="bg-card p-5">
           <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-            Facturé
+            Facturé HT
           </div>
           <div className="num mt-2 text-3xl font-bold tracking-tight">
             {formatCurrency(facture)}
@@ -96,7 +96,7 @@ export function TrinityFunnel({
         {/* Card 3 - Encaissé */}
         <div className="bg-card p-5">
           <div className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
-            Encaissé
+            Encaissé HT
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="num text-3xl font-bold tracking-tight">

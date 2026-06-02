@@ -15,9 +15,9 @@ describe('TrinityFunnel', () => {
         productionTrend={12}
       />,
     );
-    expect(screen.getByText('Production')).toBeDefined();
-    expect(screen.getByText('Facturé')).toBeDefined();
-    expect(screen.getByText('Encaissé')).toBeDefined();
+    expect(screen.getByText('Production HT')).toBeDefined();
+    expect(screen.getByText('Facturé HT')).toBeDefined();
+    expect(screen.getByText('Encaissé HT')).toBeDefined();
   });
 
   it('affiche le taux de recouvrement (encaisse / facture)', () => {

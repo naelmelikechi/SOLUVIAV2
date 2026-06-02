@@ -11,6 +11,7 @@ import {
   groupContratsByType,
 } from '@/lib/utils/kpi-computations';
 import { ACTIVE_CONTRACT_STATES } from '@/lib/utils/contrat-states';
+import { encaisseHt } from '@/lib/utils/montant-ht';
 import { computeQualiopiCompletionForClients } from '@/lib/queries/qualiopi-stats';
 
 export const maxDuration = 300;
@@ -172,7 +173,7 @@ async function computeKpisForScope(
   let paiementsQ: any = supabase
     .from('paiements')
     .select(
-      'montant, facture:factures!paiements_facture_id_fkey!inner(projet_id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive), cdp_id, backup_cdp_id))',
+      'montant, facture:factures!paiements_facture_id_fkey!inner(montant_ht, montant_ttc, projet_id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive), cdp_id, backup_cdp_id))',
     )
     .eq('facture.projet.client.is_demo', false)
     .eq('facture.projet.client.archive', false);
@@ -220,8 +221,21 @@ async function computeKpisForScope(
   const totalFactureHt = factures
     .filter((f: { est_avoir: boolean }) => !f.est_avoir)
     .reduce((s: number, f: { montant_ht: number }) => s + f.montant_ht, 0);
+  // Encaissé en HT (prorata HT/TTC de chaque facture), cohérent avec total_facture_ht.
   const totalEncaisse = (paiementsRes.data ?? []).reduce(
-    (s: number, p: { montant: number }) => s + p.montant,
+    (
+      s: number,
+      p: {
+        montant: number;
+        facture?: { montant_ht: number; montant_ttc: number } | null;
+      },
+    ) =>
+      s +
+      encaisseHt(
+        p.montant,
+        p.facture?.montant_ht ?? 0,
+        p.facture?.montant_ttc ?? 0,
+      ),
     0,
   );
 

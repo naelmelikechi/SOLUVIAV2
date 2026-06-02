@@ -19,9 +19,9 @@ interface Props {
 }
 
 const LEGEND_LABELS: Record<string, string> = {
-  production: 'Production',
-  facture: 'Facturé',
-  encaisse: 'Encaissé',
+  production: 'Production HT',
+  facture: 'Facturé HT',
+  encaisse: 'Encaissé HT',
 };
 
 function CustomTooltip({

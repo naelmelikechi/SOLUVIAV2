@@ -222,7 +222,7 @@ function formatEur(n: number): string {
   // (U+202F) que Intl.NumberFormat fr-FR utilise comme separateur de
   // milliers - il est rendu en glyphe fallback ressemblant a un slash
   // ("3/132,00 €" au lieu de "3 132,00 €"). On normalise en espace simple.
-  return eurFormatter.format(n).replace(/[  ]/g, ' ');
+  return eurFormatter.format(n).replace(/\s/g, ' ');
 }
 
 interface FacturePdfProps {

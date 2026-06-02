@@ -112,6 +112,20 @@ const styles = StyleSheet.create({
     padding: 12,
     minHeight: 80,
   },
+  // Cachet SOLUVIA appose automatiquement (encadre interne facon tampon).
+  cachet: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#16a34a',
+    borderRadius: 4,
+    padding: 8,
+  },
+  cachetName: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: '#16a34a',
+  },
+  cachetLine: { fontSize: 7, color: '#15803d', marginTop: 1 },
   footer: {
     position: 'absolute',
     bottom: 40,
@@ -160,6 +174,17 @@ export function DevisPdf({
     soc?.mentions_legales ??
     `Devis valable jusqu'au ${formatDate(devis.date_validite)}. TVA 20% applicable.`;
 
+  const raisonSociale = soc?.raison_sociale ?? 'SOLUVIA';
+  // Cachet appose automatiquement : ville d'emission + date du devis.
+  const villeCachet = soc?.ville ?? 'Niort';
+  const dateCachet = formatDate(
+    // oxlint-disable-next-line react-doctor/rendering-hydration-mismatch-time
+    devis.date_emission ?? new Date().toISOString().slice(0, 10),
+  );
+  // Evite la ligne d'identite dupliquee dans le footer quand
+  // `mentions_legales` contient deja le SIRET (cas par defaut en base).
+  const footerMentionsIdentite = soc ? mentions.includes(soc.siret) : false;
+
   // Group TVA rates for totals display
   const tvaGroups = lignes.reduce<Record<number, number>>((acc, l) => {
     const taux = Number(l.taux_tva);
@@ -196,7 +221,7 @@ export function DevisPdf({
               )}
             </Text>
             {devis.date_validite ? (
-              <Text>Validite : {formatDate(devis.date_validite)}</Text>
+              <Text>Validité : {formatDate(devis.date_validite)}</Text>
             ) : null}
           </View>
         </View>
@@ -208,9 +233,18 @@ export function DevisPdf({
             <>
               <Text style={styles.bold}>{client.raison_sociale}</Text>
               {client.adresse ? <Text>{client.adresse}</Text> : null}
+              {client.localisation ? <Text>{client.localisation}</Text> : null}
+              {client.siret ? (
+                <Text style={styles.muted}>SIRET {client.siret}</Text>
+              ) : null}
+              {client.tva_intracommunautaire ? (
+                <Text style={styles.muted}>
+                  TVA {client.tva_intracommunautaire}
+                </Text>
+              ) : null}
             </>
           ) : (
-            <Text style={styles.muted}>Client non specifie</Text>
+            <Text style={styles.muted}>Client non spécifié</Text>
           )}
         </View>
 
@@ -223,8 +257,8 @@ export function DevisPdf({
         {/* Table lignes */}
         <View style={styles.tableHeader}>
           <Text style={[styles.colNum, styles.bold]}>#</Text>
-          <Text style={[styles.colLibelle, styles.bold]}>Libelle</Text>
-          <Text style={[styles.colQte, styles.bold]}>Qte</Text>
+          <Text style={[styles.colLibelle, styles.bold]}>Libellé</Text>
+          <Text style={[styles.colQte, styles.bold]}>Qté</Text>
           <Text style={[styles.colPu, styles.bold]}>PU HT</Text>
           <Text style={[styles.colMontant, styles.bold]}>Montant HT</Text>
         </View>
@@ -271,7 +305,7 @@ export function DevisPdf({
 
         {/* Modalites de paiement + RIB */}
         <View style={styles.paymentBox} wrap={false}>
-          <Text style={styles.label}>Modalites de paiement</Text>
+          <Text style={styles.label}>Modalités de paiement</Text>
           <Text style={{ marginTop: 4 }}>{conditions}</Text>
           {soc?.banque_nom ? (
             <>
@@ -298,17 +332,33 @@ export function DevisPdf({
         {/* Signature */}
         <View style={styles.signatureRow} wrap={false}>
           <View style={styles.signatureBox}>
-            <Text style={styles.label}>
-              Pour {soc?.raison_sociale ?? 'SOLUVIA'}
-            </Text>
+            <Text style={styles.label}>Pour {raisonSociale}</Text>
             <Text style={[styles.muted, { fontSize: 8 }]}>
-              Date, cachet et signature
+              {villeCachet}, le {dateCachet}
             </Text>
+            {/* Cachet appose automatiquement (bloc tampon). */}
+            <View style={styles.cachet}>
+              <Text style={styles.cachetName}>{raisonSociale}</Text>
+              {soc?.forme_juridique || soc?.capital_social ? (
+                <Text style={styles.cachetLine}>
+                  {soc?.forme_juridique ?? ''}
+                  {soc?.capital_social
+                    ? ` au capital de ${formatEur(Number(soc.capital_social))}`
+                    : ''}
+                </Text>
+              ) : null}
+              {soc?.siret ? (
+                <Text style={styles.cachetLine}>SIRET {soc.siret}</Text>
+              ) : null}
+              <Text style={styles.cachetLine}>
+                {villeCachet}, le {dateCachet}
+              </Text>
+            </View>
           </View>
           <View style={styles.signatureBox}>
             <Text style={styles.label}>Bon pour accord - Client</Text>
             <Text style={[styles.muted, { fontSize: 8 }]}>
-              {`Date, cachet et signature precedes de la mention manuscrite "Bon pour accord"`}
+              {`Date, cachet et signature précédés de la mention manuscrite "Bon pour accord"`}
             </Text>
           </View>
         </View>
@@ -316,7 +366,7 @@ export function DevisPdf({
         {/* Footer */}
         <View style={styles.footer} fixed>
           <Text>{mentions}</Text>
-          {soc ? (
+          {soc && !footerMentionsIdentite ? (
             <Text style={{ marginTop: 4 }}>
               {soc.raison_sociale} - SIRET {soc.siret} - TVA {soc.tva_intracom}
             </Text>

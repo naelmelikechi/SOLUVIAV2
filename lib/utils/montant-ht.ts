@@ -21,3 +21,15 @@ export function encaisseHt(
 ): number {
   return paiementsTtc * htRatio(montantHt, montantTtc);
 }
+
+/** Taux de TVA standard (France métropole) appliqué aux commissions SOLUVIA. */
+export const TVA_RATE = 0.2;
+
+/**
+ * Déduit le HT d'un montant TTC connu (TVA 20% par défaut).
+ * Utilisé pour la production SOLUVIA théorique : la commission est définie en
+ * TTC (taux × NPEC), on en déduit le HT pour l'affichage.
+ */
+export function ttcToHt(montantTtc: number, tvaRate = TVA_RATE): number {
+  return montantTtc / (1 + tvaRate);
+}

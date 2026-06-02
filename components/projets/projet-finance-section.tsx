@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import type { ProjetFinance } from '@/lib/queries/projets';
 import { formatCurrency } from '@/lib/utils/formatters';
+import { ttcToHt } from '@/lib/utils/montant-ht';
 import { Card } from '@/components/ui/card';
 import { CommissionRateBadge } from '@/components/projets/commission-rate-badge';
 
@@ -46,7 +47,8 @@ export function ProjetFinanceSection({
     );
   }
 
-  const commSoluvia = finance.taux_commission / 100;
+  // Commission SOLUVIA en HT : taux × base donne le TTC, on en déduit le HT (/1.2).
+  const commSoluvia = ttcToHt(finance.taux_commission / 100);
 
   const raf_opco = finance.production_opco - finance.facture_opco;
   const rae_opco = finance.facture_opco - finance.encaisse_opco;

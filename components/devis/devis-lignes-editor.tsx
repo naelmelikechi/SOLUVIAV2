@@ -5,6 +5,7 @@ import { Plus, Trash2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { addLigne, updateLigne, deleteLigne } from '@/lib/actions/devis';
 import { useRouter } from 'next/navigation';
 import type { DevisLigneRow } from '@/lib/queries/devis';
@@ -229,12 +230,14 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
               <label className="text-muted-foreground mb-1 block text-xs font-medium">
                 Description (optionnel)
               </label>
-              <Input
+              <Textarea
+                rows={1}
                 placeholder="Description (optionnel)"
                 value={row.description}
                 onChange={(e) =>
                   updateRow(row.id, { description: e.target.value })
                 }
+                className="min-h-9 resize-none"
               />
             </div>
           </div>

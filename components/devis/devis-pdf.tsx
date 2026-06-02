@@ -131,7 +131,10 @@ const eurFormatter = new Intl.NumberFormat('fr-FR', {
 
 function formatEur(n: number | null | undefined): string {
   if (n == null) return '0,00 EUR';
-  return eurFormatter.format(n).replace(/[  ]/g, ' ');
+  // Intl fr-FR utilise U+202F (espace fine insecable) comme separateur de
+  // milliers et U+00A0 avant le €. La police Helvetica du PDF n'a pas le
+  // glyphe U+202F (rendu comme "/"). On normalise tout espace en espace ASCII.
+  return eurFormatter.format(n).replace(/\s/g, ' ');
 }
 
 function formatDate(s: string | null | undefined): string {

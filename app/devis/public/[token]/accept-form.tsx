@@ -24,8 +24,10 @@ export function AcceptForm({
   const [engage, setEngage] = useState(false);
   const [pending, start] = useTransition();
 
+  const emailValide = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   function submit() {
-    if (!nom || !email || !engage) return;
+    if (!nom || !emailValide || !engage) return;
     start(async () => {
       const res = await acceptDevisPublicAction(token, nom, email);
       if (res.success) {
@@ -46,7 +48,7 @@ export function AcceptForm({
           id="nom"
           value={nom}
           onChange={(e) => setNom(e.target.value)}
-          placeholder="Prenom Nom"
+          placeholder="Prénom Nom"
         />
       </div>
       <div className="space-y-2">
@@ -58,6 +60,11 @@ export function AcceptForm({
           onChange={(e) => setEmail(e.target.value)}
           placeholder="vous@entreprise.fr"
         />
+        {email.length > 0 && !emailValide && (
+          <p className="text-destructive text-xs">
+            Format d&apos;email invalide.
+          </p>
+        )}
       </div>
       <div className="flex items-start gap-2">
         <Checkbox
@@ -76,9 +83,9 @@ export function AcceptForm({
         </Button>
         <Button
           onClick={submit}
-          disabled={!nom || !email || !engage || pending}
+          disabled={!nom || !emailValide || !engage || pending}
         >
-          {pending ? 'Envoi...' : "Confirmer l'acceptation"}
+          {pending ? 'Envoi…' : "Confirmer l'acceptation"}
         </Button>
       </div>
     </div>

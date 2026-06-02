@@ -55,6 +55,15 @@ interface DevisPublicPayload {
   };
 }
 
+const STATUT_LABELS: Record<string, string> = {
+  envoye: 'En attente',
+  accepte: 'Accepté',
+  refuse: 'Refusé',
+  expire: 'Expiré',
+  remplace: 'Remplacé',
+  annule: 'Annulé',
+};
+
 export function DevisPublicView({
   token,
   payload,
@@ -107,7 +116,7 @@ export function DevisPublicView({
             <p className="text-sm text-gray-500">{societe.raison_sociale}</p>
           </div>
           <Badge variant="outline">
-            {devis.statut === 'envoye' ? 'En attente' : devis.statut}
+            {STATUT_LABELS[devis.statut] ?? devis.statut}
           </Badge>
         </div>
         <p className="mt-4 text-sm">

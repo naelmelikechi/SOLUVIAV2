@@ -74,7 +74,6 @@ export function DocumentPreviewSheet({
           <iframe
             src={url}
             title={fileName || 'Document'}
-            sandbox=""
             className="size-full flex-1 border-0 bg-white"
           />
         )}

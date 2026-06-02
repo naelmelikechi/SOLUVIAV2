@@ -3,9 +3,15 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Copy, Download, Send, XCircle } from 'lucide-react';
+import { Copy, Download, Eye, Loader2, Send, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { DevisStatusBadge } from './devis-status-badge';
 import { DevisLignesEditor } from './devis-lignes-editor';
@@ -25,6 +31,8 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
   const [factureDialogOpen, setFactureDialogOpen] = useState(false);
   const [cancelPending, startCancel] = useTransition();
   const [revisePending, startRevise] = useTransition();
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
 
   const isBrouillon = devis.statut === 'brouillon';
   const isEnvoye = devis.statut === 'envoye';
@@ -97,6 +105,16 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
               <Button onClick={() => setSendOpen(true)}>
                 <Send className="mr-2 size-4" />
                 Envoyer
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPreviewLoaded(false);
+                  setPreviewOpen(true);
+                }}
+              >
+                <Eye className="mr-2 size-4" />
+                Aperçu
               </Button>
               <Button
                 variant="ghost"
@@ -329,6 +347,50 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
           </table>
         </div>
       )}
+
+      {/* Apercu PDF du brouillon */}
+      <Sheet
+        open={previewOpen}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+          if (!open) setPreviewLoaded(false);
+        }}
+      >
+        <SheetContent
+          side="right"
+          className="flex !w-[min(800px,95vw)] flex-col gap-0 p-0 data-[side=right]:sm:max-w-[min(800px,95vw)]"
+        >
+          <SheetHeader className="border-border flex flex-row items-center justify-between border-b p-4 pr-12">
+            <SheetTitle>Aperçu du devis (brouillon)</SheetTitle>
+            <a
+              href={`/api/devis/brouillon/${devis.id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            >
+              <Download className="mr-1.5 size-4" />
+              Télécharger
+            </a>
+          </SheetHeader>
+          <div className="relative flex-1">
+            {!previewLoaded && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
+                <Loader2 className="text-muted-foreground size-6 animate-spin" />
+                <p className="text-muted-foreground text-sm">
+                  Chargement du brouillon…
+                </p>
+              </div>
+            )}
+            {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+            <iframe
+              src={`/api/devis/brouillon/${devis.id}/pdf?inline=true`}
+              title="Aperçu du devis (brouillon)"
+              onLoad={() => setPreviewLoaded(true)}
+              className="absolute inset-0 size-full border-0 bg-white"
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <SendDevisDialog
         devisId={devis.id}

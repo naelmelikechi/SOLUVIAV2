@@ -401,7 +401,6 @@ export function FacturationPageClient({
                 key={preview.ref}
                 src={previewInlineUrl}
                 title={previewTitle}
-                sandbox=""
                 onLoad={() => setPreviewLoaded(true)}
                 className="absolute inset-0 size-full border-0 bg-white"
               />

@@ -551,7 +551,6 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
                 key={previewBrouillon.id}
                 src={`/api/factures/brouillon/${previewBrouillon.id}/pdf?inline=true`}
                 title={'Aperçu brouillon'}
-                sandbox=""
                 onLoad={() => setPreviewLoaded(true)}
                 className="absolute inset-0 size-full border-0 bg-white"
               />

@@ -158,6 +158,9 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
             className="bg-muted/30 grid grid-cols-12 gap-2 rounded-md border p-3"
           >
             <div className="col-span-12 sm:col-span-5">
+              <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                Libellé *
+              </label>
               <Input
                 placeholder="Libellé *"
                 value={row.libelle}
@@ -165,6 +168,9 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
               />
             </div>
             <div className="col-span-4 sm:col-span-2">
+              <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                Qté
+              </label>
               <Input
                 placeholder="Qté"
                 value={row.quantite}
@@ -174,6 +180,9 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
               />
             </div>
             <div className="col-span-4 sm:col-span-2">
+              <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                PU HT (€)
+              </label>
               <Input
                 placeholder="PU HT (€)"
                 value={row.prix_unitaire_ht}
@@ -183,6 +192,9 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
               />
             </div>
             <div className="col-span-2 sm:col-span-1">
+              <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                TVA%
+              </label>
               <Input
                 placeholder="TVA%"
                 value={row.taux_tva}
@@ -191,7 +203,7 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
                 }
               />
             </div>
-            <div className="col-span-2 flex items-center justify-end gap-1">
+            <div className="col-span-2 flex items-center justify-end gap-1 sm:pt-6">
               {(row.isNew || row.isDirty) && (
                 <button
                   type="button"
@@ -214,6 +226,9 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
               </button>
             </div>
             <div className="col-span-12">
+              <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                Description (optionnel)
+              </label>
               <Input
                 placeholder="Description (optionnel)"
                 value={row.description}

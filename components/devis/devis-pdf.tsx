@@ -9,6 +9,7 @@ import {
   type DocumentProps,
 } from '@react-pdf/renderer';
 import type { DevisDetail } from '@/lib/queries/devis';
+import { SIGNATURE_SOLUVIA_DATA_URI } from '@/lib/assets/signature-soluvia';
 import { type ReactElement } from 'react';
 
 const styles = StyleSheet.create({
@@ -126,6 +127,13 @@ const styles = StyleSheet.create({
     color: '#16a34a',
   },
   cachetLine: { fontSize: 7, color: '#15803d', marginTop: 1 },
+  // Signature manuscrite scannee (data URI, fond transparent).
+  signatureImg: {
+    width: 150,
+    height: 48,
+    marginTop: 4,
+    objectFit: 'contain',
+  },
   footer: {
     position: 'absolute',
     bottom: 40,
@@ -333,9 +341,12 @@ export function DevisPdf({
         <View style={styles.signatureRow} wrap={false}>
           <View style={styles.signatureBox}>
             <Text style={styles.label}>Pour {raisonSociale}</Text>
-            <Text style={[styles.muted, { fontSize: 8 }]}>
-              {villeCachet}, le {dateCachet}
-            </Text>
+            {/* Signature manuscrite apposee automatiquement. */}
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image
+              src={SIGNATURE_SOLUVIA_DATA_URI}
+              style={styles.signatureImg}
+            />
             {/* Cachet appose automatiquement (bloc tampon). */}
             <View style={styles.cachet}>
               <Text style={styles.cachetName}>{raisonSociale}</Text>

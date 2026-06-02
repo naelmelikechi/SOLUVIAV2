@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { computeContractSchedule } from '@/lib/queries/production';
+import { encaisseHt } from '@/lib/utils/montant-ht';
 import { checkAuth } from '@/lib/auth/guards';
 
 // ---------------------------------------------------------------------------
@@ -135,6 +136,8 @@ export async function fetchProductionByClient(
       montant,
       facture:factures!paiements_facture_id_fkey!inner (
         mois_concerne,
+        montant_ht,
+        montant_ttc,
         projet:projets!factures_projet_id_fkey!inner (
           id,
           client_id,
@@ -283,11 +286,18 @@ export async function fetchProductionByClient(
   for (const p of paiements ?? []) {
     const facture = p.facture as {
       mois_concerne: string | null;
+      montant_ht: number;
+      montant_ttc: number;
       projet: { id: string } | null;
     } | null;
     if (!facture?.mois_concerne || !facture.projet) continue;
     const entry = projetMap.get(facture.projet.id);
-    if (entry) entry.encaisse += p.montant;
+    if (entry)
+      entry.encaisse += encaisseHt(
+        p.montant,
+        facture.montant_ht,
+        facture.montant_ttc,
+      );
   }
 
   // Aggregate par client en applicant le ratio per-projet aux factures.
@@ -408,6 +418,8 @@ export async function fetchProductionByProjet(
       montant,
       facture:factures!paiements_facture_id_fkey!inner (
         mois_concerne,
+        montant_ht,
+        montant_ttc,
         projet_id,
         projet:projets!factures_projet_id_fkey!inner (
           client:clients!projets_client_id_fkey!inner (
@@ -550,11 +562,18 @@ export async function fetchProductionByProjet(
   for (const p of paiements ?? []) {
     const facture = p.facture as {
       mois_concerne: string | null;
+      montant_ht: number;
+      montant_ttc: number;
       projet_id: string;
     } | null;
     if (!facture?.mois_concerne) continue;
     const entry = projetMap.get(facture.projet_id);
-    if (entry) entry.encaisse += p.montant;
+    if (entry)
+      entry.encaisse += encaisseHt(
+        p.montant,
+        facture.montant_ht,
+        facture.montant_ttc,
+      );
   }
 
   return Array.from(projetMap.entries()).map(([projetId, data]) => {

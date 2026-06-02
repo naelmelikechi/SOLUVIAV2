@@ -2,6 +2,7 @@ import { addMonths, format, startOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
+import { encaisseHt } from '@/lib/utils/montant-ht';
 
 // -----------------------------------------------------------------------------
 // Pure computation: theoretical payment schedule per contract
@@ -87,7 +88,7 @@ export interface ProductionRow {
   productionSoluvia: number;
   /** Sum of factures.montant_ht for the month */
   facture: number;
-  /** Sum of paiements.montant for the month */
+  /** Encaissé HT du mois (paiements TTC ramenés au prorata HT/TTC de chaque facture) */
   encaisse: number;
   /** Sum of factures.montant_ht with statut = 'en_retard' */
   en_retard: number;
@@ -133,7 +134,7 @@ export async function getProductionData(): Promise<ProductionRow[]> {
     supabase
       .from('paiements')
       .select(
-        'montant, facture:factures!inner(mois_concerne, client:clients!inner(is_demo, archive))',
+        'montant, facture:factures!inner(mois_concerne, montant_ht, montant_ttc, client:clients!inner(is_demo, archive))',
       )
       .gte('facture.mois_concerne', firstMonth)
       .lte('facture.mois_concerne', lastMonth)
@@ -216,10 +217,18 @@ export async function getProductionData(): Promise<ProductionRow[]> {
   }
 
   for (const p of paiementsRes.data ?? []) {
-    const facture = p.facture as { mois_concerne: string | null } | null;
+    const facture = p.facture as {
+      mois_concerne: string | null;
+      montant_ht: number;
+      montant_ttc: number;
+    } | null;
     if (!facture?.mois_concerne) continue;
     const key = facture.mois_concerne.slice(0, 7);
-    encaisseByMonth.set(key, (encaisseByMonth.get(key) ?? 0) + p.montant);
+    encaisseByMonth.set(
+      key,
+      (encaisseByMonth.get(key) ?? 0) +
+        encaisseHt(p.montant, facture.montant_ht, facture.montant_ttc),
+    );
   }
 
   // ---------------------------------------------------------------------------

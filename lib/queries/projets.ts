@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
+import { encaisseHt } from '@/lib/utils/montant-ht';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -91,7 +92,7 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
     // 2. Factures en retard par projet (with paiements for net calculation)
     supabase
       .from('factures')
-      .select('id, projet_id, montant_ttc, paiements(montant)')
+      .select('id, projet_id, montant_ht, montant_ttc, paiements(montant)')
       .in('projet_id', projetIds)
       .eq('statut', 'en_retard'),
 
@@ -119,12 +120,14 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
       f.projet_id,
       (facturesRetardMap.get(f.projet_id) ?? 0) + 1,
     );
-    // Net overdue = montant_ttc - sum of paiements (joined in query)
+    // Net overdue HT = montant_ht - encaissé HT (paiements TTC ramenés au prorata HT/TTC)
     const paiementsSum = (
       (f as unknown as { paiements: Array<{ montant: number }> }).paiements ??
       []
     ).reduce((s: number, p: { montant: number }) => s + (p.montant ?? 0), 0);
-    const net = (f.montant_ttc ?? 0) - paiementsSum;
+    const net =
+      (f.montant_ht ?? 0) -
+      encaisseHt(paiementsSum, f.montant_ht ?? 0, f.montant_ttc ?? 0);
     if (net > 0) {
       encaissementsRetardMap.set(
         f.projet_id,
@@ -268,7 +271,7 @@ export async function getProjetFinance(projetId: string) {
       .eq('archive', false),
     supabase
       .from('factures')
-      .select('id, montant_ht, statut')
+      .select('id, montant_ht, montant_ttc, statut')
       .eq('projet_id', projetId)
       .in('statut', ['emise', 'payee', 'en_retard']),
     supabase
@@ -293,16 +296,24 @@ export async function getProjetFinance(projetId: string) {
   );
 
   const factureIds = (factures ?? []).map((f) => f.id);
+  // Ratio HT/TTC par facture pour ramener les paiements (TTC) en HT.
+  const ratioByFacture = new Map<string, { ht: number; ttc: number }>();
+  for (const f of factures ?? []) {
+    ratioByFacture.set(f.id, {
+      ht: f.montant_ht ?? 0,
+      ttc: f.montant_ttc ?? 0,
+    });
+  }
   let encaisse_opco = 0;
   if (factureIds.length > 0) {
     const { data: paiements } = await supabase
       .from('paiements')
-      .select('montant')
+      .select('montant, facture_id')
       .in('facture_id', factureIds);
-    encaisse_opco = (paiements ?? []).reduce(
-      (sum, p) => sum + (p.montant ?? 0),
-      0,
-    );
+    encaisse_opco = (paiements ?? []).reduce((sum, p) => {
+      const r = ratioByFacture.get(p.facture_id as string);
+      return sum + encaisseHt(p.montant ?? 0, r?.ht ?? 0, r?.ttc ?? 0);
+    }, 0);
   }
 
   const en_retard = (factures ?? [])

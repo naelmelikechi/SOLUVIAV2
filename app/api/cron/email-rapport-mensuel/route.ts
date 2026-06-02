@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import { sendRapportMensuelEmail } from '@/lib/email/notifications';
 import { withEmailLock } from '@/lib/email/send-log';
+import { encaisseHt } from '@/lib/utils/montant-ht';
 
 export const maxDuration = 120;
 
@@ -38,7 +39,9 @@ export async function GET(request: Request) {
               .lte('date_emission', prevEndStr),
             supabase
               .from('paiements')
-              .select('montant, date_reception')
+              .select(
+                'montant, date_reception, facture:factures!paiements_facture_id_fkey(montant_ht, montant_ttc)',
+              )
               .gte('date_reception', prevStartStr)
               .lte('date_reception', prevEndStr),
             supabase
@@ -64,9 +67,22 @@ export async function GET(request: Request) {
               .reduce((s, f) => s + (f.montant_ht ?? 0), 0) * 100,
           ) / 100;
 
-        const encaisseTtc =
+        const encaisseHtTotal =
           Math.round(
-            paiements.reduce((s, p) => s + (p.montant ?? 0), 0) * 100,
+            paiements.reduce((s, p) => {
+              const facture = p.facture as {
+                montant_ht: number;
+                montant_ttc: number;
+              } | null;
+              return (
+                s +
+                encaisseHt(
+                  p.montant ?? 0,
+                  facture?.montant_ht ?? 0,
+                  facture?.montant_ttc ?? 0,
+                )
+              );
+            }, 0) * 100,
           ) / 100;
 
         const productionHt =
@@ -87,7 +103,7 @@ export async function GET(request: Request) {
           moisPrecedent: moisLabel,
           productionHt,
           factureHt,
-          encaisseTtc,
+          encaisseHt: encaisseHtTotal,
           nbFacturesEmises,
           nbFacturesRetard,
         };

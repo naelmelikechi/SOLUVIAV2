@@ -298,7 +298,7 @@ export type RapportKpis = {
   moisPrecedent: string; // "mars 2026"
   productionHt: number;
   factureHt: number;
-  encaisseTtc: number;
+  encaisseHt: number;
   nbFacturesEmises: number;
   nbFacturesRetard: number;
 };
@@ -325,7 +325,7 @@ export async function sendRapportMensuelEmail(params: {
       <tbody>
         ${kpiRow('Production HT', formatEur(kpis.productionHt))}
         ${kpiRow('Facturé HT', formatEur(kpis.factureHt))}
-        ${kpiRow('Encaissé TTC', formatEur(kpis.encaisseTtc))}
+        ${kpiRow('Encaissé HT', formatEur(kpis.encaisseHt))}
         ${kpiRow('Factures émises', String(kpis.nbFacturesEmises))}
         ${kpiRow('Factures en retard', String(kpis.nbFacturesRetard), kpis.nbFacturesRetard > 0 ? '#b91c1c' : '#1a2e1a')}
       </tbody>

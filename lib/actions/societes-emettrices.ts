@@ -50,14 +50,14 @@ export async function createSocieteEmettrice(
 ): Promise<ActionResult<{ id: string }>> {
   const user = await getUser();
   if (!isAdmin(user?.role)) {
-    return { success: false, error: 'Acces refuse (admin requis)' };
+    return { success: false, error: 'Accès refusé (admin requis)' };
   }
 
   const parsed = SocieteEmettriceSchema.safeParse(input);
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 
@@ -88,7 +88,7 @@ export async function updateSocieteEmettrice(
 ): Promise<ActionResult> {
   const user = await getUser();
   if (!isAdmin(user?.role)) {
-    return { success: false, error: 'Acces refuse (admin requis)' };
+    return { success: false, error: 'Accès refusé (admin requis)' };
   }
 
   const PartialSchema = SocieteEmettriceSchema.partial();
@@ -96,7 +96,7 @@ export async function updateSocieteEmettrice(
   if (!parsed.success) {
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
 

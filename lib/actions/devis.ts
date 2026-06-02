@@ -39,13 +39,13 @@ export async function createDevis(
 ): Promise<Result<{ id: string }>> {
   const user = await getUser();
   if (!isAdmin(user?.role))
-    return { success: false, error: 'Acces refuse (admin requis)' };
+    return { success: false, error: 'Accès refusé (admin requis)' };
 
   const parsed = CreateDevisSchema.safeParse(input);
   if (!parsed.success)
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
 
   const supabase = await createClient();
@@ -127,12 +127,12 @@ export async function updateDevisInfo(
   input: z.input<typeof UpdateInfoSchema>,
 ): Promise<Result> {
   const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
+  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
   const parsed = UpdateInfoSchema.safeParse(input);
   if (!parsed.success)
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   const supabase = await createClient();
   const { error } = await supabase
@@ -156,7 +156,7 @@ export async function addLigne(
   ligne: z.input<typeof LigneSchema>,
 ): Promise<Result<{ id: string }>> {
   const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
+  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
   const parsed = LigneSchema.safeParse(ligne);
   if (!parsed.success)
     return {
@@ -199,7 +199,7 @@ export async function updateLigne(
   input: z.input<typeof LigneSchema>,
 ): Promise<Result> {
   const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
+  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
   const parsed = LigneSchema.safeParse(input);
   if (!parsed.success)
     return {
@@ -226,7 +226,7 @@ export async function updateLigne(
 
 export async function deleteLigne(ligneId: string): Promise<Result> {
   const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
+  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
   const supabase = await createClient();
   const { error } = await supabase
     .from('devis_lignes')
@@ -242,7 +242,7 @@ export async function sendDevis(
   _opts?: { to?: string[]; cc?: string[] },
 ): Promise<Result<{ ref: string }>> {
   const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
+  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
   const supabase = await createClient();
   // 1. Bascule statut a envoye (triggers : alloue ref + token)
   const { data: updated, error: updErr } = await supabase
@@ -280,7 +280,7 @@ export async function sendDevis(
 
 export async function cancelDevis(devisId: string): Promise<Result> {
   const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
+  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
   const supabase = await createClient();
   const { error } = await supabase
     .from('devis')
@@ -297,7 +297,7 @@ export async function reviseDevis(
   devisId: string,
 ): Promise<Result<{ newDevisId: string }>> {
   const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Acces refuse' };
+  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
 
   const supabase = await createClient();
   const { data: oldDevis, error: oldErr } = await supabase
@@ -308,7 +308,7 @@ export async function reviseDevis(
   if (oldErr || !oldDevis)
     return { success: false, error: 'Devis introuvable' };
   if (oldDevis.statut !== 'envoye')
-    return { success: false, error: 'Seul un devis envoye peut etre revise' };
+    return { success: false, error: 'Seul un devis envoyé peut être révisé' };
 
   // 1. Cree un nouveau devis brouillon, lie au precedent (v+1)
   const { data: newDevis, error: newErr } = await supabase

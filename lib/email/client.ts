@@ -328,7 +328,7 @@ export async function sendInvitationEmail(params: {
   const html = buildInvitationEmailHtml({ ...params, kind });
   const subject =
     kind === 'reset'
-      ? `Votre mot de passe SOLUVIA a ete reinitialise`
+      ? `Votre mot de passe SOLUVIA a été réinitialisé`
       : `${params.inviterName} vous invite sur SOLUVIA`;
 
   return sendEmail({

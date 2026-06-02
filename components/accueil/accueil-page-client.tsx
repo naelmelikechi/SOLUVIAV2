@@ -105,7 +105,7 @@ export function AccueilPageClient({
             key: 'wiki',
             label: 'Lire le wiki onboarding',
             description:
-              'Procédures, outils, contacts utiles : tout ce qu il faut savoir pour démarrer.',
+              "Procédures, outils, contacts utiles : tout ce qu'il faut savoir pour démarrer.",
             done: wikiVisited,
             href: wikiUrl,
             external: true,

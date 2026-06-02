@@ -55,7 +55,7 @@ async function checkPrefixCollision(
     const conflictCodes = data.map((r) => r.code as string).join(', ');
     return {
       ok: false,
-      conflict: `Prefixe deja utilise par : ${conflictCodes}`,
+      conflict: `Préfixe déjà utilisé par : ${conflictCodes}`,
     };
   }
   return { ok: true };

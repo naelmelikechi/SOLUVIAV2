@@ -23,7 +23,7 @@ export async function acceptDevisPublicAction(
     });
     return {
       success: false,
-      error: "Impossible d'accepter le devis. Verifiez vos informations.",
+      error: "Impossible d'accepter le devis. Vérifiez vos informations.",
     };
   }
   const ref = (data as { ref: string }).ref;

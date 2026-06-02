@@ -249,7 +249,7 @@ describe('opcos actions CRUD', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/OPCO2I/);
-    expect(result.error).toMatch(/Prefixe deja utilise/);
+    expect(result.error).toMatch(/Préfixe déjà utilisé/);
   });
 
   it('5. createOpco non-admin -> refus', async () => {

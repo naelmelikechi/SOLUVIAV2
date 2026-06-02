@@ -118,8 +118,8 @@ const MOCK_CRITERIA: QualityCriterion[] = [
   {
     id: 9,
     prefix: 'HQ',
-    title: 'Handicap & Qualite Transversale',
-    description: 'Prise en charge du handicap et qualite transversale.',
+    title: 'Handicap & Qualité Transversale',
+    description: 'Prise en charge du handicap et qualité transversale.',
     criterion_type: 'eduvia',
     icon: 'lucide:accessibility',
     color: { primary: '#ec4899', light: '#fce7f3' },
@@ -127,8 +127,8 @@ const MOCK_CRITERIA: QualityCriterion[] = [
   {
     id: 10,
     prefix: 'RGPD',
-    title: 'Protection des Donnees',
-    description: 'Conformite RGPD et protection des donnees personnelles.',
+    title: 'Protection des Données',
+    description: 'Conformité RGPD et protection des données personnelles.',
     criterion_type: 'eduvia',
     icon: 'lucide:shield',
     color: { primary: '#0ea5e9', light: '#e0f2fe' },

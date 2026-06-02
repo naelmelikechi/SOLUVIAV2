@@ -29,7 +29,7 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
         ? await archiveOpco(id)
         : await unarchiveOpco(id);
       if (res.success)
-        toast.success(currentActif ? 'OPCO archive' : 'OPCO reactive');
+        toast.success(currentActif ? 'OPCO archivé' : 'OPCO réactivé');
       else toast.error(res.error ?? 'Erreur');
     });
   }
@@ -38,7 +38,7 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold">
-          {opcos.length} OPCO references
+          {opcos.length} OPCO référencés
         </h3>
         <Button size="sm" onClick={() => setShowCreate(true)}>
           <Plus className="mr-2 size-3.5" /> Nouvel OPCO
@@ -46,7 +46,7 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
       </div>
 
       {opcos.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Aucun OPCO configure.</p>
+        <p className="text-muted-foreground text-sm">Aucun OPCO configuré.</p>
       ) : (
         <div className="border-border overflow-x-auto rounded-lg border">
           <Table>
@@ -54,7 +54,7 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Nom</TableHead>
-                <TableHead>Prefixes DECA</TableHead>
+                <TableHead>Préfixes DECA</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -87,7 +87,7 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
                           : 'text-muted-foreground'
                       }
                     >
-                      {o.actif ? 'Actif' : 'Archive'}
+                      {o.actif ? 'Actif' : 'Archivé'}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
@@ -106,8 +106,8 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
                         size="icon-sm"
                         disabled={isPending}
                         onClick={() => handleArchive(o.id, o.actif)}
-                        aria-label={o.actif ? 'Archiver' : 'Reactiver'}
-                        title={o.actif ? 'Archiver' : 'Reactiver'}
+                        aria-label={o.actif ? 'Archiver' : 'Réactiver'}
+                        title={o.actif ? 'Archiver' : 'Réactiver'}
                       >
                         {o.actif ? (
                           <Archive className="size-3.5" />

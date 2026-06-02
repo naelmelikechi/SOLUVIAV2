@@ -780,7 +780,7 @@ export async function createFactureFromEvents(params: {
       if (e.lock_reason === 'missing_deca') {
         return {
           success: false,
-          error: `Contrat sans numero DECA OPCO : ${e.apprenant_prenom} ${e.apprenant_nom} (${e.contrat_ref ?? e.contrat_id}). Renseignez le DECA cote Eduvia avant de facturer.`,
+          error: `Contrat sans numéro DECA OPCO : ${e.apprenant_prenom} ${e.apprenant_nom} (${e.contrat_ref ?? e.contrat_id}). Renseignez le DECA côté Eduvia avant de facturer.`,
         };
       }
       const opp = e.type === 'engagement' ? 'règlements OPCO' : 'engagement';
@@ -805,7 +805,7 @@ export async function createFactureFromEvents(params: {
       .join(', ');
     return {
       success: false,
-      error: `Contrat(s) sans numero DECA OPCO : ${refs}. Impossible de facturer avant que le DECA ne soit renseigne cote Eduvia.`,
+      error: `Contrat(s) sans numéro DECA OPCO : ${refs}. Impossible de facturer avant que le DECA ne soit renseigné côté Eduvia.`,
     };
   }
 

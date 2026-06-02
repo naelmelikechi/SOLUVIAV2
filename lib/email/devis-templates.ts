@@ -45,17 +45,17 @@ export async function sendDevisEmail(p: SendDevisParams): Promise<void> {
   const html = `
     <div style="font-family: -apple-system, sans-serif; color: #1a1a1a;">
       <p>Bonjour,</p>
-      <p>Veuillez trouver ci-joint le devis <strong>${devis.ref}</strong> emis par <strong>${devis.societe_emettrice.raison_sociale}</strong>.</p>
+      <p>Veuillez trouver ci-joint le devis <strong>${devis.ref}</strong> émis par <strong>${devis.societe_emettrice.raison_sociale}</strong>.</p>
       <p><strong>Objet :</strong> ${devis.objet}<br />
          <strong>Montant TTC :</strong> ${Number(devis.montant_ttc).toFixed(2).replace('.', ',')} EUR<br />
-         <strong>Valide jusqu au :</strong> ${devis.date_validite ?? 'voir devis'}</p>
-      <p>Pour consulter, telecharger ou accepter ce devis en ligne :</p>
-      <p><a href="${link}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none;">Acceder au devis</a></p>
-      <p>Le devis PDF est egalement joint a cet email.</p>
+         <strong>Valide jusqu'au :</strong> ${devis.date_validite ?? 'voir devis'}</p>
+      <p>Pour consulter, télécharger ou accepter ce devis en ligne :</p>
+      <p><a href="${link}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none;">Accéder au devis</a></p>
+      <p>Le devis PDF est également joint à cet email.</p>
       <p>Cordialement,<br />${devis.societe_emettrice.raison_sociale}</p>
       <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;" />
       <p style="font-size: 11px; color: #6b7280;">
-        Ce devis est valable ${devis.date_validite ? `jusqu au ${devis.date_validite}` : '90 jours'}.
+        Ce devis est valable ${devis.date_validite ? `jusqu'au ${devis.date_validite}` : '90 jours'}.
         Pour toute question : ${devis.societe_emettrice.email_contact}.
       </p>
     </div>
@@ -91,9 +91,9 @@ export async function sendDevisAcceptationConfirmation(
   const html = `
     <div style="font-family: -apple-system, sans-serif;">
       <p>Bonjour ${p.signataireNom},</p>
-      <p>Nous confirmons votre acceptation du devis <strong>${devis.ref}</strong> emis par <strong>${devis.societe_emettrice.raison_sociale}</strong>.</p>
-      <p>Montant accepte : ${Number(devis.montant_ttc).toFixed(2).replace('.', ',')} EUR TTC.</p>
-      <p>Nous reviendrons vers vous tres prochainement pour la suite.</p>
+      <p>Nous confirmons votre acceptation du devis <strong>${devis.ref}</strong> émis par <strong>${devis.societe_emettrice.raison_sociale}</strong>.</p>
+      <p>Montant accepté : ${Number(devis.montant_ttc).toFixed(2).replace('.', ',')} EUR TTC.</p>
+      <p>Nous reviendrons vers vous très prochainement pour la suite.</p>
       <p>Cordialement,<br />${devis.societe_emettrice.raison_sociale}</p>
     </div>
   `;
@@ -166,20 +166,20 @@ export async function sendDevisRelanceEmail(p: RelanceParams): Promise<void> {
 
   const intro =
     p.niveau === 'j7'
-      ? `Nous nous permettons un petit rappel concernant le devis ${devis.ref}, envoye il y a une semaine.`
-      : `Nous revenons vers vous concernant le devis ${devis.ref}, envoye il y a deux semaines. Sa validite expire le ${devis.date_validite}.`;
+      ? `Nous nous permettons un petit rappel concernant le devis ${devis.ref}, envoyé il y a une semaine.`
+      : `Nous revenons vers vous concernant le devis ${devis.ref}, envoyé il y a deux semaines. Sa validité expire le ${devis.date_validite}.`;
 
   const subject =
     p.niveau === 'j7'
       ? `[Rappel] Devis ${devis.ref} - ${devis.objet}`
-      : `[Rappel important] Devis ${devis.ref} expire bientot`;
+      : `[Rappel important] Devis ${devis.ref} expire bientôt`;
 
   const html = `
     <div style="font-family: -apple-system, sans-serif; color: #1a1a1a;">
       <p>Bonjour,</p>
       <p>${intro}</p>
       <p>Pour consulter et accepter en ligne :</p>
-      <p><a href="${link}" style="display:inline-block;background:#16a34a;color:white;padding:12px 20px;border-radius:6px;text-decoration:none;">Acceder au devis</a></p>
+      <p><a href="${link}" style="display:inline-block;background:#16a34a;color:white;padding:12px 20px;border-radius:6px;text-decoration:none;">Accéder au devis</a></p>
       <p>Cordialement,<br />${devis.societe_emettrice.raison_sociale}</p>
     </div>
   `;
@@ -221,9 +221,9 @@ export async function notifyAdminsDevisRefuse(
   ) as string[];
   if (to.length === 0) return;
 
-  const subject = `[Devis] ${devis.ref} refuse par le client`;
+  const subject = `[Devis] ${devis.ref} refusé par le client`;
   const html = `
-    <p>Le devis <strong>${devis.ref}</strong> (${devis.objet}) a ete refuse par le client.</p>
+    <p>Le devis <strong>${devis.ref}</strong> (${devis.objet}) a été refusé par le client.</p>
     <p>Motif : ${p.motif ?? '(aucun)'}</p>
     <p>Voir : ${getAppUrl()}/devis/${devis.ref}</p>
   `;

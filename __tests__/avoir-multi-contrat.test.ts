@@ -363,7 +363,7 @@ describe('createAvoir - multi-contrat (#6)', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toMatch(/n appartient pas/);
+    expect(result.error).toMatch(/n'appartient pas/);
   });
 
   it('rollback : si insert ligne echoue, on supprime l avoir cree (pas de facture orpheline)', async () => {

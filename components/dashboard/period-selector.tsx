@@ -8,7 +8,7 @@ import type { PeriodeKey } from '@/lib/utils/dashboard-periode';
 
 const OPTIONS: { key: PeriodeKey; label: string }[] = [
   { key: 'ce_mois', label: 'Ce mois' },
-  { key: 'mois_precedent', label: 'Mois precedent' },
+  { key: 'mois_precedent', label: 'Mois précédent' },
   { key: '30j', label: '30 derniers jours' },
 ];
 

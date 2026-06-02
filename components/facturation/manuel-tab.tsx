@@ -173,13 +173,13 @@ export function ManuelTab({ projets }: ManuelTabProps) {
         const label =
           opposite === 'engagement'
             ? removed > 1
-              ? 'engagements decoches'
-              : 'engagement decoche'
+              ? 'engagements décochés'
+              : 'engagement décoché'
             : removed > 1
-              ? 'reglements OPCO decoches'
-              : 'reglement OPCO decoche';
+              ? 'règlements OPCO décochés'
+              : 'règlement OPCO décoché';
         toast.info(
-          `${removed} ${label} sur ce contrat (exclusif avec ${e.type === 'engagement' ? "l'engagement" : 'les reglements OPCO'}).`,
+          `${removed} ${label} sur ce contrat (exclusif avec ${e.type === 'engagement' ? "l'engagement" : 'les règlements OPCO'}).`,
         );
       }
       return next;

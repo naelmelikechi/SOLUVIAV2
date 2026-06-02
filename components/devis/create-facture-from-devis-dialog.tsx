@@ -58,7 +58,7 @@ export function CreateFactureFromDevisDialog({
         pourcentage: mode === 'acompte' ? pourcentage : undefined,
       });
       if (res.success) {
-        toast.success('Facture brouillon creee avec succes.');
+        toast.success('Facture brouillon créée avec succès.');
         onOpenChange(false);
         push('/facturation');
       } else {
@@ -74,7 +74,7 @@ export function CreateFactureFromDevisDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            Creer une facture depuis {devisRef ?? 'ce devis'}
+            Créer une facture depuis {devisRef ?? 'ce devis'}
           </DialogTitle>
         </DialogHeader>
 
@@ -85,13 +85,13 @@ export function CreateFactureFromDevisDialog({
               className={`rounded-md border p-3 text-sm ${depassement ? 'border-red-300 bg-red-50' : 'border-muted bg-muted/30'}`}
             >
               <p className="font-medium">
-                Deja facture : {totalDejaFactureHt.toFixed(2).replace('.', ',')}{' '}
+                Déjà facturé : {totalDejaFactureHt.toFixed(2).replace('.', ',')}{' '}
                 EUR HT / {totalHt.toFixed(2).replace('.', ',')} EUR HT (
                 {pct.toFixed(0)}%)
               </p>
               {depassement && (
                 <p className="mt-1 text-red-600">
-                  Ce devis est deja entierement facture.
+                  Ce devis est déjà entièrement facturé.
                 </p>
               )}
             </div>
@@ -120,7 +120,7 @@ export function CreateFactureFromDevisDialog({
                   htmlFor="mode-solde"
                   className="cursor-pointer font-normal"
                 >
-                  Solde (reste a facturer)
+                  Solde (reste à facturer)
                 </Label>
               </div>
               <div className="flex items-start gap-2">
@@ -129,7 +129,7 @@ export function CreateFactureFromDevisDialog({
                   htmlFor="mode-personnalisee"
                   className="cursor-pointer font-normal"
                 >
-                  Personnalisee (copie toutes les lignes)
+                  Personnalisée (copie toutes les lignes)
                 </Label>
               </div>
             </RadioGroup>
@@ -155,7 +155,7 @@ export function CreateFactureFromDevisDialog({
           {/* Preview montant */}
           <div className="rounded-md border p-3 text-sm">
             <p>
-              Montant HT estime :{' '}
+              Montant HT estimé :{' '}
               <span className="font-mono font-semibold tabular-nums">
                 {montantPreviewHt.toFixed(2).replace('.', ',')} EUR HT
               </span>
@@ -171,7 +171,7 @@ export function CreateFactureFromDevisDialog({
             onClick={handleSubmit}
             disabled={pending || (mode === 'solde' && depassement)}
           >
-            {pending ? 'Creation...' : 'Creer la facture'}
+            {pending ? 'Création...' : 'Créer la facture'}
           </Button>
         </DialogFooter>
       </DialogContent>

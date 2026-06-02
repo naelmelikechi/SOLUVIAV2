@@ -60,7 +60,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
         ? await updateSocieteEmettrice(societe.id, form)
         : await createSocieteEmettrice(form as SocieteEmettriceInput);
       if (res.success) {
-        toast.success(societe ? 'Societe mise a jour' : 'Societe creee');
+        toast.success(societe ? 'Société mise à jour' : 'Société créée');
         push('/admin/parametres/societes-emettrices');
         refresh();
       } else {
@@ -72,10 +72,10 @@ export function SocieteEmettriceForm({ societe }: Props) {
   return (
     <div className="max-w-2xl space-y-4">
       <fieldset className="space-y-3 rounded-md border p-4">
-        <legend className="px-2 text-sm font-semibold">Identite</legend>
+        <legend className="px-2 text-sm font-semibold">Identité</legend>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="se-code">Code (2-8 caracteres)</Label>
+            <Label htmlFor="se-code">Code (2-8 caractères)</Label>
             <Input
               id="se-code"
               value={form.code ?? ''}
@@ -177,7 +177,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
             />
           </div>
           <div>
-            <Label htmlFor="se-tel">Telephone</Label>
+            <Label htmlFor="se-tel">Téléphone</Label>
             <Input
               id="se-tel"
               value={form.telephone ?? ''}
@@ -196,7 +196,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
             id="se-banque"
             value={form.banque_nom ?? ''}
             onChange={(e) => set('banque_nom', e.target.value)}
-            placeholder="Credit Agricole..."
+            placeholder="Crédit Agricole..."
           />
         </div>
         <div>
@@ -224,7 +224,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
       <fieldset className="space-y-3 rounded-md border p-4">
         <legend className="px-2 text-sm font-semibold">PDF / devis</legend>
         <div>
-          <Label htmlFor="se-mentions">Mentions legales (footer PDF)</Label>
+          <Label htmlFor="se-mentions">Mentions légales (footer PDF)</Label>
           <Textarea
             id="se-mentions"
             value={form.mentions_legales ?? ''}
@@ -234,7 +234,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
         </div>
         <div>
           <Label htmlFor="se-conditions">
-            Conditions de reglement par defaut
+            Conditions de règlement par défaut
           </Label>
           <Textarea
             id="se-conditions"
@@ -246,7 +246,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
           />
         </div>
         <div>
-          <Label htmlFor="se-validite">Validite devis (jours)</Label>
+          <Label htmlFor="se-validite">Validité devis (jours)</Label>
           <Input
             id="se-validite"
             type="number"
@@ -264,13 +264,13 @@ export function SocieteEmettriceForm({ societe }: Props) {
             onCheckedChange={(c) => set('est_defaut', c === true)}
           />
           <Label htmlFor="se-defaut">
-            Societe par defaut (utilisee si une seule active)
+            Société par défaut (utilisée si une seule active)
           </Label>
         </div>
       </fieldset>
 
       <fieldset className="space-y-3 rounded-md border p-4">
-        <legend className="px-2 text-sm font-semibold">Integration Odoo</legend>
+        <legend className="px-2 text-sm font-semibold">Intégration Odoo</legend>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="se-odoo-company">Odoo company ID</Label>
@@ -290,7 +290,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
               className="w-40"
             />
             <p className="text-muted-foreground text-xs">
-              ID interne Odoo pour cette societe (multi-company)
+              ID interne Odoo pour cette société (multi-company)
             </p>
           </div>
           <div className="space-y-1.5">
@@ -311,7 +311,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
               className="w-40"
             />
             <p className="text-muted-foreground text-xs">
-              Journal de ventes Odoo associe
+              Journal de ventes Odoo associé
             </p>
           </div>
         </div>
@@ -325,7 +325,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
           {isSubmitting ? (
             <Loader2 className="mr-2 size-4 animate-spin" />
           ) : null}
-          {societe ? 'Enregistrer' : 'Creer'}
+          {societe ? 'Enregistrer' : 'Créer'}
         </Button>
       </div>
     </div>

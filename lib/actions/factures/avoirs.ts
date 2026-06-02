@@ -247,7 +247,7 @@ export async function createAvoir(params: {
     if (!origineContratIds.includes(parsed.data.contratId)) {
       return {
         success: false,
-        error: 'Le contrat selectionne n appartient pas a la facture origine.',
+        error: "Le contrat sélectionné n'appartient pas à la facture origine.",
       };
     }
     resolvedContratId = parsed.data.contratId;
@@ -256,7 +256,7 @@ export async function createAvoir(params: {
   } else {
     return {
       success: false,
-      error: `La facture origine couvre ${origineContratIds.length} contrats. Selectionnez celui concerne par l avoir.`,
+      error: `La facture origine couvre ${origineContratIds.length} contrats. Sélectionnez celui concerné par l'avoir.`,
     };
   }
 

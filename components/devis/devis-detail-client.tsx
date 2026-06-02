@@ -144,7 +144,7 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
           )}
           {isAccepte && (
             <Button onClick={() => setFactureDialogOpen(true)}>
-              Creer une facture
+              Créer une facture
             </Button>
           )}
           {isEnvoye && (
@@ -154,14 +154,14 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
               onClick={() => {
                 if (
                   !confirm(
-                    'Creer une revision de ce devis ? Le devis actuel sera marque comme remplace.',
+                    'Créer une révision de ce devis ? Le devis actuel sera marqué comme remplacé.',
                   )
                 )
                   return;
                 startRevise(async () => {
                   const res = await reviseDevis(devis.id);
                   if (res.success) {
-                    toast.success('Revision creee avec succes.');
+                    toast.success('Révision créée avec succès.');
                     push(`/devis/${res.newDevisId}`);
                   } else {
                     toast.error(res.error);
@@ -169,7 +169,7 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
                 });
               }}
             >
-              Reviser
+              Réviser
             </Button>
           )}
         </div>
@@ -309,17 +309,17 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
       {devis.factures_liees && devis.factures_liees.length > 0 && (
         <div className="rounded-md border p-4">
           <h2 className="mb-3 text-sm font-medium">
-            Factures emises depuis ce devis
+            Factures émises depuis ce devis
           </h2>
           <table className="w-full text-sm">
             <thead className="border-b text-left text-gray-500">
               <tr>
-                <th className="py-2">Reference</th>
+                <th className="py-2">Référence</th>
                 <th>Statut</th>
                 <th>Type</th>
                 <th className="text-right">HT</th>
                 <th className="text-right">TTC</th>
-                <th>Date emission</th>
+                <th>Date d&apos;émission</th>
               </tr>
             </thead>
             <tbody>
@@ -329,7 +329,7 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
                     {f.ref ?? f.id.slice(0, 8)}
                   </td>
                   <td>{f.statut}</td>
-                  <td>{f.est_acompte ? 'Acompte' : 'Solde / Personnalisee'}</td>
+                  <td>{f.est_acompte ? 'Acompte' : 'Solde / Personnalisée'}</td>
                   <td className="text-right tabular-nums">
                     {Number(f.montant_ht).toFixed(2).replace('.', ',')} €
                   </td>

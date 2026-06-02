@@ -17,6 +17,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(redirectTarget, request.url), 308);
   }
 
+  // Portail public de signature de devis : accessible SANS session (clients
+  // externes qui n ont pas de compte). Le token dans l URL fait foi, valide
+  // cote serveur par le RPC get_devis_public (SECURITY DEFINER, GRANT anon).
+  // Sans ce bypass, le client serait redirige vers /login et ne pourrait
+  // jamais consulter/accepter/refuser son devis. Couvre aussi les server
+  // actions accept/refuse (POST sur la meme route).
+  if (pathname.startsWith('/devis/public/')) {
+    return NextResponse.next();
+  }
+
   // Note : la verification du cookie ici est uniquement un check de
   // PRESENCE pour decider du routing (login vs redirect). La VALIDATION
   // reelle de la session se fait :

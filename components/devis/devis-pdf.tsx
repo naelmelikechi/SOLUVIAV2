@@ -113,20 +113,16 @@ const styles = StyleSheet.create({
     padding: 12,
     minHeight: 80,
   },
-  // Cachet SOLUVIA appose automatiquement (encadre interne facon tampon).
+  // Mentions SOLUVIA apposees automatiquement sous la signature.
   cachet: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#16a34a',
-    borderRadius: 4,
-    padding: 8,
+    marginTop: 6,
   },
   cachetName: {
     fontSize: 9,
     fontFamily: 'Helvetica-Bold',
-    color: '#16a34a',
+    color: '#1a1a1a',
   },
-  cachetLine: { fontSize: 7, color: '#15803d', marginTop: 1 },
+  cachetLine: { fontSize: 7, color: '#6b7280', marginTop: 1 },
   // Signature manuscrite scannee (data URI, fond transparent).
   signatureImg: {
     width: 150,
@@ -350,12 +346,10 @@ export function DevisPdf({
             {/* Cachet appose automatiquement (bloc tampon). */}
             <View style={styles.cachet}>
               <Text style={styles.cachetName}>{raisonSociale}</Text>
-              {soc?.forme_juridique || soc?.capital_social ? (
+              {soc?.capital_social ? (
                 <Text style={styles.cachetLine}>
-                  {soc?.forme_juridique ?? ''}
-                  {soc?.capital_social
-                    ? ` au capital de ${formatEur(Number(soc.capital_social))}`
-                    : ''}
+                  {soc.forme_juridique ? `${soc.forme_juridique} ` : ''}au
+                  capital de {formatEur(Number(soc.capital_social))}
                 </Text>
               ) : null}
               {soc?.siret ? (

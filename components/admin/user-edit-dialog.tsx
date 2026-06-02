@@ -399,15 +399,15 @@ export function UserEditDialog({
           if (result.success) {
             toast.success(
               user.derniere_connexion
-                ? 'Mot de passe reinitialise'
-                : 'Invitation renvoyee',
+                ? 'Mot de passe réinitialisé'
+                : 'Invitation renvoyée',
             );
             if (result.warnings) {
               for (const w of result.warnings) toast.warning(w);
             }
             setResetOpen(false);
           } else {
-            toast.error(result.error ?? 'Erreur lors de la reinitialisation');
+            toast.error(result.error ?? 'Erreur lors de la réinitialisation');
           }
         }}
       />

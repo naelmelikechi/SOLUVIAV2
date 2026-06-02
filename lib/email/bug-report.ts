@@ -118,5 +118,5 @@ export async function sendBugReportEmail(bugId: string): Promise<{
 
   return result.success
     ? { success: true }
-    : { success: false, error: result.error ?? 'Resend a refuse l envoi' };
+    : { success: false, error: result.error ?? "Resend a refusé l'envoi" };
 }

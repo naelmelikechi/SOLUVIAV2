@@ -131,7 +131,7 @@ export function UserCostSection({ userId, defaults }: UserCostSectionProps) {
       .catch((err) => {
         if (!cancelled) {
           logger.error('user-cost-section', err, { userId });
-          toast.error('Impossible de charger les donnees de cout employe');
+          toast.error('Impossible de charger les données de coût employé');
         }
       })
       .finally(() => {

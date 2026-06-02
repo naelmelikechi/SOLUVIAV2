@@ -57,7 +57,7 @@ function OpcoFormBody({ opco, onClose }: FormBodyProps) {
         ? await updateOpco({ id: opco.id, code, nom, prefixesDeca: prefixes })
         : await createOpco({ code, nom, prefixesDeca: prefixes });
       if (res.success) {
-        toast.success(opco ? 'OPCO mis a jour' : 'OPCO cree');
+        toast.success(opco ? 'OPCO mis à jour' : 'OPCO créé');
         onClose();
       } else {
         toast.error(res.error ?? 'Erreur');

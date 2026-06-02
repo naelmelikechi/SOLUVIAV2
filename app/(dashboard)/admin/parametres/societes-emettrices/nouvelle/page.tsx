@@ -5,7 +5,7 @@ import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { SocieteEmettriceForm } from '@/components/admin/societe-emettrice-form';
 
-export const metadata: Metadata = { title: 'Nouvelle societe - SOLUVIA' };
+export const metadata: Metadata = { title: 'Nouvelle société - SOLUVIA' };
 
 export default async function NouvelleSocietePage() {
   const user = await getUser();
@@ -14,8 +14,8 @@ export default async function NouvelleSocietePage() {
   return (
     <div className="space-y-4 p-6">
       <PageHeader
-        title="Nouvelle societe emettrice"
-        description="Entite juridique qui emettra devis et factures"
+        title="Nouvelle société émettrice"
+        description="Entité juridique qui émettra devis et factures"
       />
       <SocieteEmettriceForm />
     </div>

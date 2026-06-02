@@ -85,9 +85,9 @@ export default async function ParametresPage() {
           href="/admin/parametres/societes-emettrices"
           className="hover:bg-muted/40 block rounded-md border p-4"
         >
-          <h3 className="font-semibold">Societes emettrices</h3>
+          <h3 className="font-semibold">Sociétés émettrices</h3>
           <p className="text-muted-foreground text-sm">
-            Gerer SOLUVIA, DIGIVIA et les autres entites juridiques.
+            Gérer SOLUVIA, DIGIVIA et les autres entités juridiques.
           </p>
         </Link>
       </div>

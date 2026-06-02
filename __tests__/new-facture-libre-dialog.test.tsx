@@ -56,7 +56,7 @@ describe('NewFactureLibreDialog', () => {
       />,
     );
     // selecteur affiche les 2 options
-    expect(screen.getByLabelText(/societe emettrice/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/société émettrice/i)).toBeInTheDocument();
   });
 
   it('affiche un libelle quand exactement 1 societe', () => {
@@ -69,7 +69,7 @@ describe('NewFactureLibreDialog', () => {
       />,
     );
     expect(
-      screen.queryByLabelText(/societe emettrice/i),
+      screen.queryByLabelText(/société émettrice/i),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/S\.A\.S\. SOLUVIA/)).toBeInTheDocument();
   });

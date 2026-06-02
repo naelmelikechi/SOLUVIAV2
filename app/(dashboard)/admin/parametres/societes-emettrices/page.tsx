@@ -8,7 +8,7 @@ import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { listSocietesEmettrices } from '@/lib/queries/societes-emettrices';
 
-export const metadata: Metadata = { title: 'Societes emettrices - SOLUVIA' };
+export const metadata: Metadata = { title: 'Sociétés émettrices - SOLUVIA' };
 
 export default async function SocietesEmettricesPage() {
   const [user, societes] = await Promise.all([
@@ -20,15 +20,15 @@ export default async function SocietesEmettricesPage() {
   return (
     <div className="space-y-4 p-6">
       <PageHeader
-        title="Societes emettrices"
-        description="Entites juridiques qui emettent devis et factures"
+        title="Sociétés émettrices"
+        description="Entités juridiques qui émettent devis et factures"
       >
         <Link
           href="/admin/parametres/societes-emettrices/nouvelle"
           className={buttonVariants()}
         >
           <Plus className="size-4" />
-          Nouvelle societe
+          Nouvelle société
         </Link>
       </PageHeader>
 
@@ -39,7 +39,7 @@ export default async function SocietesEmettricesPage() {
               <th className="px-4 py-2">Code</th>
               <th className="px-4 py-2">Raison sociale</th>
               <th className="px-4 py-2">SIRET</th>
-              <th className="px-4 py-2">Defaut</th>
+              <th className="px-4 py-2">Défaut</th>
               <th className="px-4 py-2">Active</th>
               <th className="px-4 py-2">Odoo</th>
               <th className="px-4 py-2" aria-label="Actions"></th>
@@ -52,11 +52,11 @@ export default async function SocietesEmettricesPage() {
                 <td className="px-4 py-2">{s.raison_sociale}</td>
                 <td className="px-4 py-2 font-mono text-xs">{s.siret}</td>
                 <td className="px-4 py-2">{s.est_defaut ? 'Oui' : '-'}</td>
-                <td className="px-4 py-2">{s.actif ? 'Oui' : 'Archivee'}</td>
+                <td className="px-4 py-2">{s.actif ? 'Oui' : 'Archivée'}</td>
                 <td className="px-4 py-2 text-xs">
                   {s.odoo_company_id
                     ? `company=${s.odoo_company_id}`
-                    : 'Non configure'}
+                    : 'Non configuré'}
                 </td>
                 <td className="px-4 py-2">
                   <Link

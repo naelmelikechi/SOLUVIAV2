@@ -857,7 +857,7 @@ export async function syncAllEduviaClients(
           invoice_lines: 0,
           contrats_archived_orphan: 0,
           errors: [
-            'Cle API non dechiffrable (ENCRYPTION_KEY manquante ou cle stockee en clair). Recreez la cle pour la reactiver.',
+            'Clé API non déchiffrable (ENCRYPTION_KEY manquante ou clé stockée en clair). Recréez la clé pour la réactiver.',
           ],
         });
         continue;

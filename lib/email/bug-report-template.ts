@@ -17,7 +17,7 @@ const SEVERITY_LABELS: Record<string, string> = {
 
 const CATEGORY_LABELS: Record<string, string> = {
   ui: 'Interface',
-  data: 'Donnees',
+  data: 'Données',
   auth: 'Authentification',
   perf: 'Performance',
   email: 'Email',

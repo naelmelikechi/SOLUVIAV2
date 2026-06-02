@@ -112,7 +112,7 @@ export function PipelineTable({ prospects, onRowClick }: PipelineTableProps) {
       {
         accessorKey: 'updated_at',
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Mis a jour" />
+          <DataTableColumnHeader column={column} title="Mis à jour" />
         ),
         cell: ({ row }) =>
           row.original.updated_at ? formatDate(row.original.updated_at) : '-',

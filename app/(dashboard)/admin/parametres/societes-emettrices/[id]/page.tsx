@@ -6,7 +6,7 @@ import { isAdmin } from '@/lib/utils/roles';
 import { getSocieteEmettriceById } from '@/lib/queries/societes-emettrices';
 import { SocieteEmettriceForm } from '@/components/admin/societe-emettrice-form';
 
-export const metadata: Metadata = { title: 'Societe emettrice - SOLUVIA' };
+export const metadata: Metadata = { title: 'Société émettrice - SOLUVIA' };
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -25,7 +25,7 @@ export default async function EditSocietePage({ params }: PageProps) {
     <div className="space-y-4 p-6">
       <PageHeader
         title={`${societe.raison_sociale} (${societe.code})`}
-        description="Modification des informations societe emettrice"
+        description="Modification des informations société émettrice"
       />
       <SocieteEmettriceForm societe={societe} />
     </div>

@@ -199,7 +199,7 @@ export function NewDevisDialog({
             )}
             {societes.length === 1 && (
               <p className="text-muted-foreground text-xs">
-                Emis depuis : <strong>{societes[0]!.raison_sociale}</strong>
+                Émis depuis : <strong>{societes[0]!.raison_sociale}</strong>
               </p>
             )}
 

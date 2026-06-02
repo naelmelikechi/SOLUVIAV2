@@ -126,15 +126,15 @@ export async function QualitePedagogieSection({
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          title="Qualite Qualiopi"
+          title="Qualité Qualiopi"
           kpiType="taux_qualiopi"
-          subtitle="Taches conformes sur tous les CFA"
+          subtitle="Tâches conformes sur tous les CFA"
           color="green"
           scope={scope}
           scopeId={scopeId}
         />
         <KpiCard
-          title="Pedagogie"
+          title="Pédagogie"
           kpiType="pedagogie_avancement"
           subtitle="Avancement moyen apprenants actifs"
           color="blue"
@@ -142,14 +142,14 @@ export async function QualitePedagogieSection({
           scopeId={scopeId}
         />
         <KpiCardPlaceholder
-          title="Reussite"
-          tooltip="Donnees examens non disponibles cote Eduvia."
-          subtitle="Taux de reussite examens (a venir)"
+          title="Réussite"
+          tooltip="Données examens non disponibles côté Eduvia."
+          subtitle="Taux de réussite examens (à venir)"
         />
         <KpiCard
           title="Financement"
           kpiType="taux_financement"
-          subtitle="Part facturee vs NPEC total contrats actifs"
+          subtitle="Part facturée vs NPEC total contrats actifs"
           color="blue"
           scope={scope}
           scopeId={scopeId}
@@ -163,9 +163,9 @@ export async function QualitePedagogieSection({
           scopeId={scopeId}
         />
         <KpiCardPlaceholder
-          title="Rentabilite"
-          tooltip="Couts directs non traces, formule a definir."
-          subtitle="Marge brute (a venir)"
+          title="Rentabilité"
+          tooltip="Coûts directs non tracés, formule à définir."
+          subtitle="Marge brute (à venir)"
         />
       </div>
     </section>

@@ -424,7 +424,7 @@ export function FacturePdf({
 
           // Multi-OPCO: render with group headers and subtotals.
           return groups.map(([key, groupLines]) => {
-            const label = key === '_no_opco' ? 'Non specifie' : `OPCO : ${key}`;
+            const label = key === '_no_opco' ? 'Non spécifié' : `OPCO : ${key}`;
             const subtotalHt =
               Math.round(
                 groupLines.reduce((s, l) => s + l.montant_ht, 0) * 100,

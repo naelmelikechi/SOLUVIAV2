@@ -19,11 +19,11 @@ describe('PeriodSelector', () => {
     expect(screen.getByText('Mai 2026')).toBeDefined();
   });
 
-  it("ouvre la liste au clic et affiche les 3 options", () => {
+  it('ouvre la liste au clic et affiche les 3 options', () => {
     render(<PeriodSelector current="ce_mois" label="Mai 2026" />);
     fireEvent.click(screen.getByRole('button'));
     expect(screen.getByText('Ce mois')).toBeDefined();
-    expect(screen.getByText('Mois precedent')).toBeDefined();
+    expect(screen.getByText('Mois précédent')).toBeDefined();
     expect(screen.getByText('30 derniers jours')).toBeDefined();
   });
 
@@ -39,7 +39,7 @@ describe('PeriodSelector', () => {
     pushMock.mockClear();
     render(<PeriodSelector current="ce_mois" label="Mai 2026" />);
     fireEvent.click(screen.getByRole('button'));
-    fireEvent.click(screen.getByText('Mois precedent'));
+    fireEvent.click(screen.getByText('Mois précédent'));
     expect(pushMock).toHaveBeenCalledWith('/dashboard?periode=mois_precedent');
   });
 

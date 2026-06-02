@@ -27,11 +27,16 @@ export interface DevisDetail extends DevisRow {
     trigramme: string;
     raison_sociale: string;
     adresse: string | null;
+    localisation: string | null;
+    siret: string | null;
+    tva_intracommunautaire: string | null;
   } | null;
   societe_emettrice: {
     id: string;
     code: string;
     raison_sociale: string;
+    forme_juridique: string | null;
+    capital_social: number | null;
     siret: string;
     tva_intracom: string;
     adresse: string;
@@ -72,7 +77,7 @@ export async function listDevis(): Promise<DevisListItem[]> {
 
 const DEVIS_DETAIL_SELECT = `
   *,
-  client:clients(id, trigramme, raison_sociale, adresse),
+  client:clients(id, trigramme, raison_sociale, adresse, localisation, siret, tva_intracommunautaire),
   societe_emettrice:societes_emettrices(*),
   lignes:devis_lignes(*),
   factures_liees:factures!factures_devis_id_fkey(id, ref, statut, montant_ht, montant_ttc, est_acompte, date_emission)

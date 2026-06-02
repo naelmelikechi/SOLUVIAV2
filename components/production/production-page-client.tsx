@@ -166,7 +166,7 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
             ? 'Commission SOLUVIA sur la production'
             : perspective === 'opco'
               ? 'Montants bruts OPCO'
-              : 'OPCO et SOLUVIA cote a cote'}
+              : 'OPCO et SOLUVIA côte à côte'}
         </span>
 
         {/* Projet multi-select filter */}
@@ -202,7 +202,7 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
                   className="text-muted-foreground hover:text-foreground text-[10px] underline"
                   onClick={() => setFilterProjets([])}
                 >
-                  Tout decocher
+                  Tout décocher
                 </button>
               </div>
             </DropdownMenuLabel>

@@ -17,7 +17,7 @@ export async function listSocietesEmettrices(): Promise<SocieteEmettriceRow[]> {
     logger.error('queries.societes_emettrices', 'list failed', { error });
     throw new AppError(
       'SOCIETES_EMETTRICES_FETCH_FAILED',
-      'Impossible de charger les societes emettrices',
+      'Impossible de charger les sociétés émettrices',
       { cause: error },
     );
   }
@@ -47,7 +47,7 @@ export async function getSocieteEmettriceById(
     });
     throw new AppError(
       'SOCIETES_EMETTRICES_FETCH_FAILED',
-      `Impossible de charger la societe emettrice ${id}`,
+      `Impossible de charger la société émettrice ${id}`,
       { cause: error },
     );
   }
@@ -83,7 +83,7 @@ export async function getDefaultSocieteEmettriceId(): Promise<string> {
     logger.error('queries.societes_emettrices', 'getDefault failed', { error });
     throw new AppError(
       'SOCIETE_EMETTRICE_DEFAULT_MISSING',
-      'Aucune societe emettrice par defaut active',
+      'Aucune société émettrice par défaut active',
       { cause: error },
     );
   }

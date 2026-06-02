@@ -76,8 +76,8 @@ export function OpcoFilter({ events, selected, onChange }: Props) {
         {unknownCount > 0 && (
           <div className="border-t pt-2">
             <Badge variant="destructive">
-              {unknownCount} contrat(s) avec OPCO non identifie - mappez le
-              prefixe dans /admin/parametres/opcos
+              {unknownCount} contrat(s) avec OPCO non identifié - mappez le
+              préfixe dans /admin/parametres/opcos
             </Badge>
           </div>
         )}

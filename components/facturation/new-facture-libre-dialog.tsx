@@ -161,10 +161,10 @@ export function NewFactureLibreDialog({
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-2">
-          {/* Societe emettrice */}
+          {/* Société émettrice */}
           {societes.length > 1 && (
             <div className="space-y-2">
-              <Label htmlFor="societe-emettrice">Societe emettrice</Label>
+              <Label htmlFor="societe-emettrice">Société émettrice</Label>
               <select
                 id="societe-emettrice"
                 value={societeId}

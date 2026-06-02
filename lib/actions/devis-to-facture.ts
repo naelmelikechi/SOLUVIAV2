@@ -36,13 +36,13 @@ export async function createFactureFromDevis(
 ): Promise<Result<{ factureId: string }>> {
   const user = await getUser();
   if (!isAdmin(user?.role))
-    return { success: false, error: 'Acces refuse (admin requis)' };
+    return { success: false, error: 'Accès refusé (admin requis)' };
 
   const parsed = CreateFactureFromDevisSchema.safeParse(input);
   if (!parsed.success)
     return {
       success: false,
-      error: parsed.error.issues[0]?.message ?? 'Donnees invalides',
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
 
   const devis = await getDevisById(parsed.data.devisId);
@@ -55,7 +55,7 @@ export async function createFactureFromDevis(
   if (!devis.client_id || !devis.societe_emettrice_id)
     return {
       success: false,
-      error: 'Devis incomplet (client ou societe manquant)',
+      error: 'Devis incomplet (client ou société manquant)',
     };
 
   const supabase = await createClient();
@@ -92,7 +92,7 @@ export async function createFactureFromDevis(
     const montantHt =
       Math.round((totalDevisHt - totalDejaFactureHt) * 100) / 100;
     if (montantHt <= 0)
-      return { success: false, error: 'Devis deja entierement facture' };
+      return { success: false, error: 'Devis déjà entièrement facturé' };
     lignesPayload = [
       {
         description: `Solde sur ${devis.ref ?? devis.id} - ${devis.objet}`,

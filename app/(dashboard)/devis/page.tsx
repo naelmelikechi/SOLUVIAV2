@@ -23,7 +23,7 @@ export default async function DevisPage() {
 
   return (
     <div className="space-y-4 p-6">
-      <PageHeader title="Devis" description="Devis emis vers les clients">
+      <PageHeader title="Devis" description="Devis émis vers les clients">
         <NewDevisDialog
           societes={societes.map((s) => ({
             id: s.id,

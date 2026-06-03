@@ -184,20 +184,32 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
               <table className="w-full text-sm">
                 <thead className="text-muted-foreground border-b text-left">
                   <tr>
-                    <th className="py-2">#</th>
-                    <th>Libellé</th>
-                    <th className="text-right">Qté</th>
-                    <th className="text-right">PU HT</th>
-                    <th className="text-right">TVA%</th>
-                    <th className="text-right">Total HT</th>
-                    <th className="text-right">Total TTC</th>
+                    <th className="w-8 py-2 pr-2">#</th>
+                    <th className="py-2 pr-3">Libellé</th>
+                    <th className="py-2 pr-3 text-right whitespace-nowrap">
+                      Qté
+                    </th>
+                    <th className="py-2 pr-3 text-right whitespace-nowrap">
+                      PU HT
+                    </th>
+                    <th className="py-2 pr-3 text-right whitespace-nowrap">
+                      TVA%
+                    </th>
+                    <th className="py-2 pr-3 text-right whitespace-nowrap">
+                      Total HT
+                    </th>
+                    <th className="py-2 text-right whitespace-nowrap">
+                      Total TTC
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {devis.lignes.map((l) => (
                     <tr key={l.id} className="border-b last:border-0">
-                      <td className="py-2 font-mono text-xs">{l.ordre}</td>
-                      <td>
+                      <td className="py-2 pr-2 align-top font-mono text-xs">
+                        {l.ordre}
+                      </td>
+                      <td className="py-2 pr-3 align-top">
                         <div>{l.libelle}</div>
                         {l.description && (
                           <div className="text-muted-foreground text-xs">
@@ -205,22 +217,22 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
                           </div>
                         )}
                       </td>
-                      <td className="text-right tabular-nums">
+                      <td className="py-2 pr-3 text-right align-top tabular-nums">
                         {Number(l.quantite)}
                       </td>
-                      <td className="text-right tabular-nums">
+                      <td className="py-2 pr-3 text-right align-top whitespace-nowrap tabular-nums">
                         {Number(l.prix_unitaire_ht)
                           .toFixed(2)
                           .replace('.', ',')}{' '}
                         €
                       </td>
-                      <td className="text-right tabular-nums">
+                      <td className="py-2 pr-3 text-right align-top whitespace-nowrap tabular-nums">
                         {Number(l.taux_tva)} %
                       </td>
-                      <td className="text-right tabular-nums">
+                      <td className="py-2 pr-3 text-right align-top whitespace-nowrap tabular-nums">
                         {Number(l.total_ht).toFixed(2).replace('.', ',')} €
                       </td>
-                      <td className="text-right font-medium tabular-nums">
+                      <td className="py-2 text-right align-top font-medium whitespace-nowrap tabular-nums">
                         {Number(l.total_ttc).toFixed(2).replace('.', ',')} €
                       </td>
                     </tr>
@@ -317,31 +329,35 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
             <table className="w-full text-sm">
               <thead className="text-muted-foreground border-b text-left">
                 <tr>
-                  <th className="py-2">Référence</th>
-                  <th>Statut</th>
-                  <th>Type</th>
-                  <th className="text-right">HT</th>
-                  <th className="text-right">TTC</th>
-                  <th>Date d&apos;émission</th>
+                  <th className="py-2 pr-3 whitespace-nowrap">Référence</th>
+                  <th className="py-2 pr-3">Statut</th>
+                  <th className="py-2 pr-3">Type</th>
+                  <th className="py-2 pr-3 text-right whitespace-nowrap">HT</th>
+                  <th className="py-2 pr-3 text-right whitespace-nowrap">
+                    TTC
+                  </th>
+                  <th className="py-2 whitespace-nowrap">
+                    Date d&apos;émission
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {devis.factures_liees.map((f) => (
                   <tr key={f.id} className="border-b last:border-0">
-                    <td className="py-2 font-mono text-xs">
+                    <td className="py-2 pr-3 font-mono text-xs whitespace-nowrap">
                       {f.ref ?? f.id.slice(0, 8)}
                     </td>
-                    <td>{f.statut}</td>
-                    <td>
+                    <td className="py-2 pr-3">{f.statut}</td>
+                    <td className="py-2 pr-3 whitespace-nowrap">
                       {f.est_acompte ? 'Acompte' : 'Solde / Personnalisée'}
                     </td>
-                    <td className="text-right tabular-nums">
+                    <td className="py-2 pr-3 text-right whitespace-nowrap tabular-nums">
                       {Number(f.montant_ht).toFixed(2).replace('.', ',')} €
                     </td>
-                    <td className="text-right tabular-nums">
+                    <td className="py-2 pr-3 text-right whitespace-nowrap tabular-nums">
                       {Number(f.montant_ttc).toFixed(2).replace('.', ',')} €
                     </td>
-                    <td>
+                    <td className="py-2 whitespace-nowrap">
                       {f.date_emission
                         ? new Date(f.date_emission).toLocaleDateString('fr-FR')
                         : '-'}

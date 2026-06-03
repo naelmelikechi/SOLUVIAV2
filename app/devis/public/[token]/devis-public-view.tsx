@@ -161,18 +161,22 @@ export function DevisPublicView({
           <table className="w-full text-sm">
             <thead className="border-b text-left text-gray-500">
               <tr>
-                <th className="py-2">#</th>
-                <th>Libellé</th>
-                <th className="text-right">Qté</th>
-                <th className="text-right">PU HT</th>
-                <th className="text-right">Montant HT</th>
+                <th className="w-8 py-2 pr-2">#</th>
+                <th className="py-2 pr-3">Libellé</th>
+                <th className="py-2 pr-3 text-right whitespace-nowrap">Qté</th>
+                <th className="py-2 pr-3 text-right whitespace-nowrap">
+                  PU HT
+                </th>
+                <th className="py-2 text-right whitespace-nowrap">
+                  Montant HT
+                </th>
               </tr>
             </thead>
             <tbody>
               {lignes.map((l) => (
                 <tr key={l.ordre} className="border-b last:border-0">
-                  <td className="py-2">{l.ordre}</td>
-                  <td>
+                  <td className="py-2 pr-2 align-top">{l.ordre}</td>
+                  <td className="py-2 pr-3 align-top">
                     {l.libelle}
                     {l.description && (
                       <div className="text-xs text-gray-500">
@@ -180,11 +184,13 @@ export function DevisPublicView({
                       </div>
                     )}
                   </td>
-                  <td className="text-right tabular-nums">{l.quantite}</td>
-                  <td className="text-right tabular-nums">
+                  <td className="py-2 pr-3 text-right align-top tabular-nums">
+                    {l.quantite}
+                  </td>
+                  <td className="py-2 pr-3 text-right align-top whitespace-nowrap tabular-nums">
                     {Number(l.prix_unitaire_ht).toFixed(2).replace('.', ',')} €
                   </td>
-                  <td className="text-right tabular-nums">
+                  <td className="py-2 text-right align-top whitespace-nowrap tabular-nums">
                     {Number(l.total_ht).toFixed(2).replace('.', ',')} €
                   </td>
                 </tr>

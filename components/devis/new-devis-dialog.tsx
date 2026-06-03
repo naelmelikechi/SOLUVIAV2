@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { createDevis } from '@/lib/actions/devis';
 import { matchesSearch } from '@/lib/utils/search';
 import { cn } from '@/lib/utils';
@@ -86,6 +87,11 @@ export function NewDevisDialog({
       matchesSearch(`${c.trigramme} ${c.raison_sociale}`, search),
     );
   }, [clients, search]);
+
+  const selectedClient = useMemo(
+    () => clients.find((c) => c.id === clientId),
+    [clients, clientId],
+  );
 
   const canSubmit =
     !!clientId &&
@@ -238,6 +244,19 @@ export function NewDevisDialog({
                   className="pl-8"
                 />
               </div>
+              {selectedClient && (
+                <div className="bg-primary/10 text-foreground flex items-center gap-2 rounded-md px-3 py-1.5 text-sm">
+                  <span className="font-mono text-xs font-semibold">
+                    {selectedClient.trigramme}
+                  </span>
+                  <span className="truncate">
+                    {selectedClient.raison_sociale}
+                  </span>
+                  <span className="text-muted-foreground ml-auto text-xs">
+                    Sélectionné
+                  </span>
+                </div>
+              )}
               <div className="max-h-40 overflow-y-auto rounded-md border">
                 {filteredClients.length === 0 ? (
                   <p className="text-muted-foreground p-4 text-center text-xs">
@@ -295,6 +314,9 @@ export function NewDevisDialog({
                     className="bg-muted/30 grid grid-cols-12 gap-2 rounded-md border p-3"
                   >
                     <div className="col-span-12 sm:col-span-5">
+                      <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                        Libellé *
+                      </label>
                       <Input
                         placeholder="Libellé *"
                         value={l.libelle}
@@ -304,17 +326,27 @@ export function NewDevisDialog({
                       />
                     </div>
                     <div className="col-span-4 sm:col-span-2">
+                      <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                        Qté
+                      </label>
                       <Input
+                        inputMode="decimal"
                         placeholder="Qté"
+                        className="text-right tabular-nums"
                         value={l.quantite}
                         onChange={(e) =>
                           updateLigne(l.id, { quantite: e.target.value })
                         }
                       />
                     </div>
-                    <div className="col-span-4 sm:col-span-3">
+                    <div className="col-span-4 sm:col-span-2">
+                      <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                        PU HT (€)
+                      </label>
                       <Input
+                        inputMode="decimal"
                         placeholder="PU HT (€)"
+                        className="text-right tabular-nums"
                         value={l.prix_unitaire_ht}
                         onChange={(e) =>
                           updateLigne(l.id, {
@@ -323,32 +355,43 @@ export function NewDevisDialog({
                         }
                       />
                     </div>
-                    <div className="col-span-3 sm:col-span-1">
+                    <div className="col-span-2 sm:col-span-1">
+                      <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                        TVA%
+                      </label>
                       <Input
+                        inputMode="decimal"
                         placeholder="TVA%"
+                        className="text-right tabular-nums"
                         value={l.taux_tva}
                         onChange={(e) =>
                           updateLigne(l.id, { taux_tva: e.target.value })
                         }
                       />
                     </div>
-                    <div className="col-span-1 flex items-center justify-end">
+                    <div className="col-span-2 flex items-center justify-end pt-6">
                       <button
                         type="button"
                         onClick={() => removeLigne(l.id)}
                         disabled={lignes.length <= 1}
+                        title="Supprimer"
                         className="text-muted-foreground hover:text-destructive disabled:opacity-30"
                       >
                         <Trash2 className="size-4" />
                       </button>
                     </div>
                     <div className="col-span-12">
-                      <Input
+                      <label className="text-muted-foreground mb-1 block text-xs font-medium">
+                        Description (optionnel)
+                      </label>
+                      <Textarea
+                        rows={1}
                         placeholder="Description (optionnel)"
                         value={l.description}
                         onChange={(e) =>
                           updateLigne(l.id, { description: e.target.value })
                         }
+                        className="min-h-9 resize-none"
                       />
                     </div>
                   </div>

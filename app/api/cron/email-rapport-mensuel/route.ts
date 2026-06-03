@@ -7,6 +7,7 @@ import { logger } from '@/lib/utils/logger';
 import { sendRapportMensuelEmail } from '@/lib/email/notifications';
 import { withEmailLock } from '@/lib/email/send-log';
 import { encaisseHt } from '@/lib/utils/montant-ht';
+import { computeContractSchedule } from '@/lib/queries/production';
 
 export const maxDuration = 120;
 
@@ -44,10 +45,17 @@ export async function GET(request: Request) {
               )
               .gte('date_reception', prevStartStr)
               .lte('date_reception', prevEndStr),
+            // Production OPCO live depuis les contrats (même logique que le
+            // dashboard). L'ancienne table production_mensuelle n'est alimentée
+            // par rien -> production toujours 0.
             supabase
-              .from('production_mensuelle')
-              .select('production_opco, production_soluvia, mois')
-              .eq('mois', prevStartStr),
+              .from('contrats')
+              .select(
+                'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+              )
+              .eq('archive', false)
+              .eq('projet.client.is_demo', false)
+              .eq('projet.client.archive', false),
             supabase
               .from('users')
               .select('email, prenom')
@@ -57,7 +65,7 @@ export async function GET(request: Request) {
 
         const factures = facturesRes.data ?? [];
         const paiements = paiementsRes.data ?? [];
-        const productions = productionRes.data ?? [];
+        const contratsProd = productionRes.data ?? [];
         const admins = adminsRes.data;
 
         const factureHt =
@@ -85,14 +93,25 @@ export async function GET(request: Request) {
             }, 0) * 100,
           ) / 100;
 
-        const productionHt =
-          Math.round(
-            productions.reduce(
-              (s, p) =>
-                s + (p.production_opco ?? 0) + (p.production_soluvia ?? 0),
-              0,
-            ) * 100,
-          ) / 100;
+        // Production OPCO du mois précédent = versements OPCO (schedule
+        // 40/30/20/10) qui tombent sur ce mois. HT=TTC (OPCO non assujetti TVA).
+        // Même définition que la "Production" du dashboard.
+        const monthKey = format(prevStart, 'yyyy-MM');
+        let productionHt = 0;
+        for (const c of contratsProd) {
+          if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
+          if (!c.npec_amount || c.npec_amount <= 0) continue;
+          const schedule = computeContractSchedule(
+            c.date_debut,
+            c.duree_mois,
+            c.npec_amount,
+            0,
+          );
+          for (const e of schedule.opco) {
+            if (e.month === monthKey) productionHt += e.amount;
+          }
+        }
+        productionHt = Math.round(productionHt * 100) / 100;
 
         const nbFacturesEmises = factures.filter((f) => !f.est_avoir).length;
         const nbFacturesRetard = factures.filter(

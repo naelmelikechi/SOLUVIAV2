@@ -64,6 +64,18 @@ const STATUT_LABELS: Record<string, string> = {
   annule: 'Annulé',
 };
 
+const STATUT_VARIANTS: Record<
+  string,
+  'default' | 'outline' | 'secondary' | 'destructive'
+> = {
+  envoye: 'outline',
+  accepte: 'default',
+  refuse: 'destructive',
+  expire: 'secondary',
+  remplace: 'secondary',
+  annule: 'secondary',
+};
+
 export function DevisPublicView({
   token,
   payload,
@@ -81,8 +93,15 @@ export function DevisPublicView({
       <div className="rounded-md border bg-white p-8 text-center">
         <h1 className="text-2xl font-semibold">Merci !</h1>
         <p className="mt-2 text-gray-500">
-          Votre réponse a bien été enregistrée.
+          Votre réponse au devis {devis.ref} a bien été enregistrée.
         </p>
+        <a
+          href={`/api/devis/${token}/pdf`}
+          download={`${devis.ref}.pdf`}
+          className="mt-6 inline-flex items-center justify-center rounded-md border bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-gray-50"
+        >
+          Télécharger le PDF
+        </a>
       </div>
     );
   }
@@ -115,7 +134,7 @@ export function DevisPublicView({
             <h1 className="text-2xl font-semibold">Devis {devis.ref}</h1>
             <p className="text-sm text-gray-500">{societe.raison_sociale}</p>
           </div>
-          <Badge variant="outline">
+          <Badge variant={STATUT_VARIANTS[devis.statut] ?? 'outline'}>
             {STATUT_LABELS[devis.statut] ?? devis.statut}
           </Badge>
         </div>
@@ -138,37 +157,41 @@ export function DevisPublicView({
         <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase">
           Lignes
         </h2>
-        <table className="w-full text-sm">
-          <thead className="border-b text-left text-gray-500">
-            <tr>
-              <th className="py-2">#</th>
-              <th>Libellé</th>
-              <th className="text-right">Qté</th>
-              <th className="text-right">PU HT</th>
-              <th className="text-right">Montant HT</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lignes.map((l) => (
-              <tr key={l.ordre} className="border-b last:border-0">
-                <td className="py-2">{l.ordre}</td>
-                <td>
-                  {l.libelle}
-                  {l.description && (
-                    <div className="text-xs text-gray-500">{l.description}</div>
-                  )}
-                </td>
-                <td className="text-right tabular-nums">{l.quantite}</td>
-                <td className="text-right tabular-nums">
-                  {Number(l.prix_unitaire_ht).toFixed(2).replace('.', ',')} €
-                </td>
-                <td className="text-right tabular-nums">
-                  {Number(l.total_ht).toFixed(2).replace('.', ',')} €
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b text-left text-gray-500">
+              <tr>
+                <th className="py-2">#</th>
+                <th>Libellé</th>
+                <th className="text-right">Qté</th>
+                <th className="text-right">PU HT</th>
+                <th className="text-right">Montant HT</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {lignes.map((l) => (
+                <tr key={l.ordre} className="border-b last:border-0">
+                  <td className="py-2">{l.ordre}</td>
+                  <td>
+                    {l.libelle}
+                    {l.description && (
+                      <div className="text-xs text-gray-500">
+                        {l.description}
+                      </div>
+                    )}
+                  </td>
+                  <td className="text-right tabular-nums">{l.quantite}</td>
+                  <td className="text-right tabular-nums">
+                    {Number(l.prix_unitaire_ht).toFixed(2).replace('.', ',')} €
+                  </td>
+                  <td className="text-right tabular-nums">
+                    {Number(l.total_ht).toFixed(2).replace('.', ',')} €
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {/* Totaux */}
         <div className="mt-4 flex flex-col items-end gap-1 text-sm">

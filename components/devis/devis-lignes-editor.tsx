@@ -173,7 +173,9 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
                 Qté
               </label>
               <Input
+                inputMode="decimal"
                 placeholder="Qté"
+                className="text-right tabular-nums"
                 value={row.quantite}
                 onChange={(e) =>
                   updateRow(row.id, { quantite: e.target.value })
@@ -185,7 +187,9 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
                 PU HT (€)
               </label>
               <Input
+                inputMode="decimal"
                 placeholder="PU HT (€)"
+                className="text-right tabular-nums"
                 value={row.prix_unitaire_ht}
                 onChange={(e) =>
                   updateRow(row.id, { prix_unitaire_ht: e.target.value })
@@ -197,14 +201,16 @@ export function DevisLignesEditor({ devisId, lignes }: DevisLignesEditorProps) {
                 TVA%
               </label>
               <Input
+                inputMode="decimal"
                 placeholder="TVA%"
+                className="text-right tabular-nums"
                 value={row.taux_tva}
                 onChange={(e) =>
                   updateRow(row.id, { taux_tva: e.target.value })
                 }
               />
             </div>
-            <div className="col-span-2 flex items-center justify-end gap-1 sm:pt-6">
+            <div className="col-span-2 flex items-center justify-end gap-1 pt-6">
               {(row.isNew || row.isDirty) && (
                 <button
                   type="button"

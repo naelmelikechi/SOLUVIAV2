@@ -17,6 +17,7 @@ import { DevisStatusBadge } from './devis-status-badge';
 import { DevisLignesEditor } from './devis-lignes-editor';
 import { SendDevisDialog } from './send-devis-dialog';
 import { CreateFactureFromDevisDialog } from './create-facture-from-devis-dialog';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { cancelDevis, reviseDevis } from '@/lib/actions/devis';
 import type { DevisDetail } from '@/lib/queries/devis';
 
@@ -33,6 +34,8 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
   const [revisePending, startRevise] = useTransition();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoaded, setPreviewLoaded] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [reviseConfirmOpen, setReviseConfirmOpen] = useState(false);
 
   const isBrouillon = devis.statut === 'brouillon';
   const isEnvoye = devis.statut === 'envoye';
@@ -48,12 +51,23 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
     : null;
 
   function handleCancel() {
-    if (!confirm('Annuler ce devis brouillon ?')) return;
     startCancel(async () => {
       const res = await cancelDevis(devis.id);
       if (res.success) {
         toast.success('Devis annulé.');
         push('/devis');
+      } else {
+        toast.error(res.error);
+      }
+    });
+  }
+
+  function handleRevise() {
+    startRevise(async () => {
+      const res = await reviseDevis(devis.id);
+      if (res.success) {
+        toast.success('Révision créée avec succès.');
+        push(`/devis/${res.newDevisId}`);
       } else {
         toast.error(res.error);
       }
@@ -118,7 +132,7 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
               </Button>
               <Button
                 variant="ghost"
-                onClick={handleCancel}
+                onClick={() => setCancelConfirmOpen(true)}
                 disabled={cancelPending}
               >
                 <XCircle className="mr-2 size-4" />
@@ -151,28 +165,71 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
             <Button
               variant="secondary"
               disabled={revisePending}
-              onClick={() => {
-                if (
-                  !confirm(
-                    'Créer une révision de ce devis ? Le devis actuel sera marqué comme remplacé.',
-                  )
-                )
-                  return;
-                startRevise(async () => {
-                  const res = await reviseDevis(devis.id);
-                  if (res.success) {
-                    toast.success('Révision créée avec succès.');
-                    push(`/devis/${res.newDevisId}`);
-                  } else {
-                    toast.error(res.error);
-                  }
-                });
-              }}
+              onClick={() => setReviseConfirmOpen(true)}
             >
               Réviser
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Lignes */}
+      <div className="rounded-md border p-4">
+        {isBrouillon ? (
+          <DevisLignesEditor devisId={devis.id} lignes={devis.lignes} />
+        ) : (
+          <div className="space-y-3">
+            <span className="text-sm font-medium">Lignes</span>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-muted-foreground border-b text-left">
+                  <tr>
+                    <th className="py-2">#</th>
+                    <th>Libellé</th>
+                    <th className="text-right">Qté</th>
+                    <th className="text-right">PU HT</th>
+                    <th className="text-right">TVA%</th>
+                    <th className="text-right">Total HT</th>
+                    <th className="text-right">Total TTC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {devis.lignes.map((l) => (
+                    <tr key={l.id} className="border-b last:border-0">
+                      <td className="py-2 font-mono text-xs">{l.ordre}</td>
+                      <td>
+                        <div>{l.libelle}</div>
+                        {l.description && (
+                          <div className="text-muted-foreground text-xs">
+                            {l.description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {Number(l.quantite)}
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {Number(l.prix_unitaire_ht)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        €
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {Number(l.taux_tva)} %
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {Number(l.total_ht).toFixed(2).replace('.', ',')} €
+                      </td>
+                      <td className="text-right font-medium tabular-nums">
+                        {Number(l.total_ttc).toFixed(2).replace('.', ',')} €
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Totaux */}
@@ -197,61 +254,6 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Lignes */}
-      <div className="rounded-md border p-4">
-        {isBrouillon ? (
-          <DevisLignesEditor devisId={devis.id} lignes={devis.lignes} />
-        ) : (
-          <div className="space-y-3">
-            <span className="text-sm font-medium">Lignes</span>
-            <table className="w-full text-sm">
-              <thead className="border-b text-left text-gray-500">
-                <tr>
-                  <th className="py-2">#</th>
-                  <th>Libellé</th>
-                  <th className="text-right">Qté</th>
-                  <th className="text-right">PU HT</th>
-                  <th className="text-right">TVA%</th>
-                  <th className="text-right">Total HT</th>
-                  <th className="text-right">Total TTC</th>
-                </tr>
-              </thead>
-              <tbody>
-                {devis.lignes.map((l) => (
-                  <tr key={l.id} className="border-b last:border-0">
-                    <td className="py-2 font-mono text-xs">{l.ordre}</td>
-                    <td>
-                      <div>{l.libelle}</div>
-                      {l.description && (
-                        <div className="text-muted-foreground text-xs">
-                          {l.description}
-                        </div>
-                      )}
-                    </td>
-                    <td className="text-right tabular-nums">
-                      {Number(l.quantite)}
-                    </td>
-                    <td className="text-right tabular-nums">
-                      {Number(l.prix_unitaire_ht).toFixed(2).replace('.', ',')}{' '}
-                      €
-                    </td>
-                    <td className="text-right tabular-nums">
-                      {Number(l.taux_tva)} %
-                    </td>
-                    <td className="text-right tabular-nums">
-                      {Number(l.total_ht).toFixed(2).replace('.', ',')} €
-                    </td>
-                    <td className="text-right font-medium tabular-nums">
-                      {Number(l.total_ttc).toFixed(2).replace('.', ',')} €
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
       {/* Timeline */}
@@ -311,40 +313,44 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
           <h2 className="mb-3 text-sm font-medium">
             Factures émises depuis ce devis
           </h2>
-          <table className="w-full text-sm">
-            <thead className="border-b text-left text-gray-500">
-              <tr>
-                <th className="py-2">Référence</th>
-                <th>Statut</th>
-                <th>Type</th>
-                <th className="text-right">HT</th>
-                <th className="text-right">TTC</th>
-                <th>Date d&apos;émission</th>
-              </tr>
-            </thead>
-            <tbody>
-              {devis.factures_liees.map((f) => (
-                <tr key={f.id} className="border-b last:border-0">
-                  <td className="py-2 font-mono text-xs">
-                    {f.ref ?? f.id.slice(0, 8)}
-                  </td>
-                  <td>{f.statut}</td>
-                  <td>{f.est_acompte ? 'Acompte' : 'Solde / Personnalisée'}</td>
-                  <td className="text-right tabular-nums">
-                    {Number(f.montant_ht).toFixed(2).replace('.', ',')} €
-                  </td>
-                  <td className="text-right tabular-nums">
-                    {Number(f.montant_ttc).toFixed(2).replace('.', ',')} €
-                  </td>
-                  <td>
-                    {f.date_emission
-                      ? new Date(f.date_emission).toLocaleDateString('fr-FR')
-                      : '-'}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-muted-foreground border-b text-left">
+                <tr>
+                  <th className="py-2">Référence</th>
+                  <th>Statut</th>
+                  <th>Type</th>
+                  <th className="text-right">HT</th>
+                  <th className="text-right">TTC</th>
+                  <th>Date d&apos;émission</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {devis.factures_liees.map((f) => (
+                  <tr key={f.id} className="border-b last:border-0">
+                    <td className="py-2 font-mono text-xs">
+                      {f.ref ?? f.id.slice(0, 8)}
+                    </td>
+                    <td>{f.statut}</td>
+                    <td>
+                      {f.est_acompte ? 'Acompte' : 'Solde / Personnalisée'}
+                    </td>
+                    <td className="text-right tabular-nums">
+                      {Number(f.montant_ht).toFixed(2).replace('.', ',')} €
+                    </td>
+                    <td className="text-right tabular-nums">
+                      {Number(f.montant_ttc).toFixed(2).replace('.', ',')} €
+                    </td>
+                    <td>
+                      {f.date_emission
+                        ? new Date(f.date_emission).toLocaleDateString('fr-FR')
+                        : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -405,6 +411,27 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
         devisRef={devis.ref}
         totalHt={Number(devis.montant_ht)}
         totalDejaFactureHt={totalDejaFactureHt}
+      />
+
+      <ConfirmDialog
+        open={cancelConfirmOpen}
+        onOpenChange={setCancelConfirmOpen}
+        title="Annuler ce devis brouillon ?"
+        description="Le brouillon sera annulé et vous serez redirigé vers la liste des devis."
+        confirmText="Annuler le devis"
+        variant="destructive"
+        isPending={cancelPending}
+        onConfirm={handleCancel}
+      />
+
+      <ConfirmDialog
+        open={reviseConfirmOpen}
+        onOpenChange={setReviseConfirmOpen}
+        title="Créer une révision de ce devis ?"
+        description="Le devis actuel sera marqué comme remplacé et un nouveau brouillon éditable sera créé."
+        confirmText="Créer la révision"
+        isPending={revisePending}
+        onConfirm={handleRevise}
       />
     </div>
   );

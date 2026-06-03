@@ -14,9 +14,10 @@ import { encaisseHt, ttcToHt } from '@/lib/utils/montant-ht';
 //   - M+10 : 20%
 //   - M+(dureeMois)+1 : 10% (approximation "dans les 4 mois suivant le terme")
 //
-// SOLUVIA side (12 mensualites, commission HT) :
+// SOLUVIA side = PRODUCTION (commission, prorata sur la duree du contrat) :
 //   - commission TTC = NPEC x tauxCommission / 100, puis HT = TTC / 1.2
-//   - M+3 a M+14 inclus, chaque mensualite = commissionHt / 12
+//   - repartie de M+0 (date_debut) a M+(dureeMois-1), chaque mois = commissionHt / dureeMois
+//   - independant de la facturation reelle (qui depend de la societe emettrice)
 // -----------------------------------------------------------------------------
 
 export interface ScheduleEntry {
@@ -28,7 +29,7 @@ export interface ScheduleEntry {
 export interface ContractSchedule {
   /** 4 versements OPCO = 100% NPEC */
   opco: ScheduleEntry[];
-  /** 12 mensualites SOLUVIA, commission HT = (NPEC x tauxCommission / 100) / 1.2 */
+  /** Production SOLUVIA = commission HT (NPEC x taux / 100 / 1.2) prorata sur dureeMois */
   soluvia: ScheduleEntry[];
 }
 
@@ -64,14 +65,15 @@ export function computeContractSchedule(
     { month: addMonthsKey(start, dureeMois + 1), amount: round2(npec * 0.1) },
   ];
 
-  // La commission SOLUVIA est définie en TTC (taux × NPEC) ; on en déduit le HT
-  // pour l'affichage de la production (cohérent avec le facturé/encaissé en HT).
+  // Production SOLUVIA = commission (TTC = taux × NPEC, HT déduit /1.2) répartie
+  // au prorata sur toute la durée du contrat, de date_debut au terme. Indépendant
+  // de la facturation (qui dépend de la société émettrice et du moment d'émission).
   const totalSoluviaTtc = (npec * tauxCommissionPct) / 100;
   const totalSoluvia = ttcToHt(totalSoluviaTtc);
-  const mensualite = round2(totalSoluvia / 12);
+  const mensualite = round2(totalSoluvia / dureeMois);
   const soluvia: ScheduleEntry[] = [];
-  for (let i = 0; i < 12; i++) {
-    soluvia.push({ month: addMonthsKey(start, 3 + i), amount: mensualite });
+  for (let i = 0; i < dureeMois; i++) {
+    soluvia.push({ month: addMonthsKey(start, i), amount: mensualite });
   }
 
   return { opco, soluvia };
@@ -88,7 +90,7 @@ export interface ProductionRow {
   label: string;
   /** OPCO theoretical revenue from contract schedule */
   production: number;
-  /** Revenu SOLUVIA théorique HT (commission TTC = NPEC x taux / 100, puis / 1.2, étalé 12 mois) */
+  /** Production SOLUVIA HT = commission (NPEC x taux / 100, puis / 1.2) prorata sur la durée */
   productionSoluvia: number;
   /** Sum of factures.montant_ht for the month */
   facture: number;

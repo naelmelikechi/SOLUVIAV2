@@ -169,7 +169,7 @@ function capitalize(s: string): string {
 // ---------------------------------------------------------------------------
 
 export interface DashboardFinancials {
-  totalProduction: number; // production OPCO theorique du mois courant (schedule 40/30/20/10) - versements OPCO non assujettis TVA, HT=TTC
+  totalProduction: number; // HT - commission SOLUVIA (NPEC × taux / 1.2) prorata durée, part du mois courant
   totalFacture: number; // HT - sum of factures.montant_ht (clients reels uniquement)
   totalEncaisse: number; // HT - paiements TTC ramenes au prorata HT/TTC de chaque facture
   totalEnRetard: number; // HT - sum factures.montant_ht en retard moins encaisse HT partiel recu
@@ -265,11 +265,11 @@ export async function getDashboardFinancials(
       .eq('statut', 'en_retard')
       .eq('projet.client.is_demo', false)
       .eq('projet.client.archive', false),
-    // Contrats pour calcul Production OPCO du mois (schedule 40/30/20/10)
+    // Contrats pour calcul Production du mois (commission prorata durée)
     supabase
       .from('contrats')
       .select(
-        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(taux_commission, client:clients!projets_client_id_fkey!inner(is_demo, archive))',
       )
       .eq('archive', false)
       .eq('projet.client.is_demo', false)
@@ -459,19 +459,20 @@ export async function getDashboardFinancials(
     );
   }, 0);
 
-  // totalProduction = somme des versements OPCO (schedule 40/30/20/10)
-  // qui tombent sur le mois courant. Meme logique que /production en mode OPCO.
+  // totalProduction = commission SOLUVIA (NPEC × taux, HT) prorata sur la durée
+  // du contrat, part qui tombe sur le mois courant. Indépendant de la facturation.
   let totalProduction = 0;
   for (const c of contratsProdRes.data ?? []) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
     if (!c.npec_amount || c.npec_amount <= 0) continue;
+    const projet = c.projet as { taux_commission: number | null } | null;
     const schedule = computeContractSchedule(
       c.date_debut,
       c.duree_mois,
       c.npec_amount,
-      0,
+      projet?.taux_commission ?? 0,
     );
-    for (const e of schedule.opco) {
+    for (const e of schedule.soluvia) {
       if (e.month === monthKey) totalProduction += e.amount;
     }
   }
@@ -659,22 +660,23 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
       error: contratsRes.error,
     });
 
-  // Production from contrats
+  // Production from contrats = commission SOLUVIA (NPEC × taux, HT) prorata durée.
   const productionByMonth = new Map<string, number>();
   for (const c of contratsRes.data ?? []) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
     if (!c.npec_amount || c.npec_amount <= 0) continue;
     const projet = c.projet as { taux_commission: number } | null;
     if (!projet) continue;
-    const monthlyProduction =
-      Math.round((c.npec_amount / c.duree_mois) * 100) / 100;
-    const start = startOfMonth(new Date(c.date_debut + 'T00:00:00'));
-    for (let i = 0; i < c.duree_mois; i++) {
-      const m = addMonths(start, i);
-      const key = format(m, 'yyyy-MM');
+    const schedule = computeContractSchedule(
+      c.date_debut,
+      c.duree_mois,
+      c.npec_amount,
+      projet.taux_commission ?? 0,
+    );
+    for (const e of schedule.soluvia) {
       productionByMonth.set(
-        key,
-        (productionByMonth.get(key) ?? 0) + monthlyProduction,
+        e.month,
+        (productionByMonth.get(e.month) ?? 0) + e.amount,
       );
     }
   }

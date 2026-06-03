@@ -45,13 +45,13 @@ export async function GET(request: Request) {
               )
               .gte('date_reception', prevStartStr)
               .lte('date_reception', prevEndStr),
-            // Production OPCO live depuis les contrats (même logique que le
-            // dashboard). L'ancienne table production_mensuelle n'est alimentée
-            // par rien -> production toujours 0.
+            // Production live depuis les contrats (même définition que le
+            // dashboard : commission prorata durée). L'ancienne table
+            // production_mensuelle n'est alimentée par rien -> production 0.
             supabase
               .from('contrats')
               .select(
-                'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+                'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(taux_commission, client:clients!projets_client_id_fkey!inner(is_demo, archive))',
               )
               .eq('archive', false)
               .eq('projet.client.is_demo', false)
@@ -93,21 +93,22 @@ export async function GET(request: Request) {
             }, 0) * 100,
           ) / 100;
 
-        // Production OPCO du mois précédent = versements OPCO (schedule
-        // 40/30/20/10) qui tombent sur ce mois. HT=TTC (OPCO non assujetti TVA).
-        // Même définition que la "Production" du dashboard.
+        // Production du mois précédent = commission SOLUVIA (NPEC × taux, HT)
+        // prorata sur la durée du contrat. Même définition que le dashboard,
+        // indépendante de la facturation.
         const monthKey = format(prevStart, 'yyyy-MM');
         let productionHt = 0;
         for (const c of contratsProd) {
           if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
           if (!c.npec_amount || c.npec_amount <= 0) continue;
+          const projet = c.projet as { taux_commission: number | null } | null;
           const schedule = computeContractSchedule(
             c.date_debut,
             c.duree_mois,
             c.npec_amount,
-            0,
+            projet?.taux_commission ?? 0,
           );
-          for (const e of schedule.opco) {
+          for (const e of schedule.soluvia) {
             if (e.month === monthKey) productionHt += e.amount;
           }
         }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { checkAuth, requireAuth } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/utils/audit';
 import { getDefaultSocieteEmettriceId } from '@/lib/queries/societes-emettrices';
@@ -160,7 +160,7 @@ export async function createAvoir(params: {
   }
   const { factureOrigineId, motif, montant, note } = parsed.data;
 
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

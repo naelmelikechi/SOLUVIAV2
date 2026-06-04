@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/utils/logger';
+import { timingSafeStrEqual } from '@/lib/utils/secure-compare';
 
 /**
  * Validates CRON_SECRET bearer token on protected API routes.
@@ -21,13 +21,7 @@ export function verifyCronAuth(request: Request): NextResponse | null {
   const expected = `Bearer ${secret}`;
 
   // Timing-safe comparison to prevent timing attacks
-  try {
-    const a = Buffer.from(authHeader);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  } catch {
+  if (!timingSafeStrEqual(authHeader, expected)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

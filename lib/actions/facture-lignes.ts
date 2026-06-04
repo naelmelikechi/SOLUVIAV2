@@ -2,10 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireAuth } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
+import { computeFactureTotaux } from '@/lib/utils/facture-totaux';
 
 // ---------------------------------------------------------------------------
 // CRUD lignes facture sur les BROUILLONS uniquement (statut 'a_emettre').
@@ -49,6 +50,7 @@ const AddLigneSchema = z.object({
   quotePart: z.number().finite().gte(0).lte(1).optional(),
   npecSnapshot: z.number().finite().gte(0).lte(10_000_000).optional(),
   tauxCommissionSnapshot: z.number().finite().gte(0).lte(100).optional(),
+  tauxTvaLigne: z.number().finite().gte(0).lte(100).optional(),
 });
 
 const UpdateLigneSchema = z.object({
@@ -65,7 +67,7 @@ async function recomputeFactureTotaux(factureId: string): Promise<void> {
   const [lignesRes, factureRes, echeancesRes] = await Promise.all([
     supabase
       .from('facture_lignes')
-      .select('montant_ht')
+      .select('montant_ht, taux_tva_ligne')
       .eq('facture_id', factureId),
     supabase.from('factures').select('taux_tva').eq('id', factureId).single(),
     supabase
@@ -77,13 +79,11 @@ async function recomputeFactureTotaux(factureId: string): Promise<void> {
   const facture = factureRes.data;
   const echeances = echeancesRes.data;
 
-  const totalHt =
-    Math.round(
-      (lignes ?? []).reduce((s, l) => s + Number(l.montant_ht ?? 0), 0) * 100,
-    ) / 100;
-  const tauxTva = Number(facture?.taux_tva ?? TVA_RATE_DEFAULT);
-  const montantTva = Math.round(totalHt * tauxTva) / 100;
-  const montantTtc = Math.round((totalHt + montantTva) * 100) / 100;
+  const { totalHt, montantTva, montantTtc, tauxTvaEffectif } =
+    computeFactureTotaux(
+      lignes ?? [],
+      Number(facture?.taux_tva ?? TVA_RATE_DEFAULT),
+    );
 
   const { error: updateError } = await supabase
     .from('factures')
@@ -91,6 +91,7 @@ async function recomputeFactureTotaux(factureId: string): Promise<void> {
       montant_ht: totalHt,
       montant_tva: montantTva,
       montant_ttc: montantTtc,
+      taux_tva: tauxTvaEffectif,
     })
     .eq('id', factureId);
   if (updateError) {
@@ -130,12 +131,13 @@ async function assertBrouillon(factureId: string): Promise<{
   est_avoir?: boolean;
   projet_id?: string | null;
   ref?: string;
+  taux_tva?: number | null;
   error?: string;
 }> {
   const supabase = await createClient();
   const { data: facture, error } = await supabase
     .from('factures')
-    .select('id, statut, est_avoir, projet_id, ref')
+    .select('id, statut, est_avoir, projet_id, ref, taux_tva')
     .eq('id', factureId)
     .maybeSingle();
   if (error || !facture) {
@@ -153,6 +155,7 @@ async function assertBrouillon(factureId: string): Promise<{
     est_avoir: facture.est_avoir,
     projet_id: facture.projet_id,
     ref: facture.ref ?? undefined,
+    taux_tva: facture.taux_tva,
   };
 }
 
@@ -165,6 +168,7 @@ export interface AddLigneParams {
   quotePart?: number;
   npecSnapshot?: number;
   tauxCommissionSnapshot?: number;
+  tauxTvaLigne?: number;
 }
 
 export async function addLigneToBrouillon(
@@ -179,7 +183,7 @@ export async function addLigneToBrouillon(
   }
   const data = parsed.data;
 
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -217,6 +221,7 @@ export async function addLigneToBrouillon(
       contrat_id: data.contratId,
       description: data.description,
       montant_ht: montantHtSigned,
+      taux_tva_ligne: data.tauxTvaLigne ?? check.taux_tva ?? TVA_RATE_DEFAULT,
       mois_relatif: data.moisRelatif ?? null,
       quote_part: data.quotePart ?? null,
       npec_snapshot: data.npecSnapshot ?? null,
@@ -271,7 +276,7 @@ export async function updateLigneInBrouillon(
   }
   const data = parsed.data;
 
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -347,7 +352,7 @@ export async function removeLigneFromBrouillon(
   }
   ligneId = parsed.data;
 
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

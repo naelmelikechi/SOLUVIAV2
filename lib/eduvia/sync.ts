@@ -26,6 +26,13 @@ import {
   detectRuptureAjustement,
 } from '@/lib/echeancier/ajustements';
 import { isContratRompu } from '@/lib/utils/contrat-states';
+import { mapWithConcurrency } from '@/lib/utils/concurrency';
+
+// Les passes par contrat (progressions, invoice steps/lines/forecast) font
+// chacune des aller-retours réseau. On traite plusieurs contrats à la fois via
+// un petit pool borné : réduit le temps total pour les gros tenants (et le
+// risque de timeout 300s) sans marteler l'API Eduvia.
+const CONTRACT_SYNC_CONCURRENCY = 5;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,6 +50,8 @@ export interface SyncClientResult {
   invoice_lines: number;
   /** Contrats archivés ce run parce que /contracts ne les renvoie plus (fantômes Eduvia). */
   contrats_archived_orphan: number;
+  /** Contrats rattachés au projet fallback faute de mapping eduvia_company_ids (multi-projets). */
+  contrats_projet_fallback: number;
   errors: string[];
 }
 
@@ -79,6 +88,7 @@ export async function syncEduviaForClient(
     invoice_forecast_steps: 0,
     invoice_lines: 0,
     contrats_archived_orphan: 0,
+    contrats_projet_fallback: 0,
     errors: [],
   };
 
@@ -87,7 +97,7 @@ export async function syncEduviaForClient(
   // not Eduvia fetch failures.
   const { data: projets, error: projetsError } = await supabase
     .from('projets')
-    .select('id, client_id, archive')
+    .select('id, client_id, archive, eduvia_company_ids')
     .eq('client_id', clientId)
     .eq('archive', false);
 
@@ -100,11 +110,28 @@ export async function syncEduviaForClient(
     return result;
   }
 
-  // Multi-projet clients: v1 uses the first non-archived projet as fallback.
-  // A future migration may hang contrats.projet_id resolution on a
-  // projets.eduvia_company_ids mapping so we can pick the right one per
-  // contract. Documented in the plan's follow-ups section.
+  // ── Résolution projet par contrat (clients multi-projets) ──────────
+  // Un client peut porter plusieurs projets. On rattache chaque contrat au
+  // projet dont `eduvia_company_ids` contient la company Eduvia du contrat.
+  // Sans mapping (mono-projet, ou colonne vide), on retombe sur le 1er projet
+  // — comportement historique strictement préservé.
   const fallbackProjetId = projets[0]!.id;
+  const hasMultipleProjets = projets.length > 1;
+  const projetIdByCompany = new Map<number, string>();
+  for (const p of projets) {
+    for (const companyId of p.eduvia_company_ids ?? []) {
+      // Number() : PostgREST peut sérialiser bigint[] en strings ; on garde des
+      // clés numériques cohérentes avec contract.company_id (number côté API).
+      projetIdByCompany.set(Number(companyId), p.id);
+    }
+  }
+  const resolveProjetId = (companyId: number | null | undefined): string => {
+    if (companyId != null) {
+      const mapped = projetIdByCompany.get(Number(companyId));
+      if (mapped) return mapped;
+    }
+    return fallbackProjetId;
+  };
 
   try {
     const now = new Date().toISOString();
@@ -295,7 +322,7 @@ export async function syncEduviaForClient(
           {
             eduvia_id: contract.id,
             source_client_id: clientId,
-            projet_id: fallbackProjetId,
+            projet_id: resolveProjetId(contract.company_id),
             eduvia_employee_id: contract.employee_id,
             eduvia_formation_id: contract.formation_id,
             eduvia_company_id: contract.company_id,
@@ -344,6 +371,13 @@ export async function syncEduviaForClient(
           );
         } else {
           result.contrats++;
+          if (
+            hasMultipleProjets &&
+            (contract.company_id == null ||
+              !projetIdByCompany.has(contract.company_id))
+          ) {
+            result.contrats_projet_fallback++;
+          }
           // Detection : NPEC change ou rupture
           const previous = existingByEduviaId.get(contract.id);
           if (previous?.id) {
@@ -479,263 +513,272 @@ export async function syncEduviaForClient(
       (syncedContrats ?? []).map((c) => [c.eduvia_id, c.id] as const),
     );
 
-    for (const contract of contracts) {
-      const contratId = contratIdByEduviaId.get(contract.id);
-      if (!contratId) continue;
+    await mapWithConcurrency(
+      contracts,
+      CONTRACT_SYNC_CONCURRENCY,
+      async (contract) => {
+        const contratId = contratIdByEduviaId.get(contract.id);
+        if (!contratId) return;
 
-      try {
-        // oxlint-disable-next-line react-doctor/async-await-in-loop
-        const progression = await fetchOne<EduviaProgression>(
-          instanceUrl,
-          apiKey,
-          `contracts/${contract.id}/progressions`,
-        );
-
-        const { error: upsertError } = await supabase
-          .from('contrats_progressions')
-          .upsert(
-            {
-              contrat_id: contratId,
-              eduvia_contract_id: progression.contract_id,
-              eduvia_formation_id: progression.formation_id,
-              total_spent_time_seconds: progression.total_spent_time,
-              total_spent_time_hours: progression.total_spent_time_hours,
-              completed_sequences_count: progression.completed_sequences_count,
-              sequence_count: progression.sequence_count,
-              progression_percentage: progression.progression_percentage,
-              estimated_relative_time: progression.estimated_relative_time,
-              average_score: progression.average_score,
-              last_activity_at: progression.last_activity_at,
-              sequences: progression.sequences as unknown as Json,
-              last_synced_at: now,
-            },
-            { onConflict: 'contrat_id' },
+        try {
+          // oxlint-disable-next-line react-doctor/async-await-in-loop
+          const progression = await fetchOne<EduviaProgression>(
+            instanceUrl,
+            apiKey,
+            `contracts/${contract.id}/progressions`,
           );
 
-        if (upsertError) {
+          const { error: upsertError } = await supabase
+            .from('contrats_progressions')
+            .upsert(
+              {
+                contrat_id: contratId,
+                eduvia_contract_id: progression.contract_id,
+                eduvia_formation_id: progression.formation_id,
+                total_spent_time_seconds: progression.total_spent_time,
+                total_spent_time_hours: progression.total_spent_time_hours,
+                completed_sequences_count:
+                  progression.completed_sequences_count,
+                sequence_count: progression.sequence_count,
+                progression_percentage: progression.progression_percentage,
+                estimated_relative_time: progression.estimated_relative_time,
+                average_score: progression.average_score,
+                last_activity_at: progression.last_activity_at,
+                sequences: progression.sequences as unknown as Json,
+                last_synced_at: now,
+              },
+              { onConflict: 'contrat_id' },
+            );
+
+          if (upsertError) {
+            result.errors.push(
+              `Progression contrat=${contract.id}: ${upsertError.message}`,
+            );
+          } else {
+            result.progressions++;
+          }
+        } catch (err) {
+          if (err instanceof EndpointNotAvailableError) return;
+          // Other errors: log the single failure but keep going; we don't
+          // abort the whole sync for one flaky progression endpoint.
           result.errors.push(
-            `Progression contrat=${contract.id}: ${upsertError.message}`,
+            `Progression contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
           );
-        } else {
-          result.progressions++;
         }
-      } catch (err) {
-        if (err instanceof EndpointNotAvailableError) continue;
-        // Other errors: log the single failure but keep going; we don't
-        // abort the whole sync for one flaky progression endpoint.
-        result.errors.push(
-          `Progression contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
+      },
+    );
 
     // ── PASS 4 - per-contract invoice steps (actual + forecast) ─────────
     // Reuses contratIdByEduviaId from PASS 3.
-    for (const contract of contracts) {
-      const contratId = contratIdByEduviaId.get(contract.id);
-      if (!contratId) continue;
+    await mapWithConcurrency(
+      contracts,
+      CONTRACT_SYNC_CONCURRENCY,
+      async (contract) => {
+        const contratId = contratIdByEduviaId.get(contract.id);
+        if (!contratId) return;
 
-      // Actual invoice steps
-      // Hoisted so Phase 5 (line sync) can iterate over the same array.
-      let steps: EduviaInvoiceStep[] = [];
-      try {
-        // oxlint-disable-next-line react-doctor/async-await-in-loop
-        steps = await fetchList<EduviaInvoiceStep>(
-          instanceUrl,
-          apiKey,
-          `contracts/${contract.id}/invoice_steps`,
-        );
-        for (const step of steps) {
-          // oxlint-disable-next-line react-doctor/async-await-in-loop
-          const { error: upsertError } = await supabase
-            .from('eduvia_invoice_steps')
-            .upsert(
-              {
-                eduvia_id: step.id,
-                source_client_id: clientId,
-                contrat_id: contratId,
-                eduvia_contract_id: step.contract_id,
-                eduvia_invoice_id: step.invoice_id,
-                step_number: step.step_number,
-                opening_date: step.opening_date,
-                total_amount: step.total_amount,
-                including_pedagogie_amount: step.including_pedagogie_amount,
-                including_rqth_amount: step.including_rqth_amount,
-                paid_amount: step.paid_amount,
-                in_progress_amount: step.in_progress_amount,
-                siret_cfa: step.siret_cfa,
-                external_code: step.external_code,
-                invoice_state: step.invoice_state,
-                invoice_sent_at: step.invoice_sent_at,
-                paid_at: step.paid_at,
-                last_synced_at: now,
-              },
-              { onConflict: 'eduvia_id,source_client_id' },
-            );
-          if (upsertError) {
-            result.errors.push(
-              `InvoiceStep eduvia_id=${step.id}: ${upsertError.message}`,
-            );
-          } else {
-            result.invoice_steps++;
-          }
-        }
-      } catch (err) {
-        if (!(err instanceof EndpointNotAvailableError)) {
-          result.errors.push(
-            `invoice_steps contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
-          );
-        }
-      }
-
-      // Phase 5 (in-line apres steps) : sync des lignes pour chaque step
-      // emis (invoice_id non null). Endpoint /api/v1/invoices/:id/lines
-      // non documente, peut casser sans preavis — on degrade gracieusement
-      // avec EndpointNotAvailableError.
-      //
-      // Cap erreurs : on limite a PHASE5_MAX_ERRORS entrees dans result.errors
-      // pour eviter le spam si l'endpoint est down sur beaucoup d'invoices.
-      // Les erreurs excedentaires sont resumees dans une seule ligne finale.
-      const PHASE5_MAX_ERRORS = 10;
-      const phase5StartErrorCount = result.errors.length;
-      let phase5ExtraErrors = 0;
-
-      for (const step of steps) {
-        if (!step.invoice_id) continue;
+        // Actual invoice steps
+        // Hoisted so Phase 5 (line sync) can iterate over the same array.
+        let steps: EduviaInvoiceStep[] = [];
         try {
           // oxlint-disable-next-line react-doctor/async-await-in-loop
-          const lines = await fetchInvoiceLines(
+          steps = await fetchList<EduviaInvoiceStep>(
             instanceUrl,
             apiKey,
-            step.invoice_id,
+            `contracts/${contract.id}/invoice_steps`,
           );
-          for (const line of lines) {
+          for (const step of steps) {
             // oxlint-disable-next-line react-doctor/async-await-in-loop
-            const { error: lineErr } = await supabase
-              .from('eduvia_invoice_lines')
+            const { error: upsertError } = await supabase
+              .from('eduvia_invoice_steps')
               .upsert(
                 {
-                  eduvia_id: line.id,
+                  eduvia_id: step.id,
                   source_client_id: clientId,
                   contrat_id: contratId,
-                  eduvia_invoice_id: line.invoice_id,
-                  amount: line.amount,
-                  line_type: line.line_type,
-                  quantity: line.quantity,
-                  description: line.description,
-                  eduvia_created_at: line.created_at,
-                  eduvia_updated_at: line.updated_at,
+                  eduvia_contract_id: step.contract_id,
+                  eduvia_invoice_id: step.invoice_id,
+                  step_number: step.step_number,
+                  opening_date: step.opening_date,
+                  total_amount: step.total_amount,
+                  including_pedagogie_amount: step.including_pedagogie_amount,
+                  including_rqth_amount: step.including_rqth_amount,
+                  paid_amount: step.paid_amount,
+                  in_progress_amount: step.in_progress_amount,
+                  siret_cfa: step.siret_cfa,
+                  external_code: step.external_code,
+                  invoice_state: step.invoice_state,
+                  invoice_sent_at: step.invoice_sent_at,
+                  paid_at: step.paid_at,
                   last_synced_at: now,
                 },
                 { onConflict: 'eduvia_id,source_client_id' },
               );
-            if (lineErr) {
+            if (upsertError) {
               result.errors.push(
-                `InvoiceLine eduvia_id=${line.id}: ${lineErr.message}`,
+                `InvoiceStep eduvia_id=${step.id}: ${upsertError.message}`,
               );
             } else {
-              result.invoice_lines++;
-            }
-          }
-
-          // I2: Orphan delete - si Eduvia a supprime une ligne entre 2 syncs,
-          // on la supprime de notre DB pour eviter que la base de commission
-          // s'inflate sur des donnees obsoletes.
-          //
-          // Garde-fou anti-wipe : si l'API renvoie lines.length=0 alors qu'on
-          // avait deja des lignes en DB, c'est probablement un bug transitoire
-          // Eduvia. Sans ce garde-fou, le NOT IN '(0)' supprimerait *toutes*
-          // les lignes de cette facture et fausserait la base commission
-          // jusqu'au prochain sync.
-          if (lines.length === 0) {
-            const { count: existingCount } = await supabase
-              .from('eduvia_invoice_lines')
-              .select('id', { count: 'exact', head: true })
-              .eq('source_client_id', clientId)
-              .eq('eduvia_invoice_id', step.invoice_id);
-            if ((existingCount ?? 0) > 0) {
-              result.errors.push(
-                `InvoiceLine orphan cleanup invoice=${step.invoice_id}: API renvoie 0 ligne mais DB en a ${existingCount}, skip delete pour eviter wipe.`,
-              );
-            }
-          } else {
-            const apiLineIds = lines.map((l) => l.id);
-            const { error: deleteErr } = await supabase
-              .from('eduvia_invoice_lines')
-              .delete()
-              .eq('source_client_id', clientId)
-              .eq('eduvia_invoice_id', step.invoice_id)
-              .not('eduvia_id', 'in', `(${apiLineIds.join(',')})`);
-            if (deleteErr) {
-              result.errors.push(
-                `InvoiceLine orphan cleanup invoice=${step.invoice_id}: ${deleteErr.message}`,
-              );
+              result.invoice_steps++;
             }
           }
         } catch (err) {
           if (!(err instanceof EndpointNotAvailableError)) {
-            if (
-              result.errors.length - phase5StartErrorCount <
-              PHASE5_MAX_ERRORS
-            ) {
-              result.errors.push(
-                `invoice_lines invoice=${step.invoice_id}: ${err instanceof Error ? err.message : String(err)}`,
-              );
+            result.errors.push(
+              `invoice_steps contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+
+        // Phase 5 (in-line apres steps) : sync des lignes pour chaque step
+        // emis (invoice_id non null). Endpoint /api/v1/invoices/:id/lines
+        // non documente, peut casser sans preavis — on degrade gracieusement
+        // avec EndpointNotAvailableError.
+        //
+        // Cap erreurs : on limite a PHASE5_MAX_ERRORS entrees dans result.errors
+        // pour eviter le spam si l'endpoint est down sur beaucoup d'invoices.
+        // Les erreurs excedentaires sont resumees dans une seule ligne finale.
+        const PHASE5_MAX_ERRORS = 10;
+        const phase5StartErrorCount = result.errors.length;
+        let phase5ExtraErrors = 0;
+
+        for (const step of steps) {
+          if (!step.invoice_id) continue;
+          try {
+            // oxlint-disable-next-line react-doctor/async-await-in-loop
+            const lines = await fetchInvoiceLines(
+              instanceUrl,
+              apiKey,
+              step.invoice_id,
+            );
+            for (const line of lines) {
+              // oxlint-disable-next-line react-doctor/async-await-in-loop
+              const { error: lineErr } = await supabase
+                .from('eduvia_invoice_lines')
+                .upsert(
+                  {
+                    eduvia_id: line.id,
+                    source_client_id: clientId,
+                    contrat_id: contratId,
+                    eduvia_invoice_id: line.invoice_id,
+                    amount: line.amount,
+                    line_type: line.line_type,
+                    quantity: line.quantity,
+                    description: line.description,
+                    eduvia_created_at: line.created_at,
+                    eduvia_updated_at: line.updated_at,
+                    last_synced_at: now,
+                  },
+                  { onConflict: 'eduvia_id,source_client_id' },
+                );
+              if (lineErr) {
+                result.errors.push(
+                  `InvoiceLine eduvia_id=${line.id}: ${lineErr.message}`,
+                );
+              } else {
+                result.invoice_lines++;
+              }
+            }
+
+            // I2: Orphan delete - si Eduvia a supprime une ligne entre 2 syncs,
+            // on la supprime de notre DB pour eviter que la base de commission
+            // s'inflate sur des donnees obsoletes.
+            //
+            // Garde-fou anti-wipe : si l'API renvoie lines.length=0 alors qu'on
+            // avait deja des lignes en DB, c'est probablement un bug transitoire
+            // Eduvia. Sans ce garde-fou, le NOT IN '(0)' supprimerait *toutes*
+            // les lignes de cette facture et fausserait la base commission
+            // jusqu'au prochain sync.
+            if (lines.length === 0) {
+              const { count: existingCount } = await supabase
+                .from('eduvia_invoice_lines')
+                .select('id', { count: 'exact', head: true })
+                .eq('source_client_id', clientId)
+                .eq('eduvia_invoice_id', step.invoice_id);
+              if ((existingCount ?? 0) > 0) {
+                result.errors.push(
+                  `InvoiceLine orphan cleanup invoice=${step.invoice_id}: API renvoie 0 ligne mais DB en a ${existingCount}, skip delete pour eviter wipe.`,
+                );
+              }
             } else {
-              phase5ExtraErrors++;
+              const apiLineIds = lines.map((l) => l.id);
+              const { error: deleteErr } = await supabase
+                .from('eduvia_invoice_lines')
+                .delete()
+                .eq('source_client_id', clientId)
+                .eq('eduvia_invoice_id', step.invoice_id)
+                .not('eduvia_id', 'in', `(${apiLineIds.join(',')})`);
+              if (deleteErr) {
+                result.errors.push(
+                  `InvoiceLine orphan cleanup invoice=${step.invoice_id}: ${deleteErr.message}`,
+                );
+              }
+            }
+          } catch (err) {
+            if (!(err instanceof EndpointNotAvailableError)) {
+              if (
+                result.errors.length - phase5StartErrorCount <
+                PHASE5_MAX_ERRORS
+              ) {
+                result.errors.push(
+                  `invoice_lines invoice=${step.invoice_id}: ${err instanceof Error ? err.message : String(err)}`,
+                );
+              } else {
+                phase5ExtraErrors++;
+              }
             }
           }
         }
-      }
 
-      if (phase5ExtraErrors > 0) {
-        result.errors.push(
-          `invoice_lines: ${phase5ExtraErrors} autre(s) erreur(s) omise(s)`,
-        );
-      }
-
-      // Forecast invoice steps
-      try {
-        const forecasts = await fetchList<EduviaInvoiceForecastStep>(
-          instanceUrl,
-          apiKey,
-          `contracts/${contract.id}/invoice_forecast_steps`,
-        );
-        for (const forecast of forecasts) {
-          // oxlint-disable-next-line react-doctor/async-await-in-loop
-          const { error: upsertError } = await supabase
-            .from('eduvia_invoice_forecast_steps')
-            .upsert(
-              {
-                eduvia_id: forecast.id,
-                source_client_id: clientId,
-                contrat_id: contratId,
-                eduvia_contract_id: forecast.contract_id,
-                step_number: forecast.step_number,
-                opening_date: forecast.opening_date,
-                total_amount: forecast.total_amount,
-                percentage: forecast.percentage,
-                npec_amount: forecast.npec_amount,
-                last_synced_at: now,
-              },
-              { onConflict: 'eduvia_id,source_client_id' },
-            );
-          if (upsertError) {
-            result.errors.push(
-              `InvoiceForecastStep eduvia_id=${forecast.id}: ${upsertError.message}`,
-            );
-          } else {
-            result.invoice_forecast_steps++;
-          }
-        }
-      } catch (err) {
-        if (!(err instanceof EndpointNotAvailableError)) {
+        if (phase5ExtraErrors > 0) {
           result.errors.push(
-            `invoice_forecast_steps contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+            `invoice_lines: ${phase5ExtraErrors} autre(s) erreur(s) omise(s)`,
           );
         }
-      }
-    }
+
+        // Forecast invoice steps
+        try {
+          const forecasts = await fetchList<EduviaInvoiceForecastStep>(
+            instanceUrl,
+            apiKey,
+            `contracts/${contract.id}/invoice_forecast_steps`,
+          );
+          for (const forecast of forecasts) {
+            // oxlint-disable-next-line react-doctor/async-await-in-loop
+            const { error: upsertError } = await supabase
+              .from('eduvia_invoice_forecast_steps')
+              .upsert(
+                {
+                  eduvia_id: forecast.id,
+                  source_client_id: clientId,
+                  contrat_id: contratId,
+                  eduvia_contract_id: forecast.contract_id,
+                  step_number: forecast.step_number,
+                  opening_date: forecast.opening_date,
+                  total_amount: forecast.total_amount,
+                  percentage: forecast.percentage,
+                  npec_amount: forecast.npec_amount,
+                  last_synced_at: now,
+                },
+                { onConflict: 'eduvia_id,source_client_id' },
+              );
+            if (upsertError) {
+              result.errors.push(
+                `InvoiceForecastStep eduvia_id=${forecast.id}: ${upsertError.message}`,
+              );
+            } else {
+              result.invoice_forecast_steps++;
+            }
+          }
+        } catch (err) {
+          if (!(err instanceof EndpointNotAvailableError)) {
+            result.errors.push(
+              `invoice_forecast_steps contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+      },
+    );
   } catch (err) {
     // Abort this client's sync on any non-404 fetch failure so we don't
     // corrupt denormalised columns with partial data. AuthError gets a
@@ -856,6 +899,7 @@ export async function syncAllEduviaClients(
           invoice_forecast_steps: 0,
           invoice_lines: 0,
           contrats_archived_orphan: 0,
+          contrats_projet_fallback: 0,
           errors: [
             'Clé API non déchiffrable (ENCRYPTION_KEY manquante ou clé stockée en clair). Recréez la clé pour la réactiver.',
           ],

@@ -776,3 +776,124 @@ describe('syncEduviaForClient — limites connues', () => {
     // tombstone, encore non livrée). Skip volontaire.
   });
 });
+
+describe('syncEduviaForClient — résolution projet multi-projets', () => {
+  function contractMin(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 1,
+      employee_id: 1,
+      formation_id: 1,
+      company_id: 10,
+      teacher_id: null,
+      campus_id: null,
+      contract_state: 'ENGAGE',
+      contract_number: 'C-1',
+      internal_number: null,
+      contract_type: null,
+      contract_mode: null,
+      contract_conclusion_date: null,
+      practical_training_start_date: null,
+      creation_mode: 'API',
+      contract_start_date: '2026-01-01',
+      contract_end_date: '2027-01-01',
+      npec_amount: 1000,
+      support: null,
+      support_first_equipment: null,
+      referrer_name: null,
+      referrer_amount: null,
+      referrer_type: null,
+      accepted_at: null,
+      ...overrides,
+    };
+  }
+
+  it('rattache un contrat au projet mappé via eduvia_company_ids, sinon fallback 1er projet', async () => {
+    fetchAllPagesMock.mockImplementation(
+      async (_url: string, _key: string, resource: string) => {
+        if (resource === 'contracts') {
+          return [
+            contractMin({ id: 1, company_id: 10 }), // mappé -> p-2
+            contractMin({ id: 2, company_id: 99 }), // non mappé -> fallback p-1
+          ];
+        }
+        return [];
+      },
+    );
+
+    const supa = buildSupabase({
+      projets: {
+        select: () => ({
+          data: [
+            {
+              id: 'p-1',
+              client_id: 'client-X',
+              archive: false,
+              eduvia_company_ids: null,
+            },
+            {
+              id: 'p-2',
+              client_id: 'client-X',
+              archive: false,
+              eduvia_company_ids: [10],
+            },
+          ],
+          error: null,
+        }),
+      },
+      contrats: { upsert: () => ({ error: null }) },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      supa.client,
+      'client-X',
+      'inst.eduvia.app',
+      'key',
+    );
+
+    const contratUpserts = supa.ops.filter(
+      (o) => o.op === 'upsert' && o.table === 'contrats',
+    );
+    expect(contratUpserts).toHaveLength(2);
+    const projetByEduviaId = new Map(
+      contratUpserts.map((o) => [
+        (o.payload as { eduvia_id: number }).eduvia_id,
+        (o.payload as { projet_id: string }).projet_id,
+      ]),
+    );
+    expect(projetByEduviaId.get(1)).toBe('p-2');
+    expect(projetByEduviaId.get(2)).toBe('p-1');
+    expect(res.contrats_projet_fallback).toBe(1);
+  });
+
+  it('client mono-projet : tous les contrats sur le projet unique, aucun fallback compté', async () => {
+    fetchAllPagesMock.mockImplementation(
+      async (_url: string, _key: string, resource: string) => {
+        if (resource === 'contracts')
+          return [contractMin({ id: 5, company_id: 77 })];
+        return [];
+      },
+    );
+
+    const supa = buildSupabase({
+      projets: projetsRule('only-projet'),
+      contrats: { upsert: () => ({ error: null }) },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      supa.client,
+      'client-X',
+      'inst.eduvia.app',
+      'key',
+    );
+
+    const contratUpsert = supa.ops.find(
+      (o) => o.op === 'upsert' && o.table === 'contrats',
+    );
+    expect((contratUpsert!.payload as { projet_id: string }).projet_id).toBe(
+      'only-projet',
+    );
+    expect(res.contrats_projet_fallback).toBe(0);
+  });
+});

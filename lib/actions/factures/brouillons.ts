@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { checkAuth, requireAuth } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import { lastDayOfNextMonthUtcISO } from '@/lib/utils/dates';
@@ -117,7 +117,7 @@ const CreateFreeBrouillonSchema = z.object({
 // l'audit et des revalidatePath.
 
 type SupabaseServerClient = Extract<
-  Awaited<ReturnType<typeof requireAuth>>,
+  Awaited<ReturnType<typeof checkAuth>>,
   { ok: true }
 >['supabase'];
 
@@ -443,7 +443,7 @@ export async function createFactures(
   }
   echeanceIds = parsed.data;
 
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, ids: [], error: auth.error };
   const { supabase, user } = auth;
 
@@ -558,7 +558,7 @@ export async function deleteBrouillon(
   }
   factureId = parsed.data;
 
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -745,7 +745,7 @@ export async function createFactureFromEvents(params: {
   }
   const { projetId, events } = parsed.data;
 
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -1064,7 +1064,7 @@ export async function createBlankBrouillon(params: {
   }
   const { projetId, lignes } = parsed.data;
 
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

@@ -78,7 +78,12 @@ export async function createFactureFromDevis(
 
   if (parsed.data.mode === 'acompte') {
     const pct = parsed.data.pourcentage ?? 50;
-    const montantHt = Math.round(totalDevisHt * pct) / 100;
+    // Plafond anti sur-facturation : des acomptes répétés ne doivent pas faire
+    // dépasser le cumul déjà facturé au-delà du total du devis.
+    const reste = Math.round((totalDevisHt - totalDejaFactureHt) * 100) / 100;
+    if (reste <= 0)
+      return { success: false, error: 'Devis déjà entièrement facturé' };
+    const montantHt = Math.min(Math.round(totalDevisHt * pct) / 100, reste);
     lignesPayload = [
       {
         description: `Acompte ${pct}% sur ${devis.ref ?? devis.id} - ${devis.objet}`,
@@ -118,6 +123,12 @@ export async function createFactureFromDevis(
   );
   const totalTtc = Math.round((totalHt + totalTva) * 100) / 100;
 
+  // Taux TVA "header" = taux effectif dérivé des montants. Pour un devis à
+  // lignes de taux mixtes (mode personnalisee), stocker le taux de la 1re ligne
+  // serait trompeur ; le ratio TVA/HT reste cohérent avec montant_tva.
+  const tauxTvaEffectif =
+    totalHt > 0 ? Math.round((totalTva / totalHt) * 10000) / 100 : tauxTva;
+
   // Insert facture brouillon (statut 'a_emettre')
   const { data: facture, error: factureErr } = await supabase
     .from('factures')
@@ -131,7 +142,7 @@ export async function createFactureFromDevis(
       montant_ht: totalHt,
       montant_tva: totalTva,
       montant_ttc: totalTtc,
-      taux_tva: tauxTva,
+      taux_tva: tauxTvaEffectif,
       objet: devis.objet,
       conditions_reglement: devis.conditions_reglement,
       date_emission: new Date().toISOString().slice(0, 10),

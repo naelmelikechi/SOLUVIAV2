@@ -14,8 +14,9 @@ import { extractDecaPrefix, resolveOpcoFromDeca } from '@/lib/opco/resolve';
 //                       montant_brut = SUM(eduvia_invoice_lines.amount
 //                                         WHERE line_type='PEDAGOGIE'
 //                                         AND step_number=1)
-//                       Cela correspond a la metrique "engages" cote Eduvia
-//                       (verifie numeriquement : 111 564,92 EUR sur HEOL).
+//                       Base PEDAGOGIE uniquement (PREMIEREQUIPEMENT/matériel
+//                       exclu) : ~108 561,76 EUR sur HEOL — proche de la métrique
+//                       "engagés" Eduvia, qui elle inclut le matériel.
 //                       Pas le NPEC contractuel total : on facture la commission
 //                       sur le montant deja emis a l OPCO, pas sur la valeur
 //                       faciale du contrat.

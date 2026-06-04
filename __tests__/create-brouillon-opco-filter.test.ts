@@ -30,6 +30,7 @@ vi.mock('next/cache', () => ({
 
 vi.mock('@/lib/auth/guards', () => ({
   requireAuth: vi.fn(),
+  checkAuth: vi.fn(),
 }));
 
 vi.mock('@/lib/queries/billable-events', () => ({
@@ -44,7 +45,7 @@ vi.mock('@/lib/queries/societes-emettrices', () => ({
   getDefaultSocieteEmettriceId: vi.fn().mockResolvedValue('soc-default-id'),
 }));
 
-import { requireAuth } from '@/lib/auth/guards';
+import { requireAuth, checkAuth } from '@/lib/auth/guards';
 import { getBillableEvents } from '@/lib/queries/billable-events';
 
 // ---------------------------------------------------------------------------
@@ -194,11 +195,13 @@ function buildSupabase() {
 // Setup : mock requireAuth pour retourner le supabase mock
 // ---------------------------------------------------------------------------
 function setupRequireUser(supabaseMock: { from: (t: string) => unknown }) {
-  vi.mocked(requireAuth).mockResolvedValue({
+  const authResult = {
     ok: true,
     supabase: supabaseMock as never,
     user: mockUser,
-  } as never);
+  } as never;
+  vi.mocked(requireAuth).mockResolvedValue(authResult);
+  vi.mocked(checkAuth).mockResolvedValue(authResult);
 }
 
 // ---------------------------------------------------------------------------

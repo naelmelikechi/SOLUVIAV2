@@ -3,7 +3,7 @@
 import { randomBytes } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { checkAuth, validateSession } from '@/lib/auth/guards';
+import { checkAuth, requireSuperAdmin } from '@/lib/auth/guards';
 import {
   canAssignRole,
   canDeleteUser,
@@ -344,7 +344,7 @@ export async function deleteUser(userId: string): Promise<ActionResult> {
     return { success: false, error: 'userId doit être un UUID' };
   }
 
-  const auth = await validateSession();
+  const auth = await requireSuperAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser, role: callerRole } = auth;
 

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { timingSafeStrEqual } from '@/lib/utils/secure-compare';
 import type { Json } from '@/types/database';
 
 // Endpoint d'ingestion des bank_lines miroirs depuis FINANCES-WISEMANH.
@@ -13,19 +15,24 @@ import type { Json } from '@/types/database';
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
 
-interface IngestEntry {
-  external_id: number;
-  date: string; // YYYY-MM-DD
-  montant: number;
-  payment_ref?: string | null;
-  partner_name?: string | null;
-  societe_slug?: string | null;
-  raw?: Json;
-}
+// Validation stricte du body : l'endpoint est token-gated mais on ne fait pas
+// confiance aveuglément aux données partenaire (montant NaN, dates malformées,
+// payload géant). Defense en profondeur, cohérent avec les Server Actions.
+const IngestEntrySchema = z.object({
+  external_id: z.number().int('external_id doit être un entier').finite(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'date attendue au format YYYY-MM-DD'),
+  montant: z.number().finite('montant doit être un nombre fini'),
+  payment_ref: z.string().nullish(),
+  partner_name: z.string().nullish(),
+  societe_slug: z.string().nullish(),
+  raw: z.unknown().optional(),
+});
 
-interface IngestBody {
-  entries: IngestEntry[];
-}
+const IngestBodySchema = z.object({
+  entries: z.array(IngestEntrySchema).max(5000, 'Trop de lignes (max 5000)'),
+});
 
 export async function POST(request: Request) {
   const expected = process.env.BANK_LINES_MIRROR_TOKEN;
@@ -36,16 +43,16 @@ export async function POST(request: Request) {
     );
   }
   const provided = request.headers.get('x-mirror-token');
-  if (provided !== expected) {
+  if (!timingSafeStrEqual(provided, expected)) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 },
     );
   }
 
-  let body: IngestBody;
+  let raw: unknown;
   try {
-    body = (await request.json()) as IngestBody;
+    raw = await request.json();
   } catch {
     return NextResponse.json(
       { success: false, error: 'Body JSON invalide' },
@@ -53,7 +60,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const entries = Array.isArray(body.entries) ? body.entries : [];
+  const parsed = IngestBodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: parsed.error.issues[0]?.message ?? 'Body invalide',
+      },
+      { status: 400 },
+    );
+  }
+
+  const entries = parsed.data.entries;
   if (entries.length === 0) {
     return NextResponse.json({ success: true, upserted: 0 });
   }
@@ -62,11 +80,11 @@ export async function POST(request: Request) {
     source_app: 'finances-wisemanh',
     source_external_id: e.external_id,
     date: e.date,
-    montant: Number(e.montant),
+    montant: e.montant,
     payment_ref: e.payment_ref ?? null,
     partner_name: e.partner_name ?? null,
     societe_slug: e.societe_slug ?? null,
-    raw: e.raw ?? null,
+    raw: (e.raw ?? null) as Json,
     synced_at: new Date().toISOString(),
   }));
 

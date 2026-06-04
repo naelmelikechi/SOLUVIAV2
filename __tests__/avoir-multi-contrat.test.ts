@@ -14,6 +14,7 @@ const mockUser = { id: 'user-creator', email: 'admin@test.com' };
 const requireUserMock = vi.fn();
 vi.mock('@/lib/auth/guards', () => ({
   requireAuth: () => requireUserMock(),
+  checkAuth: () => requireUserMock(),
 }));
 
 // Mock supabase via createClient (used inside createAvoir + computeProrataAvoir).

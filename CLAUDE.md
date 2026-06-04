@@ -4,7 +4,7 @@
 
 Strategic control layer for French training organizations (organismes de formation).
 Reads operational data from Eduvia, manages internal processes (time tracking, quality, invoicing),
-and pushes invoices to Odoo. Detailed specs in `specs/` (00-09).
+and pushes invoices to Odoo.
 
 ## Tech Stack
 
@@ -42,8 +42,9 @@ and pushes invoices to Odoo. Detailed specs in `specs/` (00-09).
 
 ## Roles
 
-- `admin`: Full R+W access everywhere
+- `admin` / `superadmin`: Full R+W access everywhere (`is_admin()` returns true for both)
 - `cdp` (Chef de Projet): Filtered by `cdp_id = auth.uid() OR backup_cdp_id = auth.uid()`
+- `commercial`: commercial pipeline (prospects), gated by `pipeline_access`
 - CDP cannot access `/admin/parametres` (hidden from sidebar)
 
 ## Conventions

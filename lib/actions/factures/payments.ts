@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { validateSession } from '@/lib/auth/guards';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import { createOdooClient } from '@/lib/odoo/client';
@@ -44,7 +44,7 @@ export async function addManualPayment(params: {
   }
   const { factureId, montant, dateReception } = parsed.data;
 
-  const auth = await validateSession();
+  const auth = await requireSuperAdmin();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 

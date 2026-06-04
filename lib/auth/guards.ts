@@ -114,7 +114,7 @@ export async function checkAuth(): Promise<AuthOk<{ role: string }> | AuthErr> {
  * Verifie que l'user est superadmin. Retourne { supabase, user, role } ou
  * { ok: false, error }.
  */
-export async function validateSession(): Promise<
+export async function requireSuperAdmin(): Promise<
   AuthOk<{ role: string }> | AuthErr
 > {
   const auth = await loadAuthProfile();

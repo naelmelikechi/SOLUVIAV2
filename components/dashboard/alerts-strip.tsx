@@ -56,7 +56,7 @@ export function AlertsStrip({
       <div className="border-border/60 bg-card flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border px-3 py-2 text-xs">
         {alerts.map((a) => (
           <Link
-            key={a.href}
+            key={`${a.href}:${a.title}`}
             href={a.href}
             className="hover:text-foreground text-muted-foreground flex items-center gap-1.5 transition-colors"
           >

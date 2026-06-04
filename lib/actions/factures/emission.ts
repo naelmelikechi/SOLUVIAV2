@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { waitUntil } from '@vercel/functions';
 import { z } from 'zod';
-import { requireAuth } from '@/lib/auth/guards';
+import { checkAuth } from '@/lib/auth/guards';
 import { sendEmailForFacture } from '@/lib/email/client';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -60,7 +60,7 @@ export async function sendFacture(
   }
   const override = parsedRecipients.data;
 
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -207,7 +207,7 @@ export async function sendFacturesBulk(factureIds: string[]): Promise<{
   sent: { id: string; ref: string }[];
   errors: { id: string; error: string }[];
 }> {
-  const auth = await requireAuth();
+  const auth = await checkAuth();
   if (!auth.ok)
     return {
       success: false,

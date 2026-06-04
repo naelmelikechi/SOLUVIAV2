@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { timingSafeStrEqual } from '@/lib/utils/secure-compare';
 
 // Registry public des sociétés émettrices SOLUVIA avec mapping Odoo configuré.
 // Source de vérité pour FINANCES-WISEMANH (et tout autre consommateur) afin
@@ -7,8 +8,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // société est ajoutée au tenant wisemanh.odoo.com.
 //
 // Sortie : seules les sociétés avec `odoo_company_id` non NULL et `actif=true`
-// sont exposées. Pas d'IBAN/SIRET/mentions légales : un consommateur qui a
-// besoin du détail facturation passe par /admin.
+// sont exposées. Le SIRET (donnée publique figurant sur chaque facture, requis
+// par FINANCES pour le rapprochement) est inclus. En revanche IBAN, mentions
+// légales et détail facturation ne le sont pas : passer par /admin pour cela.
 //
 // Auth : non protégée par session (donc cache CDN OK). Pour limiter le surface,
 // on requiert un header `x-registry-token` qui matche REGISTRY_TOKEN (env).
@@ -38,7 +40,7 @@ export async function GET(request: Request) {
     );
   }
   const provided = request.headers.get('x-registry-token');
-  if (provided !== expected) {
+  if (!timingSafeStrEqual(provided, expected)) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 },

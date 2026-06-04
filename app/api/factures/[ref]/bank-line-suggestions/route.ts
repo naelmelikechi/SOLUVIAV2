@@ -10,8 +10,9 @@ import { createClient } from '@/lib/supabase/server';
 //     écart de date < 30 jours par rapport à date_echeance
 //   - top 5 résultats classés par score
 //
-// Auth : session utilisateur (admin/superadmin). Pas de route protégée
-// par token car c'est un read pour l'UI interne.
+// Auth : session authentifiée. Les bank_lines_mirror ne sont lisibles que par
+// admin/superadmin (RLS), et les factures sont scopées par RLS — l'enforcement
+// du rôle vit dans la RLS, pas dans ce handler. Read interne, pas de token.
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 10;

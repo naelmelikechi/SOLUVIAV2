@@ -2323,6 +2323,7 @@ export type Database = {
           date_debut: string | null;
           echeancier_override: Json | null;
           echeancier_template_id: string | null;
+          eduvia_company_ids: number[] | null;
           est_absence: boolean;
           est_interne: boolean;
           id: string;
@@ -2343,6 +2344,7 @@ export type Database = {
           date_debut?: string | null;
           echeancier_override?: Json | null;
           echeancier_template_id?: string | null;
+          eduvia_company_ids?: number[] | null;
           est_absence?: boolean;
           est_interne?: boolean;
           id?: string;
@@ -2363,6 +2365,7 @@ export type Database = {
           date_debut?: string | null;
           echeancier_override?: Json | null;
           echeancier_template_id?: string | null;
+          eduvia_company_ids?: number[] | null;
           est_absence?: boolean;
           est_interne?: boolean;
           id?: string;

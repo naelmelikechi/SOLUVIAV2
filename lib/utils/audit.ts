@@ -1,5 +1,6 @@
 import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import type { Json } from '@/types/database';
 
@@ -26,10 +27,9 @@ async function doInsert(
   userId: string | undefined,
 ): Promise<void> {
   try {
-    const supabase = await createClient();
-
     let resolvedUserId: string | undefined = userId;
     if (!resolvedUserId) {
+      const supabase = await createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -37,13 +37,27 @@ async function doInsert(
       resolvedUserId = user.id;
     }
 
-    await supabase.from('audit_logs').insert({
+    // audit_logs INSERT est restreint en RLS aux admin/superadmin, mais des
+    // actions auditées sont exécutées par des non-admins (CDP/commercial :
+    // mot de passe, absences, idées, prospects...). Écrire via le client
+    // service-role garantit qu'aucune trace n'est perdue silencieusement, sans
+    // ouvrir audit_logs en écriture aux rôles non-admin (concern système).
+    const admin = createAdminClient();
+    const { error } = await admin.from('audit_logs').insert({
       user_id: resolvedUserId,
       action,
       entity_type: entityType,
       entity_id: entityId ?? null,
       details: (details as Json) ?? null,
     });
+    if (error) {
+      logger.error('audit', 'audit insert rejected', {
+        action,
+        entityType,
+        entityId,
+        error: error.message,
+      });
+    }
   } catch (err) {
     // Audit logging should never break the main flow
     logger.error('audit', 'logAudit failed', {

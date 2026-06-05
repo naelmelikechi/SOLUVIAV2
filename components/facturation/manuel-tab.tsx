@@ -606,21 +606,23 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                             {e.type === 'engagement' ? (
                               <div className="flex flex-col gap-0.5">
                                 <StatusBadge label="Engagement" color="green" />
-                                <span className="text-muted-foreground text-[10px]">
-                                  ENGAGE
-                                </span>
+                                {e.step_opening_date ? (
+                                  <span className="text-muted-foreground text-[10px]">
+                                    {formatDate(e.step_opening_date)}
+                                  </span>
+                                ) : null}
                               </div>
                             ) : (
                               <div className="flex flex-col gap-0.5">
                                 <StatusBadge
-                                  label={`OPCO REGLE${stepSuffix}`}
+                                  label={`OPCO${stepSuffix}`}
                                   color="blue"
                                 />
-                                <span className="text-muted-foreground text-[10px]">
-                                  {e.step_paid_at
-                                    ? formatDate(e.step_paid_at)
-                                    : 'REGLE'}
-                                </span>
+                                {e.step_opening_date ? (
+                                  <span className="text-muted-foreground text-[10px]">
+                                    {formatDate(e.step_opening_date)}
+                                  </span>
+                                ) : null}
                               </div>
                             )}
                           </TableCell>

@@ -1774,6 +1774,8 @@ describe('getBillableEvents - état facture Eduvia (invoice_state)', () => {
     expect(ev.montant_brut).toBe(2000); // PREMIEREQUIPEMENT exclu
     // état de la facture pédagogie (TRANSMIS), pas le REGLE de l'équipement
     expect(ev.invoice_state).toBe('TRANSMIS');
+    // date d'ouverture = bordereau pédagogie (inv 901), pas l'équipement (inv 902)
+    expect(ev.step_opening_date).toBe('2026-02-01');
   });
 
   it('opco_step: invoice_state = état Eduvia du step + step_paid_at', async () => {

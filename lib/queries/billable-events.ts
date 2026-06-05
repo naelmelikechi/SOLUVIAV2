@@ -390,17 +390,27 @@ export async function getBillableEvents(
         c.id,
         Array.from(agg.engagementInvoiceIds).sort(),
       );
-      // Etat Eduvia de(s) facture(s) step 1 portant la pedagogie (engagement).
+      // Etat + date d'ouverture Eduvia de(s) facture(s) step 1 portant la
+      // pedagogie (engagement). La facture PREMIEREQUIPEMENT (blacklist) n'y
+      // figure pas car elle n'entre pas dans engagementInvoiceIds.
+      const engagementSteps = Array.from(agg.engagementInvoiceIds)
+        .map((id) => stepByInvoiceId.get(id))
+        .filter((s): s is StepRow => !!s);
       const engagementInvoiceState =
         Array.from(
           new Set(
-            Array.from(agg.engagementInvoiceIds)
-              .map((id) => stepByInvoiceId.get(id)?.invoice_state)
+            engagementSteps
+              .map((s) => s.invoice_state)
               .filter((s): s is string => !!s),
           ),
         )
           .sort()
           .join(' / ') || null;
+      const engagementOpeningDate =
+        engagementSteps
+          .map((s) => s.opening_date)
+          .filter((d): d is string => !!d)
+          .sort()[0] ?? null;
       events.push({
         type: 'engagement',
         source_id: c.id,
@@ -413,7 +423,7 @@ export async function getBillableEvents(
         formation_titre: c.formation_titre,
         contract_state: c.contract_state,
         step_number: null,
-        step_opening_date: null,
+        step_opening_date: engagementOpeningDate,
         step_paid_at: null,
         invoice_state: engagementInvoiceState,
         opco_code: opcoInfo?.code ?? null,

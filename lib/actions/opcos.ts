@@ -15,47 +15,49 @@ const CodeSchema = z
   )
   .max(50);
 
-const PrefixSchema = z
+const IdccSchema = z
   .string()
-  .regex(/^[0-9]{3}$/, 'Prefixe doit etre 3 chiffres');
+  .trim()
+  .regex(/^[0-9]{1,4}$/, 'IDCC doit etre 1 à 4 chiffres')
+  .transform((s) => s.padStart(4, '0'));
 
 const CreateOpcoSchema = z.object({
   code: CodeSchema,
   nom: z.string().trim().min(1, 'Nom requis').max(200),
-  prefixesDeca: z.array(PrefixSchema).min(1, 'Au moins un prefixe requis'),
+  idccCodes: z.array(IdccSchema).min(1, 'Au moins un IDCC requis'),
 });
 
 const UpdateOpcoSchema = z.object({
   id: z.string().uuid(),
   code: CodeSchema,
   nom: z.string().trim().min(1).max(200),
-  prefixesDeca: z.array(PrefixSchema).min(1),
+  idccCodes: z.array(IdccSchema).min(1),
 });
 
-async function checkPrefixCollision(
+async function checkIdccCollision(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
-  prefixesDeca: string[],
+  idccCodes: string[],
   excludeId?: string,
 ): Promise<{ ok: boolean; conflict?: string }> {
   const baseQuery = supabase
     .from('opcos')
-    .select('id, code, prefixes_deca')
+    .select('id, code, idcc_codes')
     .eq('actif', true)
-    .overlaps('prefixes_deca', prefixesDeca);
+    .overlaps('idcc_codes', idccCodes);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error }: { data: any[] | null; error: any } = excludeId
     ? await baseQuery.neq('id', excludeId)
     : await baseQuery;
   if (error) {
-    logger.error('actions.opcos', 'checkPrefixCollision failed', { error });
+    logger.error('actions.opcos', 'checkIdccCollision failed', { error });
     return { ok: false, conflict: 'Erreur de validation' };
   }
   if (data && data.length > 0) {
     const conflictCodes = data.map((r) => r.code as string).join(', ');
     return {
       ok: false,
-      conflict: `Préfixe déjà utilisé par : ${conflictCodes}`,
+      conflict: `IDCC déjà utilisé par : ${conflictCodes}`,
     };
   }
   return { ok: true };
@@ -64,7 +66,7 @@ async function checkPrefixCollision(
 export async function createOpco(input: {
   code: string;
   nom: string;
-  prefixesDeca: string[];
+  idccCodes: string[];
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   const parsed = CreateOpcoSchema.safeParse(input);
   if (!parsed.success) {
@@ -75,8 +77,8 @@ export async function createOpco(input: {
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
-  const dedup = Array.from(new Set(parsed.data.prefixesDeca));
-  const collision = await checkPrefixCollision(supabase, dedup);
+  const dedup = Array.from(new Set(parsed.data.idccCodes));
+  const collision = await checkIdccCollision(supabase, dedup);
   if (!collision.ok) return { success: false, error: collision.conflict };
 
   const { data, error } = await supabase
@@ -84,7 +86,7 @@ export async function createOpco(input: {
     .insert({
       code: parsed.data.code,
       nom: parsed.data.nom,
-      prefixes_deca: dedup,
+      idcc_codes: dedup,
     })
     .select('id')
     .single();
@@ -95,7 +97,7 @@ export async function createOpco(input: {
     'opco_created',
     'opco',
     data.id,
-    { code: parsed.data.code, prefixes: dedup },
+    { code: parsed.data.code, idcc: dedup },
     user.id,
   );
   revalidatePath('/admin/parametres/opcos');
@@ -106,7 +108,7 @@ export async function updateOpco(input: {
   id: string;
   code: string;
   nom: string;
-  prefixesDeca: string[];
+  idccCodes: string[];
 }): Promise<{ success: boolean; error?: string }> {
   const parsed = UpdateOpcoSchema.safeParse(input);
   if (!parsed.success) {
@@ -117,8 +119,8 @@ export async function updateOpco(input: {
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
-  const dedup = Array.from(new Set(parsed.data.prefixesDeca));
-  const collision = await checkPrefixCollision(supabase, dedup, parsed.data.id);
+  const dedup = Array.from(new Set(parsed.data.idccCodes));
+  const collision = await checkIdccCollision(supabase, dedup, parsed.data.id);
   if (!collision.ok) return { success: false, error: collision.conflict };
 
   const { error } = await supabase
@@ -126,7 +128,7 @@ export async function updateOpco(input: {
     .update({
       code: parsed.data.code,
       nom: parsed.data.nom,
-      prefixes_deca: dedup,
+      idcc_codes: dedup,
     })
     .eq('id', parsed.data.id);
 
@@ -136,7 +138,7 @@ export async function updateOpco(input: {
     'opco_updated',
     'opco',
     parsed.data.id,
-    { code: parsed.data.code, prefixes: dedup },
+    { code: parsed.data.code, idcc: dedup },
     user.id,
   );
   revalidatePath('/admin/parametres/opcos');
@@ -168,19 +170,15 @@ export async function unarchiveOpco(
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
 
-  // Re-verifier collision sur les prefixes (un autre OPCO a pu les prendre entre-temps)
+  // Re-verifier collision sur les IDCC (un autre OPCO a pu les prendre entre-temps)
   const { data: opco, error: fetchErr } = await supabase
     .from('opcos')
-    .select('prefixes_deca')
+    .select('idcc_codes')
     .eq('id', id)
     .single();
   if (fetchErr || !opco) return { success: false, error: 'OPCO introuvable' };
 
-  const collision = await checkPrefixCollision(
-    supabase,
-    opco.prefixes_deca,
-    id,
-  );
+  const collision = await checkIdccCollision(supabase, opco.idcc_codes, id);
   if (!collision.ok) return { success: false, error: collision.conflict };
 
   const { error } = await supabase

@@ -22,7 +22,7 @@ interface Props {
   opco: OpcoRow | null;
 }
 
-function parsePrefixes(raw: string): string[] {
+function parseIdccCodes(raw: string): string[] {
   return Array.from(
     new Set(
       raw
@@ -41,21 +41,21 @@ interface FormBodyProps {
 function OpcoFormBody({ opco, onClose }: FormBodyProps) {
   const [code, setCode] = useState(opco?.code ?? '');
   const [nom, setNom] = useState(opco?.nom ?? '');
-  const [prefixesRaw, setPrefixesRaw] = useState(
-    opco ? opco.prefixes_deca.join(', ') : '',
+  const [idccRaw, setIdccRaw] = useState(
+    opco ? opco.idcc_codes.join(', ') : '',
   );
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit() {
-    const prefixes = parsePrefixes(prefixesRaw);
-    if (prefixes.length === 0) {
-      toast.error('Au moins un prefixe requis');
+    const idccCodes = parseIdccCodes(idccRaw);
+    if (idccCodes.length === 0) {
+      toast.error('Au moins un IDCC requis');
       return;
     }
     startTransition(async () => {
       const res = opco
-        ? await updateOpco({ id: opco.id, code, nom, prefixesDeca: prefixes })
-        : await createOpco({ code, nom, prefixesDeca: prefixes });
+        ? await updateOpco({ id: opco.id, code, nom, idccCodes })
+        : await createOpco({ code, nom, idccCodes });
       if (res.success) {
         toast.success(opco ? 'OPCO mis à jour' : 'OPCO créé');
         onClose();
@@ -87,19 +87,20 @@ function OpcoFormBody({ opco, onClose }: FormBodyProps) {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="opco-prefixes">
-            Prefixes DECA (3 chiffres, separes par virgule)
+          <Label htmlFor="opco-idcc">
+            IDCC (conventions collectives, 4 chiffres, séparés par virgule)
           </Label>
           <Textarea
-            id="opco-prefixes"
-            value={prefixesRaw}
-            onChange={(e) => setPrefixesRaw(e.target.value)}
-            placeholder="017, 030, 033, 050, 079, 089"
+            id="opco-idcc"
+            value={idccRaw}
+            onChange={(e) => setIdccRaw(e.target.value)}
+            placeholder="1979, 3032, 1527"
             rows={3}
           />
           <p className="text-muted-foreground text-xs">
-            Les 3 premiers chiffres du numero DECA des contrats (ex :
-            017202605001222 donne 017).
+            {
+              "IDCC de la convention collective de l'employeur (champ idcc_code des entreprises Eduvia). Détermine légalement l'OPCO."
+            }
           </p>
         </div>
       </div>

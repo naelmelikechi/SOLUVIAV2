@@ -39,10 +39,24 @@ interface TableResult {
 function buildSupabase(
   tableResults: Record<string, TableResult | TableResult[]>,
 ) {
+  // Defaults pour que les tests agnostiques d'OPCO resolvent un OPCO via IDCC
+  // (sinon tout contrat serait locked missing_idcc). Les tests OPCO surchargent.
+  const resolved: Record<string, TableResult | TableResult[]> = {
+    opcos: { data: [{ code: 'AKTO', nom: 'AKTO', idcc_codes: ['1979'] }] },
+    // eduvia_id 1 = contrats du builder contrat() ; -1 = contrats inline sans
+    // eduvia_company_id explicite (production fait `?? -1`). Tous -> idcc 1979.
+    eduvia_companies: {
+      data: [
+        { eduvia_id: 1, idcc_code: '1979' },
+        { eduvia_id: -1, idcc_code: '1979' },
+      ],
+    },
+    ...tableResults,
+  };
   const cursor: Record<string, number> = {};
 
   function nextResult(table: string): TableResult {
-    const r = tableResults[table];
+    const r = resolved[table];
     if (!r) return { data: [], error: null };
     if (Array.isArray(r)) {
       const idx = cursor[table] ?? 0;
@@ -112,6 +126,7 @@ function contrat(over: Partial<Record<string, unknown>> = {}) {
     formation_titre: 'Vente',
     contract_state: 'ENGAGE',
     npec_amount: 8000,
+    eduvia_company_id: 1,
     ...over,
   };
 }
@@ -568,14 +583,15 @@ describe('getBillableEvents - cas limites', () => {
 });
 
 // ---------------------------------------------------------------------------
-// DECA manquant
+// IDCC manquant (OPCO non resoluble)
 // ---------------------------------------------------------------------------
 
-describe('getBillableEvents - DECA manquant', () => {
-  it('event engagement est "locked" avec lock_reason "missing_deca" si contract_number null', async () => {
+describe('getBillableEvents - IDCC manquant', () => {
+  it('event engagement "locked" lock_reason "missing_idcc" si idcc_code employeur null', async () => {
     const mock = buildSupabase({
       projets: { data: projet },
-      contrats: { data: [contrat({ contract_number: null })] },
+      contrats: { data: [contrat()] },
+      eduvia_companies: { data: [{ eduvia_id: 1, idcc_code: null }] },
       eduvia_invoice_lines: {
         data: [
           {
@@ -613,16 +629,17 @@ describe('getBillableEvents - DECA manquant', () => {
     const ev = result!.events[0]!;
     expect(ev.type).toBe('engagement');
     expect(ev.status).toBe('locked');
-    expect(ev.lock_reason).toBe('missing_deca');
+    expect(ev.lock_reason).toBe('missing_idcc');
     expect(ev.locked_by).toBeUndefined();
   });
 
-  it('event opco_step est "locked" avec lock_reason "missing_deca" si contract_number vide', async () => {
+  it('event opco_step "locked" lock_reason "missing_idcc" si company employeur inconnue', async () => {
     const mock = buildSupabase({
       projets: { data: projet },
       contrats: {
-        data: [contrat({ contract_number: '  ', contract_state: 'REGLE' })],
+        data: [contrat({ contract_state: 'REGLE' })],
       },
+      eduvia_companies: { data: [] },
       eduvia_invoice_lines: {
         data: [
           {
@@ -660,14 +677,16 @@ describe('getBillableEvents - DECA manquant', () => {
     const ev = result!.events[0]!;
     expect(ev.type).toBe('opco_step');
     expect(ev.status).toBe('locked');
-    expect(ev.lock_reason).toBe('missing_deca');
+    expect(ev.lock_reason).toBe('missing_idcc');
     expect(ev.locked_by).toBeUndefined();
   });
 
-  it('event reste "available" si contract_number renseigne', async () => {
+  it('event reste "available" si idcc_code resolu vers un OPCO actif', async () => {
     const mock = buildSupabase({
       projets: { data: projet },
-      contrats: { data: [contrat({ contract_number: 'DECA-2026-001' })] },
+      contrats: { data: [contrat()] },
+      eduvia_companies: { data: [{ eduvia_id: 1, idcc_code: '1979' }] },
+      opcos: { data: [{ code: 'AKTO', nom: 'AKTO', idcc_codes: ['1979'] }] },
       eduvia_invoice_lines: {
         data: [
           {
@@ -704,16 +723,17 @@ describe('getBillableEvents - DECA manquant', () => {
     expect(result!.events).toHaveLength(1);
     const ev = result!.events[0]!;
     expect(ev.status).toBe('available');
+    expect(ev.opco_code).toBe('AKTO');
     expect(ev.lock_reason).toBeUndefined();
   });
 
-  it('missing_deca prevaut sur opposite_billed (verrou prioritaire)', async () => {
-    // Contrat sans DECA ET avec engagement deja facture.
-    // L opco_step serait normalement lockedByEngagement,
-    // mais missing_deca arrive en premier dans le ternaire.
+  it('missing_idcc prevaut sur opposite_billed (verrou prioritaire)', async () => {
+    // Employeur sans IDCC ET engagement deja facture : l opco_step serait
+    // lockedByEngagement, mais missing_idcc arrive en premier dans le ternaire.
     const mock = buildSupabase({
       projets: { data: projet },
-      contrats: { data: [contrat({ contract_number: null })] },
+      contrats: { data: [contrat()] },
+      eduvia_companies: { data: [{ eduvia_id: 1, idcc_code: null }] },
       eduvia_invoice_lines: {
         data: [
           {
@@ -756,7 +776,6 @@ describe('getBillableEvents - DECA manquant', () => {
       },
       facture_lignes: {
         data: [
-          // engagement deja facture
           {
             event_type: 'engagement',
             event_source_id: 'ctr-1',
@@ -776,8 +795,7 @@ describe('getBillableEvents - DECA manquant', () => {
 
     const opco = result!.events.find((e) => e.type === 'opco_step')!;
     expect(opco.status).toBe('locked');
-    // missing_deca doit prendre le dessus sur opposite_billed
-    expect(opco.lock_reason).toBe('missing_deca');
+    expect(opco.lock_reason).toBe('missing_idcc');
     expect(opco.locked_by).toBeUndefined();
   });
 });
@@ -1044,7 +1062,7 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
     expect(r?.events[0]?.unknown_line_types).toEqual(['EXAMEN']);
   });
 
-  it('missing_deca prime sur unknown_line_type', async () => {
+  it('missing_idcc prime sur unknown_line_type', async () => {
     const { client } = buildSupabase({
       projets: {
         data: {
@@ -1066,9 +1084,11 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
             formation_titre: 'F',
             contract_state: 'ENGAGE',
             npec_amount: 5000,
+            eduvia_company_id: 1,
           },
         ],
       },
+      eduvia_companies: { data: [{ eduvia_id: 1, idcc_code: null }] },
       eduvia_invoice_lines: {
         data: [
           {
@@ -1105,7 +1125,7 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
 
     const { getBillableEvents } = await import('@/lib/queries/billable-events');
     const r = await getBillableEvents('proj-1');
-    expect(r?.events[0]?.lock_reason).toBe('missing_deca');
+    expect(r?.events[0]?.lock_reason).toBe('missing_idcc');
   });
 
   it('unknown_line_type prevaut sur opposite_billed', async () => {
@@ -1291,11 +1311,11 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Resolution OPCO via prefixe DECA
+// Resolution OPCO via IDCC (convention collective de l'employeur)
 // ---------------------------------------------------------------------------
 
 describe('getBillableEvents - resolution OPCO', () => {
-  it('contrat avec DECA prefixe AKTO (017) -> event avec opco_code=AKTO, status available', async () => {
+  it('idcc employeur mappe AKTO -> event opco_code=AKTO, status available', async () => {
     const { client } = buildSupabase({
       projets: {
         data: {
@@ -1317,15 +1337,17 @@ describe('getBillableEvents - resolution OPCO', () => {
             formation_titre: 'Commerce',
             contract_state: 'ENGAGE',
             npec_amount: 6000,
+            eduvia_company_id: 10,
           },
         ],
       },
+      eduvia_companies: { data: [{ eduvia_id: 10, idcc_code: '1979' }] },
       opcos: {
         data: [
           {
             code: 'AKTO',
             nom: 'AKTO - Commerce',
-            prefixes_deca: ['017', '030'],
+            idcc_codes: ['1979', '0030'],
           },
         ],
         error: null,
@@ -1369,7 +1391,7 @@ describe('getBillableEvents - resolution OPCO', () => {
     expect(ev.lock_reason).toBeUndefined();
   });
 
-  it('contrat avec DECA prefixe inconnu -> locked unknown_opco', async () => {
+  it('idcc employeur non rattache a un OPCO -> locked unknown_opco', async () => {
     const { client } = buildSupabase({
       projets: {
         data: {
@@ -1391,9 +1413,11 @@ describe('getBillableEvents - resolution OPCO', () => {
             formation_titre: 'Industrie',
             contract_state: 'ENGAGE',
             npec_amount: 4000,
+            eduvia_company_id: 11,
           },
         ],
       },
+      eduvia_companies: { data: [{ eduvia_id: 11, idcc_code: '4321' }] },
       opcos: { data: [], error: null },
       eduvia_invoice_lines: {
         data: [
@@ -1434,7 +1458,7 @@ describe('getBillableEvents - resolution OPCO', () => {
     expect(ev.opco_nom).toBeNull();
   });
 
-  it('priorite missing_deca > unknown_opco : contract_number null -> lock_reason=missing_deca', async () => {
+  it('priorite missing_idcc > unknown_opco : idcc employeur null -> lock_reason=missing_idcc', async () => {
     const { client } = buildSupabase({
       projets: {
         data: {
@@ -1449,16 +1473,18 @@ describe('getBillableEvents - resolution OPCO', () => {
           {
             id: 'ctr-opco-3',
             ref: 'CTR-OPCO-3',
-            contract_number: null,
+            contract_number: 'DECA-OPCO-3',
             internal_number: 'INT-OPCO-3',
             apprenant_nom: 'Leblanc',
             apprenant_prenom: 'Marie',
             formation_titre: 'Sante',
             contract_state: 'ENGAGE',
             npec_amount: 3000,
+            eduvia_company_id: 12,
           },
         ],
       },
+      eduvia_companies: { data: [{ eduvia_id: 12, idcc_code: null }] },
       opcos: { data: [], error: null },
       eduvia_invoice_lines: {
         data: [
@@ -1494,11 +1520,10 @@ describe('getBillableEvents - resolution OPCO', () => {
     expect(r?.events).toHaveLength(1);
     const ev = r!.events[0]!;
     expect(ev.status).toBe('locked');
-    // missing_deca doit prendre le dessus sur unknown_opco
-    expect(ev.lock_reason).toBe('missing_deca');
+    expect(ev.lock_reason).toBe('missing_idcc');
   });
 
-  it('priorite unknown_opco > unknown_line_type : DECA prefixe inconnu + ligne type inconnu -> lock_reason=unknown_opco', async () => {
+  it('priorite unknown_opco > unknown_line_type : idcc non mappe + ligne type inconnu -> lock_reason=unknown_opco', async () => {
     const { client } = buildSupabase({
       projets: {
         data: {
@@ -1520,9 +1545,11 @@ describe('getBillableEvents - resolution OPCO', () => {
             formation_titre: 'BTP',
             contract_state: 'ENGAGE',
             npec_amount: 5000,
+            eduvia_company_id: 13,
           },
         ],
       },
+      eduvia_companies: { data: [{ eduvia_id: 13, idcc_code: '4321' }] },
       opcos: { data: [], error: null },
       eduvia_invoice_lines: {
         data: [
@@ -1564,7 +1591,6 @@ describe('getBillableEvents - resolution OPCO', () => {
     expect(r?.events).toHaveLength(1);
     const ev = r!.events[0]!;
     expect(ev.status).toBe('locked');
-    // unknown_opco doit prendre le dessus sur unknown_line_type
     expect(ev.lock_reason).toBe('unknown_opco');
   });
 
@@ -1590,6 +1616,7 @@ describe('getBillableEvents - resolution OPCO', () => {
             formation_titre: 'Commerce',
             contract_state: 'ENGAGE',
             npec_amount: 4000,
+            eduvia_company_id: 20,
           },
           {
             id: 'ctr-mob',
@@ -1601,16 +1628,23 @@ describe('getBillableEvents - resolution OPCO', () => {
             formation_titre: 'Transport',
             contract_state: 'ENGAGE',
             npec_amount: 5000,
+            eduvia_company_id: 21,
           },
+        ],
+      },
+      eduvia_companies: {
+        data: [
+          { eduvia_id: 20, idcc_code: '1979' },
+          { eduvia_id: 21, idcc_code: '1090' },
         ],
       },
       opcos: {
         data: [
-          { code: 'AKTO', nom: 'AKTO', prefixes_deca: ['017'] },
+          { code: 'AKTO', nom: 'AKTO', idcc_codes: ['1979'] },
           {
             code: 'OPCO_MOBILITES',
             nom: 'OPCO Mobilites',
-            prefixes_deca: ['006'],
+            idcc_codes: ['1090'],
           },
         ],
         error: null,

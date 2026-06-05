@@ -54,7 +54,7 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Nom</TableHead>
-                <TableHead>Préfixes DECA</TableHead>
+                <TableHead>IDCC</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -67,17 +67,9 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
                   </TableCell>
                   <TableCell>{o.nom}</TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {o.prefixes_deca.map((p) => (
-                        <Badge
-                          key={p}
-                          variant="secondary"
-                          className="font-mono text-xs"
-                        >
-                          {p}
-                        </Badge>
-                      ))}
-                    </div>
+                    <Badge variant="secondary" className="font-mono text-xs">
+                      {o.idcc_codes.length} IDCC
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <span

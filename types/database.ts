@@ -2067,7 +2067,7 @@ export type Database = {
           created_at: string;
           id: string;
           nom: string;
-          prefixes_deca: string[];
+          idcc_codes: string[];
           updated_at: string;
         };
         Insert: {
@@ -2076,7 +2076,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           nom: string;
-          prefixes_deca?: string[];
+          idcc_codes?: string[];
           updated_at?: string;
         };
         Update: {
@@ -2085,7 +2085,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           nom?: string;
-          prefixes_deca?: string[];
+          idcc_codes?: string[];
           updated_at?: string;
         };
         Relationships: [];

@@ -474,12 +474,12 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                 {stepSuffix}
                               </span>
                               {isLocked ? (
-                                e.lock_reason === 'missing_deca' ? (
+                                e.lock_reason === 'missing_idcc' ? (
                                   <Tooltip>
                                     <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
                                       <AlertTriangle className="size-3" />
                                       <span>
-                                        {'Verrouillé'} : DECA manquant
+                                        {'Verrouillé'} : IDCC manquant
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent
@@ -488,7 +488,26 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                     >
                                       <div className="text-xs">
                                         {
-                                          'Le numéro DECA OPCO de ce contrat est absent. Renseignez-le côté Eduvia avant de facturer (sinon le client refuserait la facture).'
+                                          "La convention collective (IDCC) de l'employeur est absente côté Eduvia : impossible de déterminer l'OPCO. Renseignez-la avant de facturer."
+                                        }
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                ) : e.lock_reason === 'unknown_opco' ? (
+                                  <Tooltip>
+                                    <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
+                                      <AlertTriangle className="size-3" />
+                                      <span>
+                                        {'Verrouillé'} : OPCO non identifié
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="top"
+                                      className="max-w-xs px-3 py-2"
+                                    >
+                                      <div className="text-xs">
+                                        {
+                                          "L'IDCC de l'employeur n'est rattaché à aucun OPCO du référentiel. Mappez-le dans /admin/parametres/opcos."
                                         }
                                       </div>
                                     </TooltipContent>

@@ -23,26 +23,26 @@ const mockUser = { id: 'user-admin-1', email: 'admin@test.com' };
 // Sequence des appels selon l'action :
 //
 // createOpco :
-//   1. opcos.select('id, code, prefixes_deca').eq('actif', true).overlaps(...) -> collision check
+//   1. opcos.select('id, code, idcc_codes').eq('actif', true).overlaps(...) -> collision check
 //   2. opcos.insert({ ... }).select('id').single()                              -> insert
 //
 // updateOpco :
-//   1. opcos.select('id, code, prefixes_deca').eq('actif', true).overlaps(...).neq('id', id) -> collision check
+//   1. opcos.select('id, code, idcc_codes').eq('actif', true).overlaps(...).neq('id', id) -> collision check
 //   2. opcos.update({ ... }).eq('id', id)                                                     -> update
 //
 // archiveOpco :
 //   1. opcos.update({ actif: false }).eq('id', id)                             -> archive
 //
 // unarchiveOpco :
-//   1. opcos.select('prefixes_deca').eq('id', id).single()                     -> fetch opco
-//   2. opcos.select('id, code, prefixes_deca').eq('actif', true).overlaps(...).neq('id', id) -> collision
+//   1. opcos.select('idcc_codes').eq('id', id).single()                     -> fetch opco
+//   2. opcos.select('id, code, idcc_codes').eq('actif', true).overlaps(...).neq('id', id) -> collision
 //   3. opcos.update({ actif: true }).eq('id', id)                              -> unarchive
 // ---------------------------------------------------------------------------
 
 interface OpcoRow {
   id: string;
   code: string;
-  prefixes_deca: string[];
+  idcc_codes: string[];
 }
 
 interface BuildOpts {
@@ -54,7 +54,7 @@ interface BuildOpts {
   // update/archive error
   updateError?: { message: string };
   // fetch opco pour unarchive
-  fetchedOpco?: { prefixes_deca: string[] } | null;
+  fetchedOpco?: { idcc_codes: string[] } | null;
   fetchError?: { message: string };
 }
 
@@ -106,7 +106,7 @@ function buildSupabase(opts: BuildOpts = {}) {
           if (opts.fetchedOpco === undefined) {
             // Par defaut : pas de fetch opco attendu
             return Promise.resolve({
-              data: { prefixes_deca: ['001'] },
+              data: { idcc_codes: ['0001'] },
               error: null,
             });
           }
@@ -184,7 +184,7 @@ describe('opcos actions CRUD', () => {
     const result = await createOpco({
       code: 'AKTO',
       nom: 'AKTO Commerce',
-      prefixesDeca: ['017', '018'],
+      idccCodes: ['1979', '0086'],
     });
 
     expect(result.success).toBe(true);
@@ -203,14 +203,14 @@ describe('opcos actions CRUD', () => {
     const result = await createOpco({
       code: 'akto', // minuscules -> invalide
       nom: 'AKTO Commerce',
-      prefixesDeca: ['017'],
+      idccCodes: ['1979'],
     });
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/majuscules/i);
   });
 
-  it('3. createOpco refuse prefixe mal formate (4 chiffres)', async () => {
+  it('3. createOpco refuse idcc mal formate (5 chiffres)', async () => {
     requireAdminMock.mockResolvedValue({
       ok: true,
       supabase: {} as never,
@@ -221,17 +221,17 @@ describe('opcos actions CRUD', () => {
     const result = await createOpco({
       code: 'AKTO',
       nom: 'AKTO Commerce',
-      prefixesDeca: ['0170'], // 4 chiffres -> invalide
+      idccCodes: ['12345'], // 5 chiffres -> invalide
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toMatch(/3 chiffres/i);
+    expect(result.error).toMatch(/chiffres/i);
   });
 
   it('4. createOpco collision avec OPCO actif existant -> refus', async () => {
     const { client } = buildSupabase({
       collisionOpcos: [
-        { id: 'other-opco-id', code: 'OPCO2I', prefixes_deca: ['017'] },
+        { id: 'other-opco-id', code: 'OPCO2I', idcc_codes: ['1979'] },
       ],
     });
     requireAdminMock.mockResolvedValue({
@@ -244,12 +244,12 @@ describe('opcos actions CRUD', () => {
     const result = await createOpco({
       code: 'AKTO',
       nom: 'AKTO Commerce',
-      prefixesDeca: ['017'], // prefixe deja pris par OPCO2I
+      idccCodes: ['1979'], // idcc deja pris par OPCO2I
     });
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/OPCO2I/);
-    expect(result.error).toMatch(/Préfixe déjà utilisé/);
+    expect(result.error).toMatch(/IDCC déjà utilisé/);
   });
 
   it('5. createOpco non-admin -> refus', async () => {
@@ -262,7 +262,7 @@ describe('opcos actions CRUD', () => {
     const result = await createOpco({
       code: 'AKTO',
       nom: 'AKTO Commerce',
-      prefixesDeca: ['017'],
+      idccCodes: ['1979'],
     });
 
     expect(result.success).toBe(false);
@@ -296,7 +296,7 @@ describe('opcos actions CRUD', () => {
       id: 'bbbbbbbb-bbbb-4bbb-8bbb-000000000002',
       code: 'ATLAS',
       nom: 'ATLAS Metiers',
-      prefixesDeca: ['022', '023'],
+      idccCodes: ['0022', '0023'],
     });
 
     expect(result.success).toBe(true);

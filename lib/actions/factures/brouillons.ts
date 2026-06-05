@@ -777,10 +777,16 @@ export async function createFactureFromEvents(params: {
       };
     }
     if (e.status === 'locked') {
-      if (e.lock_reason === 'missing_deca') {
+      if (e.lock_reason === 'missing_idcc') {
         return {
           success: false,
-          error: `Contrat sans numéro DECA OPCO : ${e.apprenant_prenom} ${e.apprenant_nom} (${e.contrat_ref ?? e.contrat_id}). Renseignez le DECA côté Eduvia avant de facturer.`,
+          error: `Convention collective (IDCC) absente côté Eduvia : ${e.apprenant_prenom} ${e.apprenant_nom} (${e.contrat_ref ?? e.contrat_id}). Impossible de déterminer l'OPCO avant de facturer.`,
+        };
+      }
+      if (e.lock_reason === 'unknown_opco') {
+        return {
+          success: false,
+          error: `OPCO non identifié : ${e.apprenant_prenom} ${e.apprenant_nom} (${e.contrat_ref ?? e.contrat_id}). L'IDCC de l'employeur n'est rattaché à aucun OPCO ; mappez-le dans /admin/parametres/opcos.`,
         };
       }
       const opp = e.type === 'engagement' ? 'règlements OPCO' : 'engagement';
@@ -792,20 +798,17 @@ export async function createFactureFromEvents(params: {
     resolved.push(e);
   }
 
-  // 3-bis. Defense en profondeur : refuse si DECA manquant sur un event
-  //        resolved (l UI le filtre deja mais protege contre bypass curl
-  //        ou race condition entre sync Eduvia et creation facture).
-  const missingDecaEvents = resolved.filter((e) => {
-    const num = e.contract_number;
-    return !num || num.trim() === '';
-  });
-  if (missingDecaEvents.length > 0) {
-    const refs = missingDecaEvents
+  // 3-bis. Defense en profondeur : refuse tout event dont l'OPCO n'a pas pu
+  //        etre resolu via l'IDCC employeur (l UI le filtre deja mais protege
+  //        contre bypass curl ou race entre sync Eduvia et creation facture).
+  const unresolvedOpcoEvents = resolved.filter((e) => !e.opco_code);
+  if (unresolvedOpcoEvents.length > 0) {
+    const refs = unresolvedOpcoEvents
       .map((e) => e.contrat_ref ?? e.contrat_id)
       .join(', ');
     return {
       success: false,
-      error: `Contrat(s) sans numéro DECA OPCO : ${refs}. Impossible de facturer avant que le DECA ne soit renseigné côté Eduvia.`,
+      error: `OPCO non résolu pour : ${refs}. Vérifiez l'IDCC de l'employeur (Eduvia) et le référentiel OPCO avant de facturer.`,
     };
   }
 

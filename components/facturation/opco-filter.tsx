@@ -9,6 +9,7 @@ interface BillableEventLike {
   opco_code: string | null;
   opco_nom: string | null;
   status: string;
+  lock_reason?: string | null;
 }
 
 interface Props {
@@ -43,7 +44,10 @@ export function OpcoFilter({ events, selected, onChange }: Props) {
   }, [events]);
 
   const unknownCount = useMemo(
-    () => events.filter((e) => e.status === 'locked' && !e.opco_code).length,
+    () =>
+      events.filter(
+        (e) => e.status === 'locked' && e.lock_reason === 'unknown_opco',
+      ).length,
     [events],
   );
 
@@ -76,8 +80,7 @@ export function OpcoFilter({ events, selected, onChange }: Props) {
         {unknownCount > 0 && (
           <div className="border-t pt-2">
             <Badge variant="destructive">
-              {unknownCount} contrat(s) avec OPCO non identifié - mappez le
-              préfixe dans /admin/parametres/opcos
+              {`${unknownCount} contrat(s) avec OPCO non identifié - mappez l'IDCC dans /admin/parametres/opcos`}
             </Badge>
           </div>
         )}

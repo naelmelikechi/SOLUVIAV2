@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { classifyLineType } from '@/lib/eduvia/line-types';
 import { getActiveOpcoMapping } from '@/lib/queries/opcos';
-import { extractDecaPrefix, resolveOpcoFromDeca } from '@/lib/opco/resolve';
+import { resolveOpcoFromIdcc, normalizeIdcc } from '@/lib/opco/resolve';
 
 // ---------------------------------------------------------------------------
 // Billable events : 2 sources de facturation pour tous les projets avec
@@ -56,7 +56,7 @@ export interface BillableEvent {
   step_opening_date: string | null; // pour opco_step
   step_paid_at: string | null;
 
-  opco_code: string | null; // OPCO resolu via prefixe DECA, null si non resolu
+  opco_code: string | null; // OPCO resolu via IDCC employeur, null si non resolu
   opco_nom: string | null; // Nom affiche dans UI/PDF
 
   montant_brut: number; // SUM(PEDAGOGIE lines)
@@ -73,20 +73,20 @@ export interface BillableEvent {
    * le bon badge/tooltip.
    * - 'opposite_billed'    : le type oppose (engagement vs opco_step) est
    *                          deja facture pour ce contrat (regle d exclusion)
-   * - 'missing_deca'       : contract_number (DECA OPCO) absent, on refuse
-   *                          de facturer pour eviter le rejet client
+   * - 'missing_idcc'       : l'IDCC (convention collective) de l'employeur est
+   *                          absent/invalide -> OPCO non resoluble, facturation
+   *                          bloquee pour eviter une imputation incorrecte
    * - 'unknown_line_type'  : une ligne du bordereau OPCO du contrat a un
    *                          line_type ni whiteliste ni blackliste. Voir
    *                          unknown_line_types pour la liste, et
    *                          lib/eduvia/line-types.ts pour la classification.
-   * - 'unknown_opco'       : contract_number (DECA OPCO) present mais son
-   *                          prefixe (3 premiers chiffres) ne correspond a
-   *                          aucun OPCO actif dans le referentiel. Facturation
-   *                          bloquee pour eviter une imputation incorrecte.
+   * - 'unknown_opco'       : IDCC de l'employeur present mais rattache a aucun
+   *                          OPCO actif du referentiel. Facturation bloquee
+   *                          pour eviter une imputation incorrecte.
    */
   lock_reason?:
     | 'opposite_billed'
-    | 'missing_deca'
+    | 'missing_idcc'
     | 'unknown_line_type'
     | 'unknown_opco';
   unknown_line_types?: string[];
@@ -108,12 +108,12 @@ export interface ProjetBillableEvents {
 
 /**
  * Determines the billing status of an event based on its billing and lock state.
- * Priority: billed > missing_deca > unknown_opco > unknown_line_type > opposite_billed > available.
+ * Priority: billed > missing_idcc > unknown_opco > unknown_line_type > opposite_billed > available.
  */
 function resolveLock(opts: {
   billed?: BilledRef;
   lockedByOther?: BilledRef;
-  missingDeca: boolean;
+  missingIdcc: boolean;
   unknownOpco: boolean;
   hasUnknown: boolean;
 }): {
@@ -121,8 +121,8 @@ function resolveLock(opts: {
   lock_reason?: BillableEvent['lock_reason'];
 } {
   if (opts.billed) return { status: 'billed' };
-  if (opts.missingDeca)
-    return { status: 'locked', lock_reason: 'missing_deca' };
+  if (opts.missingIdcc)
+    return { status: 'locked', lock_reason: 'missing_idcc' };
   if (opts.unknownOpco)
     return { status: 'locked', lock_reason: 'unknown_opco' };
   if (opts.hasUnknown)
@@ -171,7 +171,7 @@ export async function getBillableEvents(
       `
       id, ref, contract_number, internal_number,
       apprenant_nom, apprenant_prenom, formation_titre,
-      contract_state, npec_amount
+      contract_state, npec_amount, eduvia_company_id
     `,
     )
     .eq('projet_id', projetId)
@@ -190,7 +190,7 @@ export async function getBillableEvents(
 
   const contratIds = contrats.map((c) => c.id);
 
-  // 2b. Mapping OPCO actifs (prefixe DECA -> OPCO info)
+  // 2b. Mapping OPCO actifs (IDCC -> OPCO info) + IDCC employeur par company.
   // 3. Lignes des bordereaux OPCO emis pour ces contrats.
   //    Source de verite : eduvia_invoice_lines (whitelist line_type=PEDAGOGIE).
   //    On joint avec eduvia_invoice_steps pour matcher l'invoice_id au
@@ -198,22 +198,37 @@ export async function getBillableEvents(
   // 4. Steps emis (pour savoir quels invoice_id sont en step 1 OPCO).
   //    NB: on selectionne aussi `id` (UUID PK) car il sert de event_source_id
   //    pour les events opco_step (cle d'idempotence facture_lignes).
-  const [opcoMapping, { data: invoiceLines }, { data: emittedSteps }] =
-    await Promise.all([
-      getActiveOpcoMapping(),
-      supabase
-        .from('eduvia_invoice_lines')
-        .select('eduvia_invoice_id, contrat_id, amount, line_type')
-        .in('contrat_id', contratIds),
-      supabase
-        .from('eduvia_invoice_steps')
-        .select(
-          'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state',
-        )
-        .in('contrat_id', contratIds)
-        .not('invoice_state', 'is', null)
-        .not('eduvia_invoice_id', 'is', null),
-    ]);
+  const [
+    opcoMapping,
+    { data: invoiceLines },
+    { data: emittedSteps },
+    { data: companiesIdcc },
+  ] = await Promise.all([
+    getActiveOpcoMapping(),
+    supabase
+      .from('eduvia_invoice_lines')
+      .select('eduvia_invoice_id, contrat_id, amount, line_type')
+      .in('contrat_id', contratIds),
+    supabase
+      .from('eduvia_invoice_steps')
+      .select(
+        'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state',
+      )
+      .in('contrat_id', contratIds)
+      .not('invoice_state', 'is', null)
+      .not('eduvia_invoice_id', 'is', null),
+    supabase
+      .from('eduvia_companies')
+      .select('eduvia_id, idcc_code')
+      .eq('client_id', projet.client?.id ?? ''),
+  ]);
+
+  // IDCC (convention collective) de l'employeur par company Eduvia : seul
+  // determinant legal de l'OPCO (l'API Eduvia n'expose pas l'OPCO directement).
+  const idccByCompanyId = new Map<number, string | null>();
+  for (const co of companiesIdcc ?? []) {
+    idccByCompanyId.set(co.eduvia_id, co.idcc_code);
+  }
 
   // Index : invoice_id -> step infos (pour retrouver step_number et le step.id)
   type StepRow = NonNullable<typeof emittedSteps>[number];
@@ -346,16 +361,16 @@ export async function getBillableEvents(
     const billedTypes = eventTypesByContrat.get(c.id);
     const agg = aggByContrat.get(c.id)!;
     const hasUnknown = agg.unknownLineTypes.size > 0;
-    const missingDeca = !c.contract_number || c.contract_number.trim() === '';
+    const idcc = normalizeIdcc(idccByCompanyId.get(c.eduvia_company_id ?? -1));
+    const missingIdcc = !idcc;
     const unknownTypesList = hasUnknown
       ? Array.from(agg.unknownLineTypes).sort()
       : undefined;
 
-    const decaPrefix = extractDecaPrefix(c.contract_number);
-    const opcoInfo = resolveOpcoFromDeca(c.contract_number, opcoMapping);
-    // unknownOpco: DECA has a valid numeric prefix but it's not in the active mapping.
-    // If the prefix can't even be extracted (non-numeric or empty), missingDeca handles it.
-    const unknownOpco = !!decaPrefix && !opcoInfo;
+    const opcoInfo = resolveOpcoFromIdcc(idcc, opcoMapping);
+    // unknownOpco: IDCC valide mais rattaché à aucun OPCO actif du référentiel.
+    // Si l'IDCC est absent/invalide, missingIdcc s'en charge.
+    const unknownOpco = !!idcc && !opcoInfo;
 
     // -- Event engagement --------------------------------------------------
     if (c.contract_state === 'ENGAGE' && agg.basePedagoEngagement > 0) {
@@ -364,7 +379,7 @@ export async function getBillableEvents(
       const { status, lock_reason } = resolveLock({
         billed,
         lockedByOther: lockedByOpco,
-        missingDeca,
+        missingIdcc,
         unknownOpco,
         hasUnknown,
       });
@@ -395,7 +410,7 @@ export async function getBillableEvents(
         status,
         billed_on: billed,
         locked_by:
-          !missingDeca && !unknownOpco && !hasUnknown
+          !missingIdcc && !unknownOpco && !hasUnknown
             ? lockedByOpco
             : undefined,
         lock_reason,
@@ -415,7 +430,7 @@ export async function getBillableEvents(
       const { status, lock_reason } = resolveLock({
         billed,
         lockedByOther: lockedByEngagement,
-        missingDeca,
+        missingIdcc,
         unknownOpco,
         hasUnknown,
       });
@@ -443,7 +458,7 @@ export async function getBillableEvents(
         status,
         billed_on: billed,
         locked_by:
-          !missingDeca && !unknownOpco && !hasUnknown
+          !missingIdcc && !unknownOpco && !hasUnknown
             ? lockedByEngagement
             : undefined,
         lock_reason,

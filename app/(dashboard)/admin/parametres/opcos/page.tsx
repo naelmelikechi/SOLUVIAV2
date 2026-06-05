@@ -17,7 +17,8 @@ export default async function OpcosPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Referentiel OPCO</h1>
         <p className="text-muted-foreground mt-1">
-          Mapping prefixes DECA vers OPCO utilise par la facturation.
+          Mapping IDCC (conventions collectives) vers OPCO utilisé par la
+          facturation.
         </p>
       </div>
       <OpcosSection opcos={opcos} />

@@ -1,28 +1,32 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
-import type { OpcoMapping, OpcoInfo } from '@/lib/opco/resolve';
+import {
+  normalizeIdcc,
+  type OpcoMapping,
+  type OpcoInfo,
+} from '@/lib/opco/resolve';
 
 export interface OpcoRow {
   id: string;
   code: string;
   nom: string;
-  prefixes_deca: string[];
+  idcc_codes: string[];
   actif: boolean;
   created_at: string;
   updated_at: string;
 }
 
 /**
- * Charge tous les OPCO actifs et construit le Map prefixe -> OPCO.
- * Si un prefixe est partage entre 2 OPCO actifs (config invalide), premier
- * match wins + warning logger. La validation cote action est censee empecher
- * cette situation.
+ * Charge tous les OPCO actifs et construit le Map IDCC -> OPCO. L'IDCC
+ * (convention collective) est le seul déterminant légal et 1:1 de l'OPCO.
+ * Si un IDCC est partagé entre 2 OPCO actifs (config invalide), premier match
+ * wins + warning logger. La validation côté action est censée empêcher ça.
  */
 export async function getActiveOpcoMapping(): Promise<OpcoMapping> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('opcos')
-    .select('code, nom, prefixes_deca')
+    .select('code, nom, idcc_codes')
     .eq('actif', true);
 
   if (error) {
@@ -33,20 +37,18 @@ export async function getActiveOpcoMapping(): Promise<OpcoMapping> {
   const mapping: OpcoMapping = new Map();
   for (const opco of data ?? []) {
     const info: OpcoInfo = { code: opco.code, nom: opco.nom };
-    for (const prefix of opco.prefixes_deca ?? []) {
-      if (mapping.has(prefix)) {
-        logger.warn(
-          'queries.opcos',
-          'prefixe DECA partage entre deux OPCO actifs',
-          {
-            prefix,
-            existant: mapping.get(prefix)?.code,
-            nouveau: opco.code,
-          },
-        );
+    for (const idccRaw of opco.idcc_codes ?? []) {
+      const idcc = normalizeIdcc(idccRaw);
+      if (!idcc) continue;
+      if (mapping.has(idcc)) {
+        logger.warn('queries.opcos', 'IDCC partagé entre deux OPCO actifs', {
+          idcc,
+          existant: mapping.get(idcc)?.code,
+          nouveau: opco.code,
+        });
         continue;
       }
-      mapping.set(prefix, info);
+      mapping.set(idcc, info);
     }
   }
   return mapping;

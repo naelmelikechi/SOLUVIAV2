@@ -101,6 +101,7 @@ function mockEvent(
     step_number: null,
     step_opening_date: null,
     step_paid_at: null,
+    invoice_state: 'TRANSMIS' as string | null,
     montant_brut: 1000,
     montant_commissionne: 400,
     status: 'available' as const,

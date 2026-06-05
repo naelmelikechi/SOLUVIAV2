@@ -56,6 +56,8 @@ export interface BillableEvent {
   step_opening_date: string | null; // pour opco_step
   step_paid_at: string | null;
 
+  invoice_state: string | null; // etat facture Eduvia (TRANSMIS/REGLE), miroir de eduvia_invoice_steps
+
   opco_code: string | null; // OPCO resolu via IDCC employeur, null si non resolu
   opco_nom: string | null; // Nom affiche dans UI/PDF
 
@@ -388,6 +390,17 @@ export async function getBillableEvents(
         c.id,
         Array.from(agg.engagementInvoiceIds).sort(),
       );
+      // Etat Eduvia de(s) facture(s) step 1 portant la pedagogie (engagement).
+      const engagementInvoiceState =
+        Array.from(
+          new Set(
+            Array.from(agg.engagementInvoiceIds)
+              .map((id) => stepByInvoiceId.get(id)?.invoice_state)
+              .filter((s): s is string => !!s),
+          ),
+        )
+          .sort()
+          .join(' / ') || null;
       events.push({
         type: 'engagement',
         source_id: c.id,
@@ -402,6 +415,7 @@ export async function getBillableEvents(
         step_number: null,
         step_opening_date: null,
         step_paid_at: null,
+        invoice_state: engagementInvoiceState,
         opco_code: opcoInfo?.code ?? null,
         opco_nom: opcoInfo?.nom ?? null,
         montant_brut: agg.basePedagoEngagement,
@@ -450,6 +464,7 @@ export async function getBillableEvents(
         step_number: step.step_number ?? null,
         step_opening_date: step.opening_date ?? null,
         step_paid_at: step.paid_at ?? null,
+        invoice_state: step.invoice_state ?? null,
         opco_code: opcoInfo?.code ?? null,
         opco_nom: opcoInfo?.nom ?? null,
         montant_brut: basePedago,

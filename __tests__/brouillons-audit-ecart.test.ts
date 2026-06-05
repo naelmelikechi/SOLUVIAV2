@@ -92,6 +92,7 @@ function makeEvent(
     step_number: null,
     step_opening_date: null,
     step_paid_at: null,
+    invoice_state: 'TRANSMIS',
     opco_code: 'AKTO',
     opco_nom: 'AKTO',
     montant_brut: 2504,

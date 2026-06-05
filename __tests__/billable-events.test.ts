@@ -1709,3 +1709,114 @@ describe('getBillableEvents - resolution OPCO', () => {
     expect(mobEv.status).toBe('available');
   });
 });
+
+// ---------------------------------------------------------------------------
+// État facture Eduvia (invoice_state)
+// ---------------------------------------------------------------------------
+
+describe('getBillableEvents - état facture Eduvia (invoice_state)', () => {
+  it('engagement: invoice_state = état de la facture PEDAGOGIE step 1, ignore la facture PREMIEREQUIPEMENT payée', async () => {
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat()] },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 901,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 902,
+            contrat_id: 'ctr-1',
+            amount: 500,
+            line_type: 'PREMIEREQUIPEMENT',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-901',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 901,
+            including_pedagogie_amount: 2000,
+            opening_date: '2026-02-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+          {
+            id: 'step-902',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 902,
+            including_pedagogie_amount: 0,
+            opening_date: '2026-05-07',
+            paid_at: '2026-06-01',
+            invoice_state: 'REGLE',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    expect(result!.events).toHaveLength(1);
+    const ev = result!.events[0]!;
+    expect(ev.type).toBe('engagement');
+    expect(ev.montant_brut).toBe(2000); // PREMIEREQUIPEMENT exclu
+    // état de la facture pédagogie (TRANSMIS), pas le REGLE de l'équipement
+    expect(ev.invoice_state).toBe('TRANSMIS');
+  });
+
+  it('opco_step: invoice_state = état Eduvia du step + step_paid_at', async () => {
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat({ contract_state: 'REGLE' })] },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 903,
+            contrat_id: 'ctr-1',
+            amount: 1500,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-903',
+            contrat_id: 'ctr-1',
+            step_number: 2,
+            eduvia_invoice_id: 903,
+            including_pedagogie_amount: 1500,
+            opening_date: '2026-03-01',
+            paid_at: '2026-03-15',
+            invoice_state: 'REGLE',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    expect(result!.events).toHaveLength(1);
+    const ev = result!.events[0]!;
+    expect(ev.type).toBe('opco_step');
+    expect(ev.invoice_state).toBe('REGLE');
+    expect(ev.step_paid_at).toBe('2026-03-15');
+  });
+});

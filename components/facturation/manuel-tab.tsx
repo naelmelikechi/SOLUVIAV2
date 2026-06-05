@@ -418,6 +418,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                     <TableHead>DECA</TableHead>
                     <TableHead>Apprenant</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>État</TableHead>
                     <TableHead className="text-right">HT</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -425,7 +426,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   {displayedEvents.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="text-muted-foreground h-16 text-center text-sm"
                       >
                         Aucun événement à afficher.
@@ -621,6 +622,37 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                     : 'REGLE'}
                                 </span>
                               </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {e.invoice_state ? (
+                              <div className="flex flex-col gap-0.5">
+                                <StatusBadge
+                                  label={
+                                    e.invoice_state === 'REGLE'
+                                      ? 'Payé'
+                                      : e.invoice_state === 'TRANSMIS'
+                                        ? 'Transmis'
+                                        : e.invoice_state
+                                  }
+                                  color={
+                                    e.invoice_state === 'REGLE'
+                                      ? 'green'
+                                      : e.invoice_state === 'TRANSMIS'
+                                        ? 'orange'
+                                        : 'gray'
+                                  }
+                                />
+                                {e.step_paid_at ? (
+                                  <span className="text-muted-foreground text-[10px]">
+                                    {formatDate(e.step_paid_at)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                {NDASH}
+                              </span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">

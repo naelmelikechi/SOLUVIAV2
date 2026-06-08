@@ -110,6 +110,9 @@ const styles = StyleSheet.create({
   colDescription: { width: '26%' },
   colMontantHt: { width: '16%', textAlign: 'right' },
   colMontantTtc: { width: '16%', textAlign: 'right' },
+  colDescriptionWide: { width: '60%' },
+  colMontantHtWide: { width: '20%', textAlign: 'right' },
+  colMontantTtcWide: { width: '20%', textAlign: 'right' },
   // Totals
   totalsContainer: {
     marginTop: 16,
@@ -256,6 +259,21 @@ export function FacturePdf({
   const isAutoliquidation =
     tvaRegime.isAutoliquidation && Number(facture.taux_tva) === 0;
 
+  // Factures libres (prestation de service) : aucune ligne rattachee a un
+  // contrat -> les colonnes DECA et Apprenant sont vides et hors-sujet. On les
+  // masque et on elargit Description/HT/TTC. Les factures de commission
+  // (lignes avec contrat) conservent les 5 colonnes.
+  const hasContratLignes = facture.lignes.some((l) => l.contrat != null);
+  const colDescription = hasContratLignes
+    ? styles.colDescription
+    : styles.colDescriptionWide;
+  const colMontantHt = hasContratLignes
+    ? styles.colMontantHt
+    : styles.colMontantHtWide;
+  const colMontantTtc = hasContratLignes
+    ? styles.colMontantTtc
+    : styles.colMontantTtcWide;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -355,11 +373,15 @@ export function FacturePdf({
 
         {/* Table header */}
         <View style={styles.tableHeader}>
-          <Text style={[styles.colDeca, styles.bold]}>DECA</Text>
-          <Text style={[styles.colApprenant, styles.bold]}>Apprenant</Text>
-          <Text style={[styles.colDescription, styles.bold]}>Description</Text>
-          <Text style={[styles.colMontantHt, styles.bold]}>Montant HT</Text>
-          <Text style={[styles.colMontantTtc, styles.bold]}>Montant TTC</Text>
+          {hasContratLignes && (
+            <Text style={[styles.colDeca, styles.bold]}>DECA</Text>
+          )}
+          {hasContratLignes && (
+            <Text style={[styles.colApprenant, styles.bold]}>Apprenant</Text>
+          )}
+          <Text style={[colDescription, styles.bold]}>Description</Text>
+          <Text style={[colMontantHt, styles.bold]}>Montant HT</Text>
+          <Text style={[colMontantTtc, styles.bold]}>Montant TTC</Text>
         </View>
 
         {/* Table rows — grouped by opco_code when multiple OPCOs present */}
@@ -400,19 +422,21 @@ export function FacturePdf({
               ligne.contrat?.contract_number ?? ligne.contrat?.ref ?? '';
             return (
               <View key={ligne.id} style={styles.tableRow}>
-                <Text style={styles.colDeca}>{decaLabel}</Text>
-                <Text style={styles.colApprenant}>
-                  {ligne.contrat
-                    ? `${ligne.contrat.apprenant_prenom ?? ''} ${ligne.contrat.apprenant_nom ?? ''}`.trim()
-                    : ''}
-                </Text>
-                <Text style={[styles.colDescription, styles.muted]}>
+                {hasContratLignes && (
+                  <Text style={styles.colDeca}>{decaLabel}</Text>
+                )}
+                {hasContratLignes && (
+                  <Text style={styles.colApprenant}>
+                    {ligne.contrat
+                      ? `${ligne.contrat.apprenant_prenom ?? ''} ${ligne.contrat.apprenant_nom ?? ''}`.trim()
+                      : ''}
+                  </Text>
+                )}
+                <Text style={[colDescription, styles.muted]}>
                   {ligne.description}
                 </Text>
-                <Text style={styles.colMontantHt}>
-                  {formatEur(ligne.montant_ht)}
-                </Text>
-                <Text style={styles.colMontantTtc}>{formatEur(ligneTtc)}</Text>
+                <Text style={colMontantHt}>{formatEur(ligne.montant_ht)}</Text>
+                <Text style={colMontantTtc}>{formatEur(ligneTtc)}</Text>
               </View>
             );
           };

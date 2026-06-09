@@ -239,13 +239,22 @@ interface FacturePdfProps {
    * a real invoice.
    */
   isDraft?: boolean;
+  /**
+   * Source du logo en-tete. Defaut : logo officiel Soluvia (URL absolue,
+   * @react-pdf fetch au render-time). `null` = pas de logo (tests : evite
+   * tout appel reseau ; data URI accepte aussi).
+   */
+  logoSrc?: string | null;
 }
+
+const DEFAULT_LOGO_SRC = 'https://app.mysoluvia.com/logo.png';
 
 export function FacturePdf({
   facture,
   origineRef,
   emetteur,
   isDraft,
+  logoSrc = DEFAULT_LOGO_SRC,
 }: FacturePdfProps) {
   const isAvoir = facture.est_avoir;
   const EMETTEUR = emetteur ?? EMETTEUR_FALLBACK;
@@ -283,11 +292,10 @@ export function FacturePdf({
           <View style={styles.headerLeft}>
             {/* Logo officiel Soluvia. URL absolue car @react-pdf fetch
                 au render-time cote serverless (filesystem read-only). */}
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image
-              src="https://app.mysoluvia.com/logo.png"
-              style={styles.logo}
-            />
+            {logoSrc ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={logoSrc} style={styles.logo} />
+            ) : null}
             <Text>{adresseLigne1}</Text>
             {adresseLigne2 ? <Text>{adresseLigne2}</Text> : null}
             <Text style={styles.muted}>SIRET {EMETTEUR.siret}</Text>

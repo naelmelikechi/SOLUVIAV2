@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { checkAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
-import { lastDayOfNextMonthUtcISO } from '@/lib/utils/dates';
+import { addDaysIso } from '@/lib/utils/dates';
+import { getDelaiEcheanceJours } from '@/lib/queries/parametres';
 import {
   aggregateProjetEcheances,
   parseJalons,
@@ -169,7 +170,8 @@ async function insertBrouillonWithLignes(args: {
 
   const today = new Date();
   const dateEmissionStr = today.toISOString().split('T')[0]!;
-  const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
+  const delaiJours = await getDelaiEcheanceJours(supabase);
+  const dateEcheanceStr = addDaysIso(dateEmissionStr, delaiJours);
 
   const { data: facture, error: insertError } = await supabase
     .from('factures')
@@ -245,6 +247,7 @@ async function processBrouillonGroup(
   }>,
   supabase: SupabaseServerClient,
   userId: string,
+  delaiJours: number,
 ): Promise<string | null> {
   const { data: contratsRaw } = await supabase
     .from('contrats')
@@ -359,7 +362,8 @@ async function processBrouillonGroup(
   const montantTva = montantTvaCents / 100;
   const montantTtc = (totalHtCents + montantTvaCents) / 100;
 
-  const dateEcheanceStr = lastDayOfNextMonthUtcISO();
+  const dateEmissionStr = new Date().toISOString().split('T')[0]!;
+  const dateEcheanceStr = addDaysIso(dateEmissionStr, delaiJours);
 
   const societeEmettriceId = await getDefaultSocieteEmettriceId();
   const { data: facture, error: insertError } = await supabase
@@ -368,7 +372,7 @@ async function processBrouillonGroup(
       societe_emettrice_id: societeEmettriceId,
       projet_id: group.projetId,
       client_id: group.clientId,
-      date_emission: new Date().toISOString().split('T')[0]!,
+      date_emission: dateEmissionStr,
       date_echeance: dateEcheanceStr,
       mois_concerne: moisLabel,
       montant_ht: totalHt,
@@ -446,6 +450,7 @@ export async function createFactures(
   const auth = await checkAuth();
   if (!auth.ok) return { success: false, ids: [], error: auth.error };
   const { supabase, user } = auth;
+  const delaiJours = await getDelaiEcheanceJours(supabase);
 
   // 1. Fetch selected echeances + templates en parallele : independants.
   //    Le templates est un referentiel partage, on l aurait fetched de toute
@@ -522,7 +527,13 @@ export async function createFactures(
   //    croisee. Rollback reste isole par groupe via le helper).
   const results = await Promise.all(
     Array.from(groups.values()).map((group) =>
-      processBrouillonGroup(group, templates ?? [], supabase, user.id),
+      processBrouillonGroup(
+        group,
+        templates ?? [],
+        supabase,
+        user.id,
+        delaiJours,
+      ),
     ),
   );
   const createdIds = results.filter((id): id is string => id !== null);
@@ -940,7 +951,9 @@ export async function createFactureFromEvents(params: {
     return { success: false, error: 'Montant total nul ou négatif' };
   }
 
-  const dateEcheanceStr = lastDayOfNextMonthUtcISO();
+  const dateEmissionStr = new Date().toISOString().split('T')[0]!;
+  const delaiJours = await getDelaiEcheanceJours(supabase);
+  const dateEcheanceStr = addDaysIso(dateEmissionStr, delaiJours);
 
   // 7. INSERT brouillon
   const societeEmettriceId = await getDefaultSocieteEmettriceId();
@@ -950,7 +963,7 @@ export async function createFactureFromEvents(params: {
       societe_emettrice_id: societeEmettriceId,
       projet_id: projetId,
       client_id: projet.client_id,
-      date_emission: new Date().toISOString().split('T')[0]!,
+      date_emission: dateEmissionStr,
       date_echeance: dateEcheanceStr,
       mois_concerne: new Date().toISOString().slice(0, 7), // YYYY-MM
       montant_ht: totalHt,

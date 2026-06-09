@@ -171,6 +171,29 @@ export async function getParametreValeur(cle: string): Promise<string | null> {
   return data?.valeur ?? null;
 }
 
+/**
+ * Delai d'echeance par defaut (en jours) : `date_echeance = date_emission +
+ * N`. Lu depuis le parametre `facturation.delai_echeance_jours` (modifiable
+ * dans /admin/parametres). Fallback sur DEFAULT_DELAI_ECHEANCE_JOURS si le
+ * parametre est absent, vide ou invalide - un parametre mal saisi ne doit
+ * jamais bloquer la creation de factures.
+ */
+export const DEFAULT_DELAI_ECHEANCE_JOURS = 7;
+
+export async function getDelaiEcheanceJours(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<number> {
+  const { data } = await supabase
+    .from('parametres')
+    .select('valeur')
+    .eq('cle', 'facturation.delai_echeance_jours')
+    .maybeSingle();
+  const raw = data?.valeur;
+  if (raw == null || raw.trim() === '') return DEFAULT_DELAI_ECHEANCE_JOURS;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : DEFAULT_DELAI_ECHEANCE_JOURS;
+}
+
 export async function getJoursFeries(annee: number) {
   const supabase = await createClient();
   const { data, error } = await supabase

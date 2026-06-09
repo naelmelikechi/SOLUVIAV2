@@ -1,8 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createOdooClient } from '@/lib/odoo/client';
-import type { OdooInvoicePayload } from '@/lib/odoo/client';
+import type {
+  OdooInvoicePayload,
+  OdooUnreconciledBankLine,
+} from '@/lib/odoo/client';
 import { pushFacturePdfToOdoo } from '@/lib/odoo/attach-pdf';
 import { logger } from '@/lib/utils/logger';
+import { matchUnreconciledBankLine } from '@/lib/odoo/bank-line-match';
 
 const SCOPE = 'odoo.sync';
 
@@ -448,6 +452,7 @@ async function pullPayments(
 
   const byMove = new Map(infos.map((i) => [i.invoice_odoo_id, i]));
   let pulled = 0;
+  const unpaidInvoices: UnpaidInvoice[] = [];
 
   for (const f of tracked) {
     const info = byMove.get(String(f.odoo_id));
@@ -496,6 +501,16 @@ async function pullPayments(
           errors.push(`Update statut ${f.ref}: ${updErr.message}`);
         }
       }
+
+      // Facture toujours non payee selon Odoo : candidate a la detection d'un
+      // encaissement arrive mais non lettre (cf. notifyUnreconciledIncomingPayments).
+      if (!isPaid && f.ref) {
+        unpaidInvoices.push({
+          id: f.id,
+          ref: f.ref,
+          montantTtc: Number(f.montant_ttc),
+        });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(SCOPE, 'Process facture payment failed', {
@@ -505,6 +520,10 @@ async function pullPayments(
       errors.push(`Facture ${f.ref}: ${msg}`);
     }
   }
+
+  // Detection annexe (lecture seule) : reperer un encaissement arrive en banque
+  // mais pas lettre cote Odoo, et alerter les admins. Ne bloque jamais le pull.
+  await notifyUnreconciledIncomingPayments(supabase, odoo, unpaidInvoices);
 
   const statut: 'success' | 'partial' | 'error' =
     errors.length === 0 ? 'success' : pulled > 0 ? 'partial' : 'error';
@@ -517,6 +536,121 @@ async function pullPayments(
   });
 
   return pulled;
+}
+
+interface UnpaidInvoice {
+  id: string;
+  ref: string;
+  montantTtc: number;
+}
+
+// ---------------------------------------------------------------------------
+// Detect incoming payments that arrived in the bank but were not reconciled in
+// Odoo. L'account.move reste alors not_paid -> la facture Soluvia reste "en
+// retard" alors que l'argent est la (cas FAC-HEO-0001). Canal en lecture seule :
+// on ne reconcilie rien (ressort compta / FINANCES-WISEMANH), on alerte les
+// admins pour qu'ils lettrent. Idempotent : pas de re-notification a chaque run.
+// ---------------------------------------------------------------------------
+
+const UNRECONCILED_NOTIF_TITRE = 'Encaissement non lettré détecté';
+
+async function notifyUnreconciledIncomingPayments(
+  supabase: SupabaseClient,
+  odoo: ReturnType<typeof createOdooClient>,
+  unpaid: UnpaidInvoice[],
+): Promise<void> {
+  if (unpaid.length === 0) return;
+
+  let bankLines: OdooUnreconciledBankLine[];
+  try {
+    bankLines = await odoo.findUnreconciledIncomingBankLines();
+  } catch (err) {
+    logger.warn(SCOPE, 'findUnreconciledIncomingBankLines failed', {
+      error: err,
+    });
+    return;
+  }
+  if (bankLines.length === 0) return;
+
+  const matches: { inv: UnpaidInvoice; line: OdooUnreconciledBankLine }[] = [];
+  for (const inv of unpaid) {
+    const line = matchUnreconciledBankLine(
+      { ref: inv.ref, montantTtc: inv.montantTtc },
+      bankLines,
+    );
+    if (line) matches.push({ inv, line });
+  }
+  if (matches.length === 0) return;
+
+  // Destinataires : admins + superadmins actifs (alerte de nature compta).
+  const { data: admins, error: adminsErr } = await supabase
+    .from('users')
+    .select('id')
+    .in('role', ['admin', 'superadmin'])
+    .eq('actif', true);
+  if (adminsErr) {
+    logger.warn(SCOPE, 'load admins for unreconciled notif failed', {
+      error: adminsErr,
+    });
+    return;
+  }
+  const adminIds = (admins ?? []).map((a) => a.id);
+  if (adminIds.length === 0) return;
+
+  // Idempotence : ne pas re-notifier a chaque pull (~3h). On regarde les notifs
+  // erreur_sync de ce titre deja posees pour les liens concernes.
+  const candidateLinks = matches.map((m) => `/facturation/${m.inv.ref}`);
+  const { data: existing } = await supabase
+    .from('notifications')
+    .select('lien')
+    .eq('type', 'erreur_sync')
+    .eq('titre', UNRECONCILED_NOTIF_TITRE)
+    .in('lien', candidateLinks);
+  const existingLinks = new Set(
+    (existing ?? []).map((n) => n.lien).filter((l): l is string => l !== null),
+  );
+
+  const notifsToCreate = matches.flatMap(({ inv, line }) => {
+    const lien = `/facturation/${inv.ref}`;
+    if (existingLinks.has(lien)) return [];
+    const montant = inv.montantTtc.toLocaleString('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const message = `⚠️ Un encaissement de ${montant} € correspondant à la facture ${inv.ref} a été trouvé en banque (ligne #${line.id} du ${line.date}) mais n'est pas lettré dans Odoo. La facture reste « en retard » tant que le rapprochement n'est pas fait (compta / FINANCES-WISEMANH).`;
+    return adminIds.map((adminId) => ({
+      type: 'erreur_sync' as const,
+      user_id: adminId,
+      titre: UNRECONCILED_NOTIF_TITRE,
+      message,
+      lien,
+    }));
+  });
+  if (notifsToCreate.length === 0) return;
+
+  const { error: notifErr } = await supabase
+    .from('notifications')
+    .insert(notifsToCreate);
+  if (notifErr) {
+    logger.warn(SCOPE, 'insert unreconciled notifications failed', {
+      error: notifErr,
+    });
+    return;
+  }
+
+  logger.info(SCOPE, 'Unreconciled incoming payments detected', {
+    factures: matches.map((m) => m.inv.ref),
+    notifications: notifsToCreate.length,
+  });
+  await logSync(supabase, {
+    direction: 'pull',
+    entity_type: 'bank_unreconciled',
+    statut: 'success',
+    payload: {
+      detected: matches.length,
+      factures: matches.map((m) => m.inv.ref),
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------

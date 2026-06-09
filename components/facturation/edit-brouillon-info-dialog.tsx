@@ -136,7 +136,7 @@ function Inner({
           />
           <p className="text-muted-foreground text-xs">
             Affiché sous la date d&apos;échéance et dans le bloc Modalités de
-            paiement. Vide = « 30 jours fin de mois » par défaut.
+            paiement. Vide = délai par défaut configuré (réglages facturation).
           </p>
         </div>
       </div>

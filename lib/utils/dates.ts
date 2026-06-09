@@ -88,14 +88,15 @@ export function currentFridayLocalISO(now: Date = new Date()): string {
 }
 
 /**
- * Dernier jour du mois suivant `from`, en `YYYY-MM-DD` UTC strict. Utilise
- * pour calculer une `date_echeance` deterministe sans dependre du fuseau
- * du runtime (utile aussi en cas d'execution edge ou client).
+ * Nombre de jours calendaires entre deux dates ISO (`YYYY-MM-DD`), en UTC
+ * strict : `toIso - fromIso`. Positif si `toIso` est posterieur. Sert a
+ * deriver un delai ("reglement sous N jours") a partir des dates d'emission
+ * et d'echeance d'une facture.
  */
-export function lastDayOfNextMonthUtcISO(from: Date = new Date()): string {
-  // new Date(Date.UTC(y, m+2, 0)) -> dernier jour du mois (m+1) en UTC.
-  const d = new Date(
-    Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 2, 0),
-  );
-  return d.toISOString().split('T')[0]!;
+export function diffDaysIso(fromIso: string, toIso: string): number {
+  const [fy, fm, fd] = parseUtcParts(fromIso);
+  const [ty, tm, td] = parseUtcParts(toIso);
+  const fromMs = Date.UTC(fy, fm - 1, fd);
+  const toMs = Date.UTC(ty, tm - 1, td);
+  return Math.round((toMs - fromMs) / 86_400_000);
 }

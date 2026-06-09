@@ -53,6 +53,24 @@ export interface OdooCancelledMove {
   write_date: string;
 }
 
+/**
+ * Ligne de releve bancaire entrante non lettree (lecture seule). Sert a detecter
+ * un encaissement arrive en banque mais pas encore rapproche d'une facture :
+ * l'account.move reste alors payment_state=not_paid cote Odoo, donc la facture
+ * Soluvia reste "en retard" alors que l'argent est la. Le rapprochement lui-meme
+ * reste du ressort de la compta / FINANCES-WISEMANH (Soluvia ne fait que lire).
+ */
+export interface OdooUnreconciledBankLine {
+  id: number;
+  /** Montant signe ; > 0 pour un encaissement entrant. */
+  amount: number;
+  /** Libelle bancaire (souvent la ref facture, parfois reformattee par la banque). */
+  payment_ref: string;
+  /** Nom du partenaire si la banque/Odoo l'a rattache, sinon null. */
+  partner_name: string | null;
+  date: string;
+}
+
 export interface OdooPingResult {
   ok: boolean;
   uid?: number;
@@ -76,6 +94,14 @@ export interface OdooClient {
    */
   pullInvoicePayments(moveIds: string[]): Promise<OdooInvoicePayment[]>;
   pullCancellations(since: string): Promise<OdooCancelledMove[]>;
+  /**
+   * Lit les lignes de releve bancaire entrantes NON lettrees (lecture seule).
+   * Permet de detecter un encaissement arrive mais pas encore rapproche d'une
+   * facture. Ne reconcilie rien : c'est de la detection pure.
+   */
+  findUnreconciledIncomingBankLines(
+    limit?: number,
+  ): Promise<OdooUnreconciledBankLine[]>;
   /**
    * Enregistre un paiement sur une facture posted dans Odoo via le wizard
    * account.payment.register. Le wizard cree un account.payment, le poste, et
@@ -807,6 +833,44 @@ class OdooJsonRpcClient implements OdooClient {
       write_date: m.write_date,
     }));
   }
+
+  // -------- Detect unreconciled incoming bank lines (read-only) --------
+
+  async findUnreconciledIncomingBankLines(
+    limit = 200,
+  ): Promise<OdooUnreconciledBankLine[]> {
+    type BankLineRecord = {
+      id: number;
+      amount: number;
+      payment_ref: string | false;
+      partner_id: [number, string] | false;
+      date: string | false;
+    };
+
+    const lines = await this.executeKw<BankLineRecord[]>(
+      'account.bank.statement.line',
+      'search_read',
+      [
+        [
+          ['is_reconciled', '=', false],
+          ['amount', '>', 0],
+        ],
+      ],
+      {
+        fields: ['id', 'amount', 'payment_ref', 'partner_id', 'date'],
+        order: 'date desc',
+        limit,
+      },
+    );
+
+    return lines.map((l) => ({
+      id: l.id,
+      amount: Number(l.amount),
+      payment_ref: typeof l.payment_ref === 'string' ? l.payment_ref : '',
+      partner_name: Array.isArray(l.partner_id) ? l.partner_id[1] : null,
+      date: typeof l.date === 'string' ? l.date : '',
+    }));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -849,6 +913,10 @@ function createStubOdooClient(): OdooClient {
     },
     async pullCancellations(since) {
       logger.info(SCOPE, 'pullCancellations (stub)', { since });
+      return [];
+    },
+    async findUnreconciledIncomingBankLines(limit) {
+      logger.info(SCOPE, 'findUnreconciledIncomingBankLines (stub)', { limit });
       return [];
     },
     async registerPayment(params) {

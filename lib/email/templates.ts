@@ -6,6 +6,7 @@
 import type { EmetteurInfo } from '@/lib/queries/parametres';
 import { formatDate } from '@/lib/utils/formatters';
 import { escapeHtml } from '@/lib/utils/escape-html';
+import { reglementParDefaut } from '@/lib/utils/facture-reglement';
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA',
@@ -43,6 +44,8 @@ export function buildFactureEmailHtml(params: {
   isAvoir: boolean;
   montantTtc: number;
   dateEcheance: string;
+  /** Date d'emission (YYYY-MM-DD) : derive le delai du texte de reglement par defaut (coherence PDF <-> email). */
+  dateEmission?: string;
   /**
    * Conditions de reglement saisies sur la facture (cf. champ
    * factures.conditions_reglement). Si fourni, remplace le texte par defaut
@@ -88,7 +91,7 @@ export function buildFactureEmailHtml(params: {
   const conditionsTexte =
     params.conditionsReglement && params.conditionsReglement.trim()
       ? escapeHtml(params.conditionsReglement)
-      : 'Règlement par virement bancaire sous 30 jours fin de mois.';
+      : reglementParDefaut(params.dateEmission, dateEcheance);
 
   return `<!DOCTYPE html>
 <html lang="fr">

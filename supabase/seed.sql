@@ -56,7 +56,7 @@ INSERT INTO parametres (cle, valeur, categorie, description) VALUES
   ('facturation.taux_tva', '20', 'facturation', 'Taux TVA par defaut (%)'),
   ('facturation.fenetre_debut', '25', 'facturation', 'Jour debut fenetre facturation'),
   ('facturation.fenetre_fin', '3', 'facturation', 'Jour fin fenetre facturation'),
-  ('facturation.delai_echeance_jours', '30', 'facturation', 'Delai echeance en jours'),
+  ('facturation.delai_echeance_jours', '7', 'facturation', 'Delai echeance en jours (date_echeance = date_emission + N)'),
   ('facturation.mentions_legales', 'Conditions de paiement : 30 jours fin de mois. En cas de retard de paiement, une pénalité de 3 fois le taux d''intérêt légal sera appliquée, ainsi qu''une indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d''escompte pour paiement anticipé.', 'facturation', 'Mentions légales facture');
 
 

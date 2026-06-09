@@ -177,6 +177,10 @@ function buildSupabase() {
         const r = next(table);
         return Promise.resolve(r);
       },
+      maybeSingle: () => {
+        const r = next(table);
+        return Promise.resolve(r);
+      },
       then: (resolve: (v: unknown) => unknown) => {
         const r = next(table);
         return Promise.resolve(r).then(resolve);

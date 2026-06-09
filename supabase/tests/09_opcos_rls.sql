@@ -1,7 +1,7 @@
 -- Test : Referentiel OPCO et RLS
 -- - Table opcos existe avec colonnes NOT NULL appropriees
--- - Index GIN sur prefixes_deca present
--- - Seed AKTO avec 6 prefixes configures
+-- - Index GIN sur idcc_codes present
+-- - Seed AKTO avec IDCC mappes
 
 BEGIN;
 
@@ -15,14 +15,14 @@ SELECT has_table('opcos', 'table opcos existe');
 
 -- Colonnes NOT NULL
 SELECT col_not_null('opcos', 'code', 'opcos.code est NOT NULL');
-SELECT col_not_null('opcos', 'prefixes_deca', 'opcos.prefixes_deca est NOT NULL');
+SELECT col_not_null('opcos', 'idcc_codes', 'opcos.idcc_codes est NOT NULL');
 
--- Index GIN pour queries rapides sur prefixes
+-- Index GIN pour queries rapides sur idcc_codes
 SELECT is(
   (SELECT count(*)::int FROM pg_indexes
-   WHERE tablename = 'opcos' AND indexname = 'opcos_prefixes_deca_gin'),
+   WHERE tablename = 'opcos' AND indexname = 'opcos_idcc_codes_gin'),
   1,
-  'index GIN opcos_prefixes_deca_gin present'
+  'index GIN opcos_idcc_codes_gin present'
 );
 
 -- Seed : AKTO insere et actif
@@ -32,11 +32,12 @@ SELECT is(
   'OPCO AKTO seed et actif'
 );
 
--- AKTO a exactement 6 prefixes
-SELECT is(
-  (SELECT array_length(prefixes_deca, 1) FROM opcos WHERE code = 'AKTO'),
-  6,
-  'AKTO a 6 prefixes seed'
+-- AKTO doit avoir des IDCC mappes (sinon l OPCO ne peut jamais etre resolu)
+SELECT cmp_ok(
+  (SELECT coalesce(array_length(idcc_codes, 1), 0) FROM opcos WHERE code = 'AKTO'),
+  '>',
+  0,
+  'AKTO a des IDCC mappes'
 );
 
 SELECT * FROM finish();

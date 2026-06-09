@@ -84,6 +84,7 @@ function buildSupabase() {
                     data: mockState.client,
                     error: mockState.client ? null : { message: 'not found' },
                   }),
+                maybeSingle: () => Promise.resolve({ data: null, error: null }),
               };
             },
           };

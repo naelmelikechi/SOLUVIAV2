@@ -22,6 +22,7 @@ export async function sendFactureEmail(params: {
   isAvoir: boolean;
   montantTtc: number;
   dateEcheance: string;
+  dateEmission?: string;
   conditionsReglement?: string | null;
   pdfBuffer: Buffer;
   emetteur?: EmetteurInfo;
@@ -184,6 +185,7 @@ export async function sendEmailForFacture(
     isAvoir: facture.est_avoir,
     montantTtc: facture.montant_ttc,
     dateEcheance: facture.date_echeance ?? '',
+    dateEmission: facture.date_emission ?? '',
     conditionsReglement: facture.conditions_reglement,
     pdfBuffer,
     emetteur,

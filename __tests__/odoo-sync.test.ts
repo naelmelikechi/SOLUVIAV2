@@ -32,6 +32,7 @@ const odooMock = {
   pullInvoicePayments: vi.fn(),
   pullCancellations: vi.fn(),
   registerPayment: vi.fn(),
+  findUnreconciledIncomingBankLines: vi.fn(),
   attachInvoicePdf: vi.fn(async () => ({ attachment_id: null, skipped: true })),
   pushAnalyticLineForMove: vi.fn(async () => ({
     analytic_line_odoo_id: null,
@@ -232,9 +233,11 @@ beforeEach(() => {
   odooMock.pushCreditNote.mockReset();
   odooMock.pullInvoicePayments.mockReset();
   odooMock.pullCancellations.mockReset();
+  odooMock.findUnreconciledIncomingBankLines.mockReset();
   // Defaults so each test only overrides what it needs.
   odooMock.pullInvoicePayments.mockResolvedValue([]);
   odooMock.pullCancellations.mockResolvedValue([]);
+  odooMock.findUnreconciledIncomingBankLines.mockResolvedValue([]);
 });
 
 // --- Tests -------------------------------------------------------------------
@@ -706,5 +709,153 @@ describe('syncOdoo - pull paiements (facture-driven)', () => {
         (o.payload as { statut?: string }).statut === 'error',
     );
     expect(errorLog).toBeDefined();
+  });
+});
+
+describe('syncOdoo - detection encaissement non lettre', () => {
+  const isPullSelect = (op: RecordedOp) =>
+    op.table === 'factures' &&
+    op.filters.some((f) => f.kind === 'not' && f.col === 'odoo_id');
+
+  const baseHandlers = (notifExisting: { lien: string }[] = []) => ({
+    factures: {
+      selectResult: async (op: RecordedOp) =>
+        isPullSelect(op)
+          ? {
+              data: [
+                {
+                  id: 'fac-local-1',
+                  ref: 'FAC-HEO-0001',
+                  odoo_id: '134',
+                  montant_ttc: 34571.21,
+                  statut: 'en_retard',
+                },
+              ],
+              error: null,
+            }
+          : { data: [], error: null },
+    },
+    paiements: { upsertResult: async () => ({ error: null }) },
+    odoo_sync_logs: {
+      maybeSingleResult: async () => ({ data: null, error: null }),
+      insertResult: async () => ({ error: null }),
+    },
+    users: {
+      selectResult: async () => ({
+        data: [{ id: 'admin-1' }, { id: 'admin-2' }],
+        error: null,
+      }),
+    },
+    notifications: {
+      selectResult: async () => ({ data: notifExisting, error: null }),
+      insertResult: async () => ({ error: null }),
+    },
+  });
+
+  it('facture non payee + ligne bancaire non lettree qui matche -> notifie les admins', async () => {
+    // FAC-HEO-0001 : Odoo dit not_paid (argent en banque mais pas lettre).
+    odooMock.pullInvoicePayments.mockResolvedValue([
+      {
+        invoice_odoo_id: '134',
+        payment_state: 'not_paid',
+        amount_total: 34571.21,
+        amount_residual: 34571.21,
+        payments: [],
+      },
+    ]);
+    // Ligne bancaire #140 : meme montant, ref reformattee par la banque.
+    odooMock.findUnreconciledIncomingBankLines.mockResolvedValue([
+      {
+        id: 140,
+        amount: 34571.21,
+        payment_ref: 'VIREMENT de HEOL ACADEMY FACT HEO0001 SOLUVIA',
+        partner_name: null,
+        date: '2026-05-22',
+      },
+    ]);
+
+    const { client, ops } = buildSupabase(baseHandlers());
+    const { syncOdoo } = await import('@/lib/odoo/sync');
+    await syncOdoo(client as never);
+
+    const notifInsert = ops.find(
+      (o) => o.op === 'insert' && o.table === 'notifications',
+    );
+    expect(notifInsert).toBeDefined();
+    const rows = notifInsert!.payload as Array<{
+      type: string;
+      user_id: string;
+      titre: string;
+      message: string;
+      lien: string;
+    }>;
+    expect(rows).toHaveLength(2); // une notif par admin
+    expect(rows.every((r) => r.type === 'erreur_sync')).toBe(true);
+    expect(rows[0]!.titre).toContain('non lettré');
+    expect(rows[0]!.lien).toBe('/facturation/FAC-HEO-0001');
+    expect(rows[0]!.message).toContain('FAC-HEO-0001');
+    expect(new Set(rows.map((r) => r.user_id))).toEqual(
+      new Set(['admin-1', 'admin-2']),
+    );
+  });
+
+  it('ligne bancaire de montant different -> aucune notification (faux positif evite)', async () => {
+    odooMock.pullInvoicePayments.mockResolvedValue([
+      {
+        invoice_odoo_id: '134',
+        payment_state: 'not_paid',
+        amount_total: 34571.21,
+        amount_residual: 34571.21,
+        payments: [],
+      },
+    ]);
+    odooMock.findUnreconciledIncomingBankLines.mockResolvedValue([
+      {
+        id: 999,
+        amount: 6147.56, // autre montant -> ne matche pas FAC-HEO-0001
+        payment_ref: 'VIREMENT HEOL ACADEMY FACT HEO0001',
+        partner_name: null,
+        date: '2026-05-22',
+      },
+    ]);
+
+    const { client, ops } = buildSupabase(baseHandlers());
+    const { syncOdoo } = await import('@/lib/odoo/sync');
+    await syncOdoo(client as never);
+
+    expect(
+      ops.find((o) => o.op === 'insert' && o.table === 'notifications'),
+    ).toBeUndefined();
+  });
+
+  it('notification deja existante pour ce lien -> pas de doublon (idempotent)', async () => {
+    odooMock.pullInvoicePayments.mockResolvedValue([
+      {
+        invoice_odoo_id: '134',
+        payment_state: 'not_paid',
+        amount_total: 34571.21,
+        amount_residual: 34571.21,
+        payments: [],
+      },
+    ]);
+    odooMock.findUnreconciledIncomingBankLines.mockResolvedValue([
+      {
+        id: 140,
+        amount: 34571.21,
+        payment_ref: 'VIREMENT HEOL ACADEMY FACT HEO0001',
+        partner_name: null,
+        date: '2026-05-22',
+      },
+    ]);
+
+    const { client, ops } = buildSupabase(
+      baseHandlers([{ lien: '/facturation/FAC-HEO-0001' }]),
+    );
+    const { syncOdoo } = await import('@/lib/odoo/sync');
+    await syncOdoo(client as never);
+
+    expect(
+      ops.find((o) => o.op === 'insert' && o.table === 'notifications'),
+    ).toBeUndefined();
   });
 });

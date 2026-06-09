@@ -5,7 +5,7 @@ import {
   toLocalISODate,
   currentMondayLocalISO,
   currentFridayLocalISO,
-  lastDayOfNextMonthUtcISO,
+  diffDaysIso,
 } from '@/lib/utils/dates';
 
 describe('subtractDaysIso (UTC-safe)', () => {
@@ -114,24 +114,27 @@ describe('currentFridayLocalISO', () => {
   });
 });
 
-describe('lastDayOfNextMonthUtcISO (sprint 5 #9)', () => {
-  it('mai -> 30 juin', () => {
-    const may = new Date(Date.UTC(2026, 4, 7, 12, 0));
-    expect(lastDayOfNextMonthUtcISO(may)).toBe('2026-06-30');
+describe('diffDaysIso (UTC-safe)', () => {
+  it('compte les jours entre deux dates ISO', () => {
+    expect(diffDaysIso('2026-06-08', '2026-06-15')).toBe(7);
+    expect(diffDaysIso('2026-06-08', '2026-06-08')).toBe(0);
   });
 
-  it('janvier 2026 -> 28 fevrier (annee non bissextile)', () => {
-    const jan = new Date(Date.UTC(2026, 0, 15, 12, 0));
-    expect(lastDayOfNextMonthUtcISO(jan)).toBe('2026-02-28');
+  it('traverse les bornes de mois et d annee', () => {
+    expect(diffDaysIso('2026-01-28', '2026-02-04')).toBe(7);
+    expect(diffDaysIso('2026-12-31', '2027-01-07')).toBe(7);
   });
 
-  it('janvier 2024 -> 29 fevrier (bissextile)', () => {
-    const jan = new Date(Date.UTC(2024, 0, 15, 12, 0));
-    expect(lastDayOfNextMonthUtcISO(jan)).toBe('2024-02-29');
+  it('gere les annees bissextiles', () => {
+    expect(diffDaysIso('2024-02-25', '2024-03-03')).toBe(7);
   });
 
-  it('decembre -> 31 janvier annee suivante', () => {
-    const dec = new Date(Date.UTC(2026, 11, 31, 23, 30));
-    expect(lastDayOfNextMonthUtcISO(dec)).toBe('2027-01-31');
+  it('reste stable au passage heure ete (DST Europe/Paris)', () => {
+    // 29 mars 2026 = bascule heure d ete ; en UTC strict ca ne change rien.
+    expect(diffDaysIso('2026-03-22', '2026-03-30')).toBe(8);
+  });
+
+  it('renvoie un nombre negatif si to < from', () => {
+    expect(diffDaysIso('2026-06-15', '2026-06-08')).toBe(-7);
   });
 });

@@ -237,15 +237,15 @@ export function ParametresForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="delai_echeance">Délai échéance (jours)</Label>
+            <Label htmlFor="delai_echeance_jours">Délai échéance (jours)</Label>
             <Input
-              id="delai_echeance"
+              id="delai_echeance_jours"
               type="number"
-              value={facturation.delai_echeance ?? '30'}
+              value={facturation.delai_echeance_jours ?? '7'}
               onChange={(e) =>
                 setFacturation((s) => ({
                   ...s,
-                  delai_echeance: e.target.value,
+                  delai_echeance_jours: e.target.value,
                 }))
               }
             />

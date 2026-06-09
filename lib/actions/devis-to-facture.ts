@@ -8,6 +8,8 @@ import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
 import { isAdmin } from '@/lib/utils/roles';
 import { getDevisById } from '@/lib/queries/devis';
+import { addDaysIso } from '@/lib/utils/dates';
+import { getDelaiEcheanceJours } from '@/lib/queries/parametres';
 
 type Result<T = object> =
   | ({ success: true } & T)
@@ -129,6 +131,10 @@ export async function createFactureFromDevis(
   const tauxTvaEffectif =
     totalHt > 0 ? Math.round((totalTva / totalHt) * 10000) / 100 : tauxTva;
 
+  const dateEmissionStr = new Date().toISOString().slice(0, 10);
+  const delaiJours = await getDelaiEcheanceJours(supabase);
+  const dateEcheanceStr = addDaysIso(dateEmissionStr, delaiJours);
+
   // Insert facture brouillon (statut 'a_emettre')
   const { data: facture, error: factureErr } = await supabase
     .from('factures')
@@ -145,10 +151,8 @@ export async function createFactureFromDevis(
       taux_tva: tauxTvaEffectif,
       objet: devis.objet,
       conditions_reglement: devis.conditions_reglement,
-      date_emission: new Date().toISOString().slice(0, 10),
-      date_echeance: new Date(Date.now() + 30 * 86400_000)
-        .toISOString()
-        .slice(0, 10),
+      date_emission: dateEmissionStr,
+      date_echeance: dateEcheanceStr,
     })
     .select('id')
     .single();

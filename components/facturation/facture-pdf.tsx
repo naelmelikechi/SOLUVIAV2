@@ -10,6 +10,7 @@ import {
 import type { FactureDetail } from '@/lib/queries/factures';
 import type { EmetteurInfo } from '@/lib/queries/parametres';
 import { formatDate } from '@/lib/utils/formatters';
+import { reglementParDefaut } from '@/lib/utils/facture-reglement';
 import {
   AUTOLIQUIDATION_MENTION,
   resolveTvaRegime,
@@ -499,7 +500,10 @@ export function FacturePdf({
             <Text style={{ marginTop: 4 }}>
               {facture.conditions_reglement
                 ? `Règlement par virement bancaire - ${facture.conditions_reglement}.`
-                : 'Règlement par virement bancaire sous 30 jours fin de mois.'}
+                : reglementParDefaut(
+                    facture.date_emission,
+                    facture.date_echeance,
+                  )}
             </Text>
             <Text style={{ marginTop: 2, color: '#6b7280' }}>
               Merci d&apos;indiquer la référence{' '}

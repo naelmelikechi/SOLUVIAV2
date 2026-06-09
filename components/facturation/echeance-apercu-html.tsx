@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/utils/formatters';
+import { diffDaysIso } from '@/lib/utils/dates';
 
 interface PreviewData {
   ref: string;
@@ -203,10 +204,12 @@ export function EcheanceApercuHtml({ echeanceId }: { echeanceId: string }) {
         {/* Footer */}
         <div className="mt-12 border-t border-neutral-200 pt-3 text-[9px] leading-relaxed text-neutral-400">
           <p>
-            Conditions de paiement : 30 jours fin de mois. En cas de retard de
-            paiement, une pénalité égale à 3 fois le taux d&apos;intérêt légal
-            sera appliquée, ainsi qu&apos;une indemnité forfaitaire de 40 € pour
-            frais de recouvrement. Pas d&apos;escompte pour paiement anticipé.
+            Conditions de paiement : règlement sous{' '}
+            {diffDaysIso(data.date_emission, data.date_echeance)} jours. En cas
+            de retard de paiement, une pénalité égale à 3 fois le taux
+            d&apos;intérêt légal sera appliquée, ainsi qu&apos;une indemnité
+            forfaitaire de 40 € pour frais de recouvrement. Pas d&apos;escompte
+            pour paiement anticipé.
           </p>
           <p className="mt-2">
             {data.emetteur.raison_sociale} - SIRET {data.emetteur.siret} - TVA{' '}

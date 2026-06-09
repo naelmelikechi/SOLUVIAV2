@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getEmetteurInfo } from '@/lib/queries/parametres';
+import {
+  getEmetteurInfo,
+  getDelaiEcheanceJours,
+} from '@/lib/queries/parametres';
 import type { FactureDetail } from '@/lib/queries/factures';
 import { renderFacturePdfBuffer } from '@/lib/utils/render-facture-pdf';
-import { lastDayOfNextMonthUtcISO } from '@/lib/utils/dates';
+import { addDaysIso } from '@/lib/utils/dates';
 
 /**
  * Draft PDF preview for a pending échéance.
@@ -104,7 +107,8 @@ export async function GET(
 
   const today = new Date();
   const dateEmission = today.toISOString().split('T')[0]!;
-  const dateEcheanceStr = lastDayOfNextMonthUtcISO(today);
+  const delaiJours = await getDelaiEcheanceJours(supabase);
+  const dateEcheanceStr = addDaysIso(dateEmission, delaiJours);
 
   // Shape a draft FactureDetail. `ref` is a placeholder, numero_seq is 0.
   const draftFacture = {

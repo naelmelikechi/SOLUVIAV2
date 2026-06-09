@@ -17,6 +17,8 @@ import {
   User,
   Plus,
   FileText,
+  FileSignature,
+  GraduationCap,
   Sparkles,
   ScrollText,
   LineChart,
@@ -42,9 +44,29 @@ interface SearchResults {
   projets: { ref: string; client: { raison_sociale: string } | null }[];
   clients: { id: string; trigramme: string; raison_sociale: string }[];
   factures: { numero: string; projet: { ref: string } | null }[];
+  apprenants: {
+    id: string;
+    nom: string | null;
+    prenom: string | null;
+    projet: { ref: string };
+  }[];
+  contrats: {
+    id: string;
+    contract_number: string | null;
+    ref: string | null;
+    apprenant_nom: string | null;
+    apprenant_prenom: string | null;
+    projet: { ref: string } | null;
+  }[];
 }
 
-const EMPTY_RESULTS: SearchResults = { projets: [], clients: [], factures: [] };
+const EMPTY_RESULTS: SearchResults = {
+  projets: [],
+  clients: [],
+  factures: [],
+  apprenants: [],
+  contrats: [],
+};
 
 interface CommandPaletteItem {
   label: string;
@@ -241,6 +263,8 @@ export function CommandPalette() {
           projets: data.projets ?? [],
           clients: data.clients ?? [],
           factures: data.factures ?? [],
+          apprenants: data.apprenants ?? [],
+          contrats: data.contrats ?? [],
         });
       } catch {
         // abort ou erreur reseau : on garde les anciens resultats.
@@ -283,14 +307,16 @@ export function CommandPalette() {
   const hasDynamic =
     displayedResults.projets.length > 0 ||
     displayedResults.clients.length > 0 ||
-    displayedResults.factures.length > 0;
+    displayedResults.factures.length > 0 ||
+    displayedResults.apprenants.length > 0 ||
+    displayedResults.contrats.length > 0;
 
   return (
     <CommandDialog
       open={open}
       onOpenChange={handleOpenChange}
       title="Palette de commandes"
-      description="Rechercher une page, un projet, un client, une facture"
+      description="Rechercher une page, un projet, un client, une facture, un apprenant, un contrat"
       className="sm:max-w-lg"
     >
       <Command
@@ -362,6 +388,50 @@ export function CommandPalette() {
                           {f.projet.ref}
                         </span>
                       )}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {displayedResults.apprenants.length > 0 && (
+                <CommandGroup heading="Apprenants">
+                  {displayedResults.apprenants.map((a) => (
+                    <CommandItem
+                      key={`apprenant-${a.id}`}
+                      value={`apprenant-${a.id}`}
+                      onSelect={() => navigateTo(`/projets/${a.projet.ref}`)}
+                      className="cursor-pointer"
+                    >
+                      <GraduationCap className="text-muted-foreground size-4" />
+                      <span className="truncate text-sm">
+                        {[a.prenom, a.nom].filter(Boolean).join(' ') || '-'}
+                      </span>
+                      <span className="text-muted-foreground truncate font-mono text-xs">
+                        {a.projet.ref}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {displayedResults.contrats.length > 0 && (
+                <CommandGroup heading="Contrats">
+                  {displayedResults.contrats.map((c) => (
+                    <CommandItem
+                      key={`contrat-${c.id}`}
+                      value={`contrat-${c.id}`}
+                      onSelect={() =>
+                        navigateTo(`/projets/${c.projet?.ref ?? ''}`)
+                      }
+                      className="cursor-pointer"
+                    >
+                      <FileSignature className="text-muted-foreground size-4" />
+                      <span className="font-mono text-xs">
+                        {c.contract_number ?? c.ref ?? '-'}
+                      </span>
+                      <span className="text-muted-foreground truncate text-xs">
+                        {[c.apprenant_prenom, c.apprenant_nom]
+                          .filter(Boolean)
+                          .join(' ')}
+                      </span>
                     </CommandItem>
                   ))}
                 </CommandGroup>

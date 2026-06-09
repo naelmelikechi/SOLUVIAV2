@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { PageHeader } from '@/components/shared/page-header';
-import { DataTable } from '@/components/shared/data-table';
 import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { listDevis } from '@/lib/queries/devis';
 import { listSocietesEmettricesActives } from '@/lib/queries/societes-emettrices';
 import { getClientsList } from '@/lib/queries/clients';
-import { devisColumns } from '@/components/devis/devis-list-columns';
+import { DevisPageClient } from '@/components/devis/devis-page-client';
 import { NewDevisDialog } from '@/components/devis/new-devis-dialog';
 
 export const metadata: Metadata = { title: 'Devis - SOLUVIA' };
@@ -38,7 +37,7 @@ export default async function DevisPage() {
           }))}
         />
       </PageHeader>
-      <DataTable columns={devisColumns} data={devis} />
+      <DevisPageClient devis={devis} />
     </div>
   );
 }

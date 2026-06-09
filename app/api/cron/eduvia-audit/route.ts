@@ -2,20 +2,13 @@ import { NextResponse } from 'next/server';
 import { verifyCronAuth } from '@/lib/utils/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { syncAllEduviaClients } from '@/lib/eduvia/sync';
+import {
+  notifyAuditAnomalies,
+  type AuditAnomaly,
+} from '@/lib/eduvia/audit-notify';
 import { logger } from '@/lib/utils/logger';
 
 export const maxDuration = 300;
-
-interface AuditAnomaly {
-  type:
-    | 'contract_state_actif_date_fin_passee'
-    | 'contrats_sans_projet'
-    | 'npec_zero_actif'
-    | 'rupture_sans_date_fin'
-    | 'orphan_resync_warning';
-  count: number;
-  sample?: string[];
-}
 
 /**
  * CRON nocturne : sync complet Eduvia + audit cohérence DB.
@@ -26,7 +19,9 @@ interface AuditAnomaly {
  *   - contrats résiliés sans date_fin
  *   - clients où le ratio orphelins archivés ce run > 10% (signal API instable)
  *
- * Les anomalies sont loguées (Sentry breadcrumbs) sans bloquer le sync.
+ * Les anomalies sont loguées (Sentry) ET notifiées in-app aux admins
+ * (dédupliquées tant que la notification précédente n'est pas lue), sans
+ * bloquer le sync.
  */
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
@@ -128,11 +123,13 @@ export async function GET(request: Request) {
       }
     }
 
+    let notified = 0;
     if (anomalies.length > 0) {
       logger.warn('eduvia_audit', 'Anomalies détectées au sync nocturne', {
         anomalies,
         syncErrors: syncResults.errors,
       });
+      ({ notified } = await notifyAuditAnomalies(supabase, anomalies));
     } else {
       logger.info('eduvia_audit', 'Sync nocturne OK, aucune anomalie', {
         syncedClients: syncResults.syncedClients,
@@ -147,6 +144,7 @@ export async function GET(request: Request) {
       audit: {
         anomalies_count: anomalies.length,
         anomalies,
+        admins_notified: notified,
       },
     });
   } catch (err) {

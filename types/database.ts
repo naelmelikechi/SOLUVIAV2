@@ -1484,6 +1484,44 @@ export type Database = {
           },
         ];
       };
+      eduvia_sync_logs: {
+        Row: {
+          client_id: string | null;
+          created_at: string;
+          duration_ms: number | null;
+          erreur: string | null;
+          id: string;
+          stats: Json | null;
+          statut: string;
+        };
+        Insert: {
+          client_id?: string | null;
+          created_at?: string;
+          duration_ms?: number | null;
+          erreur?: string | null;
+          id?: string;
+          stats?: Json | null;
+          statut: string;
+        };
+        Update: {
+          client_id?: string | null;
+          created_at?: string;
+          duration_ms?: number | null;
+          erreur?: string | null;
+          id?: string;
+          stats?: Json | null;
+          statut?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'eduvia_sync_logs_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       email_send_log: {
         Row: {
           id: string;

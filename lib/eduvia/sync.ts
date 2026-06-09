@@ -64,6 +64,64 @@ export interface SyncResult {
 }
 
 // ---------------------------------------------------------------------------
+// Journal persistant des runs (table eduvia_sync_logs)
+// ---------------------------------------------------------------------------
+
+/**
+ * Statut d'un run client :
+ *  - success : aucune erreur
+ *  - partial : erreurs mais du travail a abouti (donnees partiellement a jour)
+ *  - error   : erreurs et rien n'a ete synchronise (token refuse, API down...)
+ */
+export function computeSyncStatut(
+  result: SyncClientResult,
+): 'success' | 'partial' | 'error' {
+  if (result.errors.length === 0) return 'success';
+  const work =
+    result.contrats + result.apprenants + result.formations + result.companies;
+  return work > 0 ? 'partial' : 'error';
+}
+
+/**
+ * Insere une ligne de journal. Best-effort : un echec d'insert ne doit JAMAIS
+ * faire echouer la sync elle-meme (on log et on continue).
+ */
+async function logSyncRun(
+  supabase: SupabaseClient<Database>,
+  entry: {
+    clientId: string | null;
+    statut: 'success' | 'partial' | 'error';
+    stats?: SyncClientResult;
+    erreur?: string | null;
+    durationMs?: number;
+  },
+): Promise<void> {
+  try {
+    const { error } = await supabase.from('eduvia_sync_logs').insert({
+      client_id: entry.clientId,
+      statut: entry.statut,
+      // SyncClientResult ne contient que des scalaires JSON-compatibles.
+      stats: entry.stats
+        ? (JSON.parse(JSON.stringify(entry.stats)) as Json)
+        : null,
+      erreur: entry.erreur ? entry.erreur.slice(0, 2000) : null,
+      duration_ms: entry.durationMs ?? null,
+    });
+    if (error) {
+      logger.warn('eduvia_sync', 'logSyncRun: insert eduvia_sync_logs failed', {
+        error: error.message,
+        clientId: entry.clientId,
+      });
+    }
+  } catch (err) {
+    logger.warn('eduvia_sync', 'logSyncRun threw', {
+      error: err instanceof Error ? err.message : String(err),
+      clientId: entry.clientId,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // syncEduviaForClient - 3-pass sync:
 //   PASS 1: fetch + upsert reference tables (learners, formations, companies).
 //   PASS 2: fetch contracts and denormalise names via in-memory lookup maps.
@@ -904,8 +962,15 @@ export async function syncAllEduviaClients(
             'Clé API non déchiffrable (ENCRYPTION_KEY manquante ou clé stockée en clair). Recréez la clé pour la réactiver.',
           ],
         });
+        await logSyncRun(supabase, {
+          clientId: client_id,
+          statut: 'error',
+          erreur:
+            'Clé API non déchiffrable (ENCRYPTION_KEY manquante ou clé stockée en clair).',
+        });
         continue;
       }
+      const startedAt = Date.now();
       const clientResult = await syncEduviaForClient(
         supabase,
         client_id,
@@ -914,6 +979,14 @@ export async function syncAllEduviaClients(
       );
 
       syncResult.results.push(clientResult);
+
+      await logSyncRun(supabase, {
+        clientId: client_id,
+        statut: computeSyncStatut(clientResult),
+        stats: clientResult,
+        erreur: clientResult.errors.join(' | ') || null,
+        durationMs: Date.now() - startedAt,
+      });
 
       if (clientResult.errors.length > 0) {
         logger.warn('eduvia_sync', `Sync partielle pour client ${client_id}`, {
@@ -955,6 +1028,11 @@ export async function syncAllEduviaClients(
       const message = err instanceof Error ? err.message : String(err);
       syncResult.errors.push(`Client ${client_id}: ${message}`);
       logger.error('eduvia_sync', err, { clientId: client_id });
+      await logSyncRun(supabase, {
+        clientId: client_id,
+        statut: 'error',
+        erreur: message,
+      });
     }
   }
 

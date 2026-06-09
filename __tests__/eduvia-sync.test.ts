@@ -777,6 +777,156 @@ describe('syncEduviaForClient — limites connues', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Journal persistant eduvia_sync_logs
+// ---------------------------------------------------------------------------
+
+describe('computeSyncStatut', () => {
+  function baseResult(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      clientId: 'A',
+      contrats: 0,
+      apprenants: 0,
+      formations: 0,
+      companies: 0,
+      progressions: 0,
+      invoice_steps: 0,
+      invoice_forecast_steps: 0,
+      invoice_lines: 0,
+      contrats_archived_orphan: 0,
+      contrats_projet_fallback: 0,
+      errors: [] as string[],
+      ...overrides,
+    };
+  }
+
+  it('success quand aucune erreur', async () => {
+    const { computeSyncStatut } = await import('@/lib/eduvia/sync');
+    expect(computeSyncStatut(baseResult())).toBe('success');
+  });
+
+  it('partial quand erreurs mais du travail a abouti', async () => {
+    const { computeSyncStatut } = await import('@/lib/eduvia/sync');
+    expect(
+      computeSyncStatut(
+        baseResult({ contrats: 12, errors: ['invoice_lines KO'] }),
+      ),
+    ).toBe('partial');
+  });
+
+  it('error quand erreurs et rien synchronise (token refuse)', async () => {
+    const { computeSyncStatut } = await import('@/lib/eduvia/sync');
+    expect(
+      computeSyncStatut(baseResult({ errors: ['token Eduvia refusé'] })),
+    ).toBe('error');
+  });
+});
+
+describe('syncAllEduviaClients — journal eduvia_sync_logs', () => {
+  it('insere un log success avec stats et duree apres un run sans erreur', async () => {
+    const supa = buildSupabase({
+      client_api_keys: {
+        select: () => ({
+          data: [
+            {
+              id: 'k1',
+              client_id: 'A',
+              api_key_encrypted: 'cipher-A',
+              instance_url: 'a.eduvia.app',
+              label: 'A',
+              is_active: true,
+            },
+          ],
+          error: null,
+        }),
+      },
+      projets: {
+        select: () => ({
+          data: [{ id: 'p-A', client_id: 'A', archive: false }],
+          error: null,
+        }),
+      },
+    });
+    decryptApiKeyMock.mockReturnValue('clear-key');
+
+    const { syncAllEduviaClients } = await import('@/lib/eduvia/sync');
+    await syncAllEduviaClients(supa.client);
+
+    const logOps = supa.ops.filter(
+      (o) => o.table === 'eduvia_sync_logs' && o.op === 'insert',
+    );
+    expect(logOps).toHaveLength(1);
+    const payload = logOps[0]!.payload as {
+      client_id: string;
+      statut: string;
+      stats: Record<string, unknown>;
+      erreur: string | null;
+      duration_ms: number;
+    };
+    expect(payload.client_id).toBe('A');
+    expect(payload.statut).toBe('success');
+    expect(payload.stats).toMatchObject({ clientId: 'A' });
+    expect(payload.erreur).toBeNull();
+    expect(typeof payload.duration_ms).toBe('number');
+  });
+
+  it('insere un log error pour la cle indechiffrable, et le client suivant logge quand meme', async () => {
+    const supa = buildSupabase({
+      client_api_keys: {
+        select: () => ({
+          data: [
+            {
+              id: 'k1',
+              client_id: 'A',
+              api_key_encrypted: 'broken-cipher',
+              instance_url: 'a.eduvia.app',
+              label: 'A',
+              is_active: true,
+            },
+            {
+              id: 'k2',
+              client_id: 'B',
+              api_key_encrypted: 'cipher-B',
+              instance_url: 'b.eduvia.app',
+              label: 'B',
+              is_active: true,
+            },
+          ],
+          error: null,
+        }),
+      },
+      projets: {
+        select: () => ({
+          data: [{ id: 'p-B', client_id: 'B', archive: false }],
+          error: null,
+        }),
+      },
+    });
+    decryptApiKeyMock.mockImplementation((cipher: string) => {
+      if (cipher === 'broken-cipher') throw new Error('ENCRYPTION_KEY missing');
+      return `clear-${cipher}`;
+    });
+
+    const { syncAllEduviaClients } = await import('@/lib/eduvia/sync');
+    await syncAllEduviaClients(supa.client);
+
+    const logOps = supa.ops.filter(
+      (o) => o.table === 'eduvia_sync_logs' && o.op === 'insert',
+    );
+    expect(logOps).toHaveLength(2);
+    const byClient = new Map(
+      logOps.map((o) => [
+        (o.payload as { client_id: string }).client_id,
+        o.payload as { statut: string; erreur: string | null },
+      ]),
+    );
+    expect(byClient.get('A')!.statut).toBe('error');
+    expect(byClient.get('A')!.erreur).toMatch(/déchiffrable/i);
+    // Le client B (projet B trouvé, 0 erreur) est loggé en success
+    expect(byClient.get('B')!.statut).toBe('success');
+  });
+});
+
 describe('syncEduviaForClient — résolution projet multi-projets', () => {
   function contractMin(overrides: Record<string, unknown> = {}) {
     return {

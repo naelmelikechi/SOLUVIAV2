@@ -7,6 +7,8 @@ import type {
 import { pushFacturePdfToOdoo } from '@/lib/odoo/attach-pdf';
 import { logger } from '@/lib/utils/logger';
 import { matchUnreconciledBankLine } from '@/lib/odoo/bank-line-match';
+import { parseFrAddress } from '@/lib/utils/fr-address';
+import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 
 const SCOPE = 'odoo.sync';
 
@@ -60,7 +62,7 @@ async function pushFactures(
       `
       id, ref, date_emission, date_echeance, est_avoir,
       montant_ht, montant_ttc, taux_tva,
-      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo),
+      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo, adresse, localisation),
       societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id),
       projet:projets!factures_projet_id_fkey(code_analytique),
       lignes:facture_lignes(id, description, montant_ht, analytic_line_odoo_id)
@@ -86,6 +88,8 @@ async function pushFactures(
         siret: string | null;
         raison_sociale: string | null;
         tva_intracommunautaire: string | null;
+        adresse: string | null;
+        localisation: string | null;
         is_demo: boolean | null;
       } | null;
 
@@ -112,11 +116,19 @@ async function pushFactures(
         price_unit: Number(l.montant_ht),
       }));
 
+      const addr = parseFrAddress(client?.adresse, client?.localisation);
+      const countryCode =
+        resolveTvaRegime(client?.tva_intracommunautaire).countryCode ?? 'FR';
+
       const payload: OdooInvoicePayload = {
         ref: f.ref ?? '',
         partner_siret: client?.siret ?? '',
         partner_name: client?.raison_sociale ?? 'Client inconnu',
         partner_vat: client?.tva_intracommunautaire ?? null,
+        partner_street: addr.street,
+        partner_zip: addr.zip,
+        partner_city: addr.city,
+        partner_country_code: countryCode,
         date_invoice: f.date_emission ?? '',
         date_due: f.date_echeance ?? '',
         taux_tva: Number(f.taux_tva ?? 20),
@@ -256,7 +268,7 @@ async function pushAvoirs(
       `
       id, ref, date_emission, date_echeance,
       montant_ht, montant_ttc, taux_tva,
-      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo),
+      client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo, adresse, localisation),
       societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id),
       lignes:facture_lignes(description, montant_ht)
     `,
@@ -280,6 +292,8 @@ async function pushAvoirs(
         siret: string | null;
         raison_sociale: string | null;
         tva_intracommunautaire: string | null;
+        adresse: string | null;
+        localisation: string | null;
         is_demo: boolean | null;
       } | null;
 
@@ -303,11 +317,19 @@ async function pushAvoirs(
         price_unit: Math.abs(Number(l.montant_ht)),
       }));
 
+      const addr = parseFrAddress(client?.adresse, client?.localisation);
+      const countryCode =
+        resolveTvaRegime(client?.tva_intracommunautaire).countryCode ?? 'FR';
+
       const payload: OdooInvoicePayload = {
         ref: a.ref ?? '',
         partner_siret: client?.siret ?? '',
         partner_name: client?.raison_sociale ?? 'Client inconnu',
         partner_vat: client?.tva_intracommunautaire ?? null,
+        partner_street: addr.street,
+        partner_zip: addr.zip,
+        partner_city: addr.city,
+        partner_country_code: countryCode,
         date_invoice: a.date_emission ?? '',
         date_due: a.date_echeance ?? '',
         taux_tva: Number(a.taux_tva ?? 20),

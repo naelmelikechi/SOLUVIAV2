@@ -547,8 +547,8 @@ export function FacturePdf({
             pour paiement anticipé.
           </Text>
           <Text style={{ marginTop: 4 }}>
-            {EMETTEUR.raison_sociale} - SIRET {EMETTEUR.siret} - TVA
-            intracommunautaire {EMETTEUR.tva}
+            {EMETTEUR.mentions_legales ??
+              `${EMETTEUR.raison_sociale} - SIRET ${EMETTEUR.siret} - TVA intracommunautaire ${EMETTEUR.tva}`}
           </Text>
         </View>
       </Page>

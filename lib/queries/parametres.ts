@@ -90,6 +90,9 @@ export interface EmetteurInfo {
   bic?: string | null;
   banque?: string | null;
   titulaire_compte?: string | null;
+  // Mentions legales completes (forme + capital + SIRET + RCS + TVA) - rendu en
+  // pied du PDF. Source authoritative : societes_emettrices.mentions_legales.
+  mentions_legales?: string | null;
 }
 
 export const EMETTEUR_FALLBACK: EmetteurInfo = {
@@ -140,6 +143,7 @@ export async function getEmetteurInfo(
       bic: data.banque_bic,
       banque: data.banque_nom,
       titulaire_compte: data.raison_sociale,
+      mentions_legales: data.mentions_legales,
     };
   } catch (err) {
     logger.warn('queries.parametres', 'getEmetteurInfo fallback used', {

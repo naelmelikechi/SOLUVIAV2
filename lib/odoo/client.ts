@@ -9,6 +9,13 @@ export interface OdooInvoicePayload {
   partner_siret: string;
   partner_name: string;
   partner_vat: string | null;
+  // Adresse postale du client (mention obligatoire « adresse acheteur » + cle
+  // de routage e-invoicing 2026). Posee UNIQUEMENT a la creation du partner
+  // Odoo (jamais en update). countryCode en ISO2, defaut FR cote appelant.
+  partner_street?: string | null;
+  partner_zip?: string | null;
+  partner_city?: string | null;
+  partner_country_code?: string | null;
   date_invoice: string;
   date_due: string;
   taux_tva: number;
@@ -197,6 +204,7 @@ class OdooRpcError extends Error {
 class OdooJsonRpcClient implements OdooClient {
   private uid: number | null = null;
   private taxId20: number | null = null;
+  private countryIdByCode = new Map<string, number | null>();
 
   constructor(private readonly config: OdooConfig) {}
 
@@ -305,6 +313,12 @@ class OdooJsonRpcClient implements OdooClient {
     siret: string,
     name: string,
     vat: string | null,
+    address?: {
+      street?: string | null;
+      zip?: string | null;
+      city?: string | null;
+      countryCode?: string | null;
+    },
   ): Promise<number> {
     const cleanSiret = siret.replace(/\s/g, '');
     const cleanVat = vat?.replace(/\s/g, '') ?? null;
@@ -330,16 +344,46 @@ class OdooJsonRpcClient implements OdooClient {
       if (ids.length > 0 && ids[0] !== undefined) return ids[0];
     }
 
+    // Adresse posee UNIQUEMENT a la creation : on ne met jamais a jour un
+    // partner existant (la compta a pu le corriger cote Odoo).
+    const vals: Record<string, unknown> = {
+      name,
+      vat: cleanVat,
+      company_registry: cleanSiret || false,
+      is_company: true,
+    };
+    if (address) {
+      if (address.street) vals.street = address.street;
+      if (address.zip) vals.zip = address.zip;
+      if (address.city) vals.city = address.city;
+      const countryId = await this.resolveCountryId(
+        address.countryCode ?? 'FR',
+      );
+      if (countryId !== null) vals.country_id = countryId;
+    }
+
     const created = await this.executeKw<number>('res.partner', 'create', [
-      {
-        name,
-        vat: cleanVat,
-        company_registry: cleanSiret || false,
-        is_company: true,
-      },
+      vals,
     ]);
     logger.info(SCOPE, 'Created partner', { id: created, name });
     return created;
+  }
+
+  // Resout l'id Odoo d'un pays depuis son code ISO2 (cache process-local).
+  private async resolveCountryId(code: string): Promise<number | null> {
+    const c = code.trim().toUpperCase();
+    if (!c) return null;
+    const cached = this.countryIdByCode.get(c);
+    if (cached !== undefined) return cached;
+    const ids = await this.executeKw<number[]>(
+      'res.country',
+      'search',
+      [[['code', '=', c]]],
+      { limit: 1 },
+    );
+    const id = ids[0] ?? null;
+    this.countryIdByCode.set(c, id);
+    return id;
   }
 
   private async findSaleTax(
@@ -375,6 +419,12 @@ class OdooJsonRpcClient implements OdooClient {
       payload.partner_siret,
       payload.partner_name,
       payload.partner_vat,
+      {
+        street: payload.partner_street,
+        zip: payload.partner_zip,
+        city: payload.partner_city,
+        countryCode: payload.partner_country_code,
+      },
     );
 
     const companyId = payload.odoo_company_id ?? null;

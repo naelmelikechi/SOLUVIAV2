@@ -170,6 +170,28 @@ export interface OdooPaymentInput {
 const SCOPE = 'odoo.client';
 
 // ---------------------------------------------------------------------------
+// Durcissement transport (aligne sur lib/eduvia/client.ts)
+// ---------------------------------------------------------------------------
+
+// Borne chaque requete JSON-RPC : sans elle, un Odoo qui rame bloque le cron
+// jusqu'au timeout Vercel (300s).
+const REQUEST_TIMEOUT_MS = 60_000;
+const MAX_RETRIES = 3;
+const RETRY_BACKOFF_MS = [500, 1_500, 4_000];
+
+// Seules les methodes execute_kw SANS effet de bord sont rejouees : rejouer un
+// create/write apres un timeout pourrait dupliquer l'ecriture cote Odoo
+// (l'appel initial a pu aboutir apres l'abort).
+const RETRYABLE_KW_METHODS = new Set([
+  'search',
+  'search_read',
+  'search_count',
+  'read',
+  'fields_get',
+  'name_search',
+]);
+
+// ---------------------------------------------------------------------------
 // JSON-RPC implementation
 // ---------------------------------------------------------------------------
 
@@ -195,10 +217,27 @@ class OdooRpcError extends Error {
   constructor(
     message: string,
     public readonly debug?: string,
+    public readonly httpStatus?: number,
   ) {
     super(message);
     this.name = 'OdooRpcError';
   }
+}
+
+// Transitoire = vaut un retry : 5xx/429, timeout, erreur reseau. Les erreurs
+// applicatives JSON-RPC (json.error) sont deterministes -> jamais rejouees.
+function isTransientRpcError(err: unknown): boolean {
+  if (err instanceof OdooRpcError) {
+    return (
+      err.httpStatus !== undefined &&
+      (err.httpStatus >= 500 || err.httpStatus === 429)
+    );
+  }
+  if (err instanceof Error) {
+    if (err.name === 'TimeoutError' || err.name === 'AbortError') return true;
+    if (err instanceof TypeError) return true; // undici "fetch failed" (reseau/DNS)
+  }
+  return false;
 }
 
 class OdooJsonRpcClient implements OdooClient {
@@ -214,6 +253,35 @@ class OdooJsonRpcClient implements OdooClient {
     service: 'common' | 'object',
     method: string,
     args: unknown[],
+    opts: { retryable?: boolean } = {},
+  ): Promise<T> {
+    const retryable = opts.retryable ?? false;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.rpcOnce<T>(service, method, args);
+      } catch (err) {
+        if (!retryable || attempt >= MAX_RETRIES || !isTransientRpcError(err)) {
+          throw err;
+        }
+        const base = RETRY_BACKOFF_MS[attempt] ?? 4_000;
+        const delay = Math.round(base + base * 0.2 * Math.random());
+        logger.warn(SCOPE, 'Transient RPC error, retrying', {
+          service,
+          method,
+          attempt: attempt + 1,
+          maxRetries: MAX_RETRIES,
+          delay,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  private async rpcOnce<T>(
+    service: 'common' | 'object',
+    method: string,
+    args: unknown[],
   ): Promise<T> {
     const res = await fetch(`${this.config.url}/jsonrpc`, {
       method: 'POST',
@@ -224,10 +292,15 @@ class OdooJsonRpcClient implements OdooClient {
         params: { service, method, args },
         id: Date.now(),
       }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
     if (!res.ok) {
-      throw new OdooRpcError(`HTTP ${res.status} ${res.statusText}`);
+      throw new OdooRpcError(
+        `HTTP ${res.status} ${res.statusText}`,
+        undefined,
+        res.status,
+      );
     }
 
     const json = (await res.json()) as JsonRpcResponse<T>;
@@ -245,12 +318,12 @@ class OdooJsonRpcClient implements OdooClient {
 
   private async authenticate(): Promise<number> {
     if (this.uid !== null) return this.uid;
-    const uid = await this.rpc<number | false>('common', 'authenticate', [
-      this.config.db,
-      this.config.username,
-      this.config.apiKey,
-      {},
-    ]);
+    const uid = await this.rpc<number | false>(
+      'common',
+      'authenticate',
+      [this.config.db, this.config.username, this.config.apiKey, {}],
+      { retryable: true },
+    );
     if (!uid || typeof uid !== 'number') {
       throw new OdooRpcError('Authentication failed (bad credentials or DB)');
     }
@@ -266,15 +339,12 @@ class OdooJsonRpcClient implements OdooClient {
     kwargs: Record<string, unknown> = {},
   ): Promise<T> {
     const uid = await this.authenticate();
-    return this.rpc<T>('object', 'execute_kw', [
-      this.config.db,
-      uid,
-      this.config.apiKey,
-      model,
-      method,
-      args,
-      kwargs,
-    ]);
+    return this.rpc<T>(
+      'object',
+      'execute_kw',
+      [this.config.db, uid, this.config.apiKey, model, method, args, kwargs],
+      { retryable: RETRYABLE_KW_METHODS.has(method) },
+    );
   }
 
   // -------- Connectivity check --------
@@ -285,7 +355,7 @@ class OdooJsonRpcClient implements OdooClient {
       const versionInfo = await this.rpc<{
         server_version?: string;
         server_serie?: string;
-      }>('common', 'version', []);
+      }>('common', 'version', [], { retryable: true });
       return {
         ok: true,
         uid,

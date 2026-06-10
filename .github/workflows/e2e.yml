@@ -110,32 +110,40 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      # Le downloader de playwright stalle systematiquement sur ce runner
-      # apres le 100% (3 runs morts au meme endroit, retries compris). On
-      # sort la reseau-dependance de playwright : prefetch des zips via curl
-      # (--speed-time 30 tue un stall, --retry rejoue), serveur local, et
-      # `playwright install` pointe sur 127.0.0.1 via PLAYWRIGHT_DOWNLOAD_HOST
-      # -> extraction et markers geres par playwright, source locale sure.
-      - name: Install Playwright browsers (prefetch curl + miroir local)
-        timeout-minutes: 12
+      # `playwright install` hang sur ce runner APRES le telechargement (y
+      # compris depuis un miroir 127.0.0.1 : c'est sa phase d'extraction qui
+      # bloque, prouve par 4 runs). On le bypasse entierement : install-deps
+      # pour les libs systeme (jamais bloque), puis curl + unzip + marker
+      # INSTALLATION_COMPLETE dans le layout exact attendu (verifie sur une
+      # install saine : <name>-<rev>/<contenu du zip> + marker vide).
+      - name: Install Playwright browsers (curl + unzip, sans playwright install)
+        timeout-minutes: 10
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
           set -euo pipefail
-          ./node_modules/.bin/playwright install chromium --dry-run \
-            | grep -E '^\s+Download url:' | awk '{print $3}' | sort -u > /tmp/pw-urls.txt
-          echo "zips a prefetch :" && cat /tmp/pw-urls.txt
-          while read -r url; do
-            path="/tmp/pw-cdn/$(echo "$url" | sed -E 's#https?://[^/]+/##')"
-            mkdir -p "$(dirname "$path")"
+          ./node_modules/.bin/playwright install-deps chromium
+
+          ./node_modules/.bin/playwright install chromium --dry-run > /tmp/pw-dry.txt
+          paste -d' ' \
+            <(grep -E 'Install location:' /tmp/pw-dry.txt | awk '{print $3}') \
+            <(grep -E 'Download url:' /tmp/pw-dry.txt | awk '{print $3}') \
+            | sort -u > /tmp/pw-pairs.txt
+          echo "composants :" && cat /tmp/pw-pairs.txt
+
+          while read -r loc url; do
+            if [ -f "$loc/INSTALLATION_COMPLETE" ]; then
+              echo "deja present (cache) : $loc"
+              continue
+            fi
+            zip="/tmp/$(basename "$url")"
             curl -fSL --retry 5 --retry-all-errors \
-              --speed-limit 102400 --speed-time 30 \
-              -o "$path" "$url"
-          done < /tmp/pw-urls.txt
-          (cd /tmp/pw-cdn && python3 -m http.server 8923 >/tmp/pw-cdn.log 2>&1 &)
-          sleep 2
-          PLAYWRIGHT_DOWNLOAD_HOST=http://127.0.0.1:8923 \
-            timeout 240 ./node_modules/.bin/playwright install --with-deps chromium
+              --speed-limit 102400 --speed-time 30 -o "$zip" "$url"
+            rm -rf "$loc" && mkdir -p "$loc"
+            unzip -q "$zip" -d "$loc"
+            touch "$loc/INSTALLATION_COMPLETE"
+            echo "installe : $loc"
+          done < /tmp/pw-pairs.txt
 
       - name: Build Next (prod)
         timeout-minutes: 10

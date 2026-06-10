@@ -195,9 +195,9 @@ export async function createFactureFromEvents(params: {
   // affiche bien Total TTC = montant attendu par le client.
   //
   // La "base" depend du type d event (cf. billable-events.ts) :
-  //   - 'engagement'  : SUM(eduvia_invoice_steps.total_amount) WHERE
-  //                     step_number=1 AND invoice_state IS NOT NULL
-  //                     (= metrique "engages" cote Eduvia)
+  //   - 'engagement'  : SUM(PEDAGOGIE) des step_number=1 PAYES (invoice_state
+  //                     REGLE). Un bordereau seulement emis (TRANSMIS) n'est
+  //                     PAS facturable : on ne commissionne que l'argent encaisse.
   //   - 'opco_step'   : eduvia_invoice_steps.total_amount du step regle
   // Audit log : pour chaque event utilisé dans le calcul, comparer la base
   // (SUM lines PEDAGOGIE) au champ including_pedagogie_amount du step Eduvia.

@@ -155,7 +155,7 @@ describe('getBillableEvents - base engagement', () => {
     expect(result!.events).toEqual([]);
   });
 
-  it('base = somme des step 1 avec invoice_state non null (pas NPEC contractuel)', async () => {
+  it('base engagement = step 1 PAYE (REGLE) uniquement, exclut TRANSMIS et NPEC', async () => {
     const mock = buildSupabase({
       projets: { data: projet },
       contrats: { data: [contrat({ npec_amount: 8000 })] },
@@ -212,10 +212,52 @@ describe('getBillableEvents - base engagement', () => {
     expect(result!.events).toHaveLength(1);
     const ev = result!.events[0]!;
     expect(ev.type).toBe('engagement');
-    expect(ev.montant_brut).toBe(1500);
-    // commission 50% -> 750
-    expect(ev.montant_commissionne).toBe(750);
+    // Seul le step 1 REGLE (paye, invoice 102 = 500) entre dans la base.
+    // Le step 1 TRANSMIS (invoice 101 = 1000) est emis mais pas encaisse -> exclu.
+    expect(ev.montant_brut).toBe(500);
+    // commission 50% -> 250
+    expect(ev.montant_commissionne).toBe(250);
     expect(ev.status).toBe('available');
+  });
+
+  it('engagement step 1 seulement TRANSMIS (emis non paye) -> aucun event', async () => {
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat({ npec_amount: 8000 })] },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 111,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-uuid-111',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 111,
+            including_pedagogie_amount: 2000,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+    // TRANSMIS = bordereau emis mais OPCO pas encore paye -> rien a facturer.
+    expect(result!.events).toEqual([]);
   });
 
   it('commission arrondie au centime', async () => {
@@ -850,7 +892,7 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
             including_pedagogie_amount: 2500,
             opening_date: '2026-01-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
         ],
       },
@@ -921,7 +963,7 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
             including_pedagogie_amount: 2500,
             opening_date: '2026-01-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
         ],
       },
@@ -1046,7 +1088,7 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
             including_pedagogie_amount: 2500,
             opening_date: '2026-01-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
         ],
       },
@@ -1115,7 +1157,7 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
             including_pedagogie_amount: 2500,
             opening_date: '2026-01-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
         ],
       },
@@ -1193,7 +1235,7 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
             including_pedagogie_amount: 2000,
             opening_date: '2026-01-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
           {
             id: 'step-prio-2',
@@ -1288,7 +1330,7 @@ describe('getBillableEvents - calcul sur lignes PEDAGOGIE', () => {
             including_pedagogie_amount: 1500,
             opening_date: '2026-04-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
         ],
       },
@@ -1372,7 +1414,7 @@ describe('getBillableEvents - resolution OPCO', () => {
             including_pedagogie_amount: 3000,
             opening_date: '2026-02-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
         ],
       },
@@ -1439,7 +1481,7 @@ describe('getBillableEvents - resolution OPCO', () => {
             including_pedagogie_amount: 2000,
             opening_date: '2026-03-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
         ],
       },
@@ -1577,7 +1619,7 @@ describe('getBillableEvents - resolution OPCO', () => {
             including_pedagogie_amount: 2500,
             opening_date: '2026-04-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
         ],
       },
@@ -1675,7 +1717,7 @@ describe('getBillableEvents - resolution OPCO', () => {
             including_pedagogie_amount: 2000,
             opening_date: '2026-01-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
           {
             id: 'step-mob-2002',
@@ -1685,7 +1727,7 @@ describe('getBillableEvents - resolution OPCO', () => {
             including_pedagogie_amount: 2500,
             opening_date: '2026-01-01',
             paid_at: null,
-            invoice_state: 'TRANSMIS',
+            invoice_state: 'REGLE',
           },
         ],
       },
@@ -1744,8 +1786,8 @@ describe('getBillableEvents - état facture Eduvia (invoice_state)', () => {
             eduvia_invoice_id: 901,
             including_pedagogie_amount: 2000,
             opening_date: '2026-02-01',
-            paid_at: null,
-            invoice_state: 'TRANSMIS',
+            paid_at: '2026-02-15',
+            invoice_state: 'REGLE',
           },
           {
             id: 'step-902',
@@ -1772,8 +1814,8 @@ describe('getBillableEvents - état facture Eduvia (invoice_state)', () => {
     const ev = result!.events[0]!;
     expect(ev.type).toBe('engagement');
     expect(ev.montant_brut).toBe(2000); // PREMIEREQUIPEMENT exclu
-    // état de la facture pédagogie (TRANSMIS), pas le REGLE de l'équipement
-    expect(ev.invoice_state).toBe('TRANSMIS');
+    // état de la facture pédagogie (REGLE = payé), équipement exclu de la base
+    expect(ev.invoice_state).toBe('REGLE');
     // date d'ouverture = bordereau pédagogie (inv 901), pas l'équipement (inv 902)
     expect(ev.step_opening_date).toBe('2026-02-01');
   });

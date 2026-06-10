@@ -304,6 +304,11 @@ export async function getBillableEvents(
     // whitelist -> entre dans la base
     const step = stepByInvoiceId.get(line.eduvia_invoice_id);
     if (!step) continue;
+    // Regle metier HEOL : on ne facture la commission que sur l'argent
+    // REELLEMENT ENCAISSE. Un step seulement emis (invoice_state TRANSMIS)
+    // n'entre PAS dans la base facturable ; seul REGLE (paye) compte. Le
+    // montant emis-non-paye reste capte cote previsionnel (base NPEC).
+    if (step.invoice_state !== 'REGLE') continue;
     if (step.step_number === 1) {
       agg.basePedagoEngagement += Number(line.amount);
       agg.engagementInvoiceIds.add(line.eduvia_invoice_id);

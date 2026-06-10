@@ -86,7 +86,7 @@ boot échoue. Preview et dev n'ont pas cette contrainte.
 
 - `RESEND_API_KEY` — emails transactionnels (sinon emails skippés)
 - `GIPHY_API_KEY` — recherche GIF dans le chat équipe
-- `AVATAR_UNLOCK_SECRET` — 20 chars, easter egg freeze avatar
+- `AVATAR_UNLOCK_SECRET` — réponse de l'énigme du robot (easter egg unfreeze avatar), normalisée côté serveur
 - `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` — error tracking (gated)
 - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — rate limit
   auth (gated, fail-open sans)

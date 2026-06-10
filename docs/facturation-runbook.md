@@ -104,6 +104,20 @@ Bouton **+ Nouvelle facture** sur `/facturation` ouvre un dialog 2 etapes :
 
 Utile pour cas particuliers (rattrapage, montant ad-hoc, facture mixte hors echeancier standard).
 
+## 1.9 Vue "Reste a facturer" (pilotage) (depuis 2026-06-10)
+
+Onglet **Reste a facturer** dans `/facturation` (visible des qu'au moins un projet a des contrats). Vue de pilotage en lecture seule : combien de commission reste-t-il a facturer, par contrat / par projet / par OPCO / au total. Montants **HT** (reconcilies avec `factures.montant_ht`).
+
+Trois natures, en cartes de synthese :
+
+- **Facturable maintenant** : bordereaux OPCO deja emis cote Eduvia (events `available`) mais pas encore factures. Actionnable tout de suite via l'onglet **Manuel**. Chiffre fiable = exactement ce que "Preparer le brouillon" emettrait.
+- **Bloque** : events `locked` (IDCC manquant, OPCO non resolu, line_type inconnu, ou exclusion engagement/OPCO). Du CA recuperable en corrigeant la donnee : un badge de raison s'affiche sur chaque ligne. IDCC manquant -> renseigner cote Eduvia ; OPCO non resolu -> mapper dans `/admin/parametres/opcos`.
+- **Previsionnel contractuel** : estimation = potentiel de commission sur le NPEC des contrats actifs, moins ce qui est deja emis. Borne haute (le NPEC inclut le materiel non commissionne et suppose le contrat mene a terme). A affiner a chaque synchro Eduvia.
+
+Bascule **Par contrat** / **Par projet** / **Par OPCO**, plus un focus rapide Tous/Facturable/Bloque/Previsionnel et des filtres projet/OPCO en vue contrat. Aucune requete supplementaire : la vue derive des billable events deja charges par la page.
+
+Source : `lib/utils/reste-a-facturer.ts` (agregation pure, testee) + `components/facturation/reste-a-facturer-tab.tsx`.
+
 ## 2. Premier cycle reel (1 client pilote)
 
 Recommandation : choisir **1 seul client** pour le premier mois, valider tout le cycle, puis ouvrir aux autres.

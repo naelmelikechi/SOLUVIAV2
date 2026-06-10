@@ -220,6 +220,8 @@ function setupBillableEvents(events: ReturnType<typeof mockEvent>[]) {
     tauxCommission: 40,
     events,
     auditInvoiceIdsBySource: new Map(),
+    clientTvaIntracom: null,
+    contrats: [],
   });
 }
 

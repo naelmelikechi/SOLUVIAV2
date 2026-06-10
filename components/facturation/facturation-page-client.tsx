@@ -35,6 +35,7 @@ import { AjustementsList } from '@/components/facturation/ajustements-list';
 import { EcheanceApercuHtml } from '@/components/facturation/echeance-apercu-html';
 import { BrouillonsTab } from '@/components/facturation/brouillons-tab';
 import { ManuelTab } from '@/components/facturation/manuel-tab';
+import { ResteAFacturerTab } from '@/components/facturation/reste-a-facturer-tab';
 import { EmptyState } from '@/components/shared/empty-state';
 import type {
   FactureListItem,
@@ -44,6 +45,7 @@ import type {
 } from '@/lib/queries/factures';
 import type { AjustementPending } from '@/lib/queries/ajustements';
 import type { ProjetBillableEvents } from '@/lib/queries/billable-events';
+import { buildResteAFacturer } from '@/lib/utils/reste-a-facturer';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_FACTURE_LABELS } from '@/lib/utils/constants';
 import { cn } from '@/lib/utils';
@@ -105,6 +107,11 @@ export function FacturationPageClient({
         setPreview({ kind: 'facture', ref });
       }),
     [],
+  );
+
+  const raf = useMemo(
+    () => buildResteAFacturer(manualProjets),
+    [manualProjets],
   );
 
   const previewTitle =
@@ -244,6 +251,16 @@ export function FacturationPageClient({
           )}
         </TabsTrigger>
         {manualProjets.length > 0 && (
+          <TabsTrigger value={5}>
+            Reste à facturer
+            {raf.totals.nbContratsFacturable > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--success)] px-1.5 text-[10px] font-bold text-white">
+                {raf.totals.nbContratsFacturable}
+              </span>
+            )}
+          </TabsTrigger>
+        )}
+        {manualProjets.length > 0 && (
           <TabsTrigger value={2}>
             Manuel
             <span className="text-muted-foreground ml-1.5 text-xs">
@@ -321,6 +338,14 @@ export function FacturationPageClient({
           )}
         </div>
       </TabsContent>
+
+      {manualProjets.length > 0 && (
+        <TabsContent value={5}>
+          <div className="mt-4">
+            <ResteAFacturerTab raf={raf} />
+          </div>
+        </TabsContent>
+      )}
 
       {manualProjets.length > 0 && (
         <TabsContent value={2}>

@@ -216,6 +216,8 @@ describe('createFactureFromEvents - audit log ecart PEDAGOGIE', () => {
       events: [event],
       // auditInvoiceIdsBySource: event.source_id (= CONTRAT_ID) -> [100]
       auditInvoiceIdsBySource: new Map([[CONTRAT_ID, [100]]]),
+      clientTvaIntracom: null,
+      contrats: [],
     });
 
     const supabaseMock = buildSupabase({
@@ -269,6 +271,8 @@ describe('createFactureFromEvents - audit log ecart PEDAGOGIE', () => {
       events: [event],
       // auditInvoiceIdsBySource: event.source_id (= CONTRAT_ID) -> [200]
       auditInvoiceIdsBySource: new Map([[CONTRAT_ID, [200]]]),
+      clientTvaIntracom: null,
+      contrats: [],
     });
 
     const supabaseMock = buildSupabase({

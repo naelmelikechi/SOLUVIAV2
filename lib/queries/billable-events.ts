@@ -94,6 +94,25 @@ export interface BillableEvent {
   unknown_line_types?: string[];
 }
 
+/**
+ * Métadonnées contrat pour la vue "reste à facturer" : couvre TOUS les
+ * contrats non archivés du projet, y compris ceux sans event émis (utile
+ * pour le prévisionnel basé sur le NPEC contractuel).
+ */
+export interface ContratMeta {
+  contrat_id: string;
+  contrat_ref: string | null;
+  contract_number: string | null;
+  internal_number: string | null;
+  apprenant_nom: string;
+  apprenant_prenom: string;
+  formation_titre: string | null;
+  contract_state: string;
+  npec_amount: number;
+  opco_code: string | null;
+  opco_nom: string | null;
+}
+
 export interface ProjetBillableEvents {
   projetId: string;
   projetRef: string;
@@ -106,6 +125,16 @@ export interface ProjetBillableEvents {
    * a la facturation (createFactureFromEvents). Non destine a l'UI.
    */
   auditInvoiceIdsBySource: Map<string, number[]>;
+  /**
+   * Régime TVA du client (n° TVA intracom), pour dériver le HT depuis le
+   * montant_commissionne (TTC). null => TVA 20 % (cas domestique standard).
+   */
+  clientTvaIntracom: string | null;
+  /**
+   * TOUS les contrats non archivés du projet (event-less inclus). Base du
+   * prévisionnel "reste à facturer". Voir lib/utils/reste-a-facturer.ts.
+   */
+  contrats: ContratMeta[];
 }
 
 /**
@@ -150,7 +179,7 @@ export async function getBillableEvents(
     .select(
       `
       id, ref, taux_commission,
-      client:clients!projets_client_id_fkey(id, raison_sociale)
+      client:clients!projets_client_id_fkey(id, raison_sociale, tva_intracommunautaire)
     `,
     )
     .eq('id', projetId)
@@ -187,6 +216,8 @@ export async function getBillableEvents(
       tauxCommission: taux,
       events: [],
       auditInvoiceIdsBySource: new Map(),
+      clientTvaIntracom: projet.client?.tva_intracommunautaire ?? null,
+      contrats: [],
     };
   }
 
@@ -358,6 +389,7 @@ export async function getBillableEvents(
   // 7. Construction des events
   const events: BillableEvent[] = [];
   const auditInvoiceIdsBySource = new Map<string, number[]>();
+  const contratsMeta: ContratMeta[] = [];
 
   for (const c of contrats) {
     const billedTypes = eventTypesByContrat.get(c.id);
@@ -373,6 +405,20 @@ export async function getBillableEvents(
     // unknownOpco: IDCC valide mais rattaché à aucun OPCO actif du référentiel.
     // Si l'IDCC est absent/invalide, missingIdcc s'en charge.
     const unknownOpco = !!idcc && !opcoInfo;
+
+    contratsMeta.push({
+      contrat_id: c.id,
+      contrat_ref: c.ref,
+      contract_number: c.contract_number,
+      internal_number: c.internal_number,
+      apprenant_nom: c.apprenant_nom ?? '',
+      apprenant_prenom: c.apprenant_prenom ?? '',
+      formation_titre: c.formation_titre,
+      contract_state: c.contract_state,
+      npec_amount: Number(c.npec_amount ?? 0),
+      opco_code: opcoInfo?.code ?? null,
+      opco_nom: opcoInfo?.nom ?? null,
+    });
 
     // -- Event engagement --------------------------------------------------
     if (c.contract_state === 'ENGAGE' && agg.basePedagoEngagement > 0) {
@@ -510,6 +556,8 @@ export async function getBillableEvents(
     tauxCommission: taux,
     events,
     auditInvoiceIdsBySource,
+    clientTvaIntracom: projet.client?.tva_intracommunautaire ?? null,
+    contrats: contratsMeta,
   };
 }
 

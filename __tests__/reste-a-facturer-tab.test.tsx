@@ -50,6 +50,7 @@ function ctr(over: Partial<ContratMeta> = {}): ContratMeta {
     npec_amount: 0,
     opco_code: 'AKTO',
     opco_nom: 'AKTO',
+    pedago_emis_non_paye: 0,
     ...over,
   };
 }

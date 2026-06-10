@@ -111,6 +111,9 @@ export interface ContratMeta {
   npec_amount: number;
   opco_code: string | null;
   opco_nom: string | null;
+  /** Base PEDAGOGIE emise mais NON encore payee (steps TRANSMIS). Sert au
+   *  bucket "en attente de paiement" (commission = base x taux). */
+  pedago_emis_non_paye: number;
 }
 
 export interface ProjetBillableEvents {
@@ -278,6 +281,7 @@ export async function getBillableEvents(
     engagementInvoiceIds: Set<number>;
     basePedagoByStepInvoice: Map<number, number>;
     unknownLineTypes: Set<string>;
+    basePedagoEmisNonPaye: number;
   };
   const aggByContrat = new Map<string, ContratLignesAgg>();
   for (const cid of contratIds) {
@@ -286,6 +290,7 @@ export async function getBillableEvents(
       engagementInvoiceIds: new Set(),
       basePedagoByStepInvoice: new Map(),
       unknownLineTypes: new Set(),
+      basePedagoEmisNonPaye: 0,
     });
   }
 
@@ -305,10 +310,13 @@ export async function getBillableEvents(
     const step = stepByInvoiceId.get(line.eduvia_invoice_id);
     if (!step) continue;
     // Regle metier HEOL : on ne facture la commission que sur l'argent
-    // REELLEMENT ENCAISSE. Un step seulement emis (invoice_state TRANSMIS)
-    // n'entre PAS dans la base facturable ; seul REGLE (paye) compte. Le
-    // montant emis-non-paye reste capte cote previsionnel (base NPEC).
-    if (step.invoice_state !== 'REGLE') continue;
+    // REELLEMENT ENCAISSE. Seul un step REGLE (paye) entre dans la base
+    // facturable. Un step seulement emis (TRANSMIS) est capte a part dans
+    // basePedagoEmisNonPaye -> bucket "en attente de paiement OPCO".
+    if (step.invoice_state !== 'REGLE') {
+      agg.basePedagoEmisNonPaye += Number(line.amount);
+      continue;
+    }
     if (step.step_number === 1) {
       agg.basePedagoEngagement += Number(line.amount);
       agg.engagementInvoiceIds.add(line.eduvia_invoice_id);
@@ -423,6 +431,7 @@ export async function getBillableEvents(
       npec_amount: Number(c.npec_amount ?? 0),
       opco_code: opcoInfo?.code ?? null,
       opco_nom: opcoInfo?.nom ?? null,
+      pedago_emis_non_paye: agg.basePedagoEmisNonPaye,
     });
 
     // -- Event engagement --------------------------------------------------

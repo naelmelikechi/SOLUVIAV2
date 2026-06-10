@@ -56,6 +56,7 @@ function ctr(over: Partial<ContratMeta> = {}): ContratMeta {
     npec_amount: 0,
     opco_code: 'AKTO',
     opco_nom: 'AKTO',
+    pedago_emis_non_paye: 0,
     ...over,
   };
 }
@@ -165,6 +166,34 @@ describe('buildResteAFacturer - prévisionnel et état du contrat', () => {
     expect(row.previsionnelHt).toBe(3333.33);
     expect(row.potentielHt).toBe(3333.33);
     expect(row.nbFacturable).toBe(0);
+  });
+
+  it('en attente de paiement : TRANSMIS capté à part, réduit le prévisionnel', () => {
+    const p = projet({
+      tauxCommission: 50,
+      contrats: [
+        ctr({
+          npec_amount: 10000,
+          contract_state: 'ENGAGE',
+          pedago_emis_non_paye: 2000,
+        }),
+      ],
+      events: [
+        ev({ source_id: 'a', status: 'available', montant_commissionne: 1200 }),
+      ],
+    });
+    const row = buildResteAFacturer([p]).parContrat[0]!;
+    // facturable = 1200 TTC payé -> 1000 HT
+    expect(row.facturableHt).toBe(1000);
+    // en attente = 2000 (TRANSMIS) × 50% = 1000 TTC -> 833.33 HT
+    expect(row.emisNonPayeHt).toBe(833.33);
+    // potentiel 5000 TTC ; émis = 1200 payé + 1000 attente ; prévisionnel
+    // = 2800 TTC -> 2333.33 HT
+    expect(row.previsionnelHt).toBe(2333.33);
+    // décomposition : facturable + attente + prévisionnel = potentiel HT
+    expect(
+      row.facturableHt + row.emisNonPayeHt + row.previsionnelHt,
+    ).toBeCloseTo(row.potentielHt, 1);
   });
 });
 

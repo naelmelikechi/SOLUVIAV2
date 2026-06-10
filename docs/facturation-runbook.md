@@ -108,13 +108,14 @@ Utile pour cas particuliers (rattrapage, montant ad-hoc, facture mixte hors eche
 
 Onglet **Reste a facturer** dans `/facturation` (visible des qu'au moins un projet a des contrats). Vue de pilotage en lecture seule : combien de commission reste-t-il a facturer, par contrat / par projet / par OPCO / au total. Montants **HT** (reconcilies avec `factures.montant_ht`).
 
-Trois natures, en cartes de synthese :
+Quatre natures, en cartes de synthese (montants **HT**) :
 
-- **Facturable maintenant** : bordereaux OPCO deja emis cote Eduvia (events `available`) mais pas encore factures. Actionnable tout de suite via l'onglet **Manuel**. Chiffre fiable = exactement ce que "Preparer le brouillon" emettrait.
-- **Bloque** : events `locked` (IDCC manquant, OPCO non resolu, line_type inconnu, ou exclusion engagement/OPCO). Du CA recuperable en corrigeant la donnee : un badge de raison s'affiche sur chaque ligne. IDCC manquant -> renseigner cote Eduvia ; OPCO non resolu -> mapper dans `/admin/parametres/opcos`.
-- **Previsionnel contractuel** : estimation = potentiel de commission sur le NPEC des contrats actifs, moins ce qui est deja emis. Borne haute (le NPEC inclut le materiel non commissionne et suppose le contrat mene a terme). A affiner a chaque synchro Eduvia.
+- **Facturable maintenant** : bordereaux OPCO **payes** (invoice_state REGLE) cote Eduvia, pas encore factures cote SOLUVIA. Actionnable via l'onglet **Manuel**. Chiffre fiable = exactement ce que "Preparer le brouillon" emettrait. **Regle metier HEOL : on ne facture la commission que sur l'argent encaisse** -> un bordereau seulement emis (TRANSMIS) n'est PAS facturable.
+- **En attente de paiement** : PEDAGOGIE emise (TRANSMIS) mais pas encore payee par l'OPCO. Quasi-certain (bordereau parti, virement a venir) mais non facturable tant que non encaisse. Devient Facturable des que le step passe en REGLE.
+- **Bloque** : events `locked` (IDCC manquant, OPCO non resolu, line_type inconnu, ou exclusion engagement/OPCO). CA recuperable en corrigeant la donnee : badge de raison sur chaque ligne. IDCC manquant -> renseigner cote Eduvia ; OPCO non resolu -> mapper dans `/admin/parametres/opcos`.
+- **Previsionnel contractuel** : estimation = potentiel de commission sur le NPEC des contrats actifs, moins TOUT ce qui est deja emis (facturable + en attente + deja facture) = les steps OPCO non encore emis. Borne haute (le NPEC inclut le materiel non commissionne). A affiner a chaque synchro Eduvia.
 
-Bascule **Par contrat** / **Par projet** / **Par OPCO**, plus un focus rapide Tous/Facturable/Bloque/Previsionnel et des filtres projet/OPCO en vue contrat. Aucune requete supplementaire : la vue derive des billable events deja charges par la page.
+Bascule **Par contrat** / **Par projet** / **Par OPCO**, focus rapide Tous/Facturable/En attente/Bloque/Previsionnel + filtres projet/OPCO en vue contrat. Aucune requete supplementaire : la vue derive des billable events deja charges par la page.
 
 Source : `lib/utils/reste-a-facturer.ts` (agregation pure, testee) + `components/facturation/reste-a-facturer-tab.tsx`.
 

@@ -258,6 +258,8 @@ describe('getBillableEvents - base engagement', () => {
     const result = await getBillableEvents('pjt-1');
     // TRANSMIS = bordereau emis mais OPCO pas encore paye -> rien a facturer.
     expect(result!.events).toEqual([]);
+    // ...mais la PEDAGOGIE emise est captee pour le bucket "en attente".
+    expect(result!.contrats[0]!.pedago_emis_non_paye).toBe(2000);
   });
 
   it('commission arrondie au centime', async () => {

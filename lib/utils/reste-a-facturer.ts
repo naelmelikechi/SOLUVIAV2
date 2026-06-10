@@ -9,18 +9,20 @@ import { isContratActif } from '@/lib/utils/contrat-states';
 // Reste à facturer : agrégation pure (sans DB, sans React) des billable
 // events + du potentiel contractuel, par contrat / projet / OPCO / total.
 //
-// Trois natures de "reste" :
-//   - facturable : events 'available' (bordereau OPCO émis côté Eduvia, pas
+// Quatre natures de "reste" :
+//   - facturable : events 'available' (bordereau OPCO PAYÉ côté Eduvia, pas
 //                  encore facturé côté SOLUVIA). Actionnable immédiatement.
 //   - bloqué     : events 'locked' (IDCC manquant, OPCO inconnu, line_type
 //                  inconnu, exclusion engagement/opco). CA récupérable en
 //                  corrigeant la donnée.
-//   - prévisionnel : estimation = potentiel commission contractuel restant,
-//                  base NPEC (contrat × taux), MOINS ce qui est déjà émis
-//                  (facturable + bloqué + déjà facturé). Borne haute : le
-//                  NPEC inclut le matériel jamais commissionné et suppose le
-//                  contrat mené à terme. Calculé uniquement sur les contrats
-//                  en état actif (cf. ACTIVE_CONTRACT_STATES).
+//   - en attente : PEDAGOGIE émise mais NON encore payée par l'OPCO (steps
+//                  TRANSMIS). Quasi-certain (bordereau parti, virement à
+//                  venir) mais non facturable tant que non encaissé.
+//   - prévisionnel : estimation = potentiel commission contractuel (NPEC ×
+//                  taux) MOINS tout ce qui est déjà émis (facturable + bloqué
+//                  + déjà facturé + en attente) = les steps NON ENCORE ÉMIS.
+//                  Borne haute (NPEC inclut le matériel non commissionné),
+//                  contrats en état actif uniquement.
 //
 // Unité d'affichage : HT, pour réconcilier avec factures.montant_ht et les
 // KPIs dashboard/production. montant_commissionne étant TTC (convention HEOL),
@@ -46,6 +48,7 @@ export interface RafContratRow {
   bloqueHt: number;
   dejaFactureHt: number;
   previsionnelHt: number;
+  emisNonPayeHt: number; // émis (TRANSMIS) mais pas encore payé par l'OPCO
   potentielHt: number; // npec × taux / 100, en HT
   nbFacturable: number; // nb events 'available'
   nbBloque: number; // nb events 'locked'
@@ -60,6 +63,7 @@ export interface RafProjetRow {
   bloqueHt: number;
   dejaFactureHt: number;
   previsionnelHt: number;
+  emisNonPayeHt: number;
   nbContrats: number; // contrats avec facturable | bloqué | prévisionnel > 0
   nbContratsFacturable: number;
   nbContratsBloque: number;
@@ -71,6 +75,7 @@ export interface RafOpcoRow {
   facturableHt: number;
   bloqueHt: number;
   previsionnelHt: number;
+  emisNonPayeHt: number;
   nbContratsFacturable: number;
 }
 
@@ -80,6 +85,8 @@ export interface RafTotals {
   bloqueHt: number;
   dejaFactureHt: number;
   previsionnelHt: number;
+  emisNonPayeHt: number;
+  nbContratsEnAttente: number;
   nbProjetsFacturable: number;
   nbContratsFacturable: number;
   nbContratsBloque: number;
@@ -157,7 +164,8 @@ export function buildResteAFacturer(
       const facturableTtc = agg?.facturableTtc ?? 0;
       const bloqueTtc = agg?.bloqueTtc ?? 0;
       const dejaTtc = agg?.dejaTtc ?? 0;
-      const emisTtc = facturableTtc + bloqueTtc + dejaTtc;
+      const emisNonPayeTtc = (c.pedago_emis_non_paye * taux) / 100;
+      const emisTtc = facturableTtc + bloqueTtc + dejaTtc + emisNonPayeTtc;
       const potentielTtc = (c.npec_amount * taux) / 100;
       const previsionnelTtc = isContratActif(c.contract_state)
         ? Math.max(0, potentielTtc - emisTtc)
@@ -180,6 +188,7 @@ export function buildResteAFacturer(
         bloqueHt: toHt(bloqueTtc),
         dejaFactureHt: toHt(dejaTtc),
         previsionnelHt: toHt(previsionnelTtc),
+        emisNonPayeHt: toHt(emisNonPayeTtc),
         potentielHt: toHt(potentielTtc),
         nbFacturable: agg?.nbFacturable ?? 0,
         nbBloque: agg?.nbBloque ?? 0,
@@ -203,6 +212,8 @@ function buildTotals(rows: RafContratRow[]): RafTotals {
   let bloqueHt = 0;
   let dejaFactureHt = 0;
   let previsionnelHt = 0;
+  let emisNonPayeHt = 0;
+  let nbContratsEnAttente = 0;
   let nbContratsFacturable = 0;
   let nbContratsBloque = 0;
 
@@ -212,6 +223,8 @@ function buildTotals(rows: RafContratRow[]): RafTotals {
     bloqueHt += r.bloqueHt;
     dejaFactureHt += r.dejaFactureHt;
     previsionnelHt += r.previsionnelHt;
+    emisNonPayeHt += r.emisNonPayeHt;
+    if (r.emisNonPayeHt > 0) nbContratsEnAttente += 1;
     if (r.facturableHt > 0) {
       nbContratsFacturable += 1;
       projetsFacturable.add(r.projetId);
@@ -225,6 +238,8 @@ function buildTotals(rows: RafContratRow[]): RafTotals {
     bloqueHt: round2(bloqueHt),
     dejaFactureHt: round2(dejaFactureHt),
     previsionnelHt: round2(previsionnelHt),
+    emisNonPayeHt: round2(emisNonPayeHt),
+    nbContratsEnAttente,
     nbProjetsFacturable: projetsFacturable.size,
     nbContratsFacturable,
     nbContratsBloque,
@@ -244,6 +259,7 @@ function buildParProjet(rows: RafContratRow[]): RafProjetRow[] {
         bloqueHt: 0,
         dejaFactureHt: 0,
         previsionnelHt: 0,
+        emisNonPayeHt: 0,
         nbContrats: 0,
         nbContratsFacturable: 0,
         nbContratsBloque: 0,
@@ -254,9 +270,15 @@ function buildParProjet(rows: RafContratRow[]): RafProjetRow[] {
     row.bloqueHt = round2(row.bloqueHt + r.bloqueHt);
     row.dejaFactureHt = round2(row.dejaFactureHt + r.dejaFactureHt);
     row.previsionnelHt = round2(row.previsionnelHt + r.previsionnelHt);
+    row.emisNonPayeHt = round2(row.emisNonPayeHt + r.emisNonPayeHt);
     if (r.facturableHt > 0) row.nbContratsFacturable += 1;
     if (r.bloqueHt > 0) row.nbContratsBloque += 1;
-    if (r.facturableHt > 0 || r.bloqueHt > 0 || r.previsionnelHt > 0)
+    if (
+      r.facturableHt > 0 ||
+      r.bloqueHt > 0 ||
+      r.previsionnelHt > 0 ||
+      r.emisNonPayeHt > 0
+    )
       row.nbContrats += 1;
   }
   return Array.from(map.values()).sort(
@@ -271,7 +293,12 @@ function buildParProjet(rows: RafContratRow[]): RafProjetRow[] {
 function buildParOpco(rows: RafContratRow[]): RafOpcoRow[] {
   const map = new Map<string, RafOpcoRow>();
   for (const r of rows) {
-    if (r.facturableHt <= 0 && r.bloqueHt <= 0 && r.previsionnelHt <= 0)
+    if (
+      r.facturableHt <= 0 &&
+      r.bloqueHt <= 0 &&
+      r.previsionnelHt <= 0 &&
+      r.emisNonPayeHt <= 0
+    )
       continue;
     const key = r.opcoCode ?? OPCO_NON_RESOLU;
     let row = map.get(key);
@@ -282,6 +309,7 @@ function buildParOpco(rows: RafContratRow[]): RafOpcoRow[] {
         facturableHt: 0,
         bloqueHt: 0,
         previsionnelHt: 0,
+        emisNonPayeHt: 0,
         nbContratsFacturable: 0,
       };
       map.set(key, row);
@@ -289,6 +317,7 @@ function buildParOpco(rows: RafContratRow[]): RafOpcoRow[] {
     row.facturableHt = round2(row.facturableHt + r.facturableHt);
     row.bloqueHt = round2(row.bloqueHt + r.bloqueHt);
     row.previsionnelHt = round2(row.previsionnelHt + r.previsionnelHt);
+    row.emisNonPayeHt = round2(row.emisNonPayeHt + r.emisNonPayeHt);
     if (r.facturableHt > 0) row.nbContratsFacturable += 1;
   }
   return Array.from(map.values()).sort(

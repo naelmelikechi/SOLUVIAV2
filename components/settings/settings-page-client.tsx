@@ -40,6 +40,7 @@ import {
   freezeCurrentAvatar,
   attemptUnlockFrozenAvatar,
 } from '@/lib/actions/settings';
+import { normalizeFrPhone } from '@/lib/utils/fr-phone';
 import {
   isAdmin as checkIsAdmin,
   isSuperAdmin as checkIsSuperAdmin,
@@ -395,6 +396,9 @@ export function SettingsPageClient({
                 type="tel"
                 value={telephone}
                 onChange={(e) => setTelephone(e.target.value)}
+                onBlur={(e) =>
+                  setTelephone(normalizeFrPhone(e.target.value) ?? '')
+                }
                 placeholder="06 12 34 56 78"
                 autoComplete="tel"
               />

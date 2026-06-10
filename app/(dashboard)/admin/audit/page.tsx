@@ -7,6 +7,10 @@ import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { UserAvatar } from '@/components/shared/user-avatar';
+import {
+  AuditExportButton,
+  type AuditExportRow,
+} from '@/components/admin/audit-export-button';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { Json } from '@/types/database';
@@ -125,6 +129,22 @@ export default async function AuditPage() {
       ).data ?? null)
     : full.data;
 
+  // Lignes pre-serialisees pour l'export Excel (composant client) : la
+  // description francaise est calculee ici pour reutiliser describeAction.
+  const exportRows: AuditExportRow[] = (logs ?? []).map((log) => {
+    const u = log.user as { prenom: string; nom: string } | null;
+    return {
+      date: log.created_at!,
+      utilisateur: u ? `${u.prenom} ${u.nom}` : 'Utilisateur inconnu',
+      action: describeAction(
+        log.action,
+        log.details as Record<string, Json> | null,
+      ),
+      entite: log.entity_type ?? '',
+      details: log.details ? JSON.stringify(log.details) : '',
+    };
+  });
+
   return (
     <div>
       <Link
@@ -139,6 +159,10 @@ export default async function AuditPage() {
         title="Historique"
         description="Dernières actions effectuées sur la plateforme"
       />
+
+      <div className="mb-4 flex justify-end">
+        <AuditExportButton rows={exportRows} />
+      </div>
 
       {!logs || logs.length === 0 ? (
         <p className="text-muted-foreground text-sm">

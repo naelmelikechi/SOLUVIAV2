@@ -158,13 +158,23 @@ class EduviaQualityHttpClient implements EduviaQualityClient {
     const all: QualityDeliverableStatus[] = [];
     let page = 1;
     // Garde-fou : 50 pages max (= 5000 statuts), bien au-dessus du reel.
-    while (page <= 50) {
+    const MAX_PAGES = 50;
+    while (page <= MAX_PAGES) {
       const r = await this.fetchJson<ApiResponse<QualityDeliverableStatus[]>>(
         `/api/v1/campuses/${campusId}/quality/deliverable_statuses?per_page=100&page=${page}`,
       );
       if (r.data) all.push(...r.data);
       if (!r.meta || page >= r.meta.total_pages) break;
       page += 1;
+    }
+    // Sortie par depassement de la garde (et non par break) : l'API annoncait
+    // encore des pages au-dela de la borne, on a donc tronque silencieusement.
+    if (page > MAX_PAGES) {
+      logger.warn(
+        SCOPE,
+        'Pagination plafonnée - données potentiellement tronquées',
+        { campusId, pagesConsommees: MAX_PAGES },
+      );
     }
     return all;
   }

@@ -5,10 +5,11 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Recherche globale legere pour le Cmd+K : projets, clients, factures,
-// apprenants, contrats.
+// apprenants, contrats, devis.
 // RLS s'applique automatiquement (le client est cote utilisateur connecte) :
 // un CDP ne voit que les contrats de ses projets, et les apprenants sont
-// scopes via le join !inner sur contrats.
+// scopes via le join !inner sur contrats. Les devis sont admin-only : RLS
+// renvoie simplement 0 ligne pour les autres roles.
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const q = (url.searchParams.get('q') ?? '').trim();
@@ -19,6 +20,7 @@ export async function GET(request: Request) {
       factures: [],
       apprenants: [],
       contrats: [],
+      devis: [],
     });
   }
 
@@ -31,42 +33,53 @@ export async function GET(request: Request) {
 
   const pattern = `%${q}%`;
 
-  const [projetsRes, clientsRes, facturesRes, apprenantsRes, contratsRes] =
-    await Promise.all([
-      supabase
-        .from('projets')
-        .select('ref, client:clients!projets_client_id_fkey(raison_sociale)')
-        .ilike('ref', pattern)
-        .eq('archive', false)
-        .limit(5),
-      supabase
-        .from('clients')
-        .select('id, trigramme, raison_sociale')
-        .or(`trigramme.ilike.${pattern},raison_sociale.ilike.${pattern}`)
-        .eq('archive', false)
-        .limit(5),
-      supabase
-        .from('factures')
-        .select('numero, projet:projets!factures_projet_id_fkey(ref)')
-        .ilike('numero', pattern)
-        .limit(5),
-      supabase
-        .from('apprenants')
-        .select(
-          'id, nom, prenom, contrat:contrats!apprenants_contrat_id_fkey!inner(projet:projets!contrats_projet_id_fkey!inner(ref))',
-        )
-        .or(`nom.ilike.${pattern},prenom.ilike.${pattern}`)
-        .eq('contrat.archive', false)
-        .limit(5),
-      supabase
-        .from('contrats')
-        .select(
-          'id, contract_number, ref, apprenant_nom, apprenant_prenom, projet:projets!contrats_projet_id_fkey!inner(ref)',
-        )
-        .or(`contract_number.ilike.${pattern},ref.ilike.${pattern}`)
-        .eq('archive', false)
-        .limit(5),
-    ]);
+  const [
+    projetsRes,
+    clientsRes,
+    facturesRes,
+    apprenantsRes,
+    contratsRes,
+    devisRes,
+  ] = await Promise.all([
+    supabase
+      .from('projets')
+      .select('ref, client:clients!projets_client_id_fkey(raison_sociale)')
+      .ilike('ref', pattern)
+      .eq('archive', false)
+      .limit(5),
+    supabase
+      .from('clients')
+      .select('id, trigramme, raison_sociale')
+      .or(`trigramme.ilike.${pattern},raison_sociale.ilike.${pattern}`)
+      .eq('archive', false)
+      .limit(5),
+    supabase
+      .from('factures')
+      .select('numero, projet:projets!factures_projet_id_fkey(ref)')
+      .ilike('numero', pattern)
+      .limit(5),
+    supabase
+      .from('apprenants')
+      .select(
+        'id, nom, prenom, contrat:contrats!apprenants_contrat_id_fkey!inner(projet:projets!contrats_projet_id_fkey!inner(ref))',
+      )
+      .or(`nom.ilike.${pattern},prenom.ilike.${pattern}`)
+      .eq('contrat.archive', false)
+      .limit(5),
+    supabase
+      .from('contrats')
+      .select(
+        'id, contract_number, ref, apprenant_nom, apprenant_prenom, projet:projets!contrats_projet_id_fkey!inner(ref)',
+      )
+      .or(`contract_number.ilike.${pattern},ref.ilike.${pattern}`)
+      .eq('archive', false)
+      .limit(5),
+    supabase
+      .from('devis')
+      .select('id, ref, client:clients!devis_client_id_fkey(raison_sociale)')
+      .ilike('ref', pattern)
+      .limit(5),
+  ]);
 
   // On cherche aussi les projets par raison_sociale du client (utile : taper
   // "HEOL" doit retrouver le projet 0015-HED-APP).
@@ -122,11 +135,21 @@ export async function GET(request: Request) {
     (c) => c.projet?.ref,
   );
 
+  // Devis : ilike sur ref exclut deja les refs NULL (brouillons non
+  // numerotes), le filter est une ceinture de securite pour l'URL /devis/[ref].
+  type DevisRow = {
+    id: string;
+    ref: string | null;
+    client: { raison_sociale: string } | null;
+  };
+  const devis = ((devisRes.data ?? []) as DevisRow[]).filter((d) => d.ref);
+
   return NextResponse.json({
     projets: Array.from(projetsMap.values()).slice(0, 5),
     clients: clientsRes.data ?? [],
     factures: facturesRes.data ?? [],
     apprenants,
     contrats,
+    devis,
   });
 }

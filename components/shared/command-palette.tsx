@@ -58,6 +58,11 @@ interface SearchResults {
     apprenant_prenom: string | null;
     projet: { ref: string } | null;
   }[];
+  devis: {
+    id: string;
+    ref: string | null;
+    client: { raison_sociale: string } | null;
+  }[];
 }
 
 const EMPTY_RESULTS: SearchResults = {
@@ -66,6 +71,7 @@ const EMPTY_RESULTS: SearchResults = {
   factures: [],
   apprenants: [],
   contrats: [],
+  devis: [],
 };
 
 interface CommandPaletteItem {
@@ -265,6 +271,7 @@ export function CommandPalette() {
           factures: data.factures ?? [],
           apprenants: data.apprenants ?? [],
           contrats: data.contrats ?? [],
+          devis: data.devis ?? [],
         });
       } catch {
         // abort ou erreur reseau : on garde les anciens resultats.
@@ -309,14 +316,15 @@ export function CommandPalette() {
     displayedResults.clients.length > 0 ||
     displayedResults.factures.length > 0 ||
     displayedResults.apprenants.length > 0 ||
-    displayedResults.contrats.length > 0;
+    displayedResults.contrats.length > 0 ||
+    displayedResults.devis.length > 0;
 
   return (
     <CommandDialog
       open={open}
       onOpenChange={handleOpenChange}
       title="Palette de commandes"
-      description="Rechercher une page, un projet, un client, une facture, un apprenant, un contrat"
+      description="Rechercher une page, un projet, un client, une facture, un apprenant, un contrat, un devis"
       className="sm:max-w-lg"
     >
       <Command
@@ -432,6 +440,29 @@ export function CommandPalette() {
                           .filter(Boolean)
                           .join(' ')}
                       </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {displayedResults.devis.length > 0 && (
+                <CommandGroup heading="Devis">
+                  {displayedResults.devis.map((d) => (
+                    <CommandItem
+                      key={`devis-${d.id}`}
+                      value={`devis-${d.id}`}
+                      // La page detail accepte le ref final (DEV-SOL-0001) ou
+                      // l'UUID (brouillon sans ref) - l'API ne renvoie que des
+                      // refs non nuls mais on garde le fallback id.
+                      onSelect={() => navigateTo(`/devis/${d.ref ?? d.id}`)}
+                      className="cursor-pointer"
+                    >
+                      <ScrollText className="text-muted-foreground size-4" />
+                      <span className="font-mono text-xs">{d.ref}</span>
+                      {d.client && (
+                        <span className="text-muted-foreground truncate text-xs">
+                          {d.client.raison_sociale}
+                        </span>
+                      )}
                     </CommandItem>
                   ))}
                 </CommandGroup>

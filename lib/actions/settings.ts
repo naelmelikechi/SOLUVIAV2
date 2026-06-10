@@ -8,6 +8,7 @@ import { env } from '@/lib/env';
 import { logAudit } from '@/lib/utils/audit';
 import {
   dailySeed,
+  normalizeUnlockAttempt,
   resolveAvatarSeed,
   todayIso,
   type AvatarMode,
@@ -296,9 +297,12 @@ export async function attemptUnlockFrozenAvatar(
     };
   }
 
-  const a = Buffer.from(attempt);
-  const b = Buffer.from(expected);
-  const matches = a.length === b.length && timingSafeEqual(a, b);
+  // Normalise les deux côtés (casse, accents, ponctuation) pour une saisie
+  // tolérante, puis compare en timing-safe sur les formes normalisées.
+  const a = Buffer.from(normalizeUnlockAttempt(attempt));
+  const b = Buffer.from(normalizeUnlockAttempt(expected));
+  const matches =
+    b.length > 0 && a.length === b.length && timingSafeEqual(a, b);
 
   logAudit(
     'avatar_unlock_attempted',

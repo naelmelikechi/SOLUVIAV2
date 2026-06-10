@@ -1,6 +1,11 @@
 'use client';
 
-import { useState, useTransition, type TransitionStartFunction } from 'react';
+import {
+  useRef,
+  useState,
+  useTransition,
+  type TransitionStartFunction,
+} from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
@@ -96,6 +101,25 @@ export function SettingsPageClient({
   );
   const [avatarPending, startAvatarTransition] = useTransition();
 
+  // Easter egg : 5 clics rapprochés sur le robot révèlent son énigme (l'indice
+  // promis par le panneau "figé"). Le compteur se réinitialise si on attend.
+  const [riddleVisible, setRiddleVisible] = useState(false);
+  const robotClicksRef = useRef(0);
+  const robotClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleRobotClick = () => {
+    if (robotClickTimerRef.current) clearTimeout(robotClickTimerRef.current);
+    robotClicksRef.current += 1;
+    if (robotClicksRef.current >= 5) {
+      robotClicksRef.current = 0;
+      setRiddleVisible(true);
+      return;
+    }
+    robotClickTimerRef.current = setTimeout(() => {
+      robotClicksRef.current = 0;
+    }, 1500);
+  };
+
   // Ce qui est *effectivement* affiché (gère l'expiry du random).
   const { effectiveMode } = resolveAvatarSeed({
     email: user.email,
@@ -166,20 +190,30 @@ export function SettingsPageClient({
         <CardContent>
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              <Image
-                src={getAvatarUrl(
-                  user.email,
-                  avatarSeed,
-                  128,
-                  avatarMode,
-                  regenDate,
-                )}
-                alt="Votre robot"
-                width={128}
-                height={128}
-                unoptimized
-                className="rounded-2xl border-2 border-dashed border-[var(--border)] p-2"
-              />
+              <button
+                type="button"
+                onClick={handleRobotClick}
+                aria-label="Votre robot"
+                className="block rounded-2xl transition-transform active:scale-95"
+              >
+                <Image
+                  src={getAvatarUrl(
+                    user.email,
+                    avatarSeed,
+                    128,
+                    avatarMode,
+                    regenDate,
+                  )}
+                  alt="Votre robot"
+                  width={128}
+                  height={128}
+                  unoptimized
+                  className="rounded-2xl border-2 border-dashed border-[var(--border)] p-2"
+                />
+              </button>
+              {riddleVisible && (
+                <RobotRiddleBubble onClose={() => setRiddleVisible(false)} />
+              )}
               {effectiveMode === 'frozen' && (
                 <div
                   className="absolute -top-2 -right-2 rounded-full bg-green-500 p-1 text-white shadow-md"
@@ -546,6 +580,37 @@ const FAILED_UNLOCK_MESSAGES = [
   'Hmm. Ton robot te juge un peu, là.',
   'Toujours pas. Un conseil : ne perds pas ta journée.',
 ] as const;
+
+// Bulle "le robot chuchote" : l'unique indice du easter egg. Apparait après 5
+// clics rapprochés sur le robot. Renvoie au texte affiché sous l'avatar figé
+// ("Fidèle... figé à vie") -> la clé est "fidèle à vie" (accents/tirets/espaces
+// ignorés par la normalisation côté serveur).
+function RobotRiddleBubble({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      role="status"
+      className="absolute top-full left-1/2 z-10 mt-3 w-64 max-w-[80vw] -translate-x-1/2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 text-left shadow-lg"
+    >
+      {/* flèche pointant vers le robot */}
+      <div className="absolute -top-1.5 left-1/2 size-3 -translate-x-1/2 rotate-45 border-t border-l border-[var(--border)] bg-[var(--card)]" />
+      <p className="text-foreground mb-1 text-xs font-medium">
+        🤖 Le robot chuchote...
+      </p>
+      <p className="text-muted-foreground text-xs italic">
+        « Tu m&apos;as figé pour toujours. Rends-moi la promesse écrite sous moi
+        quand je suis verrouillé : ce que je suis, en 3 mots. Accents, tirets,
+        espaces - je m&apos;en moque. »
+      </p>
+      <button
+        type="button"
+        onClick={onClose}
+        className="text-muted-foreground hover:text-foreground mt-2 text-[11px] underline"
+      >
+        Fermer
+      </button>
+    </div>
+  );
+}
 
 function FrozenAvatarPanel({
   pending,

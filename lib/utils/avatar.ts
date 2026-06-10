@@ -65,6 +65,20 @@ export function canRollRandomToday(regenDate: string | null): boolean {
   return regenDate !== todayIso();
 }
 
+/**
+ * Normalise une tentative de déverrouillage (easter egg) pour une comparaison
+ * tolérante : minuscules, accents retirés, et tout caractère non alphanumérique
+ * supprimé. Ainsi "Fidèle à vie", "fidele-a-vie" et "FIDÈLE A VIE !" donnent
+ * tous la même clé. Appliquée des deux côtés (saisie + secret attendu).
+ */
+export function normalizeUnlockAttempt(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '') // retire les accents (combining marks)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
 /** Build a DiceBear bottts-neutral avatar URL from a seed. */
 export function dicebearUrl(seed: string, size?: number): string {
   const sizeParam = size ? `&size=${size}` : '';

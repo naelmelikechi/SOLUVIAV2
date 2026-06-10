@@ -67,10 +67,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Version epinglee : `latest` se resout via l'API GitHub anonyme qui
+      # rate-limit (vecu) ; le token couvre les eventuels autres appels API.
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
-          version: latest
+          version: 2.105.0
 
       # Le seed demo a des FK qui exigent des users prealables : on l'ecarte,
       # les fixtures e2e dediees (e2e/fixtures.sql) suffisent.

@@ -106,20 +106,32 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      # Binaire local direct (pas npx : resolution/prompt silencieux possible)
-      # + chaque tentative bornee par `timeout` : un stall CDN devient un
-      # echec en 4 min puis retry, au lieu d'un step mort en 10.
-      - name: Install Playwright browsers
-        timeout-minutes: 14
+      # Le downloader de playwright stalle systematiquement sur ce runner
+      # apres le 100% (3 runs morts au meme endroit, retries compris). On
+      # sort la reseau-dependance de playwright : prefetch des zips via curl
+      # (--speed-time 30 tue un stall, --retry rejoue), serveur local, et
+      # `playwright install` pointe sur 127.0.0.1 via PLAYWRIGHT_DOWNLOAD_HOST
+      # -> extraction et markers geres par playwright, source locale sure.
+      - name: Install Playwright browsers (prefetch curl + miroir local)
+        timeout-minutes: 12
         env:
           DEBIAN_FRONTEND: noninteractive
-          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '120000'
         run: |
-          for i in 1 2 3; do
-            timeout 240 ./node_modules/.bin/playwright install --with-deps chromium && exit 0
-            echo "tentative $i bloquee ou echouee - retry"
-          done
-          exit 1
+          set -euo pipefail
+          ./node_modules/.bin/playwright install chromium --dry-run \
+            | grep -E '^\s+Download url:' | awk '{print $3}' | sort -u > /tmp/pw-urls.txt
+          echo "zips a prefetch :" && cat /tmp/pw-urls.txt
+          while read -r url; do
+            path="/tmp/pw-cdn/$(echo "$url" | sed -E 's#https?://[^/]+/##')"
+            mkdir -p "$(dirname "$path")"
+            curl -fSL --retry 5 --retry-all-errors \
+              --speed-limit 102400 --speed-time 30 \
+              -o "$path" "$url"
+          done < /tmp/pw-urls.txt
+          (cd /tmp/pw-cdn && python3 -m http.server 8923 >/tmp/pw-cdn.log 2>&1 &)
+          sleep 2
+          PLAYWRIGHT_DOWNLOAD_HOST=http://127.0.0.1:8923 \
+            timeout 240 ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Build Next (prod)
         timeout-minutes: 10

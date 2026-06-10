@@ -7,7 +7,12 @@ on:
     branches: [main]
     paths:
       - 'supabase/**'
+      - 'scripts/check-schema-drift.ts'
       - '.github/workflows/sql-tests.yml'
+  # Un drift prod apparait typiquement lors d'un hotfix SQL manuel, donc HORS
+  # push : le run hebdo le detecte meme sans activite sur le repo.
+  schedule:
+    - cron: '0 5 * * 1' # lundi 05:00 UTC
 
 concurrency:
   group: sql-tests-${{ github.ref }}
@@ -69,6 +74,25 @@ jobs:
           if [ "$fail" -ne 0 ]; then
             exit 1
           fi
+
+      # Garde-fou anti-drift : compare les colonnes prod (pg-meta Supavia) au
+      # schema local issu des migrations. Une colonne presente en prod mais
+      # absente des migrations casserait `gen types --local` (cas vecu :
+      # contrats.support). Skip silencieux si les secrets sont absents.
+      # NB : sur push main ce step court en parallele du workflow migrate ;
+      # une migration DESTRUCTIVE (DROP COLUMN) peut donner un faux positif
+      # le temps que migrate applique - re-run du job apres migrate = vert.
+      - name: Check schema drift (prod vs migrations)
+        env:
+          SUPAVIA_API_URL: ${{ secrets.SUPAVIA_API_URL }}
+          SUPAVIA_DASHBOARD_USER: ${{ secrets.SUPAVIA_DASHBOARD_USER }}
+          SUPAVIA_DASHBOARD_PASSWORD: ${{ secrets.SUPAVIA_DASHBOARD_PASSWORD }}
+        run: |
+          if [ -z "$SUPAVIA_DASHBOARD_USER" ]; then
+            echo "Secrets Supavia absents - drift check skipped."
+            exit 0
+          fi
+          npx --yes tsx scripts/check-schema-drift.ts
 
       - name: Stop Supabase (cleanup)
         if: always()

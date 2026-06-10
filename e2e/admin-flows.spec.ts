@@ -39,10 +39,21 @@ test.describe('Admin flows (necessite storageState)', () => {
     await expect(page.getByText(/projets/i).first()).toBeVisible();
   });
 
-  test('navigation /facturation rend les onglets', async ({ page }) => {
+  test('navigation /facturation rend la page (onglets ou empty state)', async ({
+    page,
+  }) => {
     await page.goto('/facturation');
-    await expect(page.getByRole('tab', { name: /factures/i })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /brouillons/i })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /^facturation$/i }),
+    ).toBeVisible();
+    // Sur base totalement vide (CI avant le flux facture), la page rend un
+    // empty state "Aucune facture" A LA PLACE des onglets : deux etats valides.
+    await expect(
+      page
+        .getByRole('tab', { name: /factures/i })
+        .or(page.getByRole('heading', { name: /aucune facture/i }))
+        .first(),
+    ).toBeVisible();
   });
 
   test('navigation /admin/utilisateurs (admin only)', async ({ page }) => {

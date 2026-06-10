@@ -251,16 +251,6 @@ export function FacturationPageClient({
           )}
         </TabsTrigger>
         {manualProjets.length > 0 && (
-          <TabsTrigger value={5}>
-            Reste à facturer
-            {raf.totals.nbContratsFacturable > 0 && (
-              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--success)] px-1.5 text-[10px] font-bold text-white">
-                {raf.totals.nbContratsFacturable}
-              </span>
-            )}
-          </TabsTrigger>
-        )}
-        {manualProjets.length > 0 && (
           <TabsTrigger value={2}>
             Manuel
             <span className="text-muted-foreground ml-1.5 text-xs">
@@ -282,6 +272,16 @@ export function FacturationPageClient({
             </span>
           )}
         </TabsTrigger>
+        {manualProjets.length > 0 && (
+          <TabsTrigger value={5}>
+            Reste à facturer
+            {raf.totals.nbContratsFacturable > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--success)] px-1.5 text-[10px] font-bold text-white">
+                {raf.totals.nbContratsFacturable}
+              </span>
+            )}
+          </TabsTrigger>
+        )}
       </TabsList>
 
       <TabsContent value={0}>

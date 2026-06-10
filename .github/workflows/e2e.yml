@@ -97,14 +97,29 @@ jobs:
       - name: Bootstrap admin user
         run: npx tsx scripts/e2e-bootstrap.ts
 
-      # Binaire local direct (pas npx : il peut bloquer indefiniment sur une
-      # resolution/prompt silencieux - vecu : 2 runs morts au timeout job sans
-      # UNE ligne de log). timeout step court pour echouer vite et visible.
+      # Cache navigateurs : le telechargement CDN Playwright peut staller
+      # APRES le 100% (vecu : extraction jamais finalisee, step mort au
+      # timeout). Avec cache hit, la phase fragile est sautee entierement.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      # Binaire local direct (pas npx : resolution/prompt silencieux possible)
+      # + chaque tentative bornee par `timeout` : un stall CDN devient un
+      # echec en 4 min puis retry, au lieu d'un step mort en 10.
       - name: Install Playwright browsers
-        timeout-minutes: 10
+        timeout-minutes: 14
         env:
           DEBIAN_FRONTEND: noninteractive
-        run: ./node_modules/.bin/playwright install --with-deps chromium
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '120000'
+        run: |
+          for i in 1 2 3; do
+            timeout 240 ./node_modules/.bin/playwright install --with-deps chromium && exit 0
+            echo "tentative $i bloquee ou echouee - retry"
+          done
+          exit 1
 
       - name: Build Next (prod)
         timeout-minutes: 10

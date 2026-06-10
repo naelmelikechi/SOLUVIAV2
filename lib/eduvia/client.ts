@@ -1,4 +1,5 @@
 import { logger } from '@/lib/utils/logger';
+import type { Json } from '@/types/database';
 
 // ---------------------------------------------------------------------------
 // Eduvia API types - mirror the OpenAPI spec
@@ -181,7 +182,9 @@ export interface EduviaProgression {
   estimated_relative_time: number;
   average_score: number;
   last_activity_at: string | null;
-  sequences: Array<Record<string, unknown>>;
+  // Payload opaque Eduvia, stocke tel quel en jsonb (progressions.sequences) :
+  // type Json plutot que Record<string, unknown> pour rester assignable sans cast.
+  sequences: Json[];
 }
 
 /**

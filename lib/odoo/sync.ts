@@ -12,11 +12,13 @@ import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 
 const SCOPE = 'odoo.sync';
 
-export interface OdooSyncResult {
+// Type alias (pas interface) : assignable a Record<string, Json> pour le
+// journal d'audit, sans cast.
+export type OdooSyncResult = {
   pushed: number;
   pulled: number;
   errors: string[];
-}
+};
 
 // ---------------------------------------------------------------------------
 // Helpers

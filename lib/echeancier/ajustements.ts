@@ -185,7 +185,7 @@ export async function detectNpecChangeAjustement(
           resolved_at: lastResolved.resolved_at,
         }
       : null,
-  } as unknown as Json;
+  };
 
   if (existing?.id) {
     const { error } = await supabase
@@ -247,7 +247,7 @@ export async function detectRuptureAjustement(
 
   // 1. Calcule l'avoir pro-rata sur factures emises
   let deltaHt = 0;
-  let detail: Json = {} as unknown as Json;
+  let detail: Json = {};
   if (billedLines.length > 0) {
     const result = computeProrataRupture(
       { date_debut: contrat.date_debut, duree_mois: contrat.duree_mois },
@@ -266,7 +266,7 @@ export async function detectRuptureAjustement(
       avoir_total_ht_net: Math.abs(avoirNet),
       credits_existing: Math.round(creditsExisting * 100) / 100,
       breakdown: result.breakdown,
-    } as unknown as Json;
+    };
   }
 
   // 2. Les echeances futures du projet seront naturellement recomputees
@@ -305,7 +305,7 @@ export async function detectRuptureAjustement(
         resolved_facture_id: lastResolved.resolved_facture_id,
         resolved_at: lastResolved.resolved_at,
       },
-    } as unknown as Json;
+    };
   }
 
   const motif = `Rupture anticipee au ${dateRupture} -> avoir de ${Math.abs(deltaHt).toFixed(2)} EUR HT`;

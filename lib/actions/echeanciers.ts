@@ -10,7 +10,6 @@ import {
   listCandidateFacturesForAjustement as queryCandidateFactures,
   type CandidateFacture,
 } from '@/lib/queries/ajustements';
-import type { Json } from '@/types/database';
 
 const SCOPE = 'actions.echeanciers';
 
@@ -108,7 +107,7 @@ export async function createEcheancierTemplate(params: {
     .insert({
       nom: parsed.data.nom,
       description: parsed.data.description?.trim() || null,
-      jalons: parsed.data.jalons as unknown as Json,
+      jalons: parsed.data.jalons,
       is_default: false,
     })
     .select('id')
@@ -157,7 +156,7 @@ export async function updateEcheancierTemplate(params: {
     .update({
       nom: parsed.data.nom,
       description: parsed.data.description?.trim() || null,
-      jalons: parsed.data.jalons as unknown as Json,
+      jalons: parsed.data.jalons,
     })
     .eq('id', parsed.data.id);
   if (error) return { success: false, error: error.message };

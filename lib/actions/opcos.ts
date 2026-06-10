@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { checkAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -35,8 +36,7 @@ const UpdateOpcoSchema = z.object({
 });
 
 async function checkIdccCollision(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   idccCodes: string[],
   excludeId?: string,
 ): Promise<{ ok: boolean; conflict?: string }> {
@@ -45,8 +45,7 @@ async function checkIdccCollision(
     .select('id, code, idcc_codes')
     .eq('actif', true)
     .overlaps('idcc_codes', idccCodes);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error }: { data: any[] | null; error: any } = excludeId
+  const { data, error } = excludeId
     ? await baseQuery.neq('id', excludeId)
     : await baseQuery;
   if (error) {

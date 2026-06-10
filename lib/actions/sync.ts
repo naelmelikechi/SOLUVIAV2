@@ -11,7 +11,6 @@ import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
-import type { Json } from '@/types/database';
 
 export async function pingOdoo(): Promise<{
   success: boolean;
@@ -48,13 +47,7 @@ export async function triggerOdooSync(): Promise<{
     const supabase = createAdminClient();
     const results = await syncOdoo(supabase);
 
-    logAudit(
-      'sync_odoo',
-      'system',
-      undefined,
-      results as unknown as Record<string, Json>,
-      user.id,
-    );
+    logAudit('sync_odoo', 'system', undefined, results, user.id);
 
     return { success: true, results };
   } catch (err) {
@@ -82,13 +75,7 @@ export async function triggerEduviaSync(): Promise<{
     const supabase = createAdminClient();
     const results = await syncAllEduviaClients(supabase);
 
-    logAudit(
-      'sync_eduvia',
-      'system',
-      undefined,
-      results as unknown as Record<string, Json>,
-      user.id,
-    );
+    logAudit('sync_eduvia', 'system', undefined, results, user.id);
 
     return { success: true, results };
   } catch (err) {

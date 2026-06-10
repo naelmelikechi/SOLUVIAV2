@@ -38,7 +38,9 @@ const CONTRACT_SYNC_CONCURRENCY = 5;
 // Types
 // ---------------------------------------------------------------------------
 
-export interface SyncClientResult {
+// Type alias (pas interface) : assignable a Record<string, Json> pour le
+// journal d'audit et la colonne stats jsonb, sans cast.
+export type SyncClientResult = {
   clientId: string;
   contrats: number;
   apprenants: number;
@@ -53,15 +55,15 @@ export interface SyncClientResult {
   /** Contrats rattachés au projet fallback faute de mapping eduvia_company_ids (multi-projets). */
   contrats_projet_fallback: number;
   errors: string[];
-}
+};
 
-export interface SyncResult {
+export type SyncResult = {
   totalClients: number;
   syncedClients: number;
   skippedClients: number;
   results: SyncClientResult[];
   errors: string[];
-}
+};
 
 // ---------------------------------------------------------------------------
 // Journal persistant des runs (table eduvia_sync_logs)
@@ -602,7 +604,7 @@ export async function syncEduviaForClient(
                 estimated_relative_time: progression.estimated_relative_time,
                 average_score: progression.average_score,
                 last_activity_at: progression.last_activity_at,
-                sequences: progression.sequences as unknown as Json,
+                sequences: progression.sequences,
                 last_synced_at: now,
               },
               { onConflict: 'contrat_id' },

@@ -228,11 +228,12 @@ SELECT isnt(
   'Transition a_emettre -> avoir attribue aussi un numero_seq'
 );
 
+-- Serie unique a prefixe fixe depuis 20260610130000 (avant : AVR-<trigramme>).
 SELECT matches(
   (SELECT ref FROM factures
    WHERE id = (SELECT facture_id FROM _avoir)),
-  '^AVR-CON-\d{4}$',
-  'Avoir recoit un ref de la forme AVR-XXX-NNNN (serie distincte des factures)'
+  '^AVR-SOL-\d{4}$',
+  'Avoir recoit un ref de la forme AVR-SOL-NNNN (serie distincte des factures)'
 );
 
 -- ----- Assertion 6 : re-update facture deja emise n attribue pas un nouveau numero --

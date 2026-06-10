@@ -103,10 +103,11 @@ SELECT is(
 UPDATE factures SET statut = 'emise'
 WHERE id = (SELECT facture_id FROM _factures_test WHERE ord=1);
 
+-- Serie unique a prefixe fixe depuis 20260610130000 (avant : FAC-<trigramme>).
 SELECT matches(
   (SELECT ref FROM factures WHERE id = (SELECT facture_id FROM _factures_test WHERE ord=1)),
-  '^FAC-GAP-\d{4}$',
-  'ref attribue au format FAC-GAP-XXXX apres envoi'
+  '^FAC-SOL-\d{4}$',
+  'ref attribue au format FAC-SOL-XXXX apres envoi (serie unique)'
 );
 SELECT is(
   (SELECT numero_seq FROM factures WHERE id = (SELECT facture_id FROM _factures_test WHERE ord=1)),

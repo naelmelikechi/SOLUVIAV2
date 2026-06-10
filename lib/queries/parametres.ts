@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
+import type { Database } from '@/types/database';
 
 export async function getParametresByCategorie(categorie: string) {
   const supabase = await createClient();
@@ -106,6 +107,26 @@ export const EMETTEUR_FALLBACK: EmetteurInfo = {
   titulaire_compte: null,
 };
 
+export type SocieteEmettriceRow =
+  Database['public']['Tables']['societes_emettrices']['Row'];
+
+// Mapping unique societes_emettrices -> EmetteurInfo. Source de verite partagee
+// entre getEmetteurInfo (contexte requete) et le rendu PDF cron/script
+// (attach-pdf, scripts), pour eviter toute derive de mapping des champs.
+export function mapSocieteToEmetteur(s: SocieteEmettriceRow): EmetteurInfo {
+  return {
+    raison_sociale: s.raison_sociale,
+    adresse: `${s.adresse}, ${s.code_postal} ${s.ville}`,
+    siret: s.siret,
+    tva: s.tva_intracom,
+    iban: s.banque_iban,
+    bic: s.banque_bic,
+    banque: s.banque_nom,
+    titulaire_compte: s.raison_sociale,
+    mentions_legales: s.mentions_legales,
+  };
+}
+
 /**
  * Charge les infos emetteur depuis societes_emettrices.
  *
@@ -134,17 +155,7 @@ export async function getEmetteurInfo(
       return EMETTEUR_FALLBACK;
     }
 
-    return {
-      raison_sociale: data.raison_sociale,
-      adresse: `${data.adresse}, ${data.code_postal} ${data.ville}`,
-      siret: data.siret,
-      tva: data.tva_intracom,
-      iban: data.banque_iban,
-      bic: data.banque_bic,
-      banque: data.banque_nom,
-      titulaire_compte: data.raison_sociale,
-      mentions_legales: data.mentions_legales,
-    };
+    return mapSocieteToEmetteur(data);
   } catch (err) {
     logger.warn('queries.parametres', 'getEmetteurInfo fallback used', {
       error: err instanceof Error ? err.message : String(err),

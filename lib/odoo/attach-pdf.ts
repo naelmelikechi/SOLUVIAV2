@@ -1,6 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { renderFacturePdfBuffer } from '@/lib/utils/render-facture-pdf';
-import { EMETTEUR_FALLBACK, type EmetteurInfo } from '@/lib/queries/parametres';
+import {
+  EMETTEUR_FALLBACK,
+  mapSocieteToEmetteur,
+  type EmetteurInfo,
+  type SocieteEmettriceRow,
+} from '@/lib/queries/parametres';
 import type { OdooClient } from '@/lib/odoo/client';
 import { logger } from '@/lib/utils/logger';
 
@@ -19,6 +24,9 @@ export async function pushFacturePdfToOdoo(
   supabase: SupabaseClient,
   odoo: OdooClient,
   factureId: string,
+  // Override du nom de la piece jointe. Par defaut `${ref}.pdf`. Permet de
+  // ré-attacher un PDF corrigé sans ecraser l'original (nom distinct).
+  nameOverride?: string,
 ): Promise<{
   ok: boolean;
   skipped?: boolean;
@@ -71,9 +79,9 @@ export async function pushFacturePdfToOdoo(
       .eq('id', facture.societe_emettrice_id)
       .maybeSingle();
     if (e) {
-      emetteur = e as EmetteurInfo;
-      emetteurOdooCompanyId = (e as { odoo_company_id: number | null })
-        .odoo_company_id;
+      const societe = e as SocieteEmettriceRow;
+      emetteur = mapSocieteToEmetteur(societe);
+      emetteurOdooCompanyId = societe.odoo_company_id;
     }
   }
 
@@ -98,7 +106,7 @@ export async function pushFacturePdfToOdoo(
   try {
     const result = await odoo.attachInvoicePdf({
       move_odoo_id: facture.odoo_id,
-      name: `${facture.ref}.pdf`,
+      name: nameOverride ?? `${facture.ref}.pdf`,
       pdf_base64: pdfBuffer.toString('base64'),
       company_id: emetteurOdooCompanyId,
     });

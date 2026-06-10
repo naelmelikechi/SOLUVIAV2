@@ -42,13 +42,14 @@ test.describe('Temps flows (necessite storageState)', () => {
 
     // Naviguer 4 semaines en avant ; le panneau "Cette semaine" doit
     // rester monte et lisible sans afficher de stale absences.
+    // NB : on attend le changement du libelle de plage ("8 - 14 juin 2026") -
+    // l'ancien garde "Chargement..." ne matchait jamais (l'UI rend "…").
     const next = page.getByRole('button', { name: /semaine suivante/i });
+    const rangeLabel = page.getByText(/^\d{1,2} - \d{1,2} /).first();
     for (let i = 0; i < 4; i++) {
+      const before = await rangeLabel.textContent();
       await next.click();
-      // Attend la fin du transition (loader "Chargement..." disparait)
-      await expect(page.getByText('Chargement...')).toHaveCount(0, {
-        timeout: 3000,
-      });
+      await expect(rangeLabel).not.toHaveText(before ?? '', { timeout: 5000 });
     }
 
     await expect(page.getByText(/Cette semaine/i).first()).toBeVisible();
@@ -59,11 +60,13 @@ test.describe('Temps flows (necessite storageState)', () => {
   }) => {
     await page.goto('/temps');
 
-    // Aller sur S+1
+    // Aller sur S+1. Attendre que le libelle de plage CHANGE : ouvrir le
+    // formulaire avant la fin de la transition ferait monter le formulaire
+    // avec les weekDates de la semaine courante (date par defaut = today).
+    const rangeLabel = page.getByText(/^\d{1,2} - \d{1,2} /).first();
+    const before = await rangeLabel.textContent();
     await page.getByRole('button', { name: /semaine suivante/i }).click();
-    await expect(page.getByText('Chargement...')).toHaveCount(0, {
-      timeout: 3000,
-    });
+    await expect(rangeLabel).not.toHaveText(before ?? '', { timeout: 5000 });
 
     // Ouvrir le formulaire "Ajouter une absence"
     await page.getByRole('button', { name: /ajouter une absence/i }).click();
@@ -71,7 +74,8 @@ test.describe('Temps flows (necessite storageState)', () => {
     // Type conges par defaut. La date par defaut est dans la semaine vue
     // (fix de la session : auparavant c etait toujours `today` qui pouvait
     // tomber en dehors). On soumet sans toucher aux dates.
-    await page.getByRole('button', { name: /^créer$/i }).click();
+    // NB : pas d'ancre $ - le bouton porte aussi le hint clavier ("Créer ⌘↵").
+    await page.getByRole('button', { name: /^créer/i }).click();
 
     // Toast de succes
     await expect(page.getByText(/Absence enregistrée/i)).toBeVisible({

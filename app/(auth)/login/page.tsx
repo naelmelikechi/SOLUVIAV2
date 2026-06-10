@@ -1,6 +1,13 @@
 'use client';
 
-import { Suspense, useActionState, useEffect, useRef, useState } from 'react';
+import {
+  Suspense,
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -68,7 +75,9 @@ function LoginPageContent() {
     const password = (fd.get('password') as string | null)?.trim() ?? '';
 
     if (email && password) {
-      formAction(fd);
+      // useActionState exige que l'action soit invoquee dans une transition
+      // (sinon React 19 log une erreur console et `pending` ne suit pas).
+      startTransition(() => formAction(fd));
       return;
     }
 
@@ -129,13 +138,7 @@ function LoginPageContent() {
   return (
     <div className="border-border bg-card mx-auto max-w-md rounded-lg border p-8">
       <div className="mb-6 flex flex-col items-center text-center">
-        <Image
-          src="/logo.svg"
-          alt="Soluvia"
-          width={160}
-          height={40}
-          priority
-        />
+        <Image src="/logo.svg" alt="Soluvia" width={160} height={40} priority />
         <p className="text-muted-foreground mt-4 text-sm">
           Connectez-vous à votre compte
         </p>

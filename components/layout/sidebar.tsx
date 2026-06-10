@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getAvatarUrl } from '@/components/shared/user-avatar';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  Activity,
   ClipboardList,
   ShieldCheck,
   Clock,
@@ -140,6 +141,12 @@ const adminNavItems = [
     href: '/admin/bugs',
     label: 'Bugs',
     icon: Bug,
+    adminOnly: true,
+  },
+  {
+    href: '/admin/syncs',
+    label: 'Syncs',
+    icon: Activity,
     adminOnly: true,
   },
   {
@@ -293,7 +300,10 @@ export function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-3">
+      <nav
+        aria-label="Menu principal"
+        className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-3"
+      >
         {(() => {
           const visibleSections = navSections.flatMap((section) => {
             const items = section.items.filter((item) => {

@@ -78,6 +78,8 @@ export type AppErrorCode =
   | 'TEAM_CHAT_DELETE_FAILED'
   // Eduvia Sync
   | 'EDUVIA_SYNC_FAILED'
+  // Sante des synchronisations (page admin/syncs)
+  | 'SYNCS_FETCH_FAILED'
   // Intercontrat
   | 'INTERCONTRAT_FETCH_FAILED'
   // Projets internes

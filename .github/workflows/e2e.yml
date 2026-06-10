@@ -97,10 +97,17 @@ jobs:
       - name: Bootstrap admin user
         run: npx tsx scripts/e2e-bootstrap.ts
 
+      # Binaire local direct (pas npx : il peut bloquer indefiniment sur une
+      # resolution/prompt silencieux - vecu : 2 runs morts au timeout job sans
+      # UNE ligne de log). timeout step court pour echouer vite et visible.
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Build Next (prod)
+        timeout-minutes: 10
         run: npm run build
 
       - name: Start Next
@@ -115,9 +122,10 @@ jobs:
           exit 1
 
       - name: Run Playwright suite
+        timeout-minutes: 10
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
-        run: npx playwright test
+        run: ./node_modules/.bin/playwright test
 
       - name: Upload report on failure
         if: failure()

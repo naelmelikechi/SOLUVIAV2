@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { requireAuth } from '@/lib/auth/guards';
 import { env } from '@/lib/env';
 import { logAudit } from '@/lib/utils/audit';
+import { normalizeFrPhone } from '@/lib/utils/fr-phone';
 import {
   dailySeed,
   normalizeUnlockAttempt,
@@ -76,8 +77,8 @@ export async function updateProfile(
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user: authUser } = auth;
 
-  // Normalize: empty string → null (DB column is nullable).
-  const tel = telephone?.trim() ? telephone.trim() : null;
+  // Normalise vers le format national espace "0X XX XX XX XX" ; vide -> null.
+  const tel = normalizeFrPhone(telephone);
 
   const { error } = await supabase
     .from('users')

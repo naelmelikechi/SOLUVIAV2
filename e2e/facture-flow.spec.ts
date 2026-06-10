@@ -80,13 +80,19 @@ test.describe('Facturation - flux critique brouillon -> emission -> PDF', () => 
       .click();
     await expect(sendDialog).toBeHidden({ timeout: 20_000 });
 
-    // ----- 3. La facture emise porte une ref gapless FAC-ZZE-NNNN -----
+    // ----- 3. La facture emise porte une ref gapless (serie unique FAC-SOL-
+    // depuis 20260610130000 ; regex tolerante au prefixe pour ne pas coupler
+    // le test a la convention). On cible la LIGNE du client de test pour ne
+    // pas attraper une autre facture.
     await page.getByRole('tab', { name: /^factures/i }).click();
-    const refCell = page.getByText(/FAC-ZZE-\d{4}/).first();
-    await expect(refCell).toBeVisible({ timeout: 15_000 });
-    const refText = (await refCell.textContent()) ?? '';
-    const ref = refText.match(/FAC-ZZE-\d{4}/)?.[0];
-    expect(ref, 'ref gapless extraite de la liste').toBeTruthy();
+    const emiseRow = page
+      .getByRole('row')
+      .filter({ hasText: CLIENT_NAME })
+      .first();
+    await expect(emiseRow).toBeVisible({ timeout: 15_000 });
+    const rowText = (await emiseRow.textContent()) ?? '';
+    const ref = rowText.match(/FAC-[A-Z]{3}-\d{4}/)?.[0];
+    expect(ref, 'ref gapless extraite de la ligne du client e2e').toBeTruthy();
 
     // ----- 4. Le PDF est servi et valide (magic bytes %PDF) -----
     const pdfRes = await page.request.get(`/api/factures/${ref}/pdf`);

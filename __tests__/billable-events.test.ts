@@ -1900,6 +1900,7 @@ describe('getBillableEvents - état facture Eduvia (invoice_state)', () => {
             including_pedagogie_amount: 2505.6,
             total_amount: 2505.6,
             opco_settled_amount: 2505.6,
+            net_invoiced_amount: 3005.6,
             opening_date: '2026-06-01',
             paid_at: null,
             invoice_state: 'TRANSMIS',
@@ -1919,6 +1920,8 @@ describe('getBillableEvents - état facture Eduvia (invoice_state)', () => {
     const ev = result!.events[0]!;
     expect(ev.type).toBe('engagement');
     expect(ev.montant_brut).toBe(2505.6); // premier equipement (500) hors base
+    expect(ev.opco_settled_amount).toBe(2505.6);
+    expect(ev.net_invoiced_amount).toBe(3005.6); // pedago 2505.6 + equipement 500
   });
 
   it('engagement: NON facturable tant que opco_settled_amount < total_amount (rien encaisse), invoice_state=TRANSMIS -> en attente', async () => {

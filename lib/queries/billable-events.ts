@@ -63,6 +63,13 @@ export interface BillableEvent {
   external_number: string | null;
   invoice_number: string | null;
 
+  // Reglement OPCO du bordereau (Eduvia) : montant deja regle par l'OPCO
+  // (opco_settled_amount) et total facture (net_invoiced_amount = pedago +
+  // premier equipement). opco_settled_amount < net_invoiced_amount => regle
+  // partiel (typiquement pedago regle, premier equipement en attente).
+  opco_settled_amount: number | null;
+  net_invoiced_amount: number | null;
+
   opco_code: string | null; // OPCO resolu via IDCC employeur, null si non resolu
   opco_nom: string | null; // Nom affiche dans UI/PDF
 
@@ -256,7 +263,7 @@ export async function getBillableEvents(
     supabase
       .from('eduvia_invoice_steps')
       .select(
-        'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, total_amount, opco_settled_amount, opening_date, paid_at, invoice_state, invoice_number, external_number',
+        'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, total_amount, opco_settled_amount, net_invoiced_amount, opening_date, paid_at, invoice_state, invoice_number, external_number',
       )
       .in('contrat_id', contratIds)
       .not('invoice_state', 'is', null)
@@ -497,6 +504,24 @@ export async function getBillableEvents(
           .map((s) => s.invoice_number)
           .filter((x): x is string => !!x)
           .sort()[0] ?? null;
+      // Reglement OPCO agrege sur le(s) bordereau(x) pedago d'engagement :
+      // montant regle vs total facture, pour le badge "X recus sur Y".
+      const engagementSettled = engagementSteps.some(
+        (s) => s.opco_settled_amount != null,
+      )
+        ? engagementSteps.reduce(
+            (sum, s) => sum + Number(s.opco_settled_amount ?? 0),
+            0,
+          )
+        : null;
+      const engagementNetInvoiced = engagementSteps.some(
+        (s) => s.net_invoiced_amount != null,
+      )
+        ? engagementSteps.reduce(
+            (sum, s) => sum + Number(s.net_invoiced_amount ?? 0),
+            0,
+          )
+        : null;
       events.push({
         type: 'engagement',
         source_id: c.id,
@@ -514,6 +539,8 @@ export async function getBillableEvents(
         invoice_state: engagementInvoiceState,
         external_number: engagementExternalNumber,
         invoice_number: engagementInvoiceNumber,
+        opco_settled_amount: engagementSettled,
+        net_invoiced_amount: engagementNetInvoiced,
         opco_code: opcoInfo?.code ?? null,
         opco_nom: opcoInfo?.nom ?? null,
         montant_brut: agg.basePedagoEngagement,
@@ -565,6 +592,8 @@ export async function getBillableEvents(
         invoice_state: step.invoice_state ?? null,
         external_number: step.external_number ?? null,
         invoice_number: step.invoice_number ?? null,
+        opco_settled_amount: step.opco_settled_amount ?? null,
+        net_invoiced_amount: step.net_invoiced_amount ?? null,
         opco_code: opcoInfo?.code ?? null,
         opco_nom: opcoInfo?.nom ?? null,
         montant_brut: basePedago,

@@ -104,6 +104,8 @@ function mockEvent(
     invoice_state: 'TRANSMIS' as string | null,
     external_number: null,
     invoice_number: null,
+    opco_settled_amount: null,
+    net_invoiced_amount: null,
     montant_brut: 1000,
     montant_commissionne: 400,
     status: 'available' as const,

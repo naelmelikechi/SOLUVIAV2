@@ -42,6 +42,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { cn } from '@/lib/utils';
 import { OpcoFilter } from './opco-filter';
+import { SettlementBadge } from './settlement-badge';
 
 interface ManuelTabProps {
   projets: ProjetBillableEvents[];
@@ -629,22 +630,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                           <TableCell>
                             {e.invoice_state ? (
                               <div className="flex flex-col gap-0.5">
-                                <StatusBadge
-                                  label={
-                                    e.invoice_state === 'REGLE'
-                                      ? 'Payé'
-                                      : e.invoice_state === 'TRANSMIS'
-                                        ? 'Transmis'
-                                        : e.invoice_state
-                                  }
-                                  color={
-                                    e.invoice_state === 'REGLE'
-                                      ? 'green'
-                                      : e.invoice_state === 'TRANSMIS'
-                                        ? 'orange'
-                                        : 'gray'
-                                  }
-                                />
+                                <SettlementBadge event={e} />
                                 {e.step_paid_at ? (
                                   <span className="text-muted-foreground text-[10px]">
                                     {formatDate(e.step_paid_at)}

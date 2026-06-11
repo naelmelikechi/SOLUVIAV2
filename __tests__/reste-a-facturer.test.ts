@@ -12,7 +12,7 @@ import type {
 // facturer). Invariants couverts :
 //  - facturable/bloqué/déjà facturé = somme des events par statut
 //  - conversion HT depuis montant_commissionne (TTC) selon régime TVA
-//  - prévisionnel = max(0, npec×taux/100 - émis), actif uniquement
+//  - prévisionnel = max(0, (support ?? npec)×taux/100 - émis), actif seul
 //  - contrat event-less actif -> prévisionnel plein, facturable 0
 //  - totals == somme des lignes affichées (WYSIWYG)
 //  - groupements parProjet / parOpco + comptages
@@ -54,6 +54,7 @@ function ctr(over: Partial<ContratMeta> = {}): ContratMeta {
     formation_titre: 'Vente',
     contract_state: 'ENGAGE',
     npec_amount: 0,
+    support: null,
     opco_code: 'AKTO',
     opco_nom: 'AKTO',
     pedago_emis_non_paye: 0,
@@ -194,6 +195,36 @@ describe('buildResteAFacturer - prévisionnel et état du contrat', () => {
     expect(
       row.facturableHt + row.emisNonPayeHt + row.previsionnelHt,
     ).toBeCloseTo(row.potentielHt, 1);
+  });
+
+  it('prévisionnel basé sur support (pédago) : exclut le matériel/RQTH du NPEC', () => {
+    const p = projet({
+      tauxCommission: 50,
+      contrats: [
+        ctr({ npec_amount: 10000, support: 8000, contract_state: 'ENGAGE' }),
+      ],
+      events: [],
+    });
+    const row = buildResteAFacturer([p]).parContrat[0]!;
+    // potentielHt = plafond NPEC : 10000 × 50% = 5000 TTC -> 4166.67 HT
+    expect(row.potentielHt).toBe(4166.67);
+    // prévisionnel = base commissionnable (support) : 8000 × 50% -> 3333.33 HT
+    expect(row.previsionnelHt).toBe(3333.33);
+    // écart = (npec − support) × taux = matériel/RQTH jamais commissionné
+    expect(row.potentielHt - row.previsionnelHt).toBeCloseTo(833.33, 1);
+  });
+
+  it('fallback NPEC quand support absent (non synchronisé)', () => {
+    const p = projet({
+      tauxCommission: 50,
+      contrats: [
+        ctr({ npec_amount: 8000, support: null, contract_state: 'ENGAGE' }),
+      ],
+      events: [],
+    });
+    const row = buildResteAFacturer([p]).parContrat[0]!;
+    // pas de support -> base = npec : 8000 × 50% = 4000 TTC -> 3333.33 HT
+    expect(row.previsionnelHt).toBe(3333.33);
   });
 });
 

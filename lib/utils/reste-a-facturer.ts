@@ -18,11 +18,12 @@ import { isContratActif } from '@/lib/utils/contrat-states';
 //   - en attente : PEDAGOGIE émise mais NON encore payée par l'OPCO (steps
 //                  TRANSMIS). Quasi-certain (bordereau parti, virement à
 //                  venir) mais non facturable tant que non encaissé.
-//   - prévisionnel : estimation = potentiel commission contractuel (NPEC ×
-//                  taux) MOINS tout ce qui est déjà émis (facturable + bloqué
-//                  + déjà facturé + en attente) = les steps NON ENCORE ÉMIS.
-//                  Borne haute (NPEC inclut le matériel non commissionné),
-//                  contrats en état actif uniquement.
+//   - prévisionnel : estimation = base commissionnable contractuelle
+//                  (`support` × taux = pédago seul) MOINS tout ce qui est déjà
+//                  émis (facturable + bloqué + déjà facturé + en attente) = les
+//                  steps pédago NON ENCORE ÉMIS. `support` exclut le matériel /
+//                  RQTH (non commissionnés, mais inclus dans le NPEC) ; fallback
+//                  NPEC si support absent. Contrats en état actif uniquement.
 //
 // Unité d'affichage : HT, pour réconcilier avec factures.montant_ht et les
 // KPIs dashboard/production. montant_commissionne étant TTC (convention HEOL),
@@ -166,9 +167,14 @@ export function buildResteAFacturer(
       const dejaTtc = agg?.dejaTtc ?? 0;
       const emisNonPayeTtc = (c.pedago_emis_non_paye * taux) / 100;
       const emisTtc = facturableTtc + bloqueTtc + dejaTtc + emisNonPayeTtc;
+      // potentielHt = plafond théorique sur le NPEC contractuel total.
       const potentielTtc = (c.npec_amount * taux) / 100;
+      // Prévisionnel = reste commissionnable réel. La commission ne porte que
+      // sur le pédago (`support`), pas sur le matériel/RQTH inclus dans le NPEC.
+      // Fallback npec quand support non synchronisé (= ancienne borne haute).
+      const commissionnableTtc = ((c.support ?? c.npec_amount) * taux) / 100;
       const previsionnelTtc = isContratActif(c.contract_state)
-        ? Math.max(0, potentielTtc - emisTtc)
+        ? Math.max(0, commissionnableTtc - emisTtc)
         : 0;
 
       parContrat.push({

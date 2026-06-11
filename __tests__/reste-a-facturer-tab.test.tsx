@@ -48,6 +48,7 @@ function ctr(over: Partial<ContratMeta> = {}): ContratMeta {
     formation_titre: 'Vente',
     contract_state: 'ENGAGE',
     npec_amount: 0,
+    support: null,
     opco_code: 'AKTO',
     opco_nom: 'AKTO',
     pedago_emis_non_paye: 0,

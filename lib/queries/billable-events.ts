@@ -109,6 +109,9 @@ export interface ContratMeta {
   formation_titre: string | null;
   contract_state: string;
   npec_amount: number;
+  /** Base PEDAGOGIE commissionnable (Eduvia `support`) ; npec inclut le
+   *  materiel/RQTH non commissionne. null -> fallback npec au previsionnel. */
+  support: number | null;
   opco_code: string | null;
   opco_nom: string | null;
   /** Base PEDAGOGIE emise mais NON encore payee (steps TRANSMIS). Sert au
@@ -205,7 +208,7 @@ export async function getBillableEvents(
       `
       id, ref, contract_number, internal_number,
       apprenant_nom, apprenant_prenom, formation_titre,
-      contract_state, npec_amount, eduvia_company_id
+      contract_state, npec_amount, support, eduvia_company_id
     `,
     )
     .eq('projet_id', projetId)
@@ -429,6 +432,7 @@ export async function getBillableEvents(
       formation_titre: c.formation_titre,
       contract_state: c.contract_state,
       npec_amount: Number(c.npec_amount ?? 0),
+      support: c.support != null ? Number(c.support) : null,
       opco_code: opcoInfo?.code ?? null,
       opco_nom: opcoInfo?.nom ?? null,
       pedago_emis_non_paye: agg.basePedagoEmisNonPaye,

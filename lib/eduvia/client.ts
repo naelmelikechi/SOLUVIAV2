@@ -135,6 +135,12 @@ export interface EduviaInvoiceStep {
   including_rqth_amount: number;
   paid_amount: number;
   in_progress_amount: number;
+  // Règlement partiel OPCO (Eduvia 2026-06-11) : opco_settled_amount =
+  // montant réglé sur l'échéance pédago (>= total_amount ⇒ pédago réglé,
+  // même si invoice_state reste TRANSMIS faute de premier équipement réglé).
+  // net_invoiced_amount = total facturé OPCO (pédago + premier équipement).
+  opco_settled_amount: number;
+  net_invoiced_amount: number;
   siret_cfa: string;
   external_code: string;
   invoice_state: string | null;

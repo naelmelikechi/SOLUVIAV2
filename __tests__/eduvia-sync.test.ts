@@ -221,6 +221,37 @@ function learnerFixture(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+function contractFixture(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 1,
+    employee_id: 1,
+    company_id: 10,
+    formation_id: 1,
+    teacher_id: null,
+    campus_id: 1,
+    contract_number: '076202606000001',
+    internal_number: null,
+    contract_type: null,
+    contract_mode: null,
+    contract_state: 'ENGAGE',
+    contract_start_date: null,
+    contract_end_date: null,
+    contract_conclusion_date: null,
+    practical_training_start_date: null,
+    creation_mode: 'manual',
+    support: null,
+    support_first_equipment: null,
+    npec_amount: null,
+    referrer_name: null,
+    referrer_amount: null,
+    referrer_type: 'none',
+    accepted_at: null,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
 function projetsRule(projetId = 'projet-A') {
   return {
     select: () => ({
@@ -457,6 +488,47 @@ describe('syncEduviaForClient — multi-tenant isolation', () => {
     ).toBe('B');
     // Pas de fuite : eduvia_id 1 jamais sur instance B
     expect((apprenantB!.payload as { eduvia_id: number }).eduvia_id).toBe(2);
+  });
+
+  it('lookups contrats par eduvia_id sont scopés par source_client_id (anti-collision multi-instances)', async () => {
+    // Régression : eduvia_id n'est unique QUE par (eduvia_id, source_client_id).
+    // Deux instances Eduvia distinctes réutilisent les mêmes petits id (contrat
+    // #1, #2, ...). Si le lookup contrats -> UUID n'est pas filtré par
+    // source_client_id, le Map eduvia_id -> contrat_id retient le contrat d'un
+    // AUTRE client (dernier gagnant) et y route invoice_steps / lignes /
+    // progressions, laissant le bon contrat sans steps (donc non facturable).
+    fetchAllPagesMock.mockImplementation(
+      async (_url: string, _key: string, resource: string) => {
+        if (resource === 'contracts') return [contractFixture({ id: 1 })];
+        return [];
+      },
+    );
+    const supa = buildSupabase({ projets: projetsRule() });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    await syncEduviaForClient(
+      supa.client,
+      'client-X',
+      'cfa.eduvia.app',
+      'key-X',
+    );
+
+    // Tous les SELECT sur `contrats` filtrant par eduvia_id (snapshot
+    // NPEC/rupture + map progressions/steps) doivent aussi filtrer le client.
+    const contratEduviaSelects = supa.ops.filter(
+      (o) =>
+        o.table === 'contrats' &&
+        o.op === 'select' &&
+        o.filters.some((f) => f.col === 'eduvia_id'),
+    );
+    expect(contratEduviaSelects.length).toBeGreaterThanOrEqual(2);
+    for (const op of contratEduviaSelects) {
+      expect(
+        op.filters.some(
+          (f) => f.col === 'source_client_id' && f.val === 'client-X',
+        ),
+      ).toBe(true);
+    }
   });
 });
 

@@ -1417,6 +1417,8 @@ export type Database = {
           invoice_sent_at: string | null;
           invoice_state: string | null;
           last_synced_at: string;
+          net_invoiced_amount: number | null;
+          opco_settled_amount: number | null;
           opening_date: string | null;
           paid_amount: number | null;
           paid_at: string | null;
@@ -1441,6 +1443,8 @@ export type Database = {
           invoice_sent_at?: string | null;
           invoice_state?: string | null;
           last_synced_at?: string;
+          net_invoiced_amount?: number | null;
+          opco_settled_amount?: number | null;
           opening_date?: string | null;
           paid_amount?: number | null;
           paid_at?: string | null;
@@ -1465,6 +1469,8 @@ export type Database = {
           invoice_sent_at?: string | null;
           invoice_state?: string | null;
           last_synced_at?: string;
+          net_invoiced_amount?: number | null;
+          opco_settled_amount?: number | null;
           opening_date?: string | null;
           paid_amount?: number | null;
           paid_at?: string | null;

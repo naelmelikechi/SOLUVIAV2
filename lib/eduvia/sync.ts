@@ -348,6 +348,7 @@ export async function syncEduviaForClient(
             'id, eduvia_id, npec_amount, contract_state, archive, date_fin',
           )
           .in('eduvia_id', eduviaIds)
+          .eq('source_client_id', clientId)
       : {
           data: [] as Array<{
             id: string;
@@ -561,7 +562,8 @@ export async function syncEduviaForClient(
       .in(
         'eduvia_id',
         contracts.map((c) => c.id),
-      );
+      )
+      .eq('source_client_id', clientId);
 
     if (contratsLookupError) {
       result.errors.push(
@@ -702,6 +704,8 @@ export async function syncEduviaForClient(
                   including_rqth_amount: step.including_rqth_amount,
                   paid_amount: step.paid_amount,
                   in_progress_amount: step.in_progress_amount,
+                  opco_settled_amount: step.opco_settled_amount,
+                  net_invoiced_amount: step.net_invoiced_amount,
                   siret_cfa: step.siret_cfa,
                   external_code: step.external_code,
                   invoice_state: step.invoice_state,

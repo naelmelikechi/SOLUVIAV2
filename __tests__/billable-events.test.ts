@@ -1865,4 +1865,102 @@ describe('getBillableEvents - état facture Eduvia (invoice_state)', () => {
     expect(ev.invoice_state).toBe('REGLE');
     expect(ev.step_paid_at).toBe('2026-03-15');
   });
+
+  it('engagement: facturable des que opco_settled_amount >= total_amount, meme si invoice_state=TRANSMIS (premier equipement non regle)', async () => {
+    // Cas reel HEOL : l'OPCO a regle l'echeance pedago (2505.6) mais pas le
+    // premier equipement (500), donc Eduvia laisse invoice_state=TRANSMIS.
+    // Le premier equipement etant hors base commission, le pedago est
+    // facturable des maintenant.
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat()] },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 910,
+            contrat_id: 'ctr-1',
+            amount: 2505.6,
+            line_type: 'PEDAGOGIE',
+          },
+          {
+            eduvia_invoice_id: 910,
+            contrat_id: 'ctr-1',
+            amount: 500,
+            line_type: 'PREMIEREQUIPEMENT',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-910',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 910,
+            including_pedagogie_amount: 2505.6,
+            total_amount: 2505.6,
+            opco_settled_amount: 2505.6,
+            opening_date: '2026-06-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    expect(result!.events).toHaveLength(1);
+    const ev = result!.events[0]!;
+    expect(ev.type).toBe('engagement');
+    expect(ev.montant_brut).toBe(2505.6); // premier equipement (500) hors base
+  });
+
+  it('engagement: NON facturable tant que opco_settled_amount < total_amount (rien encaisse), invoice_state=TRANSMIS -> en attente', async () => {
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat()] },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 911,
+            contrat_id: 'ctr-1',
+            amount: 2505.6,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-911',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 911,
+            including_pedagogie_amount: 2505.6,
+            total_amount: 2505.6,
+            opco_settled_amount: 0,
+            opening_date: '2026-06-01',
+            paid_at: null,
+            invoice_state: 'TRANSMIS',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    // pedago non encaisse -> aucun event facturable (bucket "en attente")
+    expect(result!.events).toHaveLength(0);
+  });
 });

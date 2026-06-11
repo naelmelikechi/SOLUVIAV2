@@ -256,7 +256,7 @@ export async function getBillableEvents(
     supabase
       .from('eduvia_invoice_steps')
       .select(
-        'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state, invoice_number, external_number',
+        'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, total_amount, opco_settled_amount, opening_date, paid_at, invoice_state, invoice_number, external_number',
       )
       .in('contrat_id', contratIds)
       .not('invoice_state', 'is', null)
@@ -317,11 +317,18 @@ export async function getBillableEvents(
     // whitelist -> entre dans la base
     const step = stepByInvoiceId.get(line.eduvia_invoice_id);
     if (!step) continue;
-    // Regle metier HEOL : on ne facture la commission que sur l'argent
-    // REELLEMENT ENCAISSE. Seul un step REGLE (paye) entre dans la base
-    // facturable. Un step seulement emis (TRANSMIS) est capte a part dans
-    // basePedagoEmisNonPaye -> bucket "en attente de paiement OPCO".
-    if (step.invoice_state !== 'REGLE') {
+    // Regle metier HEOL : commission sur l'argent REELLEMENT ENCAISSE par
+    // l'OPCO au titre du PEDAGOGIQUE. Un step est facturable des que l'OPCO a
+    // regle l'echeance pedago (opco_settled_amount >= total_amount du step),
+    // MEME si invoice_state reste 'TRANSMIS' parce que le premier equipement
+    // (hors base commission HEOL) n'est pas encore regle. Fallback sur REGLE
+    // pour les steps pas encore resynchronises (opco_settled_amount NULL).
+    const pedagoRegle =
+      step.invoice_state === 'REGLE' ||
+      (step.opco_settled_amount != null &&
+        step.total_amount != null &&
+        Number(step.opco_settled_amount) >= Number(step.total_amount));
+    if (!pedagoRegle) {
       agg.basePedagoEmisNonPaye += Number(line.amount);
       continue;
     }

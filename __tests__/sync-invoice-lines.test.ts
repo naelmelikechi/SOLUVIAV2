@@ -114,6 +114,10 @@ function buildSupabase(rules: Record<string, TableRules>) {
         op.filters.push({ col, val: vals });
         return chain;
       },
+      not(col: string, _operator: string, val: unknown) {
+        op.filters.push({ col, val });
+        return chain;
+      },
       maybeSingle() {
         return settle().then((r) => ({
           data: Array.isArray(r.data) ? (r.data[0] ?? null) : (r.data ?? null),

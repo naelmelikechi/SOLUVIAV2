@@ -92,14 +92,27 @@ interface TableRules {
     opts?: unknown,
   ) => { data?: unknown; error: unknown };
   update?: () => { error: unknown };
+  delete?: () => { error: unknown };
 }
 
 function buildSupabase(rules: Record<string, TableRules>) {
   const ops: RecordedOp[] = [];
 
-  function selectChain(op: RecordedOp, rule?: TableRules['select']) {
+  function selectChain(
+    op: RecordedOp,
+    rule?: TableRules['select'],
+    options?: { count?: string; head?: boolean },
+  ) {
     const settle = () => {
       const r = rule ? rule() : { data: [], error: null };
+      // .select(col, { count, head: true }) renvoie un count, sans data.
+      if (options?.head && options?.count) {
+        return Promise.resolve({
+          count: Array.isArray(r.data) ? r.data.length : 0,
+          data: null,
+          error: r.error,
+        });
+      }
       return Promise.resolve(r);
     };
     const chain: Record<string, unknown> = {
@@ -109,6 +122,10 @@ function buildSupabase(rules: Record<string, TableRules>) {
       },
       in(col: string, vals: unknown) {
         op.filters.push({ col, val: vals });
+        return chain;
+      },
+      not(col: string, _operator: string, val: unknown) {
+        op.filters.push({ col, val });
         return chain;
       },
       maybeSingle() {
@@ -144,16 +161,43 @@ function buildSupabase(rules: Record<string, TableRules>) {
     return chain;
   }
 
+  function deleteChain(op: RecordedOp, rule?: TableRules['delete']) {
+    const settle = () => Promise.resolve(rule ? rule() : { error: null });
+    const chain: Record<string, unknown> = {
+      eq(col: string, val: unknown) {
+        op.filters.push({ col, val });
+        return chain;
+      },
+      in(col: string, vals: unknown) {
+        op.filters.push({ col, val: vals });
+        return chain;
+      },
+      not(col: string, _operator: string, val: unknown) {
+        op.filters.push({ col, val });
+        return chain;
+      },
+      then(resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) {
+        return settle().then(resolve, reject);
+      },
+    };
+    return chain;
+  }
+
   return {
     ops,
     client: {
       from(table: string) {
         const tableRules = rules[table];
         return {
-          select(_cols?: string) {
-            const op: RecordedOp = { table, op: 'select', filters: [] };
+          select(_cols?: string, options?: { count?: string; head?: boolean }) {
+            const op: RecordedOp = {
+              table,
+              op: 'select',
+              filters: [],
+              options,
+            };
             ops.push(op);
-            return selectChain(op, tableRules?.select);
+            return selectChain(op, tableRules?.select, options);
           },
           upsert(payload: unknown, options?: unknown) {
             const op: RecordedOp = {
@@ -188,6 +232,15 @@ function buildSupabase(rules: Record<string, TableRules>) {
             };
             ops.push(op);
             return Promise.resolve({ error: null });
+          },
+          delete() {
+            const op: RecordedOp = {
+              table,
+              op: 'delete',
+              filters: [],
+            };
+            ops.push(op);
+            return deleteChain(op, tableRules?.delete);
           },
         };
       },
@@ -842,6 +895,116 @@ describe('syncEduviaForClient — orphan cleanup contrats', () => {
   });
 });
 
+describe('syncEduviaForClient — orphan cleanup invoice_steps', () => {
+  // Contrat vivant cote Eduvia (id=10 -> uuid-10). /invoice_steps renvoie de
+  // NOUVEAUX step ids (re-emission de bordereau) : les anciens steps en DB
+  // doivent etre supprimes, SAUF ceux adosses a une ligne de facture live.
+  function contratsRule() {
+    return {
+      select: () => ({
+        data: [{ id: 'uuid-10', eduvia_id: 10, ref: 'CTR-10' }],
+        error: null,
+      }),
+      upsert: () => ({ error: null }),
+      update: () => ({ error: null }),
+    };
+  }
+
+  function apiReturnsContract10() {
+    fetchAllPagesMock.mockImplementation((_u, _k, resource: string) =>
+      Promise.resolve(
+        resource === 'contracts' ? [contractFixture({ id: 10 })] : [],
+      ),
+    );
+  }
+
+  it('supprime les steps absents de l API mais preserve ceux deja factures', async () => {
+    apiReturnsContract10();
+    // /invoice_steps -> 2 nouveaux ids (200, 201) ; forecast -> vide.
+    fetchListMock.mockImplementation((_u, _k, path: string) =>
+      Promise.resolve(
+        path.endsWith('/invoice_steps')
+          ? [
+              { id: 200, contract_id: 10, step_number: 1, invoice_id: null },
+              { id: 201, contract_id: 10, step_number: 2, invoice_id: null },
+            ]
+          : [],
+      ),
+    );
+
+    const { client, ops } = buildSupabase({
+      projets: projetsRule(),
+      contrats: contratsRule(),
+      eduvia_invoice_steps: {
+        // 2 anciens steps en DB absents de l API = candidats orphelins.
+        select: () => ({
+          data: [{ id: 'step-old-1' }, { id: 'step-old-2' }],
+          error: null,
+        }),
+        upsert: () => ({ error: null }),
+        delete: () => ({ error: null }),
+      },
+      facture_lignes: {
+        // step-old-2 est adosse a une ligne opco_step live -> a preserver.
+        select: () => ({
+          data: [{ event_source_id: 'step-old-2' }],
+          error: null,
+        }),
+      },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      client,
+      'client-X',
+      'inst.eduvia.app',
+      'key',
+    );
+
+    expect(res.invoice_steps_orphan_deleted).toBe(1);
+    const deleteOps = ops.filter(
+      (o) => o.table === 'eduvia_invoice_steps' && o.op === 'delete',
+    );
+    expect(deleteOps).toHaveLength(1);
+    // seul step-old-1 est supprime ; step-old-2 (facture) est exclu.
+    expect(deleteOps[0]!.filters).toEqual([{ col: 'id', val: ['step-old-1'] }]);
+  });
+
+  it('si /invoice_steps renvoie 0 step, ne supprime rien (garde anti-wipe)', async () => {
+    apiReturnsContract10();
+    // 0 step partout (panne transitoire Eduvia).
+    fetchListMock.mockImplementation(() => Promise.resolve([]));
+
+    const { client, ops } = buildSupabase({
+      projets: projetsRule(),
+      contrats: contratsRule(),
+      eduvia_invoice_steps: {
+        // La DB a encore des steps : le count anti-wipe les voit (count=1).
+        select: () => ({ data: [{ id: 'step-old-1' }], error: null }),
+        upsert: () => ({ error: null }),
+        delete: () => ({ error: null }),
+      },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      client,
+      'client-X',
+      'inst.eduvia.app',
+      'key',
+    );
+
+    expect(res.invoice_steps_orphan_deleted).toBe(0);
+    const deleteOps = ops.filter(
+      (o) => o.table === 'eduvia_invoice_steps' && o.op === 'delete',
+    );
+    expect(deleteOps).toHaveLength(0);
+    expect(
+      res.errors.some((e) => /skip delete pour eviter wipe/i.test(e)),
+    ).toBe(true);
+  });
+});
+
 describe('syncEduviaForClient — limites connues', () => {
   it.skip('apprenant supprimé chez Eduvia → archive côté Soluvia (requires diff/tombstone refactor)', () => {
     // sync.ts ne diff pas la liste reçue avec ce qui existe en base ; il fait
@@ -867,6 +1030,7 @@ describe('computeSyncStatut', () => {
       invoice_steps: 0,
       invoice_forecast_steps: 0,
       invoice_lines: 0,
+      invoice_steps_orphan_deleted: 0,
       contrats_archived_orphan: 0,
       contrats_projet_fallback: 0,
       errors: [] as string[],

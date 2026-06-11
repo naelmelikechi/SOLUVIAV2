@@ -51,6 +51,9 @@ export type SyncClientResult = {
   invoice_steps: number;
   invoice_forecast_steps: number;
   invoice_lines: number;
+  /** Steps orphelins supprimes ce run : bordereau Eduvia re-emis avec de
+   *  nouveaux step ids, anciens steps retires (hors steps deja factures). */
+  invoice_steps_orphan_deleted: number;
   /** Contrats archivés ce run parce que /contracts ne les renvoie plus (fantômes Eduvia). */
   contrats_archived_orphan: number;
   /** Contrats rattachés au projet fallback faute de mapping eduvia_company_ids (multi-projets). */
@@ -148,6 +151,7 @@ export async function syncEduviaForClient(
     invoice_steps: 0,
     invoice_forecast_steps: 0,
     invoice_lines: 0,
+    invoice_steps_orphan_deleted: 0,
     contrats_archived_orphan: 0,
     contrats_projet_fallback: 0,
     errors: [],
@@ -725,6 +729,77 @@ export async function syncEduviaForClient(
               result.invoice_steps++;
             }
           }
+
+          // Orphan cleanup au niveau contrat : Eduvia re-emet parfois un
+          // bordereau avec de nouveaux step ids, laissant les anciens steps
+          // en DB. On retire les steps que l'API ne renvoie plus. Garde
+          // anti-wipe : si l'API renvoie 0 step alors qu'on en a, on skip
+          // (panne transitoire). Garde legale : on ne supprime jamais un step
+          // adosse a une ligne de facture live (un event opco_step facture
+          // porte event_source_id = eduvia_invoice_steps.id -> tracabilite).
+          if (steps.length === 0) {
+            const { count: existingCount } = await supabase
+              .from('eduvia_invoice_steps')
+              .select('id', { count: 'exact', head: true })
+              .eq('contrat_id', contratId);
+            if ((existingCount ?? 0) > 0) {
+              result.errors.push(
+                `InvoiceStep orphan cleanup contrat=${contract.id}: API renvoie 0 step mais DB en a ${existingCount}, skip delete pour eviter wipe.`,
+              );
+            }
+          } else {
+            const apiStepIds = steps.map((s) => s.id);
+            const { data: orphanRows, error: orphanSelErr } = await supabase
+              .from('eduvia_invoice_steps')
+              .select('id')
+              .eq('contrat_id', contratId)
+              .not('eduvia_id', 'in', `(${apiStepIds.join(',')})`);
+            if (orphanSelErr) {
+              result.errors.push(
+                `InvoiceStep orphan cleanup contrat=${contract.id}: ${orphanSelErr.message}`,
+              );
+            } else if (orphanRows && orphanRows.length > 0) {
+              const orphanStepIds = orphanRows.map((r) => r.id);
+              // Garde legale : exclure les steps adosses a une ligne live.
+              const { data: billedLines } = await supabase
+                .from('facture_lignes')
+                .select('event_source_id')
+                .eq('event_type', 'opco_step')
+                .eq('est_avoir', false)
+                .in('event_source_id', orphanStepIds);
+              const billedStepIds = new Set(
+                (billedLines ?? []).map((l) => l.event_source_id),
+              );
+              const deletable = orphanStepIds.filter(
+                (id) => !billedStepIds.has(id),
+              );
+              if (billedStepIds.size > 0) {
+                logger.info(
+                  'eduvia_sync',
+                  'steps orphelins conserves (adosses a une facture)',
+                  { clientId, contratId, count: billedStepIds.size },
+                );
+              }
+              if (deletable.length > 0) {
+                const { error: deleteErr } = await supabase
+                  .from('eduvia_invoice_steps')
+                  .delete()
+                  .in('id', deletable);
+                if (deleteErr) {
+                  result.errors.push(
+                    `InvoiceStep orphan cleanup contrat=${contract.id}: ${deleteErr.message}`,
+                  );
+                } else {
+                  result.invoice_steps_orphan_deleted += deletable.length;
+                  logger.info('eduvia_sync', 'steps orphelins supprimes', {
+                    clientId,
+                    contratId,
+                    count: deletable.length,
+                  });
+                }
+              }
+            }
+          }
         } catch (err) {
           if (!(err instanceof EndpointNotAvailableError)) {
             result.errors.push(
@@ -989,6 +1064,7 @@ export async function syncAllEduviaClients(
           invoice_steps: 0,
           invoice_forecast_steps: 0,
           invoice_lines: 0,
+          invoice_steps_orphan_deleted: 0,
           contrats_archived_orphan: 0,
           contrats_projet_fallback: 0,
           errors: [
@@ -1033,6 +1109,8 @@ export async function syncAllEduviaClients(
           invoice_steps: clientResult.invoice_steps,
           invoice_forecast_steps: clientResult.invoice_forecast_steps,
           invoice_lines: clientResult.invoice_lines,
+          invoice_steps_orphan_deleted:
+            clientResult.invoice_steps_orphan_deleted,
           contrats_archived_orphan: clientResult.contrats_archived_orphan,
         });
       }
@@ -1054,6 +1132,7 @@ export async function syncAllEduviaClients(
         invoice_steps: clientResult.invoice_steps,
         invoice_forecast_steps: clientResult.invoice_forecast_steps,
         invoice_lines: clientResult.invoice_lines,
+        invoice_steps_orphan_deleted: clientResult.invoice_steps_orphan_deleted,
         contrats_archived_orphan: clientResult.contrats_archived_orphan,
       });
     } catch (err) {

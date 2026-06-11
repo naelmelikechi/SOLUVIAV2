@@ -28,6 +28,8 @@ function ev(over: Partial<BillableEvent> = {}): BillableEvent {
     step_opening_date: null,
     step_paid_at: null,
     invoice_state: 'REGLE',
+    external_number: null,
+    invoice_number: null,
     opco_code: 'AKTO',
     opco_nom: 'AKTO',
     montant_brut: 0,

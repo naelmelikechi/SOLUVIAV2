@@ -650,6 +650,14 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                     {formatDate(e.step_paid_at)}
                                   </span>
                                 ) : null}
+                                {(e.external_number ?? e.invoice_number) ? (
+                                  <span
+                                    className="text-muted-foreground text-[10px]"
+                                    title="N° bordereau OPCO / facture Eduvia"
+                                  >
+                                    {e.external_number ?? e.invoice_number}
+                                  </span>
+                                ) : null}
                               </div>
                             ) : (
                               <span className="text-muted-foreground">

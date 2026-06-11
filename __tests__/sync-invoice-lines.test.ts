@@ -32,6 +32,7 @@ const fetchOneMock = vi.fn();
 const fetchListMock = vi.fn();
 const fetchStatusMock = vi.fn();
 const fetchContractInvoiceLinesMock = vi.fn();
+const fetchContractInvoicesMock = vi.fn();
 
 class EndpointNotAvailableError extends Error {
   constructor(public resource: string) {
@@ -56,6 +57,8 @@ vi.mock('@/lib/eduvia/client', () => ({
   fetchStatus: (...args: unknown[]) => fetchStatusMock(...args),
   fetchContractInvoiceLines: (...args: unknown[]) =>
     fetchContractInvoiceLinesMock(...args),
+  fetchContractInvoices: (...args: unknown[]) =>
+    fetchContractInvoicesMock(...args),
   EndpointNotAvailableError,
   AuthError,
 }));
@@ -386,6 +389,9 @@ beforeEach(() => {
   fetchContractInvoiceLinesMock.mockRejectedValue(
     new EndpointNotAvailableError('contracts/0/invoice_lines'),
   );
+
+  // fetchContractInvoices: pas de facture par defaut (tracabilite best-effort)
+  fetchContractInvoicesMock.mockResolvedValue([]);
 });
 
 // ---------------------------------------------------------------------------
@@ -700,5 +706,84 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       (o) => o.op === 'delete' && o.table === 'eduvia_invoice_lines',
     );
     expect(deleteOps).toHaveLength(0);
+  });
+});
+
+describe('syncEduviaForClient — traçabilité invoice_number/external_number', () => {
+  it('enrichit le step émis avec invoice_number/external_number depuis /invoices', async () => {
+    fetchListMock.mockImplementation(
+      async (_url: string, _key: string, resource: string) => {
+        if (resource === 'contracts/1/invoice_steps') return [STEP_PEDAGO];
+        if (resource === 'contracts/1/invoice_forecast_steps') return [];
+        return [];
+      },
+    );
+    fetchContractInvoicesMock.mockResolvedValue([
+      {
+        id: 200,
+        invoice_number: 'HEOL-EDV-FAC-2026-54',
+        external_number: '7633946',
+      },
+    ]);
+
+    const supa = buildSupabase({
+      projets: projetsRule(),
+      contrats: contratsRule(),
+      eduvia_invoice_steps: { upsert: () => ({ error: null }) },
+      eduvia_invoice_forecast_steps: { upsert: () => ({ error: null }) },
+      eduvia_invoice_lines: { upsert: () => ({ error: null }) },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    await syncEduviaForClient(
+      supa.client,
+      CLIENT_ID,
+      'heol.eduvia.app',
+      'fake-key',
+    );
+
+    const stepOp = supa.ops.find(
+      (o) => o.op === 'upsert' && o.table === 'eduvia_invoice_steps',
+    );
+    expect(stepOp).toBeDefined();
+    const payload = stepOp!.payload as Record<string, unknown>;
+    expect(payload.eduvia_invoice_id).toBe(200);
+    expect(payload.invoice_number).toBe('HEOL-EDV-FAC-2026-54');
+    expect(payload.external_number).toBe('7633946');
+  });
+
+  it('met les réfs à null sans casser la sync quand /invoices échoue', async () => {
+    fetchListMock.mockImplementation(
+      async (_url: string, _key: string, resource: string) => {
+        if (resource === 'contracts/1/invoice_steps') return [STEP_PEDAGO];
+        if (resource === 'contracts/1/invoice_forecast_steps') return [];
+        return [];
+      },
+    );
+    fetchContractInvoicesMock.mockRejectedValue(new Error('boom'));
+
+    const supa = buildSupabase({
+      projets: projetsRule(),
+      contrats: contratsRule(),
+      eduvia_invoice_steps: { upsert: () => ({ error: null }) },
+      eduvia_invoice_forecast_steps: { upsert: () => ({ error: null }) },
+      eduvia_invoice_lines: { upsert: () => ({ error: null }) },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      supa.client,
+      CLIENT_ID,
+      'heol.eduvia.app',
+      'fake-key',
+    );
+
+    const stepOp = supa.ops.find(
+      (o) => o.op === 'upsert' && o.table === 'eduvia_invoice_steps',
+    );
+    const payload = stepOp!.payload as Record<string, unknown>;
+    expect(payload.invoice_number).toBeNull();
+    expect(payload.external_number).toBeNull();
+    expect(res.invoice_steps).toBe(1);
   });
 });

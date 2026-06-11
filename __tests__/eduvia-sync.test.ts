@@ -55,6 +55,8 @@ vi.mock('@/lib/eduvia/client', () => ({
   fetchOne: (...args: unknown[]) => fetchOneMock(...args),
   fetchList: (...args: unknown[]) => fetchListMock(...args),
   fetchStatus: (...args: unknown[]) => fetchStatusMock(...args),
+  fetchContractInvoiceLines: () => Promise.resolve([]),
+  fetchContractInvoices: () => Promise.resolve([]),
   EndpointNotAvailableError,
   AuthError,
 }));

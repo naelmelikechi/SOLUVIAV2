@@ -58,6 +58,11 @@ export interface BillableEvent {
 
   invoice_state: string | null; // etat facture Eduvia (TRANSMIS/REGLE), miroir de eduvia_invoice_steps
 
+  // Traçabilité Eduvia : réf bordereau OPCO (external_number) + n° facture
+  // Eduvia (invoice_number), miroir de eduvia_invoice_steps (sync /invoices).
+  external_number: string | null;
+  invoice_number: string | null;
+
   opco_code: string | null; // OPCO resolu via IDCC employeur, null si non resolu
   opco_nom: string | null; // Nom affiche dans UI/PDF
 
@@ -251,7 +256,7 @@ export async function getBillableEvents(
     supabase
       .from('eduvia_invoice_steps')
       .select(
-        'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state',
+        'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, opening_date, paid_at, invoice_state, invoice_number, external_number',
       )
       .in('contrat_id', contratIds)
       .not('invoice_state', 'is', null)
@@ -475,6 +480,16 @@ export async function getBillableEvents(
           .map((s) => s.opening_date)
           .filter((d): d is string => !!d)
           .sort()[0] ?? null;
+      const engagementExternalNumber =
+        engagementSteps
+          .map((s) => s.external_number)
+          .filter((x): x is string => !!x)
+          .sort()[0] ?? null;
+      const engagementInvoiceNumber =
+        engagementSteps
+          .map((s) => s.invoice_number)
+          .filter((x): x is string => !!x)
+          .sort()[0] ?? null;
       events.push({
         type: 'engagement',
         source_id: c.id,
@@ -490,6 +505,8 @@ export async function getBillableEvents(
         step_opening_date: engagementOpeningDate,
         step_paid_at: null,
         invoice_state: engagementInvoiceState,
+        external_number: engagementExternalNumber,
+        invoice_number: engagementInvoiceNumber,
         opco_code: opcoInfo?.code ?? null,
         opco_nom: opcoInfo?.nom ?? null,
         montant_brut: agg.basePedagoEngagement,
@@ -539,6 +556,8 @@ export async function getBillableEvents(
         step_opening_date: step.opening_date ?? null,
         step_paid_at: step.paid_at ?? null,
         invoice_state: step.invoice_state ?? null,
+        external_number: step.external_number ?? null,
+        invoice_number: step.invoice_number ?? null,
         opco_code: opcoInfo?.code ?? null,
         opco_nom: opcoInfo?.nom ?? null,
         montant_brut: basePedago,

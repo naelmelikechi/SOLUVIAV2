@@ -7,6 +7,7 @@ import {
   fetchList,
   fetchStatus,
   fetchContractInvoiceLines,
+  fetchContractInvoices,
   EndpointNotAvailableError,
   AuthError,
 } from '@/lib/eduvia/client';
@@ -647,7 +648,43 @@ export async function syncEduviaForClient(
             apiKey,
             `contracts/${contract.id}/invoice_steps`,
           );
+          // Traçabilité bordereau : map invoice_id -> n° facture Eduvia + réf
+          // OPCO, depuis /contracts/:id/invoices. Best-effort (un échec n'empêche
+          // pas l'upsert des steps) ; gardé par steps émis pour éviter un appel
+          // réseau inutile sur les contrats sans facture.
+          const invoiceRefs = new Map<
+            number,
+            { invoice_number: string | null; external_number: string | null }
+          >();
+          if (steps.some((s) => s.invoice_id != null)) {
+            try {
+              // oxlint-disable-next-line react-doctor/async-await-in-loop
+              const invoices = await fetchContractInvoices(
+                instanceUrl,
+                apiKey,
+                contract.id,
+              );
+              for (const inv of invoices) {
+                invoiceRefs.set(inv.id, {
+                  invoice_number: inv.invoice_number,
+                  external_number: inv.external_number,
+                });
+              }
+            } catch (err) {
+              if (!(err instanceof EndpointNotAvailableError)) {
+                logger.warn(
+                  'eduvia_sync',
+                  `invoices meta contrat=${contract.id} indisponible`,
+                  { error: err instanceof Error ? err.message : String(err) },
+                );
+              }
+            }
+          }
           for (const step of steps) {
+            const refs =
+              step.invoice_id != null
+                ? invoiceRefs.get(step.invoice_id)
+                : undefined;
             // oxlint-disable-next-line react-doctor/async-await-in-loop
             const { error: upsertError } = await supabase
               .from('eduvia_invoice_steps')
@@ -670,6 +707,8 @@ export async function syncEduviaForClient(
                   invoice_state: step.invoice_state,
                   invoice_sent_at: step.invoice_sent_at,
                   paid_at: step.paid_at,
+                  invoice_number: refs?.invoice_number ?? null,
+                  external_number: refs?.external_number ?? null,
                   last_synced_at: now,
                 },
                 { onConflict: 'eduvia_id,source_client_id' },

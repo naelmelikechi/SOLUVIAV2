@@ -1408,10 +1408,12 @@ export type Database = {
           eduvia_id: number;
           eduvia_invoice_id: number | null;
           external_code: string | null;
+          external_number: string | null;
           id: string;
           in_progress_amount: number | null;
           including_pedagogie_amount: number | null;
           including_rqth_amount: number | null;
+          invoice_number: string | null;
           invoice_sent_at: string | null;
           invoice_state: string | null;
           last_synced_at: string;
@@ -1430,10 +1432,12 @@ export type Database = {
           eduvia_id: number;
           eduvia_invoice_id?: number | null;
           external_code?: string | null;
+          external_number?: string | null;
           id?: string;
           in_progress_amount?: number | null;
           including_pedagogie_amount?: number | null;
           including_rqth_amount?: number | null;
+          invoice_number?: string | null;
           invoice_sent_at?: string | null;
           invoice_state?: string | null;
           last_synced_at?: string;
@@ -1452,10 +1456,12 @@ export type Database = {
           eduvia_id?: number;
           eduvia_invoice_id?: number | null;
           external_code?: string | null;
+          external_number?: string | null;
           id?: string;
           in_progress_amount?: number | null;
           including_pedagogie_amount?: number | null;
           including_rqth_amount?: number | null;
+          invoice_number?: string | null;
           invoice_sent_at?: string | null;
           invoice_state?: string | null;
           last_synced_at?: string;

@@ -173,6 +173,18 @@ export interface EduviaInvoiceLine {
   updated_at: string;
 }
 
+/**
+ * Facture (bordereau) OPCO d'un contrat. GET /api/v1/contracts/:id/invoices
+ * (documenté, OpenAPI v1.0.0). On ne type/consomme que la traçabilité :
+ * `invoice_number` (n° facture Eduvia, ~100% rempli) et `external_number`
+ * (réf bordereau OPCO, ~72% des factures REGLE ; null sinon).
+ */
+export interface EduviaInvoice {
+  id: number;
+  invoice_number: string | null;
+  external_number: string | null;
+}
+
 export interface EduviaProgression {
   contract_id: number;
   formation_id: number;
@@ -471,6 +483,25 @@ export async function fetchContractInvoiceLines(
     instanceUrl,
     apiKey,
     `contracts/${contractId}/invoice_lines`,
+    { quiet: true },
+  );
+}
+
+/**
+ * Factures (bordereaux) OPCO d'un contrat. GET /api/v1/contracts/:id/invoices
+ * (documenté, OpenAPI v1.0.0, paginé). Sert à renseigner la traçabilité
+ * (invoice_number / external_number) sur eduvia_invoice_steps. `quiet` : 1
+ * appel/contrat, comme les autres passes par contrat.
+ */
+export async function fetchContractInvoices(
+  instanceUrl: string,
+  apiKey: string,
+  contractId: number,
+): Promise<EduviaInvoice[]> {
+  return fetchAllPages<EduviaInvoice>(
+    instanceUrl,
+    apiKey,
+    `contracts/${contractId}/invoices`,
     { quiet: true },
   );
 }

@@ -669,6 +669,7 @@ export type Database = {
           eduvia_formation_id: number | null;
           eduvia_id: number;
           eduvia_teacher_id: number | null;
+          facturation_verrouillee: boolean;
           formation_titre: string | null;
           id: string;
           internal_number: string | null;
@@ -707,6 +708,7 @@ export type Database = {
           eduvia_formation_id?: number | null;
           eduvia_id: number;
           eduvia_teacher_id?: number | null;
+          facturation_verrouillee?: boolean;
           formation_titre?: string | null;
           id?: string;
           internal_number?: string | null;
@@ -745,6 +747,7 @@ export type Database = {
           eduvia_formation_id?: number | null;
           eduvia_id?: number;
           eduvia_teacher_id?: number | null;
+          facturation_verrouillee?: boolean;
           formation_titre?: string | null;
           id?: string;
           internal_number?: string | null;

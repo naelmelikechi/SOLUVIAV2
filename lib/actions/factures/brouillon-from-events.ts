@@ -110,6 +110,12 @@ export async function createFactureFromEvents(params: {
           error: `OPCO non identifié : ${e.apprenant_prenom} ${e.apprenant_nom} (${e.contrat_ref ?? e.contrat_id}). L'IDCC de l'employeur n'est rattaché à aucun OPCO ; mappez-le dans /admin/parametres/opcos.`,
         };
       }
+      if (e.lock_reason === 'verrouille_manuel') {
+        return {
+          success: false,
+          error: `Verrouillé manuellement : ${e.apprenant_prenom} ${e.apprenant_nom} (${e.contrat_ref ?? e.contrat_id}) n'est pas facturable pour l'instant.`,
+        };
+      }
       const opp = e.type === 'engagement' ? 'règlements OPCO' : 'engagement';
       return {
         success: false,

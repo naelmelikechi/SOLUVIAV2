@@ -82,6 +82,7 @@ const LOCK_LABELS: Record<RafLockReason, string> = {
   unknown_opco: 'OPCO inconnu',
   unknown_line_type: 'Type OPCO inconnu',
   opposite_billed: 'Exclusion engagement / OPCO',
+  verrouille_manuel: 'Verrouillé manuellement',
 };
 
 function MoneyCell({

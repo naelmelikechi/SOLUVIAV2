@@ -102,7 +102,8 @@ export interface BillableEvent {
     | 'opposite_billed'
     | 'missing_idcc'
     | 'unknown_line_type'
-    | 'unknown_opco';
+    | 'unknown_opco'
+    | 'verrouille_manuel';
   unknown_line_types?: string[];
 }
 
@@ -165,11 +166,14 @@ function resolveLock(opts: {
   missingIdcc: boolean;
   unknownOpco: boolean;
   hasUnknown: boolean;
+  manualLock: boolean;
 }): {
   status: BillableEvent['status'];
   lock_reason?: BillableEvent['lock_reason'];
 } {
   if (opts.billed) return { status: 'billed' };
+  if (opts.manualLock)
+    return { status: 'locked', lock_reason: 'verrouille_manuel' };
   if (opts.missingIdcc)
     return { status: 'locked', lock_reason: 'missing_idcc' };
   if (opts.unknownOpco)
@@ -220,7 +224,7 @@ export async function getBillableEvents(
       `
       id, ref, contract_number, internal_number,
       apprenant_nom, apprenant_prenom, formation_titre,
-      contract_state, npec_amount, support, eduvia_company_id
+      contract_state, npec_amount, support, eduvia_company_id, facturation_verrouillee
     `,
     )
     .eq('projet_id', projetId)
@@ -467,6 +471,7 @@ export async function getBillableEvents(
         missingIdcc,
         unknownOpco,
         hasUnknown,
+        manualLock: c.facturation_verrouillee,
       });
 
       auditInvoiceIdsBySource.set(
@@ -572,6 +577,7 @@ export async function getBillableEvents(
         missingIdcc,
         unknownOpco,
         hasUnknown,
+        manualLock: c.facturation_verrouillee,
       });
 
       auditInvoiceIdsBySource.set(step.id, [invoiceId]);

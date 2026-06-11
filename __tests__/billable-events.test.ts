@@ -1966,4 +1966,50 @@ describe('getBillableEvents - état facture Eduvia (invoice_state)', () => {
     // pedago non encaisse -> aucun event facturable (bucket "en attente")
     expect(result!.events).toHaveLength(0);
   });
+
+  it('verrou manuel: facturation_verrouillee=true verrouille l event meme si pedago REGLE (visible mais non facturable)', async () => {
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat({ facturation_verrouillee: true })] },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 920,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-920',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 920,
+            including_pedagogie_amount: 2000,
+            total_amount: 2000,
+            opco_settled_amount: 2000,
+            opening_date: '2026-02-01',
+            paid_at: '2026-02-15',
+            invoice_state: 'REGLE',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    // L'event existe (visible) mais verrouille : jamais selectionnable.
+    expect(result!.events).toHaveLength(1);
+    const ev = result!.events[0]!;
+    expect(ev.status).toBe('locked');
+    expect(ev.lock_reason).toBe('verrouille_manuel');
+  });
 });

@@ -539,6 +539,23 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                       </div>
                                     </TooltipContent>
                                   </Tooltip>
+                                ) : e.lock_reason === 'verrouille_manuel' ? (
+                                  <Tooltip>
+                                    <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">
+                                      <Lock className="size-3" />
+                                      <span>{'Verrouillé (manuel)'}</span>
+                                    </TooltipTrigger>
+                                    <TooltipContent
+                                      side="top"
+                                      className="max-w-xs px-3 py-2"
+                                    >
+                                      <div className="text-xs">
+                                        Verrouillé manuellement : non facturable
+                                        pour l&apos;instant (cas particulier à
+                                        traiter plus tard).
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
                                 ) : e.locked_by ? (
                                   <Tooltip>
                                     <TooltipTrigger className="flex cursor-default items-center gap-1 text-left text-[10px] text-[var(--warning)]">

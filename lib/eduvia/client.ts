@@ -155,10 +155,12 @@ export interface EduviaInvoiceForecastStep {
 }
 
 /**
- * Ligne d'un bordereau OPCO emis. Renvoyee par l'endpoint non documente
- * GET /api/v1/invoices/:id/lines. Champ `line_type` typant : valeurs connues
- * 'PEDAGOGIE' (commissionnable Soluvia) et 'PREMIEREQUIPEMENT' (matos info,
- * jamais commissionne). Voir lib/eduvia/line-types.ts pour la classification.
+ * Ligne d'un bordereau OPCO emis. Renvoyee par
+ * GET /api/v1/contracts/:id/invoice_lines (endpoint documente, OpenAPI v1.0.0,
+ * remplace l'ancien /api/v1/invoices/:id/lines non documente). Champ
+ * `line_type` typant : valeurs connues 'PEDAGOGIE' (commissionnable Soluvia)
+ * et 'PREMIEREQUIPEMENT' (matos info, jamais commissionne). Voir
+ * lib/eduvia/line-types.ts pour la classification.
  */
 export interface EduviaInvoiceLine {
   id: number;
@@ -361,6 +363,7 @@ export async function fetchAllPages<T>(
   instanceUrl: string,
   apiKey: string,
   resource: string,
+  opts: { quiet?: boolean } = {},
 ): Promise<T[]> {
   const baseUrl = baseUrlFrom(instanceUrl);
   const allItems: T[] = [];
@@ -387,15 +390,17 @@ export async function fetchAllPages<T>(
     allItems.push(...result.data);
   }
 
-  logger.info(
-    'eduvia_client',
-    `Fetched ${allItems.length} items from ${resource}`,
-    {
-      resource,
-      totalPages: firstPage.meta.total_pages,
-      totalItems: allItems.length,
-    },
-  );
+  if (!opts.quiet) {
+    logger.info(
+      'eduvia_client',
+      `Fetched ${allItems.length} items from ${resource}`,
+      {
+        resource,
+        totalPages: firstPage.meta.total_pages,
+        totalItems: allItems.length,
+      },
+    );
+  }
 
   return allItems;
 }
@@ -450,18 +455,22 @@ export async function fetchStatus(
 }
 
 /**
- * Fetch les lignes d'un bordereau OPCO emis.
- * Endpoint non documente dans l'OpenAPI publique mais actif et stable.
- * Decouvert 2026-05-12 (voir spec docs/superpowers/specs/2026-05-12-base-commission-pedago-design.md).
+ * Fetch toutes les lignes des bordereaux OPCO emis d'un contrat.
+ * Endpoint documente GET /api/v1/contracts/:id/invoice_lines (OpenAPI v1.0.0,
+ * remplace l'ancien /api/v1/invoices/:id/lines non documente). Reponse paginee
+ * (data + meta) cote API : on passe par fetchAllPages car un contrat long peut
+ * agreger plus d'une page de lignes (per_page Eduvia = 25). `quiet` coupe le
+ * log par appel : la fonction est invoquee 1x/contrat, comme progressions/steps.
  */
-export async function fetchInvoiceLines(
+export async function fetchContractInvoiceLines(
   instanceUrl: string,
   apiKey: string,
-  invoiceId: number,
+  contractId: number,
 ): Promise<EduviaInvoiceLine[]> {
-  return fetchList<EduviaInvoiceLine>(
+  return fetchAllPages<EduviaInvoiceLine>(
     instanceUrl,
     apiKey,
-    `invoices/${invoiceId}/lines`,
+    `contracts/${contractId}/invoice_lines`,
+    { quiet: true },
   );
 }

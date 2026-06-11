@@ -6,7 +6,7 @@ import {
   fetchOne,
   fetchList,
   fetchStatus,
-  fetchInvoiceLines,
+  fetchContractInvoiceLines,
   EndpointNotAvailableError,
   AuthError,
 } from '@/lib/eduvia/client';
@@ -690,27 +690,24 @@ export async function syncEduviaForClient(
           }
         }
 
-        // Phase 5 (in-line apres steps) : sync des lignes pour chaque step
-        // emis (invoice_id non null). Endpoint /api/v1/invoices/:id/lines
-        // non documente, peut casser sans preavis — on degrade gracieusement
-        // avec EndpointNotAvailableError.
-        //
-        // Cap erreurs : on limite a PHASE5_MAX_ERRORS entrees dans result.errors
-        // pour eviter le spam si l'endpoint est down sur beaucoup d'invoices.
-        // Les erreurs excedentaires sont resumees dans une seule ligne finale.
-        const PHASE5_MAX_ERRORS = 10;
-        const phase5StartErrorCount = result.errors.length;
-        let phase5ExtraErrors = 0;
-
-        for (const step of steps) {
-          if (!step.invoice_id) continue;
+        // ── PASS 5 - lignes des bordereaux OPCO du contrat ──────────────
+        // Endpoint documente contracts/:id/invoice_lines (remplace l'ancien
+        // /invoices/:id/lines non documente) : une seule requete renvoie
+        // toutes les lignes de tous les bordereaux emis du contrat. On ne
+        // l'appelle que si au moins un step est emis (invoice_id non null) —
+        // meme couverture qu'avant, sans requete superflue pour les contrats
+        // pas encore factures. Degradation gracieuse sur 404.
+        if (steps.some((s) => s.invoice_id != null)) {
           try {
-            // oxlint-disable-next-line react-doctor/async-await-in-loop
-            const lines = await fetchInvoiceLines(
+            const lines = await fetchContractInvoiceLines(
               instanceUrl,
               apiKey,
-              step.invoice_id,
+              contract.id,
             );
+
+            // Cap erreurs d'upsert : evite le spam si la table refuse en masse.
+            const MAX_LINE_ERRORS = 10;
+            let lineErrors = 0;
             for (const line of lines) {
               // oxlint-disable-next-line react-doctor/async-await-in-loop
               const { error: lineErr } = await supabase
@@ -732,32 +729,37 @@ export async function syncEduviaForClient(
                   { onConflict: 'eduvia_id,source_client_id' },
                 );
               if (lineErr) {
-                result.errors.push(
-                  `InvoiceLine eduvia_id=${line.id}: ${lineErr.message}`,
-                );
+                if (lineErrors < MAX_LINE_ERRORS) {
+                  result.errors.push(
+                    `InvoiceLine eduvia_id=${line.id}: ${lineErr.message}`,
+                  );
+                }
+                lineErrors++;
               } else {
                 result.invoice_lines++;
               }
             }
+            if (lineErrors > MAX_LINE_ERRORS) {
+              result.errors.push(
+                `invoice_lines contrat=${contract.id}: ${lineErrors - MAX_LINE_ERRORS} autre(s) erreur(s) d'upsert omise(s)`,
+              );
+            }
 
-            // I2: Orphan delete - si Eduvia a supprime une ligne entre 2 syncs,
-            // on la supprime de notre DB pour eviter que la base de commission
-            // s'inflate sur des donnees obsoletes.
-            //
-            // Garde-fou anti-wipe : si l'API renvoie lines.length=0 alors qu'on
-            // avait deja des lignes en DB, c'est probablement un bug transitoire
-            // Eduvia. Sans ce garde-fou, le NOT IN '(0)' supprimerait *toutes*
-            // les lignes de cette facture et fausserait la base commission
-            // jusqu'au prochain sync.
+            // Orphan cleanup au niveau contrat : Eduvia ne notifie pas les
+            // suppressions de lignes/factures. On retire les lignes encore en
+            // DB pour ce contrat que l'API ne renvoie plus (toutes factures
+            // confondues). Garde-fou anti-wipe : si l'API renvoie 0 ligne alors
+            // qu'on en a en DB, c'est presque toujours une panne transitoire —
+            // on skip le delete (sinon NOT IN '(0)' effacerait tout
+            // l'historique de commission du contrat).
             if (lines.length === 0) {
               const { count: existingCount } = await supabase
                 .from('eduvia_invoice_lines')
                 .select('id', { count: 'exact', head: true })
-                .eq('source_client_id', clientId)
-                .eq('eduvia_invoice_id', step.invoice_id);
+                .eq('contrat_id', contratId);
               if ((existingCount ?? 0) > 0) {
                 result.errors.push(
-                  `InvoiceLine orphan cleanup invoice=${step.invoice_id}: API renvoie 0 ligne mais DB en a ${existingCount}, skip delete pour eviter wipe.`,
+                  `InvoiceLine orphan cleanup contrat=${contract.id}: API renvoie 0 ligne mais DB en a ${existingCount}, skip delete pour eviter wipe.`,
                 );
               }
             } else {
@@ -765,35 +767,21 @@ export async function syncEduviaForClient(
               const { error: deleteErr } = await supabase
                 .from('eduvia_invoice_lines')
                 .delete()
-                .eq('source_client_id', clientId)
-                .eq('eduvia_invoice_id', step.invoice_id)
+                .eq('contrat_id', contratId)
                 .not('eduvia_id', 'in', `(${apiLineIds.join(',')})`);
               if (deleteErr) {
                 result.errors.push(
-                  `InvoiceLine orphan cleanup invoice=${step.invoice_id}: ${deleteErr.message}`,
+                  `InvoiceLine orphan cleanup contrat=${contract.id}: ${deleteErr.message}`,
                 );
               }
             }
           } catch (err) {
             if (!(err instanceof EndpointNotAvailableError)) {
-              if (
-                result.errors.length - phase5StartErrorCount <
-                PHASE5_MAX_ERRORS
-              ) {
-                result.errors.push(
-                  `invoice_lines invoice=${step.invoice_id}: ${err instanceof Error ? err.message : String(err)}`,
-                );
-              } else {
-                phase5ExtraErrors++;
-              }
+              result.errors.push(
+                `invoice_lines contrat=${contract.id}: ${err instanceof Error ? err.message : String(err)}`,
+              );
             }
           }
-        }
-
-        if (phase5ExtraErrors > 0) {
-          result.errors.push(
-            `invoice_lines: ${phase5ExtraErrors} autre(s) erreur(s) omise(s)`,
-          );
         }
 
         // Forecast invoice steps

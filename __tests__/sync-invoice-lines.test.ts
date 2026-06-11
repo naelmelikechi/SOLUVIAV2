@@ -8,11 +8,12 @@ import type { Database } from '@/types/database';
 
 /**
  * Tests vitest pour la Phase 5 de /lib/eduvia/sync.ts :
- * sync des lignes par invoice emis (eduvia_invoice_lines).
+ * sync des lignes des bordereaux OPCO d'un contrat (eduvia_invoice_lines),
+ * via l'endpoint documente contracts/:id/invoice_lines.
  *
  * Couverture :
- *  - Les lignes sont upsertes dans eduvia_invoice_lines pour chaque step avec invoice_id
- *  - Les steps sans invoice_id sont ignores
+ *  - Les lignes du contrat sont upsertes dans eduvia_invoice_lines
+ *  - Un contrat sans step emis (aucun invoice_id) ne declenche aucun fetch
  *  - EndpointNotAvailableError est avalee gracieusement (degradation silencieuse)
  *  - Les erreurs HTTP non-404 sont poussees dans result.errors
  *  - result.invoice_lines compte les lignes inserees
@@ -30,7 +31,7 @@ const fetchAllPagesMock = vi.fn();
 const fetchOneMock = vi.fn();
 const fetchListMock = vi.fn();
 const fetchStatusMock = vi.fn();
-const fetchInvoiceLinesMock = vi.fn();
+const fetchContractInvoiceLinesMock = vi.fn();
 
 class EndpointNotAvailableError extends Error {
   constructor(public resource: string) {
@@ -53,7 +54,8 @@ vi.mock('@/lib/eduvia/client', () => ({
   fetchOne: (...args: unknown[]) => fetchOneMock(...args),
   fetchList: (...args: unknown[]) => fetchListMock(...args),
   fetchStatus: (...args: unknown[]) => fetchStatusMock(...args),
-  fetchInvoiceLines: (...args: unknown[]) => fetchInvoiceLinesMock(...args),
+  fetchContractInvoiceLines: (...args: unknown[]) =>
+    fetchContractInvoiceLinesMock(...args),
   EndpointNotAvailableError,
   AuthError,
 }));
@@ -380,9 +382,9 @@ beforeEach(() => {
     new EndpointNotAvailableError('invoice_steps'),
   );
 
-  // fetchInvoiceLines: default to not available (graceful degradation)
-  fetchInvoiceLinesMock.mockRejectedValue(
-    new EndpointNotAvailableError('invoices/0/lines'),
+  // fetchContractInvoiceLines: default to not available (graceful degradation)
+  fetchContractInvoiceLinesMock.mockRejectedValue(
+    new EndpointNotAvailableError('contracts/0/invoice_lines'),
   );
 });
 
@@ -402,11 +404,11 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       },
     );
 
-    // fetchInvoiceLines is called with (instanceUrl, apiKey, invoiceId: number)
-    fetchInvoiceLinesMock.mockImplementation(
-      async (_url: string, _key: string, invoiceId: number) => {
-        if (invoiceId === 200) return [LINE_PEDAGO];
-        if (invoiceId === 201) return [LINE_MATOS];
+    // fetchContractInvoiceLines(instanceUrl, apiKey, contractId): une requete
+    // par contrat renvoie toutes les lignes de ses bordereaux emis.
+    fetchContractInvoiceLinesMock.mockImplementation(
+      async (_url: string, _key: string, contractId: number) => {
+        if (contractId === 1) return [LINE_PEDAGO, LINE_MATOS];
         return [];
       },
     );
@@ -494,11 +496,11 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       (o) => o.op === 'upsert' && o.table === 'eduvia_invoice_lines',
     );
     expect(lineOps).toHaveLength(0);
-    // fetchInvoiceLines should never have been called
-    expect(fetchInvoiceLinesMock).not.toHaveBeenCalled();
+    // fetchContractInvoiceLines should never have been called
+    expect(fetchContractInvoiceLinesMock).not.toHaveBeenCalled();
   });
 
-  it('avale EndpointNotAvailableError sur /invoices/:id/lines sans erreur dans result', async () => {
+  it('avale EndpointNotAvailableError sur contracts/:id/invoice_lines sans erreur dans result', async () => {
     fetchListMock.mockImplementation(
       async (_url: string, _key: string, resource: string) => {
         if (resource === 'contracts/1/invoice_steps') return [STEP_PEDAGO];
@@ -507,9 +509,9 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       },
     );
 
-    // fetchInvoiceLines throws EndpointNotAvailableError -> should be swallowed
-    fetchInvoiceLinesMock.mockRejectedValue(
-      new EndpointNotAvailableError('invoices/200/lines'),
+    // fetchContractInvoiceLines throws EndpointNotAvailableError -> swallowed
+    fetchContractInvoiceLinesMock.mockRejectedValue(
+      new EndpointNotAvailableError('contracts/1/invoice_lines'),
     );
 
     const supa = buildSupabase({
@@ -534,7 +536,7 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
     expect(lineErrors).toHaveLength(0);
   });
 
-  it('pousse une erreur dans result.errors si fetchInvoiceLines lance une erreur non-404', async () => {
+  it('pousse une erreur dans result.errors si fetchContractInvoiceLines lance une erreur non-404', async () => {
     fetchListMock.mockImplementation(
       async (_url: string, _key: string, resource: string) => {
         if (resource === 'contracts/1/invoice_steps') return [STEP_PEDAGO];
@@ -543,7 +545,9 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       },
     );
 
-    fetchInvoiceLinesMock.mockRejectedValue(new Error('connection timeout'));
+    fetchContractInvoiceLinesMock.mockRejectedValue(
+      new Error('connection timeout'),
+    );
 
     const supa = buildSupabase({
       projets: projetsRule(),
@@ -564,7 +568,7 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
     expect(res.invoice_lines).toBe(0);
     const lineErrors = res.errors.filter((e) => e.includes('invoice_lines'));
     expect(lineErrors).toHaveLength(1);
-    expect(lineErrors[0]).toMatch(/invoice=200.*connection timeout/);
+    expect(lineErrors[0]).toMatch(/contrat=1.*connection timeout/);
   });
 
   it('pousse une erreur dans result.errors si l upsert supabase echoue', async () => {
@@ -576,7 +580,7 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       },
     );
 
-    fetchInvoiceLinesMock.mockResolvedValue([LINE_PEDAGO]);
+    fetchContractInvoiceLinesMock.mockResolvedValue([LINE_PEDAGO]);
 
     const supa = buildSupabase({
       projets: projetsRule(),
@@ -603,7 +607,7 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
   it('I2: supprime les lignes orphelines quand Eduvia supprime une ligne entre 2 syncs', async () => {
     // Setup : Eduvia retourne seulement la ligne pedago (id=79, invoice_id=200).
     // La ligne OLD_LINE (id=999) existait en DB mais n'est plus dans la reponse API.
-    // On attend que la Delete soit emise pour invoice_id=200 excluant eduvia_id=79.
+    // On attend que le Delete soit emis pour le contrat, excluant eduvia_id=79.
     fetchListMock.mockImplementation(
       async (_url: string, _key: string, resource: string) => {
         if (resource === 'contracts/1/invoice_steps') return [STEP_PEDAGO];
@@ -613,12 +617,7 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
     );
 
     // Eduvia retourne seulement la ligne existante (OLD_LINE est partie)
-    fetchInvoiceLinesMock.mockImplementation(
-      async (_url: string, _key: string, invoiceId: number) => {
-        if (invoiceId === 200) return [LINE_PEDAGO]; // uniquement id=79
-        return [];
-      },
-    );
+    fetchContractInvoiceLinesMock.mockResolvedValue([LINE_PEDAGO]); // uniquement id=79
 
     const supa = buildSupabase({
       projets: projetsRule(),
@@ -648,16 +647,10 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
     );
     expect(deleteOps).toHaveLength(1);
 
-    // Le delete doit filtrer sur source_client_id + eduvia_invoice_id=200
+    // Le delete est scope par contrat (contrat_id), pas par invoice.
     const deleteOp = deleteOps[0]!;
-    const clientFilter = deleteOp.filters.find(
-      (f) => f.col === 'source_client_id',
-    );
-    const invoiceFilter = deleteOp.filters.find(
-      (f) => f.col === 'eduvia_invoice_id',
-    );
-    expect(clientFilter?.val).toBe(CLIENT_ID);
-    expect(invoiceFilter?.val).toBe(200);
+    const contratFilter = deleteOp.filters.find((f) => f.col === 'contrat_id');
+    expect(contratFilter?.val).toBe(CONTRAT_UUID);
 
     // Le NOT IN doit exclure l'eduvia_id=79 (la ligne conservee)
     const notInFilter = deleteOp.filters.find((f) => f.col === 'eduvia_id');
@@ -679,7 +672,7 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       },
     );
 
-    fetchInvoiceLinesMock.mockResolvedValue([]);
+    fetchContractInvoiceLinesMock.mockResolvedValue([]);
 
     const supa = buildSupabase({
       projets: projetsRule(),

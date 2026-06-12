@@ -1,20 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { FileText } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { TableSearchInput } from '@/components/shared/table-search-input';
-import { filterBySearch } from '@/components/shared/filter-by-search';
 import { formatDate } from '@/lib/utils/formatters';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import { ProjetUploadButton } from './projet-upload-button';
 import { ProjetDocumentActions } from './projet-document-actions';
 import type { ProjetDocument } from '@/lib/queries/projets';
@@ -30,15 +25,67 @@ export function ProjetDocumentsSection({
   projetRef,
   documents,
 }: ProjetDocumentsSectionProps) {
-  const [search, setSearch] = useState('');
-  const filtered = useMemo(
-    () =>
-      filterBySearch(documents, search, (d) =>
-        [d.nom_fichier, d.type_document, d.user?.prenom, d.user?.nom]
-          .filter(Boolean)
-          .join(' '),
-      ),
-    [documents, search],
+  const columns = useMemo<ColumnDef<ProjetDocument>[]>(
+    () => [
+      {
+        id: 'actions',
+        enableSorting: false,
+        enableHiding: false,
+        size: 80,
+        header: () => 'Actions',
+        cell: ({ row }) => (
+          <ProjetDocumentActions
+            documentId={row.original.id}
+            projetRef={projetRef}
+            storagePath={row.original.storage_path}
+            fileName={row.original.nom_fichier}
+            typeDocument={row.original.type_document}
+          />
+        ),
+      },
+      {
+        accessorKey: 'nom_fichier',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Nom du fichier" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-primary text-sm font-medium">
+            {row.original.nom_fichier}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'type_document',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Type" />
+        ),
+        cell: ({ row }) => (
+          <StatusBadge label={row.original.type_document ?? '-'} color="gray" />
+        ),
+      },
+      {
+        accessorKey: 'created_at',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Date" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm tabular-nums">
+            {formatDate(row.original.created_at)}
+          </span>
+        ),
+      },
+      {
+        id: 'par',
+        accessorFn: (d) => (d.user ? `${d.user.prenom} ${d.user.nom}` : '-'),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Par" />
+        ),
+        cell: ({ getValue }) => (
+          <span className="text-sm">{getValue<string>()}</span>
+        ),
+      },
+    ],
+    [projetRef],
   );
 
   return (
@@ -52,69 +99,13 @@ export function ProjetDocumentsSection({
       {documents.length === 0 ? (
         <p className="text-muted-foreground text-sm">Aucun document</p>
       ) : (
-        <>
-          <div className="mb-3">
-            <TableSearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Rechercher un document..."
-            />
-          </div>
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-20">Actions</TableHead>
-                  <TableHead>Nom du fichier</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Par</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-muted-foreground h-12 text-center text-sm"
-                    >
-                      Aucun résultat.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((doc) => (
-                    <TableRow key={doc.id}>
-                      <TableCell>
-                        <ProjetDocumentActions
-                          documentId={doc.id}
-                          projetRef={projetRef}
-                          storagePath={doc.storage_path}
-                          fileName={doc.nom_fichier}
-                          typeDocument={doc.type_document}
-                        />
-                      </TableCell>
-                      <TableCell className="text-primary text-sm font-medium">
-                        {doc.nom_fichier}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge
-                          label={doc.type_document ?? '-'}
-                          color="gray"
-                        />
-                      </TableCell>
-                      <TableCell className="text-sm tabular-nums">
-                        {formatDate(doc.created_at)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {doc.user ? `${doc.user.prenom} ${doc.user.nom}` : '-'}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </>
+        <DataTable
+          columns={columns}
+          data={documents}
+          searchPlaceholder="Rechercher un document..."
+          paginationMode="auto"
+          emptyMessage="Aucun résultat."
+        />
       )}
     </Card>
   );

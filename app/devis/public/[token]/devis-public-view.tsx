@@ -161,13 +161,25 @@ export function DevisPublicView({
           <table className="w-full text-sm">
             <thead className="border-b text-left text-gray-500">
               <tr>
-                <th className="w-8 py-2 pr-2">#</th>
-                <th className="py-2 pr-3">Libellé</th>
-                <th className="py-2 pr-3 text-right whitespace-nowrap">Qté</th>
-                <th className="py-2 pr-3 text-right whitespace-nowrap">
+                <th scope="col" className="w-8 py-2 pr-2">
+                  #
+                </th>
+                <th scope="col" className="py-2 pr-3">
+                  Libellé
+                </th>
+                <th
+                  scope="col"
+                  className="py-2 pr-3 text-right whitespace-nowrap"
+                >
+                  Qté
+                </th>
+                <th
+                  scope="col"
+                  className="py-2 pr-3 text-right whitespace-nowrap"
+                >
                   PU HT
                 </th>
-                <th className="py-2 text-right whitespace-nowrap">
+                <th scope="col" className="py-2 text-right whitespace-nowrap">
                   Montant HT
                 </th>
               </tr>

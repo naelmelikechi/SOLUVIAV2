@@ -211,7 +211,10 @@ export function TimeGrid({
           </colgroup>
           <thead>
             <tr className="bg-[var(--card-alt)]">
-              <th className="text-muted-foreground relative px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase">
+              <th
+                scope="col"
+                className="text-muted-foreground relative px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase"
+              >
                 Projet
                 <ResizeHandle onMouseDown={(e) => startDrag('projet', e)} />
               </th>
@@ -244,7 +247,10 @@ export function TimeGrid({
                   </th>
                 );
               })}
-              <th className="text-muted-foreground relative px-2 py-2.5 text-center text-xs font-semibold tracking-wider uppercase">
+              <th
+                scope="col"
+                className="text-muted-foreground relative px-2 py-2.5 text-center text-xs font-semibold tracking-wider uppercase"
+              >
                 Total
                 <ResizeHandle onMouseDown={(e) => startDrag('total', e)} />
               </th>

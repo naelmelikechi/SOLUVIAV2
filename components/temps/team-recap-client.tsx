@@ -79,7 +79,10 @@ export function TeamRecapClient({
         <table className="w-full min-w-[640px] border-collapse text-[13px]">
           <thead>
             <tr className="bg-[var(--card-alt)]">
-              <th className="text-muted-foreground min-w-[200px] px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase">
+              <th
+                scope="col"
+                className="text-muted-foreground min-w-[200px] px-3 py-2.5 text-left text-xs font-semibold tracking-wider uppercase"
+              >
                 Collaborateur
               </th>
               {weekdayDates.map((date, i) => {
@@ -100,7 +103,10 @@ export function TeamRecapClient({
                   </th>
                 );
               })}
-              <th className="text-muted-foreground w-[80px] px-2 py-2.5 text-center text-xs font-semibold tracking-wider uppercase">
+              <th
+                scope="col"
+                className="text-muted-foreground w-[80px] px-2 py-2.5 text-center text-xs font-semibold tracking-wider uppercase"
+              >
                 Total
               </th>
             </tr>

@@ -468,7 +468,7 @@ export function NewFactureDialog({
               <table className="w-full text-xs">
                 <thead className="bg-muted/60 sticky top-0 z-10">
                   <tr className="text-left">
-                    <th className="w-10 p-2">
+                    <th scope="col" className="w-10 p-2">
                       <Checkbox
                         checked={allSelected}
                         indeterminate={!allSelected && someSelected}
@@ -476,13 +476,25 @@ export function NewFactureDialog({
                         aria-label="Tout sélectionner"
                       />
                     </th>
-                    <th className="p-2 font-medium">Contrat</th>
-                    <th className="p-2 font-medium">Apprenant</th>
-                    <th className="p-2 font-medium">Formation</th>
-                    <th className="p-2 text-right font-medium">NPEC</th>
-                    <th className="w-20 p-2 font-medium">Mois</th>
-                    <th className="p-2 font-medium">Description</th>
-                    <th className="w-32 p-2 text-right font-medium">
+                    <th scope="col" className="p-2 font-medium">
+                      Contrat
+                    </th>
+                    <th scope="col" className="p-2 font-medium">
+                      Apprenant
+                    </th>
+                    <th scope="col" className="p-2 font-medium">
+                      Formation
+                    </th>
+                    <th scope="col" className="p-2 text-right font-medium">
+                      NPEC
+                    </th>
+                    <th scope="col" className="w-20 p-2 font-medium">
+                      Mois
+                    </th>
+                    <th scope="col" className="p-2 font-medium">
+                      Description
+                    </th>
+                    <th scope="col" className="w-32 p-2 text-right font-medium">
                       Montant HT
                     </th>
                   </tr>

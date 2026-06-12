@@ -184,21 +184,40 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
               <table className="w-full text-sm">
                 <thead className="text-muted-foreground border-b text-left">
                   <tr>
-                    <th className="w-8 py-2 pr-2">#</th>
-                    <th className="py-2 pr-3">Libellé</th>
-                    <th className="py-2 pr-3 text-right whitespace-nowrap">
+                    <th scope="col" className="w-8 py-2 pr-2">
+                      #
+                    </th>
+                    <th scope="col" className="py-2 pr-3">
+                      Libellé
+                    </th>
+                    <th
+                      scope="col"
+                      className="py-2 pr-3 text-right whitespace-nowrap"
+                    >
                       Qté
                     </th>
-                    <th className="py-2 pr-3 text-right whitespace-nowrap">
+                    <th
+                      scope="col"
+                      className="py-2 pr-3 text-right whitespace-nowrap"
+                    >
                       PU HT
                     </th>
-                    <th className="py-2 pr-3 text-right whitespace-nowrap">
+                    <th
+                      scope="col"
+                      className="py-2 pr-3 text-right whitespace-nowrap"
+                    >
                       TVA%
                     </th>
-                    <th className="py-2 pr-3 text-right whitespace-nowrap">
+                    <th
+                      scope="col"
+                      className="py-2 pr-3 text-right whitespace-nowrap"
+                    >
                       Total HT
                     </th>
-                    <th className="py-2 text-right whitespace-nowrap">
+                    <th
+                      scope="col"
+                      className="py-2 text-right whitespace-nowrap"
+                    >
                       Total TTC
                     </th>
                   </tr>
@@ -329,14 +348,28 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
             <table className="w-full text-sm">
               <thead className="text-muted-foreground border-b text-left">
                 <tr>
-                  <th className="py-2 pr-3 whitespace-nowrap">Référence</th>
-                  <th className="py-2 pr-3">Statut</th>
-                  <th className="py-2 pr-3">Type</th>
-                  <th className="py-2 pr-3 text-right whitespace-nowrap">HT</th>
-                  <th className="py-2 pr-3 text-right whitespace-nowrap">
+                  <th scope="col" className="py-2 pr-3 whitespace-nowrap">
+                    Référence
+                  </th>
+                  <th scope="col" className="py-2 pr-3">
+                    Statut
+                  </th>
+                  <th scope="col" className="py-2 pr-3">
+                    Type
+                  </th>
+                  <th
+                    scope="col"
+                    className="py-2 pr-3 text-right whitespace-nowrap"
+                  >
+                    HT
+                  </th>
+                  <th
+                    scope="col"
+                    className="py-2 pr-3 text-right whitespace-nowrap"
+                  >
                     TTC
                   </th>
-                  <th className="py-2 whitespace-nowrap">
+                  <th scope="col" className="py-2 whitespace-nowrap">
                     Date d&apos;émission
                   </th>
                 </tr>

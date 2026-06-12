@@ -133,15 +133,14 @@ export function DataTable<TData, TValue>({
       id: 'select',
       header: ({ table }) => (
         <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
+          checked={table.getIsAllRowsSelected()}
           indeterminate={
-            table.getIsSomePageRowsSelected() &&
-            !table.getIsAllPageRowsSelected()
+            table.getIsSomeRowsSelected() && !table.getIsAllRowsSelected()
           }
           onCheckedChange={(checked) =>
-            table.toggleAllPageRowsSelected(Boolean(checked))
+            table.toggleAllRowsSelected(Boolean(checked))
           }
-          aria-label="Sélectionner toutes les lignes de la page"
+          aria-label="Tout sélectionner"
         />
       ),
       cell: ({ row }) => (

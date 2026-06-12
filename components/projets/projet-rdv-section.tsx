@@ -21,17 +21,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { TableSearchInput } from '@/components/shared/table-search-input';
-import { filterBySearch } from '@/components/shared/filter-by-search';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_RDV_LABELS, STATUT_RDV_COLORS } from '@/lib/utils/constants';
@@ -53,23 +48,6 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  const [search, setSearch] = useState('');
-
-  const filtered = useMemo(
-    () =>
-      filterBySearch(rdvs, search, (r) =>
-        [
-          r.formateur
-            ? `${r.formateur.prenom} ${r.formateur.nom}`
-            : r.formateur_nom,
-          r.objet,
-          STATUT_RDV_LABELS[r.statut],
-        ]
-          .filter(Boolean)
-          .join(' '),
-      ),
-    [rdvs, search],
-  );
 
   function handleToggleStatut(id: string, current: string) {
     setPendingId(id);
@@ -93,6 +71,107 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
     } else toast.error(r.error ?? 'Erreur');
   }
 
+  const columns = useMemo<ColumnDef<RdvFormateurWithRefs>[]>(
+    () => [
+      {
+        accessorKey: 'date_prevue',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Date prévue" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm tabular-nums">
+            {formatDate(row.original.date_prevue)}
+          </span>
+        ),
+      },
+      {
+        id: 'formateur',
+        accessorFn: (r) =>
+          r.formateur
+            ? `${r.formateur.prenom} ${r.formateur.nom}`
+            : (r.formateur_nom ?? '-'),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Formateur" />
+        ),
+        cell: ({ getValue }) => (
+          <span className="text-sm">{getValue<string>()}</span>
+        ),
+      },
+      {
+        accessorKey: 'objet',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Objet" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.objet ?? '-'}</span>
+        ),
+      },
+      {
+        id: 'statut',
+        accessorFn: (r) => STATUT_RDV_LABELS[r.statut],
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Statut" />
+        ),
+        cell: ({ row }) => (
+          <StatusBadge
+            label={STATUT_RDV_LABELS[row.original.statut]}
+            color={STATUT_RDV_COLORS[row.original.statut]}
+          />
+        ),
+      },
+      {
+        id: 'actions',
+        enableSorting: false,
+        enableHiding: false,
+        size: 128,
+        header: () => 'Actions',
+        cell: ({ row }) => {
+          const rdv = row.original;
+          return (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-7 p-0"
+                title={
+                  rdv.statut === 'realise'
+                    ? 'Remettre en prévu'
+                    : 'Marquer réalisé'
+                }
+                aria-label={
+                  rdv.statut === 'realise'
+                    ? 'Remettre en prévu'
+                    : 'Marquer réalisé'
+                }
+                disabled={pendingId === rdv.id}
+                onClick={() => handleToggleStatut(rdv.id, rdv.statut)}
+              >
+                {pendingId === rdv.id ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : rdv.statut === 'realise' ? (
+                  <XCircle className="size-3.5" />
+                ) : (
+                  <CheckCircle className="size-3.5" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive size-7 p-0"
+                title="Supprimer"
+                aria-label="Supprimer"
+                onClick={() => setConfirmDelete(rdv.id)}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          );
+        },
+      },
+    ],
+    [pendingId],
+  );
+
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -108,92 +187,13 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
       {rdvs.length === 0 ? (
         <p className="text-muted-foreground text-sm">Aucun RDV</p>
       ) : (
-        <div className="space-y-3">
-          <TableSearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Rechercher un RDV..."
-          />
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date prévue</TableHead>
-                  <TableHead>Formateur</TableHead>
-                  <TableHead>Objet</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="w-32">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-muted-foreground h-12 text-center text-sm"
-                    >
-                      Aucun résultat.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {filtered.map((rdv) => (
-                  <TableRow key={rdv.id}>
-                    <TableCell className="text-sm tabular-nums">
-                      {formatDate(rdv.date_prevue)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {rdv.formateur
-                        ? `${rdv.formateur.prenom} ${rdv.formateur.nom}`
-                        : (rdv.formateur_nom ?? '-')}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {rdv.objet ?? '-'}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={STATUT_RDV_LABELS[rdv.statut]}
-                        color={STATUT_RDV_COLORS[rdv.statut]}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="size-7 p-0"
-                          title={
-                            rdv.statut === 'realise'
-                              ? 'Remettre en prévu'
-                              : 'Marquer réalisé'
-                          }
-                          disabled={pendingId === rdv.id}
-                          onClick={() => handleToggleStatut(rdv.id, rdv.statut)}
-                        >
-                          {pendingId === rdv.id ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : rdv.statut === 'realise' ? (
-                            <XCircle className="size-3.5" />
-                          ) : (
-                            <CheckCircle className="size-3.5" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive size-7 p-0"
-                          title="Supprimer"
-                          onClick={() => setConfirmDelete(rdv.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        <DataTable
+          columns={columns}
+          data={rdvs}
+          searchPlaceholder="Rechercher un RDV..."
+          paginationMode="auto"
+          emptyMessage="Aucun résultat."
+        />
       )}
 
       <AddRdvFormateurDialog

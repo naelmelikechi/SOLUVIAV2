@@ -1,8 +1,13 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import {
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import { CategorieFormDialog } from './categorie-form-dialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { archiveCategorieInterneAction } from '@/app/(dashboard)/projets/internes/actions';
@@ -29,15 +34,18 @@ export function InternesConfigTab({ categories, projets }: Props) {
   );
 
   // Indexe les projets par categorie pour afficher les heures 12m
-  const heuresParCategorie = new Map<string, number>();
-  for (const p of projets) {
-    if (p.categorie) {
-      heuresParCategorie.set(
-        p.categorie.id,
-        (heuresParCategorie.get(p.categorie.id) ?? 0) + p.heures_12mois,
-      );
+  const heuresParCategorie = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of projets) {
+      if (p.categorie) {
+        map.set(
+          p.categorie.id,
+          (map.get(p.categorie.id) ?? 0) + p.heures_12mois,
+        );
+      }
     }
-  }
+    return map;
+  }, [projets]);
 
   const filtered = categories.filter((c) =>
     filter === 'actif' ? !c.archive : c.archive,
@@ -68,6 +76,125 @@ export function InternesConfigTab({ categories, projets }: Props) {
       }
     });
   };
+
+  const columns = useMemo<ColumnDef<CategorieInterne>[]>(
+    () => [
+      {
+        accessorKey: 'ordre',
+        size: 64,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Ordre" />
+        ),
+        cell: ({ row }) => (
+          <span
+            className={cn('tabular-nums', row.original.archive && 'opacity-60')}
+          >
+            {row.original.ordre}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'code',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Code" />
+        ),
+        cell: ({ row }) => (
+          <span
+            className={cn(
+              'text-muted-foreground font-mono text-xs',
+              row.original.archive && 'opacity-60',
+            )}
+          >
+            {row.original.code}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'libelle',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Libellé" />
+        ),
+        cell: ({ row }) => (
+          <span
+            className={cn('font-medium', row.original.archive && 'opacity-60')}
+          >
+            {row.original.libelle}
+          </span>
+        ),
+      },
+      {
+        id: 'heures_12m',
+        accessorFn: (c) => heuresParCategorie.get(c.id) ?? 0,
+        header: ({ column }) => (
+          <DataTableColumnHeader
+            column={column}
+            title="Heures 12m"
+            className="justify-end"
+          />
+        ),
+        cell: ({ getValue, row }) => (
+          <div
+            className={cn(
+              'text-right tabular-nums',
+              row.original.archive && 'opacity-60',
+            )}
+          >
+            {getValue<number>().toFixed(1).replace('.', ',')} h
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'actif',
+        size: 96,
+        header: () => <div className="text-center">Actif</div>,
+        cell: ({ row }) =>
+          row.original.actif ? (
+            <div className="text-center">
+              <span className="inline-flex h-5 items-center rounded-full bg-emerald-50 px-2 text-[10px] font-semibold tracking-wide text-emerald-700 uppercase">
+                Actif
+              </span>
+            </div>
+          ) : (
+            <div className="text-center">
+              <span className="text-muted-foreground inline-flex h-5 items-center rounded-full bg-gray-100 px-2 text-[10px] font-semibold tracking-wide uppercase">
+                Inactif
+              </span>
+            </div>
+          ),
+      },
+      {
+        id: 'actions',
+        enableSorting: false,
+        enableHiding: false,
+        size: 128,
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => {
+          const c = row.original;
+          return (
+            <div className="text-right">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setEditing(c)}
+                disabled={c.archive}
+              >
+                Éditer
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setArchiveTarget(c)}
+                disabled={pendingArchiveId && archivingId === c.id}
+              >
+                {c.archive ? 'Désarchiver' : 'Archiver'}
+              </Button>
+            </div>
+          );
+        },
+      },
+    ],
+    [heuresParCategorie, pendingArchiveId, archivingId],
+  );
 
   return (
     <div className="space-y-4">
@@ -103,81 +230,18 @@ export function InternesConfigTab({ categories, projets }: Props) {
         </Button>
       </div>
 
-      <div className="border-border overflow-hidden rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-muted-foreground text-xs uppercase">
-            <tr>
-              <th className="w-16 px-3 py-2 text-left">Ordre</th>
-              <th className="px-3 py-2 text-left">Code</th>
-              <th className="px-3 py-2 text-left">Libellé</th>
-              <th className="px-3 py-2 text-right">Heures 12m</th>
-              <th className="w-24 px-3 py-2 text-center">Actif</th>
-              <th className="w-32 px-3 py-2 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="text-muted-foreground px-3 py-6 text-center text-sm"
-                >
-                  {filter === 'actif'
-                    ? 'Aucune catégorie active'
-                    : 'Aucune catégorie archivée'}
-                </td>
-              </tr>
-            )}
-            {filtered.map((c) => (
-              <tr
-                key={c.id}
-                className={cn(
-                  'border-border/60 border-t',
-                  c.archive && 'opacity-60',
-                )}
-              >
-                <td className="px-3 py-2 tabular-nums">{c.ordre}</td>
-                <td className="text-muted-foreground px-3 py-2 font-mono text-xs">
-                  {c.code}
-                </td>
-                <td className="px-3 py-2 font-medium">{c.libelle}</td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {(heuresParCategorie.get(c.id) ?? 0).toFixed(1)} h
-                </td>
-                <td className="px-3 py-2 text-center">
-                  {c.actif ? (
-                    <span className="inline-flex h-5 items-center rounded-full bg-emerald-50 px-2 text-[10px] font-semibold tracking-wide text-emerald-700 uppercase">
-                      Actif
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground inline-flex h-5 items-center rounded-full bg-gray-100 px-2 text-[10px] font-semibold tracking-wide uppercase">
-                      Inactif
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setEditing(c)}
-                    disabled={c.archive}
-                  >
-                    Éditer
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setArchiveTarget(c)}
-                    disabled={pendingArchiveId && archivingId === c.id}
-                  >
-                    {c.archive ? 'Désarchiver' : 'Archiver'}
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        searchPlaceholder="Rechercher une catégorie..."
+        paginationMode="auto"
+        defaultSort={{ id: 'ordre', desc: false }}
+        emptyMessage={
+          filter === 'actif'
+            ? 'Aucune catégorie active'
+            : 'Aucune catégorie archivée'
+        }
+      />
 
       <CategorieFormDialog open={showCreate} onOpenChange={setShowCreate} />
       {editing && (

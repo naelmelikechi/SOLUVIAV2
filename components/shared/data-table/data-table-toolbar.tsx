@@ -40,6 +40,8 @@ interface DataTableToolbarProps<TData> {
   searchKey?: string;
   searchPlaceholder?: string;
   filters?: FilterOption[];
+  /** Contenu additionnel affiche a droite de la toolbar. */
+  extra?: React.ReactNode;
 }
 
 const EMPTY_FILTERS: FilterOption[] = [];
@@ -48,6 +50,7 @@ export function DataTableToolbar<TData>({
   table,
   searchPlaceholder = 'Rechercher...',
   filters = EMPTY_FILTERS,
+  extra,
 }: DataTableToolbarProps<TData>) {
   const activeFilterCount = filters.reduce((count, filter) => {
     const value = table.getColumn(filter.column)?.getFilterValue();
@@ -67,6 +70,7 @@ export function DataTableToolbar<TData>({
             value={globalFilter}
             onChange={(event) => table.setGlobalFilter(event.target.value)}
             className="pl-9"
+            aria-label={searchPlaceholder}
           />
         </div>
         {filters.map((filter) => {
@@ -169,6 +173,7 @@ export function DataTableToolbar<TData>({
           </Button>
         )}
       </div>
+      {extra && <div className="flex shrink-0 items-center gap-2">{extra}</div>}
     </div>
   );
 }

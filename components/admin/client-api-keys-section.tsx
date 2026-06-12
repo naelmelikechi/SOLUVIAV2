@@ -5,18 +5,13 @@ import { Key, Plus, Trash2, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import { TableSearchInput } from '@/components/shared/table-search-input';
-import { filterBySearch } from '@/components/shared/filter-by-search';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/utils/formatters';
 import {
@@ -51,22 +46,6 @@ export function ClientApiKeysSection({
     id: string;
     label: string | null;
   } | null>(null);
-  const [search, setSearch] = useState('');
-
-  const filtered = useMemo(
-    () =>
-      filterBySearch(apiKeys, search, (k) =>
-        [
-          k.label,
-          k.instance_url,
-          k.api_key_masked,
-          k.is_active ? 'Actif' : 'Inactif',
-        ]
-          .filter(Boolean)
-          .join(' '),
-      ),
-    [apiKeys, search],
-  );
 
   function resetForm() {
     setInstanceUrl('');
@@ -153,6 +132,124 @@ export function ClientApiKeysSection({
     });
   }
 
+  const columns = useMemo<ColumnDef<ClientApiKey>[]>(
+    () => [
+      {
+        accessorKey: 'label',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Libellé" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm font-medium">
+            {row.original.label || '-'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'instance_url',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Instance" />
+        ),
+        cell: ({ row }) => (
+          <span className="font-mono text-sm">
+            {row.original.instance_url || '-'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'api_key_masked',
+        enableSorting: false,
+        header: () => 'Clé',
+        cell: ({ row }) => (
+          <span className="text-muted-foreground font-mono text-xs">
+            {row.original.api_key_masked}
+          </span>
+        ),
+      },
+      {
+        id: 'statut',
+        accessorFn: (k) => (k.is_active ? 'Actif' : 'Inactif'),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Statut" />
+        ),
+        cell: ({ row }) => (
+          <StatusBadge
+            label={row.original.is_active ? 'Actif' : 'Inactif'}
+            color={row.original.is_active ? 'green' : 'gray'}
+          />
+        ),
+      },
+      {
+        accessorKey: 'last_sync_at',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Dernière sync" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm tabular-nums">
+            {row.original.last_sync_at
+              ? formatDate(row.original.last_sync_at)
+              : '-'}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        enableSorting: false,
+        enableHiding: false,
+        size: 112,
+        cell: ({ row }) => {
+          const k = row.original;
+          return (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleTestConnection(k.id)}
+                disabled={isPending || testingKeyId === k.id}
+                aria-label="Tester la connexion"
+                title="Tester la connexion"
+                className="text-muted-foreground hover:text-primary"
+              >
+                {testingKeyId === k.id ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Wifi className="size-3.5" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleToggleActive(k.id, k.is_active)}
+                disabled={isPending}
+                aria-label={k.is_active ? 'Désactiver' : 'Activer'}
+                title={k.is_active ? 'Désactiver' : 'Activer'}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {k.is_active ? (
+                  <WifiOff className="size-3.5" />
+                ) : (
+                  <Wifi className="size-3.5" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleDelete(k.id, k.label)}
+                disabled={isPending}
+                aria-label="Supprimer cette clé"
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          );
+        },
+      },
+    ],
+
+    [isPending, testingKeyId],
+  );
+
   return (
     <Card className="mb-6 p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -212,105 +309,13 @@ export function ClientApiKeysSection({
           Aucune clé API configurée
         </p>
       ) : apiKeys.length > 0 ? (
-        <div className="space-y-3">
-          <TableSearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Rechercher une clé API..."
-          />
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Libellé</TableHead>
-                  <TableHead>Instance</TableHead>
-                  <TableHead>Clé</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Dernière sync</TableHead>
-                  <TableHead className="w-28" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-muted-foreground h-12 text-center text-sm"
-                    >
-                      Aucun résultat.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {filtered.map((k) => (
-                  <TableRow key={k.id}>
-                    <TableCell className="text-sm font-medium">
-                      {k.label || '-'}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {k.instance_url || '-'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground font-mono text-xs">
-                      {k.api_key_masked}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        label={k.is_active ? 'Actif' : 'Inactif'}
-                        color={k.is_active ? 'green' : 'gray'}
-                      />
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums">
-                      {k.last_sync_at ? formatDate(k.last_sync_at) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleTestConnection(k.id)}
-                          disabled={isPending || testingKeyId === k.id}
-                          aria-label="Tester la connexion"
-                          title="Tester la connexion"
-                          className="text-muted-foreground hover:text-primary"
-                        >
-                          {testingKeyId === k.id ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            <Wifi className="size-3.5" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleToggleActive(k.id, k.is_active)}
-                          disabled={isPending}
-                          aria-label={k.is_active ? 'Désactiver' : 'Activer'}
-                          title={k.is_active ? 'Désactiver' : 'Activer'}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          {k.is_active ? (
-                            <WifiOff className="size-3.5" />
-                          ) : (
-                            <Wifi className="size-3.5" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleDelete(k.id, k.label)}
-                          disabled={isPending}
-                          aria-label="Supprimer cette clé"
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        <DataTable
+          columns={columns}
+          data={apiKeys}
+          searchPlaceholder="Rechercher une clé API..."
+          paginationMode="auto"
+          emptyMessage="Aucun résultat."
+        />
       ) : null}
 
       <ConfirmDialog

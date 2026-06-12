@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { ContratRow } from '@/lib/queries/projets';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
-import { TableSearchInput } from '@/components/shared/table-search-input';
-import { filterBySearch } from '@/components/shared/filter-by-search';
 import { Card } from '@/components/ui/card';
 import {
   Tooltip,
@@ -15,13 +14,9 @@ import {
 } from '@/components/ui/tooltip';
 import { isContratActif } from '@/lib/utils/contrat-states';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import { ContratDetailSheet } from '@/components/projets/contrat-detail-sheet';
 
 const CONTRACT_STATE_LABELS: Record<string, string> = {
@@ -65,6 +60,32 @@ function computeProgressionTheorique(
   );
 }
 
+// Eduvia API quirk: paid_amount toujours = 0 sur
+// /contracts/{id}/invoice_steps. Le payé OPCO est porte par
+// invoice_state='REGLE' (+ paid_at). On derive donc le montant
+// paye = total_amount quand l'etape est REGLE.
+function isStepPaid(s: {
+  invoice_state: string | null;
+  paid_at: string | null;
+}): boolean {
+  return s.invoice_state === 'REGLE' || s.paid_at !== null;
+}
+
+function computePaidTotal(c: ContratRow): number {
+  return (c.invoice_steps ?? []).reduce(
+    (sum, step) =>
+      sum + (isStepPaid(step) ? Number(step.total_amount ?? 0) : 0),
+    0,
+  );
+}
+
+function progressionReelle(c: ContratRow): number | null {
+  return c.progression?.progression_percentage !== null &&
+    c.progression?.progression_percentage !== undefined
+    ? Math.round(Number(c.progression.progression_percentage))
+    : null;
+}
+
 function ProgressBar({
   value,
   comparison,
@@ -92,9 +113,266 @@ function ProgressBar({
   );
 }
 
-// oxlint-disable-next-line react-doctor/no-giant-component
+const columns: ColumnDef<ContratRow>[] = [
+  {
+    id: 'ref',
+    // Concatene les 3 identifiants pour que la recherche globale matche
+    // DECA, numero Eduvia et ref Soluvia (comportement historique).
+    accessorFn: (c) =>
+      [c.contract_number, c.internal_number, c.ref].filter(Boolean).join(' '),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Réf" />
+    ),
+    cell: ({ row }) => {
+      const c = row.original;
+      return (
+        <Tooltip>
+          <TooltipTrigger className="block cursor-default text-left">
+            <span className="inline-block rounded bg-[var(--orange-bg)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--warning)]">
+              {c.contract_number ?? c.ref}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="space-y-0.5 px-3 py-2">
+            <div className="text-xs">
+              <span className="text-muted-foreground">DECA : </span>
+              <span className="font-mono">{c.contract_number ?? '-'}</span>
+            </div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">Eduvia : </span>
+              <span className="font-mono">{c.internal_number ?? '-'}</span>
+            </div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">Soluvia : </span>
+              <span className="font-mono">{c.ref}</span>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      );
+    },
+  },
+  {
+    id: 'apprenant',
+    accessorFn: (c) => `${c.apprenant_prenom ?? ''} ${c.apprenant_nom ?? ''}`,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Apprenant" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm">
+        {row.original.apprenant_prenom} {row.original.apprenant_nom}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'formation_titre',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Formation" />
+    ),
+    cell: ({ row }) => {
+      const c = row.original;
+      return (
+        <div className="max-w-[200px] text-sm">
+          {c.formation_titre ? (
+            <Tooltip>
+              <TooltipTrigger className="block max-w-full cursor-default truncate text-left">
+                {c.formation_titre}
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="max-w-sm space-y-1 px-3 py-2"
+              >
+                <div className="text-sm font-semibold">{c.formation_titre}</div>
+                <div className="text-muted-foreground space-y-0.5 text-xs tabular-nums">
+                  <div>
+                    Apprenant : {c.apprenant_prenom} {c.apprenant_nom}
+                  </div>
+                  {c.duree_mois ? <div>Durée : {c.duree_mois} mois</div> : null}
+                  {c.date_debut && c.date_fin ? (
+                    <div>
+                      {formatDate(c.date_debut)} - {formatDate(c.date_fin)}
+                    </div>
+                  ) : null}
+                  {c.npec_amount ? (
+                    <div>NPEC : {formatCurrency(c.npec_amount)}</div>
+                  ) : null}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          )}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'date_debut',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Début" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm tabular-nums">
+        {row.original.date_debut ? formatDate(row.original.date_debut) : '-'}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'date_fin',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Fin" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm tabular-nums">
+        {row.original.date_fin ? formatDate(row.original.date_fin) : '-'}
+      </span>
+    ),
+  },
+  {
+    id: 'statut',
+    accessorFn: (c) =>
+      CONTRACT_STATE_LABELS[c.contract_state] ?? c.contract_state,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Statut" />
+    ),
+    cell: ({ row }) => (
+      <StatusBadge
+        label={
+          CONTRACT_STATE_LABELS[row.original.contract_state] ??
+          row.original.contract_state
+        }
+        color={CONTRACT_STATE_COLORS[row.original.contract_state] ?? 'gray'}
+      />
+    ),
+  },
+  {
+    accessorKey: 'npec_amount',
+    header: ({ column }) => (
+      <DataTableColumnHeader
+        column={column}
+        title="Prise en charge"
+        className="justify-end"
+      />
+    ),
+    cell: ({ row }) => (
+      <div className="text-right font-mono text-sm tabular-nums">
+        {row.original.npec_amount
+          ? formatCurrency(row.original.npec_amount)
+          : '-'}
+      </div>
+    ),
+  },
+  {
+    id: 'encaisse',
+    accessorFn: (c) => computePaidTotal(c),
+    header: ({ column }) => (
+      <DataTableColumnHeader
+        column={column}
+        title="Encaissé"
+        className="justify-end"
+      />
+    ),
+    cell: ({ row }) => {
+      const c = row.original;
+      const steps = c.invoice_steps ?? [];
+      if (steps.length === 0) {
+        return (
+          <div className="text-muted-foreground text-right text-xs">-</div>
+        );
+      }
+      const paidTotal = computePaidTotal(c);
+      const invoicedTotal = steps.reduce(
+        (s, step) => s + Number(step.total_amount ?? 0),
+        0,
+      );
+      const paidStepsCount = steps.filter(isStepPaid).length;
+      return (
+        <Tooltip>
+          <TooltipTrigger className="block w-full cursor-default text-right">
+            <div className="font-mono text-sm tabular-nums">
+              {paidTotal > 0 ? (
+                <span className="text-[var(--success)]">
+                  {formatCurrency(paidTotal)}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  {formatCurrency(0)}
+                </span>
+              )}
+            </div>
+            <div className="text-muted-foreground text-[10px] tabular-nums">
+              {paidStepsCount}/{steps.length}
+              {steps.length > 1 ? ' échéances' : ' échéance'}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="space-y-0.5 px-3 py-2">
+            <div className="text-xs">
+              <span className="text-muted-foreground">{'Encaissé : '}</span>
+              <span className="font-mono tabular-nums">
+                {formatCurrency(paidTotal)}
+              </span>
+            </div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">{'Facturé : '}</span>
+              <span className="font-mono tabular-nums">
+                {formatCurrency(invoicedTotal)}
+              </span>
+            </div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">{'Reste : '}</span>
+              <span className="font-mono tabular-nums">
+                {formatCurrency(invoicedTotal - paidTotal)}
+              </span>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      );
+    },
+  },
+  {
+    id: 'progression',
+    accessorFn: (c) =>
+      progressionReelle(c) ??
+      computeProgressionTheorique(c.date_debut, c.date_fin),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Progression" />
+    ),
+    cell: ({ row }) => {
+      const c = row.original;
+      const theorique = computeProgressionTheorique(c.date_debut, c.date_fin);
+      const reelle = progressionReelle(c);
+      return (
+        <Tooltip>
+          <TooltipTrigger className="block cursor-default">
+            <ProgressBar
+              value={reelle ?? theorique}
+              comparison={reelle !== null ? theorique : undefined}
+              color="bg-[var(--primary)]"
+            />
+          </TooltipTrigger>
+          <TooltipContent side="top" className="space-y-1 px-3 py-2">
+            <div className="text-xs">
+              <span className="text-muted-foreground">Eduvia : </span>
+              <span className="font-mono tabular-nums">
+                {reelle !== null ? `${reelle}%` : 'non synchronisé'}
+              </span>
+            </div>
+            <div className="text-xs">
+              <span className="text-muted-foreground">Théorique : </span>
+              <span className="font-mono tabular-nums">{theorique}%</span>
+            </div>
+            {c.progression?.total_spent_time_hours ? (
+              <div className="text-muted-foreground text-xs">
+                Temps passé :{' '}
+                {Number(c.progression.total_spent_time_hours).toFixed(1)} h
+              </div>
+            ) : null}
+          </TooltipContent>
+        </Tooltip>
+      );
+    },
+  },
+];
+
 export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
-  const [search, setSearch] = useState('');
   const [selectedContratId, setSelectedContratId] = useState<string | null>(
     null,
   );
@@ -113,24 +391,6 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
             realProgressions.length,
         )
       : 0;
-
-  const filteredContrats = useMemo(
-    () =>
-      filterBySearch(contrats, search, (c) =>
-        [
-          c.ref,
-          c.contract_number,
-          c.internal_number,
-          c.apprenant_prenom,
-          c.apprenant_nom,
-          c.formation_titre,
-          CONTRACT_STATE_LABELS[c.contract_state] ?? c.contract_state,
-        ]
-          .filter(Boolean)
-          .join(' '),
-      ),
-    [contrats, search],
-  );
 
   return (
     <TooltipProvider delay={200}>
@@ -162,290 +422,14 @@ export function ProjetContratsTable({ contrats }: { contrats: ContratRow[] }) {
             Aucun contrat synchronisé
           </p>
         ) : (
-          <>
-            <div className="mb-3">
-              <TableSearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder="Rechercher un contrat..."
-              />
-            </div>
-            <div className="border-border overflow-x-auto rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Réf</TableHead>
-                    <TableHead>Apprenant</TableHead>
-                    <TableHead>Formation</TableHead>
-                    <TableHead>Début</TableHead>
-                    <TableHead>Fin</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">
-                      Prise en charge
-                    </TableHead>
-                    <TableHead className="text-right">Encaissé</TableHead>
-                    <TableHead>Progression</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContrats.length === 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={9}
-                        className="text-muted-foreground h-16 text-center text-sm"
-                      >
-                        Aucun résultat.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {filteredContrats.map((c) => {
-                    const theorique = computeProgressionTheorique(
-                      c.date_debut,
-                      c.date_fin,
-                    );
-                    const reelle =
-                      c.progression?.progression_percentage !== null &&
-                      c.progression?.progression_percentage !== undefined
-                        ? Math.round(
-                            Number(c.progression.progression_percentage),
-                          )
-                        : null;
-                    // Eduvia API quirk: paid_amount toujours = 0 sur
-                    // /contracts/{id}/invoice_steps. Le payé OPCO est porte
-                    // par invoice_state='REGLE' (+ paid_at). On derive donc
-                    // le montant paye = total_amount quand l'etape est REGLE.
-                    const isStepPaid = (s: {
-                      invoice_state: string | null;
-                      paid_at: string | null;
-                    }) => s.invoice_state === 'REGLE' || s.paid_at !== null;
-                    const paidTotal = (c.invoice_steps ?? []).reduce(
-                      (sum, step) =>
-                        sum +
-                        (isStepPaid(step) ? Number(step.total_amount ?? 0) : 0),
-                      0,
-                    );
-                    const invoicedTotal = (c.invoice_steps ?? []).reduce(
-                      (s, step) => s + Number(step.total_amount ?? 0),
-                      0,
-                    );
-                    const paidStepsCount = (c.invoice_steps ?? []).filter(
-                      isStepPaid,
-                    ).length;
-                    return (
-                      <TableRow
-                        key={c.id}
-                        onClick={() => setSelectedContratId(c.id)}
-                        className="hover:bg-muted/50 cursor-pointer"
-                      >
-                        <TableCell>
-                          <Tooltip>
-                            <TooltipTrigger className="block cursor-default text-left">
-                              <span className="inline-block rounded bg-[var(--orange-bg)] px-2 py-0.5 font-mono text-xs font-semibold text-[var(--warning)]">
-                                {c.contract_number ?? c.ref}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="top"
-                              className="space-y-0.5 px-3 py-2"
-                            >
-                              <div className="text-xs">
-                                <span className="text-muted-foreground">
-                                  DECA :{' '}
-                                </span>
-                                <span className="font-mono">
-                                  {c.contract_number ?? '-'}
-                                </span>
-                              </div>
-                              <div className="text-xs">
-                                <span className="text-muted-foreground">
-                                  Eduvia :{' '}
-                                </span>
-                                <span className="font-mono">
-                                  {c.internal_number ?? '-'}
-                                </span>
-                              </div>
-                              <div className="text-xs">
-                                <span className="text-muted-foreground">
-                                  Soluvia :{' '}
-                                </span>
-                                <span className="font-mono">{c.ref}</span>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {c.apprenant_prenom} {c.apprenant_nom}
-                        </TableCell>
-                        <TableCell className="max-w-[200px] text-sm">
-                          {c.formation_titre ? (
-                            <Tooltip>
-                              <TooltipTrigger className="block max-w-full cursor-default truncate text-left">
-                                {c.formation_titre}
-                              </TooltipTrigger>
-                              <TooltipContent
-                                side="top"
-                                className="max-w-sm space-y-1 px-3 py-2"
-                              >
-                                <div className="text-sm font-semibold">
-                                  {c.formation_titre}
-                                </div>
-                                <div className="text-muted-foreground space-y-0.5 text-xs tabular-nums">
-                                  <div>
-                                    Apprenant : {c.apprenant_prenom}{' '}
-                                    {c.apprenant_nom}
-                                  </div>
-                                  {c.duree_mois ? (
-                                    <div>Durée : {c.duree_mois} mois</div>
-                                  ) : null}
-                                  {c.date_debut && c.date_fin ? (
-                                    <div>
-                                      {formatDate(c.date_debut)} -{' '}
-                                      {formatDate(c.date_fin)}
-                                    </div>
-                                  ) : null}
-                                  {c.npec_amount ? (
-                                    <div>
-                                      NPEC : {formatCurrency(c.npec_amount)}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm tabular-nums">
-                          {c.date_debut ? formatDate(c.date_debut) : '-'}
-                        </TableCell>
-                        <TableCell className="text-sm tabular-nums">
-                          {c.date_fin ? formatDate(c.date_fin) : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge
-                            label={
-                              CONTRACT_STATE_LABELS[c.contract_state] ??
-                              c.contract_state
-                            }
-                            color={
-                              CONTRACT_STATE_COLORS[c.contract_state] ?? 'gray'
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm tabular-nums">
-                          {c.npec_amount ? formatCurrency(c.npec_amount) : '-'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {(c.invoice_steps ?? []).length === 0 ? (
-                            <span className="text-muted-foreground text-xs">
-                              {'-'}
-                            </span>
-                          ) : (
-                            <Tooltip>
-                              <TooltipTrigger className="block w-full cursor-default text-right">
-                                <div className="font-mono text-sm tabular-nums">
-                                  {paidTotal > 0 ? (
-                                    <span className="text-[var(--success)]">
-                                      {formatCurrency(paidTotal)}
-                                    </span>
-                                  ) : (
-                                    <span className="text-muted-foreground">
-                                      {formatCurrency(0)}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-muted-foreground text-[10px] tabular-nums">
-                                  {paidStepsCount}/
-                                  {c.invoice_steps?.length ?? 0}
-                                  {(c.invoice_steps?.length ?? 0) > 1
-                                    ? ' \u00e9ch\u00e9ances'
-                                    : ' \u00e9ch\u00e9ance'}
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent
-                                side="top"
-                                className="space-y-0.5 px-3 py-2"
-                              >
-                                <div className="text-xs">
-                                  <span className="text-muted-foreground">
-                                    {'Encaiss\u00e9 : '}
-                                  </span>
-                                  <span className="font-mono tabular-nums">
-                                    {formatCurrency(paidTotal)}
-                                  </span>
-                                </div>
-                                <div className="text-xs">
-                                  <span className="text-muted-foreground">
-                                    {'Factur\u00e9 : '}
-                                  </span>
-                                  <span className="font-mono tabular-nums">
-                                    {formatCurrency(invoicedTotal)}
-                                  </span>
-                                </div>
-                                <div className="text-xs">
-                                  <span className="text-muted-foreground">
-                                    {'Reste : '}
-                                  </span>
-                                  <span className="font-mono tabular-nums">
-                                    {formatCurrency(invoicedTotal - paidTotal)}
-                                  </span>
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Tooltip>
-                            <TooltipTrigger className="block cursor-default">
-                              <ProgressBar
-                                value={reelle ?? theorique}
-                                comparison={
-                                  reelle !== null ? theorique : undefined
-                                }
-                                color="bg-[var(--primary)]"
-                              />
-                            </TooltipTrigger>
-                            <TooltipContent
-                              side="top"
-                              className="space-y-1 px-3 py-2"
-                            >
-                              <div className="text-xs">
-                                <span className="text-muted-foreground">
-                                  Eduvia :{' '}
-                                </span>
-                                <span className="font-mono tabular-nums">
-                                  {reelle !== null
-                                    ? `${reelle}%`
-                                    : 'non synchronisé'}
-                                </span>
-                              </div>
-                              <div className="text-xs">
-                                <span className="text-muted-foreground">
-                                  Théorique :{' '}
-                                </span>
-                                <span className="font-mono tabular-nums">
-                                  {theorique}%
-                                </span>
-                              </div>
-                              {c.progression?.total_spent_time_hours ? (
-                                <div className="text-muted-foreground text-xs">
-                                  Temps passé :{' '}
-                                  {Number(
-                                    c.progression.total_spent_time_hours,
-                                  ).toFixed(1)}{' '}
-                                  h
-                                </div>
-                              ) : null}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </>
+          <DataTable
+            columns={columns}
+            data={contrats}
+            searchPlaceholder="Rechercher un contrat..."
+            paginationMode="auto"
+            onRowClick={(c) => setSelectedContratId(c.id)}
+            emptyMessage="Aucun résultat."
+          />
         )}
       </Card>
       <ContratDetailSheet

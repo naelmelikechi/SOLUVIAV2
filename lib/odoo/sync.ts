@@ -197,6 +197,34 @@ async function pushFactures(
         });
       }
 
+      // Rapprochement bancaire automatique : garantit un account.reconcile.model
+      // trigger=auto_reconcile pour ce client, pour qu'Odoo lettre tout seul
+      // l'encaissement des qu'il arrive en banque (libelle contient la raison
+      // sociale + montant d'une facture ouverte). Best-effort, non bloquant ;
+      // idempotent cote client Odoo (upsert par nom, skip si modele fait main).
+      if (client?.is_demo !== true && client?.raison_sociale) {
+        try {
+          const r = await odoo.ensureAutoReconcileModel({
+            raison_sociale: client.raison_sociale,
+            siret: client.siret ?? '',
+            vat: client.tva_intracommunautaire,
+            company_id: societe?.odoo_company_id ?? null,
+          });
+          if (r.action === 'skipped' && r.reason && r.reason !== 'stub') {
+            logger.warn(SCOPE, 'Auto-reconcile model skipped', {
+              facture_id: f.id,
+              client: client.raison_sociale,
+              reason: r.reason,
+            });
+          }
+        } catch (err) {
+          logger.warn(SCOPE, 'ensureAutoReconcileModel failed (non bloquant)', {
+            facture_id: f.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
       // Synergie #1 : push analytic line par ligne facture si le projet a un
       // code_analytique configure. Best-effort, non bloquant. Idempotence via
       // facture_lignes.analytic_line_odoo_id (skip si deja pousse).

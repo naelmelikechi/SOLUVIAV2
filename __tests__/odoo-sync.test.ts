@@ -39,6 +39,11 @@ const odooMock = {
     skipped: true,
     reason: 'mocked',
   })),
+  ensureAutoReconcileModel: vi.fn(async () => ({
+    model_odoo_id: null,
+    action: 'skipped' as const,
+    reason: 'mocked',
+  })),
 };
 
 vi.mock('@/lib/odoo/client', () => ({

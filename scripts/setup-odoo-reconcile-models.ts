@@ -381,6 +381,12 @@ async function upsertForPair(
   const id = await executeKw<number>('account.reconcile.model', 'create', [
     vals,
   ]);
+  // mapped_partner_id est compute readonly : ignore au create, persiste au
+  // write (piege documente — « write apres create obligatoire »).
+  await executeKw('account.reconcile.model', 'write', [
+    [id],
+    { mapped_partner_id: vals.mapped_partner_id },
+  ]);
   return { client: label, action: 'created', odoo_id: id };
 }
 

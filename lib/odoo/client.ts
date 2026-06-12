@@ -1,4 +1,5 @@
 import { logger } from '@/lib/utils/logger';
+import { buildClientReconcileModelVals } from '@/lib/odoo/reconcile-model-vals';
 
 // ---------------------------------------------------------------------------
 // Odoo client interface
@@ -141,6 +142,26 @@ export interface OdooClient {
     skipped: boolean;
     reason?: string;
   }>;
+  /**
+   * Garantit qu'un account.reconcile.model trigger=auto_reconcile existe pour ce
+   * client : des qu'un encaissement arrive en banque avec la raison sociale du
+   * client dans le libelle, Odoo lettre automatiquement la facture ouverte
+   * correspondante (par montant). Idempotent : upsert par nom
+   * « Soluvia auto-match <raison_sociale> » scope par company ; skip si un
+   * modele fait main mappe deja ce partenaire (ex. « Match HEOL ACADEMY »).
+   */
+  ensureAutoReconcileModel(params: OdooReconcileModelInput): Promise<{
+    model_odoo_id: number | null;
+    action: 'created' | 'updated' | 'skipped';
+    reason?: string;
+  }>;
+}
+
+export interface OdooReconcileModelInput {
+  raison_sociale: string;
+  siret: string;
+  vat: string | null;
+  company_id: number | null;
 }
 
 export interface OdooAttachmentInput {
@@ -463,19 +484,39 @@ class OdooJsonRpcClient implements OdooClient {
     // Cache du tax id 20% uniquement quand pas de scope company, sinon le
     // cache renverrait la mauvaise taxe pour une autre company.
     if (rate === 20 && !companyId && this.taxId20 !== null) return this.taxId20;
-    const domain: unknown[] = [
+    const baseDomain: unknown[] = [
       ['type_tax_use', '=', 'sale'],
       ['amount', '=', rate],
       ['amount_type', '=', 'percent'],
     ];
-    if (companyId) domain.push(['company_id', '=', companyId]);
-    const ids = await this.executeKw<number[]>(
-      'account.tax',
-      'search',
-      [domain],
-      { limit: 1 },
-    );
-    const id = ids[0] ?? null;
+    if (companyId) baseDomain.push(['company_id', '=', companyId]);
+
+    // SOLUVIA ne facture que des prestations de services (commissions, apport
+    // d'affaires). On cible donc EN PRIORITE la taxe de portee 'service'
+    // (account.tax.tax_scope), sinon une taxe "tous types" (tax_scope=false),
+    // et seulement en dernier recours n'importe quelle taxe de vente au bon
+    // taux. Sans ce tri, Odoo renvoie souvent la taxe "biens" (ex. "20% G",
+    // tax_scope=consu) en premier, ce qui ventile a tort les prestations en
+    // livraisons de biens sur la declaration de TVA (CA3).
+    const domainsByPreference: unknown[][] = [
+      [...baseDomain, ['tax_scope', '=', 'service']],
+      [...baseDomain, ['tax_scope', '=', false]],
+      baseDomain,
+    ];
+    let id: number | null = null;
+    for (const domain of domainsByPreference) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
+      const ids = await this.executeKw<number[]>(
+        'account.tax',
+        'search',
+        [domain],
+        { limit: 1 },
+      );
+      if (ids[0] !== undefined) {
+        id = ids[0];
+        break;
+      }
+    }
     if (rate === 20 && !companyId && id !== null) this.taxId20 = id;
     return id;
   }
@@ -916,6 +957,155 @@ class OdooJsonRpcClient implements OdooClient {
     return { odoo_id: `${paymentId}-${moveId}` };
   }
 
+  // -------- Ensure auto-reconcile model (per client) --------
+
+  async ensureAutoReconcileModel(params: OdooReconcileModelInput): Promise<{
+    model_odoo_id: number | null;
+    action: 'created' | 'updated' | 'skipped';
+    reason?: string;
+  }> {
+    if (!params.company_id) {
+      return {
+        model_odoo_id: null,
+        action: 'skipped',
+        reason: 'company_id absent (societe emettrice sans odoo_company_id)',
+      };
+    }
+    const companyId = params.company_id;
+
+    // Resolution du partner par identifiants forts uniquement (memes domaines
+    // que findOrCreatePartner) : pas de creation ici, le push facture l'a deja
+    // cree. Introuvable -> skip non bloquant, le prochain sync repassera.
+    const cleanSiret = params.siret.replace(/\s/g, '');
+    const cleanVat = params.vat?.replace(/\s/g, '') ?? null;
+    const domains: Array<unknown[][]> = [];
+    if (cleanVat) domains.push([['vat', '=', cleanVat]]);
+    if (cleanSiret) {
+      domains.push([['vat', '=', cleanSiret]]);
+      domains.push([['company_registry', '=', cleanSiret]]);
+    }
+    let partnerId: number | null = null;
+    for (const domain of domains) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
+      const ids = await this.executeKw<number[]>(
+        'res.partner',
+        'search',
+        [domain],
+        { limit: 1 },
+      );
+      if (ids[0] !== undefined) {
+        partnerId = ids[0];
+        break;
+      }
+    }
+    if (partnerId === null) {
+      return {
+        model_odoo_id: null,
+        action: 'skipped',
+        reason: 'partner Odoo introuvable (SIRET/TVA non rapproches)',
+      };
+    }
+
+    const journalIds = await this.executeKw<number[]>(
+      'account.journal',
+      'search',
+      [
+        [
+          ['type', '=', 'bank'],
+          ['company_id', '=', companyId],
+        ],
+      ],
+      { limit: 1, order: 'id' },
+    );
+    const bankJournalId = journalIds[0];
+    if (bankJournalId === undefined) {
+      return {
+        model_odoo_id: null,
+        action: 'skipped',
+        reason: `aucun journal banque pour la company ${companyId}`,
+      };
+    }
+
+    const vals = buildClientReconcileModelVals({
+      raisonSociale: params.raison_sociale,
+      partnerId,
+      companyId,
+      bankJournalId,
+      auto: true,
+    });
+
+    type ExistingModel = { id: number; trigger: string };
+    const byName = await this.executeKw<ExistingModel[]>(
+      'account.reconcile.model',
+      'search_read',
+      [
+        [
+          ['name', '=', vals.name],
+          ['company_id', '=', companyId],
+        ],
+      ],
+      { fields: ['id', 'trigger'], limit: 1 },
+    );
+    const existing = byName[0];
+    if (existing) {
+      // Deja au bon trigger : rien a ecrire (le sync tourne plusieurs fois/jour,
+      // on evite un write Odoo systematique).
+      if (existing.trigger === vals.trigger) {
+        return { model_odoo_id: existing.id, action: 'skipped' };
+      }
+      await this.executeKw('account.reconcile.model', 'write', [
+        [existing.id],
+        vals,
+      ]);
+      logger.info(SCOPE, 'Updated auto-reconcile model', {
+        model_id: existing.id,
+        name: vals.name,
+      });
+      return { model_odoo_id: existing.id, action: 'updated' };
+    }
+
+    // Un modele fait main mappe deja ce partenaire (ex. « Match HEOL ACADEMY »
+    // id 7) : on ne cree pas de doublon, lui reste la reference.
+    const byPartner = await this.executeKw<Array<{ id: number }>>(
+      'account.reconcile.model',
+      'search_read',
+      [
+        [
+          ['mapped_partner_id', '=', partnerId],
+          ['company_id', '=', companyId],
+        ],
+      ],
+      { fields: ['id'], limit: 1 },
+    );
+    if (byPartner[0]) {
+      return {
+        model_odoo_id: byPartner[0].id,
+        action: 'skipped',
+        reason: 'modele partenaire existant (fait main)',
+      };
+    }
+
+    const id = await this.executeKw<number>(
+      'account.reconcile.model',
+      'create',
+      [vals],
+    );
+    // mapped_partner_id est un champ compute readonly chez Odoo : sa valeur
+    // passee au create est ecrasee (-> false). Le write APRES create, lui,
+    // persiste (cf. modele id 7 / memoire projet). Sans ce write, le modele
+    // matche le libelle mais ne rattache aucun partenaire : pas de lettrage.
+    await this.executeKw('account.reconcile.model', 'write', [
+      [id],
+      { mapped_partner_id: partnerId },
+    ]);
+    logger.info(SCOPE, 'Created auto-reconcile model', {
+      model_id: id,
+      name: vals.name,
+      partner_id: partnerId,
+    });
+    return { model_odoo_id: id, action: 'created' };
+  }
+
   // -------- Pull cancellations --------
 
   async pullCancellations(since: string): Promise<OdooCancelledMove[]> {
@@ -1062,6 +1252,13 @@ function createStubOdooClient(): OdooClient {
         amount: params.amount,
       });
       return { analytic_line_odoo_id: null, skipped: true, reason: 'stub' };
+    },
+    async ensureAutoReconcileModel(params) {
+      logger.info(SCOPE, 'ensureAutoReconcileModel (stub)', {
+        raison_sociale: params.raison_sociale,
+        company_id: params.company_id,
+      });
+      return { model_odoo_id: null, action: 'skipped', reason: 'stub' };
     },
   };
 }

@@ -7,14 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import { toast } from 'sonner';
 import {
   addClientContact,
@@ -22,8 +19,6 @@ import {
   updateClientContact,
 } from '@/lib/actions/clients';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import { TableSearchInput } from '@/components/shared/table-search-input';
-import { filterBySearch } from '@/components/shared/filter-by-search';
 import type { ClientContact } from '@/lib/queries/clients';
 
 interface ClientContactsSectionProps {
@@ -48,15 +43,6 @@ export function ClientContactsSection({
     id: string;
     nom: string;
   } | null>(null);
-  const [search, setSearch] = useState('');
-
-  const filtered = useMemo(
-    () =>
-      filterBySearch(contacts, search, (c) =>
-        [c.nom, c.poste, c.email, c.telephone].filter(Boolean).join(' '),
-      ),
-    [contacts, search],
-  );
 
   function resetForm() {
     setNom('');
@@ -134,6 +120,113 @@ export function ClientContactsSection({
       }
     });
   }
+
+  const columns = useMemo<ColumnDef<ClientContact>[]>(
+    () => [
+      {
+        accessorKey: 'nom',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Nom" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm font-medium">{row.original.nom}</span>
+        ),
+      },
+      {
+        accessorKey: 'poste',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Poste" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-muted-foreground text-sm">
+            {row.original.poste || '-'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'email',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Email" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.email || '-'}</span>
+        ),
+      },
+      {
+        accessorKey: 'telephone',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Téléphone" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.telephone || '-'}</span>
+        ),
+      },
+      {
+        accessorKey: 'recoit_factures',
+        enableSorting: false,
+        header: () => <div className="text-center">Facturation</div>,
+        cell: ({ row }) => (
+          <div className="text-center">
+            <Checkbox
+              checked={row.original.recoit_factures ?? false}
+              disabled={isPending || !row.original.email}
+              onCheckedChange={(v) =>
+                toggleFlag(
+                  row.original.id,
+                  row.original.email,
+                  'recoit_factures',
+                  v === true,
+                )
+              }
+              aria-label={`Recoit les factures: ${row.original.nom}`}
+            />
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'recoit_factures_cc',
+        enableSorting: false,
+        header: () => <div className="text-center">Cc</div>,
+        cell: ({ row }) => (
+          <div className="text-center">
+            <Checkbox
+              checked={row.original.recoit_factures_cc ?? false}
+              disabled={isPending || !row.original.email}
+              onCheckedChange={(v) =>
+                toggleFlag(
+                  row.original.id,
+                  row.original.email,
+                  'recoit_factures_cc',
+                  v === true,
+                )
+              }
+              aria-label={`En copie facturation: ${row.original.nom}`}
+            />
+          </div>
+        ),
+      },
+      {
+        id: 'actions',
+        enableSorting: false,
+        enableHiding: false,
+        size: 40,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => handleDelete(row.original.id, row.original.nom)}
+            disabled={isPending}
+            aria-label={`Supprimer ${row.original.nom}`}
+            className="text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isPending, clientId],
+  );
 
   return (
     <Card className="mb-6 p-6">
@@ -216,96 +309,13 @@ export function ClientContactsSection({
       {contacts.length === 0 && !showForm ? (
         <p className="text-muted-foreground text-sm">Aucun contact</p>
       ) : contacts.length > 0 ? (
-        <div className="space-y-3">
-          <TableSearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Rechercher un contact..."
-          />
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Poste</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Téléphone</TableHead>
-                  <TableHead className="text-center">Facturation</TableHead>
-                  <TableHead className="text-center">Cc</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="text-muted-foreground h-12 text-center text-sm"
-                    >
-                      Aucun résultat.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {filtered.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="text-sm font-medium">
-                      {c.nom}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {c.poste || '-'}
-                    </TableCell>
-                    <TableCell className="text-sm">{c.email || '-'}</TableCell>
-                    <TableCell className="text-sm">
-                      {c.telephone || '-'}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Checkbox
-                        checked={c.recoit_factures ?? false}
-                        disabled={isPending || !c.email}
-                        onCheckedChange={(v) =>
-                          toggleFlag(
-                            c.id,
-                            c.email,
-                            'recoit_factures',
-                            v === true,
-                          )
-                        }
-                        aria-label={`Recoit les factures: ${c.nom}`}
-                      />
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Checkbox
-                        checked={c.recoit_factures_cc ?? false}
-                        disabled={isPending || !c.email}
-                        onCheckedChange={(v) =>
-                          toggleFlag(
-                            c.id,
-                            c.email,
-                            'recoit_factures_cc',
-                            v === true,
-                          )
-                        }
-                        aria-label={`En copie facturation: ${c.nom}`}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleDelete(c.id, c.nom)}
-                        disabled={isPending}
-                        aria-label={`Supprimer ${c.nom}`}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        <DataTable
+          columns={columns}
+          data={contacts}
+          searchPlaceholder="Rechercher un contact..."
+          paginationMode="auto"
+          emptyMessage="Aucun résultat."
+        />
       ) : null}
 
       <ConfirmDialog

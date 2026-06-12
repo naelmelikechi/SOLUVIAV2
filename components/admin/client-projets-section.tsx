@@ -1,20 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { FolderOpen } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
-import { TableSearchInput } from '@/components/shared/table-search-input';
-import { filterBySearch } from '@/components/shared/filter-by-search';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import {
   STATUT_PROJET_LABELS,
   STATUT_PROJET_COLORS,
@@ -22,23 +16,65 @@ import {
 import type { ClientProjet } from '@/lib/queries/clients';
 import { CommissionRateBadge } from '@/components/projets/commission-rate-badge';
 
-export function ClientProjetsSection({ projets }: { projets: ClientProjet[] }) {
-  const [search, setSearch] = useState('');
-  const filtered = useMemo(
-    () =>
-      filterBySearch(projets, search, (p) =>
-        [
-          p.ref,
-          p.typologie?.libelle,
-          p.cdp ? `${p.cdp.prenom} ${p.cdp.nom}` : '',
-          STATUT_PROJET_LABELS[p.statut] || p.statut,
-        ]
-          .filter(Boolean)
-          .join(' '),
-      ),
-    [projets, search],
-  );
+const columns: ColumnDef<ClientProjet>[] = [
+  {
+    accessorKey: 'ref',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Ref" />
+    ),
+    cell: ({ row }) => <ProjectRef ref_={row.original.ref ?? ''} />,
+  },
+  {
+    id: 'typologie',
+    accessorFn: (p) => p.typologie?.libelle ?? '-',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Typologie" />
+    ),
+    cell: ({ getValue }) => (
+      <span className="text-sm">{getValue<string>()}</span>
+    ),
+  },
+  {
+    id: 'cdp',
+    accessorFn: (p) => (p.cdp ? `${p.cdp.prenom} ${p.cdp.nom}` : '-'),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="CDP" />
+    ),
+    cell: ({ getValue }) => (
+      <span className="text-sm">{getValue<string>()}</span>
+    ),
+  },
+  {
+    accessorKey: 'taux_commission',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Commission" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm tabular-nums">
+        <CommissionRateBadge
+          projetId={row.original.id}
+          initialValue={row.original.taux_commission}
+          canEdit
+        />
+      </span>
+    ),
+  },
+  {
+    id: 'statut',
+    accessorFn: (p) => STATUT_PROJET_LABELS[p.statut] || p.statut,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Statut" />
+    ),
+    cell: ({ row }) => (
+      <StatusBadge
+        label={STATUT_PROJET_LABELS[row.original.statut] || row.original.statut}
+        color={STATUT_PROJET_COLORS[row.original.statut] || 'gray'}
+      />
+    ),
+  },
+];
 
+export function ClientProjetsSection({ projets }: { projets: ClientProjet[] }) {
   return (
     <Card className="mb-6 p-6">
       <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
@@ -50,65 +86,13 @@ export function ClientProjetsSection({ projets }: { projets: ClientProjet[] }) {
       {projets.length === 0 ? (
         <p className="text-muted-foreground text-sm">Aucun projet</p>
       ) : (
-        <div className="space-y-3">
-          <TableSearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Rechercher un projet..."
-          />
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ref</TableHead>
-                  <TableHead>Typologie</TableHead>
-                  <TableHead>CDP</TableHead>
-                  <TableHead>Commission</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="text-muted-foreground h-12 text-center text-sm"
-                    >
-                      Aucun résultat.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell>
-                        <ProjectRef ref_={p.ref ?? ''} />
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {p.typologie?.libelle ?? '-'}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {p.cdp ? `${p.cdp.prenom} ${p.cdp.nom}` : '-'}
-                      </TableCell>
-                      <TableCell className="text-sm tabular-nums">
-                        <CommissionRateBadge
-                          projetId={p.id}
-                          initialValue={p.taux_commission}
-                          canEdit
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge
-                          label={STATUT_PROJET_LABELS[p.statut] || p.statut}
-                          color={STATUT_PROJET_COLORS[p.statut] || 'gray'}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        <DataTable
+          columns={columns}
+          data={projets}
+          searchPlaceholder="Rechercher un projet..."
+          paginationMode="auto"
+          emptyMessage="Aucun résultat."
+        />
       )}
     </Card>
   );

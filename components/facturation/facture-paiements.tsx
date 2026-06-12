@@ -1,18 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { useEffect, useState, useTransition } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { TableSearchInput } from '@/components/shared/table-search-input';
-import { filterBySearch } from '@/components/shared/filter-by-search';
+import {
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { differenceInDays, parseISO } from 'date-fns';
 import { toast } from 'sonner';
@@ -36,6 +31,35 @@ interface BankLineSuggestion {
   score: number;
   reasons: string[];
 }
+
+const paiementColumns: ColumnDef<Paiement>[] = [
+  {
+    accessorKey: 'date_reception',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Date réception" />
+    ),
+    cell: ({ row }) => formatDate(row.original.date_reception),
+  },
+  {
+    accessorKey: 'montant',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Montant" />
+    ),
+    cell: ({ row }) => (
+      <span className="font-mono">{formatCurrency(row.original.montant)}</span>
+    ),
+  },
+  {
+    id: 'source',
+    accessorFn: (p) => (p.saisie_manuelle ? 'Saisie manuelle' : 'Odoo'),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Source" />
+    ),
+    cell: ({ getValue }) => (
+      <span className="text-muted-foreground">{getValue<string>()}</span>
+    ),
+  },
+];
 
 interface FacturePaiementsProps {
   paiements: Paiement[];
@@ -86,7 +110,6 @@ export function FacturePaiements({
     String(remaining > 0 ? remaining : ''),
   );
   const [dateReception, setDateReception] = useState(today);
-  const [search, setSearch] = useState('');
   // Sentinelle : null = loading (en cours de fetch), array = résultat reçu.
   // Évite un setState séparé pour le loading (le linter `react-hooks/
   // set-state-in-effect` interdit setState synchrone dans un effect).
@@ -125,18 +148,6 @@ export function FacturePaiements({
     setMontant(String(s.montant));
     setDateReception(s.date);
   };
-
-  const filteredPaiements = useMemo(
-    () =>
-      filterBySearch(paiements, search, (p) =>
-        [
-          formatDate(p.date_reception),
-          formatCurrency(p.montant),
-          p.saisie_manuelle ? 'Saisie manuelle' : 'Odoo',
-        ].join(' '),
-      ),
-    [paiements, search],
-  );
 
   // Don't render anything if no payments and not overdue and can't add payment
   if (!hasPaiements && !isEnRetard && !canAddPayment) {
@@ -183,50 +194,13 @@ export function FacturePaiements({
       </div>
 
       {hasPaiements ? (
-        <>
-          <TableSearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Rechercher un paiement..."
-          />
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date réception</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Source</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPaiements.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={3}
-                      className="text-muted-foreground h-12 text-center text-sm"
-                    >
-                      Aucun résultat.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredPaiements.map((paiement) => (
-                    <TableRow key={paiement.id}>
-                      <TableCell>
-                        {formatDate(paiement.date_reception)}
-                      </TableCell>
-                      <TableCell className="font-mono">
-                        {formatCurrency(paiement.montant)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {paiement.saisie_manuelle ? 'Saisie manuelle' : 'Odoo'}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </>
+        <DataTable
+          columns={paiementColumns}
+          data={paiements}
+          searchPlaceholder="Rechercher un paiement..."
+          paginationMode="auto"
+          emptyMessage="Aucun résultat."
+        />
       ) : (
         <p className="text-muted-foreground text-sm">Aucun paiement reçu</p>
       )}

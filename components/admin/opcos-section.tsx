@@ -1,18 +1,15 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
+import { useMemo, useState, useTransition } from 'react';
 import { Plus, Edit, Archive, ArchiveRestore } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import { toast } from 'sonner';
 import { archiveOpco, unarchiveOpco } from '@/lib/actions/opcos';
 import { OpcoFormDialog } from '@/components/admin/opco-form-dialog';
@@ -34,6 +31,98 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
     });
   }
 
+  const columns = useMemo<ColumnDef<OpcoRow>[]>(
+    () => [
+      {
+        accessorKey: 'code',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Code" />
+        ),
+        cell: ({ row }) => (
+          <span
+            className={`font-mono font-semibold ${!row.original.actif ? 'opacity-60' : ''}`}
+          >
+            {row.original.code}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'nom',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Nom" />
+        ),
+        cell: ({ row }) => (
+          <span className={!row.original.actif ? 'opacity-60' : ''}>
+            {row.original.nom}
+          </span>
+        ),
+      },
+      {
+        id: 'idcc',
+        accessorFn: (row) => row.idcc_codes.length,
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="IDCC" />
+        ),
+        cell: ({ row }) => (
+          <Badge variant="secondary" className="font-mono text-xs">
+            {row.original.idcc_codes.length} IDCC
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: 'actif',
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Statut" />
+        ),
+        cell: ({ row }) => (
+          <span
+            className={
+              row.original.actif
+                ? 'text-green-600 dark:text-green-400'
+                : 'text-muted-foreground'
+            }
+          >
+            {row.original.actif ? 'Actif' : 'Archivé'}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        enableSorting: false,
+        enableHiding: false,
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setEditTarget(row.original)}
+              aria-label="Modifier"
+              title="Modifier"
+            >
+              <Edit className="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={isPending}
+              onClick={() => handleArchive(row.original.id, row.original.actif)}
+              aria-label={row.original.actif ? 'Archiver' : 'Réactiver'}
+              title={row.original.actif ? 'Archiver' : 'Réactiver'}
+            >
+              {row.original.actif ? (
+                <Archive className="size-3.5" />
+              ) : (
+                <ArchiveRestore className="size-3.5" />
+              )}
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [isPending],
+  );
+
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -45,76 +134,13 @@ export function OpcosSection({ opcos }: { opcos: OpcoRow[] }) {
         </Button>
       </div>
 
-      {opcos.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Aucun OPCO configuré.</p>
-      ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Nom</TableHead>
-                <TableHead>IDCC</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {opcos.map((o) => (
-                <TableRow key={o.id} className={!o.actif ? 'opacity-60' : ''}>
-                  <TableCell className="font-mono font-semibold">
-                    {o.code}
-                  </TableCell>
-                  <TableCell>{o.nom}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-mono text-xs">
-                      {o.idcc_codes.length} IDCC
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={
-                        o.actif
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-muted-foreground'
-                      }
-                    >
-                      {o.actif ? 'Actif' : 'Archivé'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="inline-flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setEditTarget(o)}
-                        aria-label="Modifier"
-                        title="Modifier"
-                      >
-                        <Edit className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={isPending}
-                        onClick={() => handleArchive(o.id, o.actif)}
-                        aria-label={o.actif ? 'Archiver' : 'Réactiver'}
-                        title={o.actif ? 'Archiver' : 'Réactiver'}
-                      >
-                        {o.actif ? (
-                          <Archive className="size-3.5" />
-                        ) : (
-                          <ArchiveRestore className="size-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={opcos}
+        searchPlaceholder="Rechercher un OPCO..."
+        paginationMode="auto"
+        emptyMessage="Aucun OPCO configuré."
+      />
 
       <OpcoFormDialog
         open={showCreate}

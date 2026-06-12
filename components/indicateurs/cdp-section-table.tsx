@@ -1,16 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import type { ColumnDef } from '@tanstack/react-table';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { TableSearchInput } from '@/components/shared/table-search-input';
-import { filterBySearch } from '@/components/shared/filter-by-search';
+  DataTable,
+  DataTableColumnHeader,
+} from '@/components/shared/data-table';
 import { RatioCell } from '@/components/indicateurs/ratio-cell';
 
 interface Row {
@@ -23,80 +17,92 @@ interface Row {
   facturesEnRetard: number;
 }
 
-export function CdpSectionTable({ rows }: { rows: Row[] }) {
-  const [search, setSearch] = useState('');
-  const filtered = useMemo(
-    () => filterBySearch(rows, search, (r) => r.clientNom),
-    [rows, search],
-  );
+// Ratio de completion pour le tri (les lignes sans volume passent en dernier).
+function ratioOf(r: { realise: number; total: number }): number {
+  return r.total > 0 ? r.realise / r.total : -1;
+}
 
-  return (
-    <div className="space-y-3 p-3">
-      <TableSearchInput
-        value={search}
-        onChange={setSearch}
-        placeholder="Rechercher un CFA..."
+const columns: ColumnDef<Row>[] = [
+  {
+    accessorKey: 'clientNom',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="CFA" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-foreground font-medium">
+        {row.original.clientNom}
+      </span>
+    ),
+  },
+  {
+    id: 'progression',
+    accessorFn: (r) => ratioOf(r.progression),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Progression apprenants" />
+    ),
+    cell: ({ row }) => (
+      <RatioCell
+        kind="progression"
+        realise={row.original.progression.realise}
+        total={row.original.progression.total}
       />
-      <Table>
-        <TableHeader className="bg-muted/30 sticky top-0">
-          <TableRow>
-            <TableHead className="pl-4">CFA</TableHead>
-            <TableHead>Progression apprenants</TableHead>
-            <TableHead>RDV formateurs</TableHead>
-            <TableHead>Tâches qualité</TableHead>
-            <TableHead className="pr-4">Facturation</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.length === 0 ? (
-            <TableRow>
-              <TableCell
-                colSpan={5}
-                className="text-muted-foreground h-12 text-center text-sm"
-              >
-                Aucun résultat.
-              </TableCell>
-            </TableRow>
-          ) : (
-            filtered.map((row) => (
-              <TableRow key={row.clientId}>
-                <TableCell className="text-foreground pl-4 font-medium">
-                  {row.clientNom}
-                </TableCell>
-                <TableCell>
-                  <RatioCell
-                    kind="progression"
-                    realise={row.progression.realise}
-                    total={row.progression.total}
-                  />
-                </TableCell>
-                <TableCell>
-                  <RatioCell
-                    kind="rdv"
-                    realise={row.rdvFormateurs.realise}
-                    total={row.rdvFormateurs.total}
-                  />
-                </TableCell>
-                <TableCell>
-                  <RatioCell
-                    kind="qualite"
-                    realise={row.qualite.realise}
-                    total={row.qualite.total}
-                  />
-                </TableCell>
-                <TableCell className="pr-4">
-                  <RatioCell
-                    kind="facturation"
-                    realise={row.facturation.realise}
-                    total={row.facturation.total}
-                    enRetard={row.facturesEnRetard}
-                  />
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+    ),
+  },
+  {
+    id: 'rdv',
+    accessorFn: (r) => ratioOf(r.rdvFormateurs),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="RDV formateurs" />
+    ),
+    cell: ({ row }) => (
+      <RatioCell
+        kind="rdv"
+        realise={row.original.rdvFormateurs.realise}
+        total={row.original.rdvFormateurs.total}
+      />
+    ),
+  },
+  {
+    id: 'qualite',
+    accessorFn: (r) => ratioOf(r.qualite),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Tâches qualité" />
+    ),
+    cell: ({ row }) => (
+      <RatioCell
+        kind="qualite"
+        realise={row.original.qualite.realise}
+        total={row.original.qualite.total}
+      />
+    ),
+  },
+  {
+    id: 'facturation',
+    accessorFn: (r) => ratioOf(r.facturation),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Facturation" />
+    ),
+    cell: ({ row }) => (
+      <RatioCell
+        kind="facturation"
+        realise={row.original.facturation.realise}
+        total={row.original.facturation.total}
+        enRetard={row.original.facturesEnRetard}
+      />
+    ),
+  },
+];
+
+export function CdpSectionTable({ rows }: { rows: Row[] }) {
+  return (
+    <div className="p-3">
+      <DataTable
+        columns={columns}
+        data={rows}
+        searchPlaceholder="Rechercher un CFA..."
+        paginationMode="auto"
+        emptyMessage="Aucun résultat."
+      />
     </div>
   );
 }

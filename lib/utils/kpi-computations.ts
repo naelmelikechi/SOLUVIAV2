@@ -21,12 +21,20 @@ export function computeTauxFinancement(
 
 export function computePedagogieAvancement(
   contrats: Array<{
-    contrats_progressions: Array<{ progression_percentage: number }>;
+    // PostgREST renvoie un objet (relation 1-1 via UNIQUE(contrat_id)) d'apres le
+    // type genere, parfois un tableau : on tolere les deux + null (cf. Sentry
+    // SOLUVIA-13 "(contrats_progressions ?? []).map is not a function").
+    contrats_progressions:
+      | Array<{ progression_percentage: number }>
+      | { progression_percentage: number }
+      | null;
   }>,
 ): number {
-  const progressions = contrats.flatMap((c) =>
-    (c.contrats_progressions ?? []).map((p) => p.progression_percentage),
-  );
+  const progressions = contrats.flatMap((c) => {
+    const cp = c.contrats_progressions;
+    const rows = Array.isArray(cp) ? cp : cp ? [cp] : [];
+    return rows.map((p) => p.progression_percentage);
+  });
   if (progressions.length === 0) return 0;
   const sum = progressions.reduce((s, v) => s + v, 0);
   return Math.round((sum / progressions.length) * 100) / 100;

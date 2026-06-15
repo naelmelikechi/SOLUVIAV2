@@ -87,11 +87,14 @@ describe('ensureAutoReconcileModel', () => {
           result = true;
         }
       }
+      const payload = { jsonrpc: '2.0', id: 1, result };
       return {
         ok: true,
         status: 200,
         statusText: 'OK',
-        json: async () => ({ jsonrpc: '2.0', id: 1, result }),
+        headers: { get: () => 'application/json' },
+        json: async () => payload,
+        text: async () => JSON.stringify(payload),
       };
     });
     vi.stubGlobal('fetch', fetchMock);

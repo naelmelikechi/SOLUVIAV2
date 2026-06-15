@@ -74,6 +74,15 @@ describe('computePedagogieAvancement', () => {
     ];
     expect(computePedagogieAvancement(contrats)).toBe(50);
   });
+
+  it('tolere une relation 1-1 (objet, pas tableau) + null (regression SOLUVIA-13)', () => {
+    const contrats = [
+      { contrats_progressions: { progression_percentage: 40 } },
+      { contrats_progressions: { progression_percentage: 60 } },
+      { contrats_progressions: null },
+    ];
+    expect(computePedagogieAvancement(contrats)).toBe(50);
+  });
 });
 
 describe('groupContratsByType', () => {

@@ -298,8 +298,10 @@ export function TeamChat({ initialMessages, getUser }: TeamChatProps) {
             setMessages((prev) => prev.filter((m) => m.id !== oldRow.id));
           }
         },
-      )
-      .subscribe((status) => {
+      );
+
+    try {
+      channel.subscribe((status) => {
         // Detect reconnection: non-SUBSCRIBED → SUBSCRIBED. On a fresh mount
         // lastRealtimeStatusRef is null, so we skip the redundant fetch
         // (deltaFetch('mount') already ran above).
@@ -309,6 +311,11 @@ export function TeamChat({ initialMessages, getUser }: TeamChatProps) {
           void deltaFetch('realtime_reconnect');
         }
       });
+    } catch {
+      // Realtime indisponible (WebSocket bloque par le navigateur, ex.
+      // "operation is insecure" en mode strict) : le chat reste a jour via les
+      // refetch sur focus/visibilitychange. cf. Sentry SOLUVIA-17.
+    }
 
     return () => {
       mountedRef.current = false;

@@ -324,7 +324,23 @@ class OdooJsonRpcClient implements OdooClient {
       );
     }
 
-    const json = (await res.json()) as JsonRpcResponse<T>;
+    const raw = await res.text();
+    let json: JsonRpcResponse<T>;
+    try {
+      json = JSON.parse(raw) as JsonRpcResponse<T>;
+    } catch {
+      // Odoo (ou un proxy/gateway en amont) a renvoye un corps non-JSON avec un
+      // statut 2xx — typiquement une page HTML (session expiree, page d'erreur du
+      // reverse-proxy). On expose la vraie cause au lieu du SyntaxError opaque
+      // "Unexpected token '<'" qui la masquait (cf. Sentry SOLUVIA-19/D/1A).
+      const contentType = res.headers.get('content-type') ?? 'inconnu';
+      const snippet = raw.replace(/\s+/g, ' ').trim().slice(0, 200);
+      throw new OdooRpcError(
+        `Reponse Odoo non-JSON (HTTP ${res.status}, content-type: ${contentType}): ${snippet}`,
+        undefined,
+        res.status,
+      );
+    }
     if (json.error) {
       throw new OdooRpcError(
         json.error.data?.message ?? json.error.message,

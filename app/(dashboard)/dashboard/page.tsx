@@ -9,6 +9,7 @@ import {
   getUserWeekHours,
 } from '@/lib/queries/dashboard';
 import { getUser } from '@/lib/queries/users';
+import { getKpiSeriesBatch } from '@/lib/queries/kpi-history';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { DashboardPageClient } from '@/components/dashboard/dashboard-page-client';
@@ -56,6 +57,7 @@ export default async function DashboardPage({
     monthlyTrend,
     invoiceBreakdown,
     weekHours,
+    pageKpiSeries,
   ] = await Promise.all([
     getDashboardData(),
     getDashboardFinancials(periode),
@@ -63,6 +65,17 @@ export default async function DashboardPage({
     getMonthlyTrend(),
     getInvoiceStatusBreakdown(),
     getUserWeekHours(),
+    getKpiSeriesBatch({
+      kpiTypes: [
+        'projets_actifs',
+        'contrats_actifs',
+        'factures_emises',
+        'factures_en_retard',
+        'total_encaisse',
+      ],
+      scope,
+      scopeId,
+    }),
   ]);
 
   // Sparklines sont des Server Components async : on les instancie ici (Server Component)
@@ -75,6 +88,7 @@ export default async function DashboardPage({
         scope={scope}
         scopeId={scopeId}
         color="blue"
+        points={pageKpiSeries.get('projets_actifs') ?? []}
       />
     ),
     contratsActifs: (
@@ -83,6 +97,7 @@ export default async function DashboardPage({
         scope={scope}
         scopeId={scopeId}
         color="blue"
+        points={pageKpiSeries.get('contrats_actifs') ?? []}
       />
     ),
     facturesEmises: (
@@ -91,6 +106,7 @@ export default async function DashboardPage({
         scope={scope}
         scopeId={scopeId}
         color="blue"
+        points={pageKpiSeries.get('factures_emises') ?? []}
       />
     ),
     facturesEnRetard: (
@@ -99,6 +115,7 @@ export default async function DashboardPage({
         scope={scope}
         scopeId={scopeId}
         color="red"
+        points={pageKpiSeries.get('factures_en_retard') ?? []}
       />
     ),
     totalEncaisse: (
@@ -107,6 +124,7 @@ export default async function DashboardPage({
         scope={scope}
         scopeId={scopeId}
         color="green"
+        points={pageKpiSeries.get('total_encaisse') ?? []}
       />
     ),
   };

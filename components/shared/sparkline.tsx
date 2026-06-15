@@ -80,6 +80,8 @@ interface ServerProps {
   width?: number;
   height?: number;
   color?: Color;
+  /** Points pre-charges (batch) : si fournis, aucune requete n'est faite. */
+  points?: SparklinePoint[];
 }
 
 /**
@@ -92,13 +94,11 @@ export async function Sparkline({
   width,
   height,
   color,
+  points: providedPoints,
 }: ServerProps) {
-  const points = await getSparklineData({
-    kpiType,
-    scope,
-    scopeId,
-    monthsBack: 12,
-  });
+  const points =
+    providedPoints ??
+    (await getSparklineData({ kpiType, scope, scopeId, monthsBack: 12 }));
   return (
     <SparklineSvg points={points} width={width} height={height} color={color} />
   );

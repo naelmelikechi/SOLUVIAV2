@@ -6,9 +6,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Sparkline } from '@/components/shared/sparkline';
+import { SparklineSvg } from '@/components/shared/sparkline';
 import { KpiCardPlaceholder } from './kpi-card-placeholder';
-import { getLatestKpiValue, type Scope } from '@/lib/queries/kpi-history';
+import {
+  getKpiSeriesBatch,
+  type Scope,
+  type SparklinePoint,
+} from '@/lib/queries/kpi-history';
 
 interface Props {
   scope: Scope;
@@ -20,22 +24,18 @@ function formatPercent(v: number | null): string {
   return `${v.toFixed(1).replace('.', ',')}%`;
 }
 
-async function KpiCard({
+function KpiCard({
   title,
-  kpiType,
   subtitle,
   color = 'blue',
-  scope,
-  scopeId,
+  series,
 }: {
   title: string;
-  kpiType: string;
   subtitle: string;
   color?: 'green' | 'red' | 'blue';
-  scope: Scope;
-  scopeId?: string | null;
+  series: SparklinePoint[];
 }) {
-  const valeur = await getLatestKpiValue({ kpiType, scope, scopeId });
+  const valeur = series.length > 0 ? series[series.length - 1]!.valeur : null;
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -47,12 +47,7 @@ async function KpiCard({
         </div>
         <p className="text-muted-foreground mt-1 text-xs">{subtitle}</p>
         <div className="mt-3">
-          <Sparkline
-            kpiType={kpiType}
-            scope={scope}
-            scopeId={scopeId}
-            color={color}
-          />
+          <SparklineSvg points={series} color={color} />
         </div>
       </CardContent>
     </Card>
@@ -63,6 +58,16 @@ export async function QualitePedagogieSection({
   scope,
   scopeId = null,
 }: Props) {
+  const series = await getKpiSeriesBatch({
+    kpiTypes: [
+      'taux_qualiopi',
+      'pedagogie_avancement',
+      'taux_financement',
+      'taux_abandon',
+    ],
+    scope,
+    scopeId,
+  });
   return (
     <section className="space-y-4">
       <div>
@@ -128,19 +133,15 @@ export async function QualitePedagogieSection({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           title="Qualité Qualiopi"
-          kpiType="taux_qualiopi"
           subtitle="Tâches conformes sur tous les CFA"
           color="green"
-          scope={scope}
-          scopeId={scopeId}
+          series={series.get('taux_qualiopi') ?? []}
         />
         <KpiCard
           title="Pédagogie"
-          kpiType="pedagogie_avancement"
           subtitle="Avancement moyen apprenants actifs"
           color="blue"
-          scope={scope}
-          scopeId={scopeId}
+          series={series.get('pedagogie_avancement') ?? []}
         />
         <KpiCardPlaceholder
           title="Réussite"
@@ -149,19 +150,15 @@ export async function QualitePedagogieSection({
         />
         <KpiCard
           title="Financement"
-          kpiType="taux_financement"
           subtitle="Part facturée vs NPEC total contrats actifs"
           color="blue"
-          scope={scope}
-          scopeId={scopeId}
+          series={series.get('taux_financement') ?? []}
         />
         <KpiCard
           title="Abandons"
-          kpiType="taux_abandon"
           subtitle="Contrats resilies/annules sur 12 mois"
           color="red"
-          scope={scope}
-          scopeId={scopeId}
+          series={series.get('taux_abandon') ?? []}
         />
         <KpiCardPlaceholder
           title="Rentabilité"

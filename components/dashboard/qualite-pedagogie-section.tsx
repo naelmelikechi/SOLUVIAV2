@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Popover,
   PopoverContent,
@@ -167,6 +168,38 @@ export async function QualitePedagogieSection({
           tooltip="Coûts directs non tracés, formule à définir."
           subtitle="Marge brute (à venir)"
         />
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Fallback de streaming pour <QualitePedagogieSection> : meme layout (titre +
+ * grille 6 cartes) afin d'eviter tout saut de mise en page quand la section
+ * (12+ requetes kpi_snapshots) arrive en streaming apres le shell du dashboard.
+ */
+export function QualitePedagogieSectionSkeleton() {
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-xl font-semibold">Qualité &amp; Pédagogie</h2>
+        <p className="text-muted-foreground text-sm">
+          Indicateurs §5 : sources Eduvia (contrats, progressions, Qualiopi).
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="pb-2">
+              <Skeleton className="h-4 w-28" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="mt-2 h-3 w-36" />
+              <Skeleton className="mt-3 h-10 w-full" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </section>
   );

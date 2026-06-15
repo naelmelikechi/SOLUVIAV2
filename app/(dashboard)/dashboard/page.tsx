@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import {
   getDashboardData,
@@ -13,7 +14,10 @@ import { PageHeader } from '@/components/shared/page-header';
 import { DashboardPageClient } from '@/components/dashboard/dashboard-page-client';
 import { PeriodSelector } from '@/components/dashboard/period-selector';
 import { Sparkline } from '@/components/shared/sparkline';
-import { QualitePedagogieSection } from '@/components/dashboard/qualite-pedagogie-section';
+import {
+  QualitePedagogieSection,
+  QualitePedagogieSectionSkeleton,
+} from '@/components/dashboard/qualite-pedagogie-section';
 import { resolvePeriode, type PeriodeKey } from '@/lib/utils/dashboard-periode';
 import { format, startOfMonth, addMonths } from 'date-fns';
 
@@ -127,7 +131,9 @@ export default async function DashboardPage({
           sparklines={sparklines}
         />
       </div>
-      <QualitePedagogieSection scope={scope} scopeId={scopeId} />
+      <Suspense fallback={<QualitePedagogieSectionSkeleton />}>
+        <QualitePedagogieSection scope={scope} scopeId={scopeId} />
+      </Suspense>
     </div>
   );
 }

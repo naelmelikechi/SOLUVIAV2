@@ -26,13 +26,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Supabase CLI : on en a besoin pour `supabase start` qui spin up
-      # Postgres + applique les migrations en ordre. Cache binaire global
-      # pour eviter le download a chaque run.
+      # Supabase CLI EPINGLE (surtout pas `latest`) : la 2.106.0 a retire les
+      # GRANT DML par defaut (SELECT/INSERT/UPDATE/DELETE) au role `authenticated`
+      # sur le schema public, ce qui cassait 02/05 (permission denied) alors que
+      # la prod (Supavia, setup anterieur) conserve ces grants. On epingle a
+      # 2.105.0 -> env de test deterministe et representatif de la prod.
+      # (Si on upgrade un jour : ajouter des GRANT explicites en migration.)
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: "2.105.0"
 
       # Demarre la stack locale (Postgres 17 + auth + studio + ...).
       # Les migrations sous supabase/migrations/ sont appliquees a l init.

@@ -1,131 +1,111 @@
--- Phase 4 : tests numerotation factures par societe emettrice.
--- Verifie :
---   1. SOLUVIA (legacy_ref_format=TRUE) emet en FAC-<TRIGRAMME>-NNNN.
---   2. Une nouvelle societe (legacy_ref_format=FALSE) emet en FAC-<CODE>-<TRIGRAMME>-NNNN.
---   3. Les sequences sont independantes par societe (DIGIVIA demarre a 1 meme si SOL est a N).
---   4. Index unique sur (societe_emettrice_id, numero_seq) WHERE !est_avoir / est_avoir.
+-- Numerotation factures : serie UNIQUE a prefixe fixe FAC-SOL (conformite FR).
+--
+-- Depuis 20260610130000_factures_ref_serie_unique, la numerotation n'est PLUS
+-- par societe emettrice : TOUTES les factures partagent une seule serie gapless
+-- FAC-SOL-NNNN, quelle que soit la societe emettrice (SOLUVIA emet ses propres
+-- factures, pas en mandataire -> une seule serie continue, art. 242 nonies A).
+--
+-- Le format mono-serie + le gapless sont couverts par 01_gapless_invoice.
+-- Ici on verifie l'invariant SPECIFIQUE : deux societes emettrices distinctes
+-- partagent le MEME compteur (pas de serie dediee par societe).
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(7);
+SELECT plan(5);
 
--- Fixture : un client + une societe DIG (legacy_ref_format=FALSE) + une facture SOL + une DIG
+-- Capture le max courant (la DB peut deja avoir des factures en seed).
+CREATE TEMP TABLE _ctx (max_seq_before INTEGER);
+INSERT INTO _ctx
+SELECT COALESCE((SELECT MAX(numero_seq) FROM factures WHERE est_avoir = false), 0);
+
+-- Fixture : 1 facture SOL puis 2 factures DIG (societe distincte), emises.
+CREATE TEMP TABLE _fx (label TEXT, facture_id UUID);
+
 DO $$
 DECLARE
-  v_client_id UUID;
-  v_sol_id UUID;
-  v_dig_id UUID;
+  v_client UUID := gen_random_uuid();
+  v_sol UUID;
+  v_dig UUID;
+  v_f UUID;
 BEGIN
-  SELECT id INTO v_sol_id FROM societes_emettrices WHERE code = 'SOL';
+  SELECT id INTO v_sol FROM societes_emettrices WHERE code = 'SOL';
 
   INSERT INTO societes_emettrices (
     code, raison_sociale, siret, tva_intracom, adresse, code_postal, ville,
-    email_contact, est_defaut, actif, legacy_ref_format
+    email_contact, est_defaut, actif
   ) VALUES (
-    'DIG', 'DIGIVIA SAS', '999999999', 'FR999999999',
-    '1 rue test', '79000', 'Niort', 'contact@digivia.fr',
-    FALSE, TRUE, FALSE
-  ) RETURNING id INTO v_dig_id;
+    'DIG', 'DIGIVIA SAS', '99999999900099', 'FR99999999999',
+    '1 rue test', '79000', 'Niort', 'contact@digivia.fr', FALSE, TRUE
+  ) RETURNING id INTO v_dig;
 
-  INSERT INTO clients (trigramme, raison_sociale)
-  VALUES ('NUM', 'Client Test Numerotation')
-  RETURNING id INTO v_client_id;
+  INSERT INTO clients (id, trigramme, raison_sociale, is_demo, archive)
+  VALUES (v_client, 'NUM', 'Client Test Numerotation', false, false);
 
-  -- Facture SOL (legacy format) - emise pour declencher la numerotation
   INSERT INTO factures (
     societe_emettrice_id, client_id, statut, est_avoir,
-    montant_ht, montant_tva, montant_ttc, taux_tva,
-    date_emission, date_echeance
+    montant_ht, montant_tva, montant_ttc, taux_tva, date_emission, date_echeance
   ) VALUES (
-    v_sol_id, v_client_id, 'emise', FALSE,
-    100, 20, 120, 20,
-    CURRENT_DATE, CURRENT_DATE + 30
-  );
+    v_sol, v_client, 'emise', FALSE, 100, 20, 120, 20, CURRENT_DATE, CURRENT_DATE + 30
+  ) RETURNING id INTO v_f;
+  INSERT INTO _fx VALUES ('sol1', v_f);
 
-  -- Facture DIG (multi-societe format)
   INSERT INTO factures (
     societe_emettrice_id, client_id, statut, est_avoir,
-    montant_ht, montant_tva, montant_ttc, taux_tva,
-    date_emission, date_echeance
+    montant_ht, montant_tva, montant_ttc, taux_tva, date_emission, date_echeance
   ) VALUES (
-    v_dig_id, v_client_id, 'emise', FALSE,
-    200, 40, 240, 20,
-    CURRENT_DATE, CURRENT_DATE + 30
-  );
+    v_dig, v_client, 'emise', FALSE, 200, 40, 240, 20, CURRENT_DATE, CURRENT_DATE + 30
+  ) RETURNING id INTO v_f;
+  INSERT INTO _fx VALUES ('dig1', v_f);
 
-  -- Deuxieme facture DIG (verifie sequence dediee)
   INSERT INTO factures (
     societe_emettrice_id, client_id, statut, est_avoir,
-    montant_ht, montant_tva, montant_ttc, taux_tva,
-    date_emission, date_echeance
+    montant_ht, montant_tva, montant_ttc, taux_tva, date_emission, date_echeance
   ) VALUES (
-    v_dig_id, v_client_id, 'emise', FALSE,
-    300, 60, 360, 20,
-    CURRENT_DATE, CURRENT_DATE + 30
-  );
+    v_dig, v_client, 'emise', FALSE, 300, 60, 360, 20, CURRENT_DATE, CURRENT_DATE + 30
+  ) RETURNING id INTO v_f;
+  INSERT INTO _fx VALUES ('dig2', v_f);
 END $$;
 
--- 1. SOL utilise le format legacy FAC-<TRIGRAMME>-NNNN
-SELECT ok(
-  (SELECT ref FROM factures f
-     JOIN societes_emettrices s ON s.id = f.societe_emettrice_id
-     JOIN clients c ON c.id = f.client_id
-    WHERE s.code = 'SOL' AND c.trigramme = 'NUM' LIMIT 1) LIKE 'FAC-NUM-%',
-  'SOL emet en format legacy FAC-<TRIGRAMME>-NNNN'
+-- 1. La facture SOL est numerotee en serie unique FAC-SOL-NNNN.
+SELECT matches(
+  (SELECT ref FROM factures WHERE id = (SELECT facture_id FROM _fx WHERE label = 'sol1')),
+  '^FAC-SOL-\d{4}$',
+  'Facture SOL : ref FAC-SOL-NNNN (serie unique)'
 );
 
--- 2. DIG utilise le nouveau format FAC-<CODE>-<TRIGRAMME>-NNNN
-SELECT ok(
-  (SELECT ref FROM factures f
-     JOIN societes_emettrices s ON s.id = f.societe_emettrice_id
-    WHERE s.code = 'DIG' ORDER BY numero_seq LIMIT 1) LIKE 'FAC-DIG-NUM-%',
-  'DIG emet en nouveau format FAC-<CODE>-<TRIGRAMME>-NNNN'
+-- 2. La facture DIG porte le MEME prefixe FAC-SOL (pas FAC-DIG) : serie partagee.
+SELECT matches(
+  (SELECT ref FROM factures WHERE id = (SELECT facture_id FROM _fx WHERE label = 'dig1')),
+  '^FAC-SOL-\d{4}$',
+  'Facture DIG : meme prefixe FAC-SOL (numerotation non par societe)'
 );
 
--- 3. Premiere facture DIG = numero_seq 1 (sequence dediee)
+-- 3. Les 3 factures (SOL, DIG, DIG) se suivent sur UN compteur partage.
 SELECT is(
-  (SELECT numero_seq FROM factures f
-     JOIN societes_emettrices s ON s.id = f.societe_emettrice_id
-    WHERE s.code = 'DIG' ORDER BY numero_seq LIMIT 1),
+  (SELECT array_agg(f.numero_seq ORDER BY f.numero_seq)
+   FROM factures f JOIN _fx x ON x.facture_id = f.id),
+  ARRAY[
+    (SELECT max_seq_before + 1 FROM _ctx),
+    (SELECT max_seq_before + 2 FROM _ctx),
+    (SELECT max_seq_before + 3 FROM _ctx)
+  ],
+  'numero_seq contigu et partage entre societes (max+1, max+2, max+3)'
+);
+
+-- 4. Index unique numero_seq (factures) present.
+SELECT is(
+  (SELECT count(*)::int FROM pg_indexes WHERE indexname = 'uq_factures_numero_seq_facture'),
   1,
-  'DIG demarre a numero_seq=1 meme si SOL est a N'
+  'Index unique uq_factures_numero_seq_facture present'
 );
 
--- 4. Deuxieme facture DIG = numero_seq 2
+-- 5. Index unique numero_seq (avoirs) present.
 SELECT is(
-  (SELECT numero_seq FROM factures f
-     JOIN societes_emettrices s ON s.id = f.societe_emettrice_id
-    WHERE s.code = 'DIG' ORDER BY numero_seq DESC LIMIT 1),
-  2,
-  'Sequence DIG incremente correctement (1 puis 2)'
-);
-
--- 5. SOL et DIG ont des numero_seq independants (peuvent avoir le meme numero)
-SELECT ok(
-  EXISTS (
-    SELECT 1 FROM factures f
-      JOIN societes_emettrices s ON s.id = f.societe_emettrice_id
-     WHERE s.code = 'DIG' AND f.numero_seq = 1
-  ),
-  'DIG peut avoir numero_seq=1 independamment de SOL'
-);
-
--- 6. Index unique sur (societe_emettrice_id, numero_seq) factures (NOT avoir)
-SELECT is(
-  (SELECT count(*)::int FROM pg_indexes
-   WHERE indexname = 'uq_factures_numero_seq_facture'),
+  (SELECT count(*)::int FROM pg_indexes WHERE indexname = 'uq_factures_numero_seq_avoir'),
   1,
-  'Index unique numero_seq par societe pour factures present'
-);
-
--- 7. Index unique sur (societe_emettrice_id, numero_seq) avoirs
-SELECT is(
-  (SELECT count(*)::int FROM pg_indexes
-   WHERE indexname = 'uq_factures_numero_seq_avoir'),
-  1,
-  'Index unique numero_seq par societe pour avoirs present'
+  'Index unique uq_factures_numero_seq_avoir present'
 );
 
 SELECT * FROM finish();

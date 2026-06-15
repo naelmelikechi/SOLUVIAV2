@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           fail=0
-          for f in supabase/tests/0*.sql; do
+          for f in supabase/tests/[0-9]*.sql; do
             echo "::group::$f"
             out=$(PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -f "$f" 2>&1)
             echo "$out"

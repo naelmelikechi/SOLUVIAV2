@@ -8,8 +8,7 @@ import {
 import { listAjustementsPending } from '@/lib/queries/ajustements';
 import {
   listBillableProjets,
-  getBillableEvents,
-  type ProjetBillableEvents,
+  getBillableEventsForProjets,
 } from '@/lib/queries/billable-events';
 import { listSocietesEmettricesActives } from '@/lib/queries/societes-emettrices';
 import { createClient } from '@/lib/supabase/server';
@@ -59,11 +58,11 @@ export default async function FacturationPage() {
     listSocietesEmettricesActives(),
   ]);
 
-  // Charge les events facturables pour chaque projet billable (en parallele).
-  // Si pas de projet billable, on passe un tableau vide a l'onglet facturation.
-  const manualProjetsEvents: ProjetBillableEvents[] = (
-    await Promise.all(manualProjetsList.map((p) => getBillableEvents(p.id)))
-  ).filter((p): p is ProjetBillableEvents => p !== null);
+  // Events facturables de tous les projets billable en BATCH (~6 requetes au
+  // total au lieu de ~7 par projet en boucle = fin du N+1 sur cette page).
+  const manualProjetsEvents = await getBillableEventsForProjets(
+    manualProjetsList.map((p) => p.id),
+  );
 
   const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
 

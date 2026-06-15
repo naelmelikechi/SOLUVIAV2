@@ -185,18 +185,16 @@ function resolveLock(opts: {
   return { status: 'available' };
 }
 
-/**
- * Materialise tous les events facturables d'un projet, avec leur statut
- * billed/locked/available. Une seule passe DB grace a 4 SELECTs +
- * jointures cote app.
- */
-export async function getBillableEvents(
-  projetId: string,
-): Promise<ProjetBillableEvents | null> {
-  const supabase = await createClient();
+// ---------------------------------------------------------------------------
+// Acces DB : helpers typed reutilises par getBillableEvents (1 projet) ET
+// getBillableEventsForProjets (N projets en bulk). Filtrent tous par liste
+// d'ids -> nombre de round-trips CONSTANT quel que soit le nombre de projets.
+// ---------------------------------------------------------------------------
 
-  // 1. Projet + commission + client
-  const { data: projet, error: pErr } = await supabase
+type BillableDbClient = Awaited<ReturnType<typeof createClient>>;
+
+function qProjetOne(supabase: BillableDbClient, projetId: string) {
+  return supabase
     .from('projets')
     .select(
       `
@@ -206,89 +204,147 @@ export async function getBillableEvents(
     )
     .eq('id', projetId)
     .maybeSingle();
+}
 
-  if (pErr || !projet) {
-    logger.error('queries.billable-events', 'projet not found', {
-      projetId,
-      error: pErr,
-    });
-    return null;
-  }
+function qProjetsMany(supabase: BillableDbClient, projetIds: string[]) {
+  return supabase
+    .from('projets')
+    .select(
+      `
+      id, ref, taux_commission,
+      client:clients!projets_client_id_fkey(id, raison_sociale, tva_intracommunautaire)
+    `,
+    )
+    .in('id', projetIds);
+}
 
-  const taux = Number(projet.taux_commission ?? 10);
-
-  // 2. Contrats du projet (non archives)
-  const { data: contrats } = await supabase
+function qContrats(supabase: BillableDbClient, projetIds: string[]) {
+  return supabase
     .from('contrats')
     .select(
       `
-      id, ref, contract_number, internal_number,
+      id, projet_id, ref, contract_number, internal_number,
       apprenant_nom, apprenant_prenom, formation_titre,
       contract_state, npec_amount, support, eduvia_company_id, facturation_verrouillee
     `,
     )
-    .eq('projet_id', projetId)
+    .in('projet_id', projetIds)
     .eq('archive', false);
+}
 
-  if (!contrats || contrats.length === 0) {
+function qInvoiceLines(supabase: BillableDbClient, contratIds: string[]) {
+  return supabase
+    .from('eduvia_invoice_lines')
+    .select('eduvia_invoice_id, contrat_id, amount, line_type')
+    .in('contrat_id', contratIds);
+}
+
+function qEmittedSteps(supabase: BillableDbClient, contratIds: string[]) {
+  return supabase
+    .from('eduvia_invoice_steps')
+    .select(
+      'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, total_amount, opco_settled_amount, net_invoiced_amount, opening_date, paid_at, invoice_state, invoice_number, external_number',
+    )
+    .in('contrat_id', contratIds)
+    .not('invoice_state', 'is', null)
+    .not('eduvia_invoice_id', 'is', null);
+}
+
+function qCompaniesIdcc(supabase: BillableDbClient, clientIds: string[]) {
+  return supabase
+    .from('eduvia_companies')
+    .select('eduvia_id, idcc_code')
+    .in('client_id', clientIds);
+}
+
+function qExistingLignes(supabase: BillableDbClient, contratIds: string[]) {
+  return supabase
+    .from('facture_lignes')
+    .select(
+      `
+      event_type, event_source_id, contrat_id, est_avoir,
+      facture:factures!facture_lignes_facture_id_fkey(id, ref, statut)
+    `,
+    )
+    .in('contrat_id', contratIds)
+    .not('event_type', 'is', null);
+}
+
+type ProjetRow = NonNullable<
+  Awaited<ReturnType<typeof qProjetsMany>>['data']
+>[number];
+type ContratRow = NonNullable<
+  Awaited<ReturnType<typeof qContrats>>['data']
+>[number];
+type InvoiceLineRow = NonNullable<
+  Awaited<ReturnType<typeof qInvoiceLines>>['data']
+>[number];
+type EmittedStepRow = NonNullable<
+  Awaited<ReturnType<typeof qEmittedSteps>>['data']
+>[number];
+type CompanyIdccRow = NonNullable<
+  Awaited<ReturnType<typeof qCompaniesIdcc>>['data']
+>[number];
+type ExistingLigneRow = NonNullable<
+  Awaited<ReturnType<typeof qExistingLignes>>['data']
+>[number];
+
+// ---------------------------------------------------------------------------
+// Assemblage PUR (aucune DB) des donnees deja chargees d'UN projet en events
+// facturables. Source de verite unique de la logique de facturation (base
+// PEDAGOGIE, idempotence, exclusion engagement<->opco_step, resolution OPCO),
+// partagee par la version single et la version batch.
+// ---------------------------------------------------------------------------
+
+function assembleProjetBillableEvents(input: {
+  projet: ProjetRow;
+  contrats: ContratRow[];
+  opcoMapping: Awaited<ReturnType<typeof getActiveOpcoMapping>>;
+  invoiceLines: InvoiceLineRow[];
+  emittedSteps: EmittedStepRow[];
+  companiesIdcc: CompanyIdccRow[];
+  existingLignes: ExistingLigneRow[];
+}): ProjetBillableEvents {
+  const {
+    projet,
+    contrats,
+    opcoMapping,
+    invoiceLines,
+    emittedSteps,
+    companiesIdcc,
+    existingLignes,
+  } = input;
+
+  const taux = Number(projet.taux_commission ?? 10);
+  const base = {
+    projetId: projet.id,
+    projetRef: projet.ref ?? '',
+    clientRaisonSociale: projet.client?.raison_sociale ?? '',
+    tauxCommission: taux,
+    clientTvaIntracom: projet.client?.tva_intracommunautaire ?? null,
+  };
+
+  if (contrats.length === 0) {
     return {
-      projetId,
-      projetRef: projet.ref ?? '',
-      clientRaisonSociale: projet.client?.raison_sociale ?? '',
-      tauxCommission: taux,
+      ...base,
       events: [],
       auditInvoiceIdsBySource: new Map(),
-      clientTvaIntracom: projet.client?.tva_intracommunautaire ?? null,
       contrats: [],
     };
   }
 
   const contratIds = contrats.map((c) => c.id);
 
-  // 2b. Mapping OPCO actifs (IDCC -> OPCO info) + IDCC employeur par company.
-  // 3. Lignes des bordereaux OPCO emis pour ces contrats.
-  //    Source de verite : eduvia_invoice_lines (whitelist line_type=PEDAGOGIE).
-  //    On joint avec eduvia_invoice_steps pour matcher l'invoice_id au
-  //    step_number (1 = engagement, >1 = opco_step regle).
-  // 4. Steps emis (pour savoir quels invoice_id sont en step 1 OPCO).
-  //    NB: on selectionne aussi `id` (UUID PK) car il sert de event_source_id
-  //    pour les events opco_step (cle d'idempotence facture_lignes).
-  const [
-    opcoMapping,
-    { data: invoiceLines },
-    { data: emittedSteps },
-    { data: companiesIdcc },
-  ] = await Promise.all([
-    getActiveOpcoMapping(),
-    supabase
-      .from('eduvia_invoice_lines')
-      .select('eduvia_invoice_id, contrat_id, amount, line_type')
-      .in('contrat_id', contratIds),
-    supabase
-      .from('eduvia_invoice_steps')
-      .select(
-        'id, contrat_id, step_number, eduvia_invoice_id, including_pedagogie_amount, total_amount, opco_settled_amount, net_invoiced_amount, opening_date, paid_at, invoice_state, invoice_number, external_number',
-      )
-      .in('contrat_id', contratIds)
-      .not('invoice_state', 'is', null)
-      .not('eduvia_invoice_id', 'is', null),
-    supabase
-      .from('eduvia_companies')
-      .select('eduvia_id, idcc_code')
-      .eq('client_id', projet.client?.id ?? ''),
-  ]);
-
   // IDCC (convention collective) de l'employeur par company Eduvia : seul
   // determinant legal de l'OPCO (l'API Eduvia n'expose pas l'OPCO directement).
   const idccByCompanyId = new Map<number, string | null>();
-  for (const co of companiesIdcc ?? []) {
+  for (const co of companiesIdcc) {
     idccByCompanyId.set(co.eduvia_id, co.idcc_code);
   }
 
   // Index : invoice_id -> step infos (pour retrouver step_number et le step.id)
-  type StepRow = NonNullable<typeof emittedSteps>[number];
-  const stepByInvoiceId = new Map<number, StepRow>();
-  for (const s of emittedSteps ?? []) {
+  const stepByInvoiceId = new Map<number, EmittedStepRow>();
+  for (const s of emittedSteps) {
     if (s.eduvia_invoice_id != null)
       stepByInvoiceId.set(s.eduvia_invoice_id, s);
   }
@@ -313,7 +369,7 @@ export async function getBillableEvents(
     });
   }
 
-  for (const line of invoiceLines ?? []) {
+  for (const line of invoiceLines) {
     if (!line.contrat_id || line.eduvia_invoice_id == null) continue;
     const agg = aggByContrat.get(line.contrat_id);
     if (!agg) continue;
@@ -362,25 +418,13 @@ export async function getBillableEvents(
   // ET qu aucun avoir compensateur (meme event_source_id, est_avoir=true)
   // ne l annule. Sans cette logique, un avoir total ne libere jamais le
   // contrat pour une refacturation, alors que c est precisement son but.
-  const { data: existingLignes } = await supabase
-    .from('facture_lignes')
-    .select(
-      `
-      event_type, event_source_id, contrat_id, est_avoir,
-      facture:factures!facture_lignes_facture_id_fkey(id, ref, statut)
-    `,
-    )
-    .in('contrat_id', contratIds)
-    .not('event_type', 'is', null);
-
-  // Group par event_source_id : { live: Line, avoir: Line }
   type LineRef = {
     contrat_id: string | null;
     event_type: string;
     facture: { id: string; ref: string | null; statut: string };
   };
   const slotsBySource = new Map<string, { live?: LineRef; avoir?: LineRef }>();
-  for (const l of existingLignes ?? []) {
+  for (const l of existingLignes) {
     if (!l.event_type || !l.event_source_id || !l.facture) continue;
     const slot = slotsBySource.get(l.event_source_id) ?? {};
     const ref: LineRef = {
@@ -401,10 +445,7 @@ export async function getBillableEvents(
   const billedByEventSource = new Map<string, BilledRef>();
   // Index : contrat_id -> set des event_type deja factures live ET non
   // annules par avoir (regle d'exclusion engagement <-> opco_step).
-  const eventTypesByContrat = new Map<
-    string,
-    Map<EventType, BilledRef> // type -> ref pour l'affichage
-  >();
+  const eventTypesByContrat = new Map<string, Map<EventType, BilledRef>>();
 
   for (const [eventSourceId, { live, avoir }] of slotsBySource) {
     // Avoir compensateur sur le meme event = libere le contrat
@@ -483,7 +524,7 @@ export async function getBillableEvents(
       // figure pas car elle n'entre pas dans engagementInvoiceIds.
       const engagementSteps = Array.from(agg.engagementInvoiceIds)
         .map((id) => stepByInvoiceId.get(id))
-        .filter((s): s is StepRow => !!s);
+        .filter((s): s is EmittedStepRow => !!s);
       const engagementInvoiceState =
         Array.from(
           new Set(
@@ -629,15 +670,171 @@ export async function getBillableEvents(
   });
 
   return {
-    projetId,
-    projetRef: projet.ref ?? '',
-    clientRaisonSociale: projet.client?.raison_sociale ?? '',
-    tauxCommission: taux,
+    ...base,
     events,
     auditInvoiceIdsBySource,
-    clientTvaIntracom: projet.client?.tva_intracommunautaire ?? null,
     contrats: contratsMeta,
   };
+}
+
+/**
+ * Materialise tous les events facturables d'UN projet, avec leur statut
+ * billed/locked/available. ~7 round-trips DB.
+ */
+export async function getBillableEvents(
+  projetId: string,
+): Promise<ProjetBillableEvents | null> {
+  const supabase = await createClient();
+
+  const { data: projet, error: pErr } = await qProjetOne(supabase, projetId);
+  if (pErr || !projet) {
+    logger.error('queries.billable-events', 'projet not found', {
+      projetId,
+      error: pErr,
+    });
+    return null;
+  }
+
+  const { data: contrats } = await qContrats(supabase, [projetId]);
+  if (!contrats || contrats.length === 0) {
+    return {
+      projetId,
+      projetRef: projet.ref ?? '',
+      clientRaisonSociale: projet.client?.raison_sociale ?? '',
+      tauxCommission: Number(projet.taux_commission ?? 10),
+      events: [],
+      auditInvoiceIdsBySource: new Map(),
+      clientTvaIntracom: projet.client?.tva_intracommunautaire ?? null,
+      contrats: [],
+    };
+  }
+
+  const contratIds = contrats.map((c) => c.id);
+
+  const [
+    opcoMapping,
+    { data: invoiceLines },
+    { data: emittedSteps },
+    { data: companiesIdcc },
+  ] = await Promise.all([
+    getActiveOpcoMapping(),
+    qInvoiceLines(supabase, contratIds),
+    qEmittedSteps(supabase, contratIds),
+    qCompaniesIdcc(supabase, projet.client?.id ? [projet.client.id] : []),
+  ]);
+
+  const { data: existingLignes } = await qExistingLignes(supabase, contratIds);
+
+  return assembleProjetBillableEvents({
+    projet,
+    contrats,
+    opcoMapping,
+    invoiceLines: invoiceLines ?? [],
+    emittedSteps: emittedSteps ?? [],
+    companiesIdcc: companiesIdcc ?? [],
+    existingLignes: existingLignes ?? [],
+  });
+}
+
+function groupByProjet<T extends { contrat_id: string | null }>(
+  rows: T[],
+  contratToProjet: Map<string, string>,
+): Map<string, T[]> {
+  const byProjet = new Map<string, T[]>();
+  for (const r of rows) {
+    if (!r.contrat_id) continue;
+    const pid = contratToProjet.get(r.contrat_id);
+    if (!pid) continue;
+    const arr = byProjet.get(pid);
+    if (arr) arr.push(r);
+    else byProjet.set(pid, [r]);
+  }
+  return byProjet;
+}
+
+/**
+ * Version BATCH : materialise les events de PLUSIEURS projets en un nombre
+ * CONSTANT de requetes (~6) au lieu de N x ~7 round-trips avec getBillableEvents
+ * en boucle. Resultats dans l'ordre des `projetIds` ; projets introuvables omis.
+ */
+export async function getBillableEventsForProjets(
+  projetIds: string[],
+): Promise<ProjetBillableEvents[]> {
+  if (projetIds.length === 0) return [];
+  const supabase = await createClient();
+
+  const { data: projets, error: pErr } = await qProjetsMany(
+    supabase,
+    projetIds,
+  );
+  if (pErr || !projets || projets.length === 0) {
+    if (pErr) {
+      logger.error(
+        'queries.billable-events',
+        'getBillableEventsForProjets projets failed',
+        { error: pErr },
+      );
+    }
+    return [];
+  }
+
+  const { data: contratsData } = await qContrats(supabase, projetIds);
+  const contrats = contratsData ?? [];
+  const contratIds = contrats.map((c) => c.id);
+  const contratToProjet = new Map<string, string>();
+  for (const c of contrats) {
+    if (c.projet_id) contratToProjet.set(c.id, c.projet_id);
+  }
+  const clientIds = Array.from(
+    new Set(
+      projets.map((p) => p.client?.id).filter((id): id is string => !!id),
+    ),
+  );
+
+  const [
+    opcoMapping,
+    { data: invoiceLines },
+    { data: emittedSteps },
+    { data: companiesIdcc },
+    { data: existingLignes },
+  ] = await Promise.all([
+    getActiveOpcoMapping(),
+    qInvoiceLines(supabase, contratIds),
+    qEmittedSteps(supabase, contratIds),
+    qCompaniesIdcc(supabase, clientIds),
+    qExistingLignes(supabase, contratIds),
+  ]);
+
+  const linesByProjet = groupByProjet(invoiceLines ?? [], contratToProjet);
+  const stepsByProjet = groupByProjet(emittedSteps ?? [], contratToProjet);
+  const existingByProjet = groupByProjet(existingLignes ?? [], contratToProjet);
+  const contratsByProjet = new Map<string, ContratRow[]>();
+  for (const c of contrats) {
+    if (!c.projet_id) continue;
+    const arr = contratsByProjet.get(c.projet_id);
+    if (arr) arr.push(c);
+    else contratsByProjet.set(c.projet_id, [c]);
+  }
+
+  const byProjetId = new Map<string, ProjetBillableEvents>();
+  for (const projet of projets) {
+    byProjetId.set(
+      projet.id,
+      assembleProjetBillableEvents({
+        projet,
+        contrats: contratsByProjet.get(projet.id) ?? [],
+        opcoMapping,
+        invoiceLines: linesByProjet.get(projet.id) ?? [],
+        emittedSteps: stepsByProjet.get(projet.id) ?? [],
+        companiesIdcc: companiesIdcc ?? [],
+        existingLignes: existingByProjet.get(projet.id) ?? [],
+      }),
+    );
+  }
+
+  return projetIds
+    .map((id) => byProjetId.get(id))
+    .filter((p): p is ProjetBillableEvents => p !== undefined);
 }
 
 /**

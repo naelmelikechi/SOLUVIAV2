@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
@@ -56,13 +57,26 @@ export async function getUsersList() {
 
 export type UserListItem = Awaited<ReturnType<typeof getUsersList>>[number];
 
-export async function getUser() {
+/**
+ * Auth user de la requete, memoise par requete (React cache). `auth.getUser()`
+ * fait un aller-retour reseau de validation du JWT au serveur Auth Supabase :
+ * on le deduplique sur tout l'arbre de rendu d'une requete (le layout dashboard
+ * appelle getUser() + getCurrentUserActiveProjetsCount(), puis chaque page
+ * rappelle getUser() — sans memoisation = 3 validations Auth + 2 SELECT users).
+ */
+export const getAuthUser = cache(async () => {
   const supabase = await createClient();
   const {
-    data: { user: authUser },
+    data: { user },
   } = await supabase.auth.getUser();
+  return user;
+});
 
+export const getUser = cache(async () => {
+  const authUser = await getAuthUser();
   if (!authUser) return null;
+
+  const supabase = await createClient();
 
   const { data } = await supabase
     .from('users')
@@ -84,18 +98,17 @@ export async function getUser() {
     can_validate_ideas: data.can_validate_ideas ?? false,
     can_ship_ideas: data.can_ship_ideas ?? false,
   };
-}
+});
 
 /**
  * Compte les projets clients (non internes) ou l user est cdp ou backup_cdp.
  * Sert a deriver le statut "unassigned_collaborator" dans le layout dashboard.
  */
 export async function getCurrentUserActiveProjetsCount(): Promise<number> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) return 0;
+
+  const supabase = await createClient();
 
   const { count } = await supabase
     .from('projets')

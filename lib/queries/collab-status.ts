@@ -29,11 +29,21 @@ export async function getCollabStatus(
 ): Promise<CollabStatusInfo> {
   const supabase = await createClient();
 
-  const userResult = await supabase
-    .from('users')
-    .select('role, pipeline_access')
-    .eq('id', userId)
-    .single();
+  // Les deux requetes sont independantes (la 2e ne filtre que sur userId,
+  // pas sur la ligne user resolue) -> Promise.all pour eviter la cascade.
+  const [userResult, projetsResult] = await Promise.all([
+    supabase
+      .from('users')
+      .select('role, pipeline_access')
+      .eq('id', userId)
+      .single(),
+    supabase
+      .from('projets')
+      .select('id', { count: 'exact', head: true })
+      .eq('archive', false)
+      .eq('est_interne', false)
+      .or(`cdp_id.eq.${userId},backup_cdp_id.eq.${userId}`),
+  ]);
 
   if (userResult.error || !userResult.data) {
     logger.error(
@@ -54,14 +64,6 @@ export async function getCollabStatus(
 
   const role = userResult.data.role;
   const pipelineAccess = userResult.data.pipeline_access ?? false;
-
-  const projetsResult = await supabase
-    .from('projets')
-    .select('id', { count: 'exact', head: true })
-    .eq('archive', false)
-    .eq('est_interne', false)
-    .or(`cdp_id.eq.${userId},backup_cdp_id.eq.${userId}`);
-
   const projetsCount = projetsResult.count ?? 0;
 
   return {

@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { createEduviaQualityClient } from '@/lib/eduvia/quality-client';
 import { baseUrlFrom } from '@/lib/eduvia/client';
@@ -23,7 +24,10 @@ const SCOPE = 'queries.qualiopi';
  * Recupere la cle API Eduvia active pour un client (CFA).
  * Decryptee a la volee. Retourne null si pas de cle ou cle inactive.
  */
-async function getClientApiCreds(
+// Memoise par requete : un meme rendu qualiopi resout plusieurs fois le
+// EduviaQualityClient (campuses + referentiel + statuts), donc relit + dechiffre
+// la cle API du meme client 3-4x sans ce cache.
+async function getClientApiCredsUncached(
   clientId: string,
 ): Promise<{ apiKey: string; instanceUrl: string } | null> {
   const supabase = await createClient();
@@ -44,6 +48,7 @@ async function getClientApiCreds(
     return null;
   }
 }
+const getClientApiCreds = cache(getClientApiCredsUncached);
 
 async function getQualityClient(
   clientId: string,
@@ -73,7 +78,7 @@ export interface QualiopiClient {
   has_api_key: boolean;
 }
 
-export async function getQualiopiClients(): Promise<QualiopiClient[]> {
+async function getQualiopiClientsUncached(): Promise<QualiopiClient[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('clients')
@@ -99,6 +104,9 @@ export async function getQualiopiClients(): Promise<QualiopiClient[]> {
     ];
   });
 }
+// Memoise par requete : getClientByRef est appele dans generateMetadata ET
+// dans le corps de chaque page qualiopi -> sans cache, 2x la meme requete.
+export const getQualiopiClients = cache(getQualiopiClientsUncached);
 
 export async function getClientByRef(
   trigramme: string,

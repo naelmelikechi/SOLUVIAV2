@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import type { AbsencePeriod } from '@/lib/utils/absences';
+import { withClockSkewRetry } from '@/lib/supabase/clock-skew-retry';
 
 /**
  * Retourne les absences de l utilisateur courant qui chevauchent la periode
@@ -14,12 +15,14 @@ export async function getAbsencesForUserAndPeriod(
 ): Promise<AbsencePeriod[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from('absences')
-    .select('id, type, date_debut, date_fin, demi_jour_debut, demi_jour_fin')
-    .lte('date_debut', fin)
-    .gte('date_fin', debut)
-    .order('date_debut', { ascending: true });
+  const { data, error } = await withClockSkewRetry(() =>
+    supabase
+      .from('absences')
+      .select('id, type, date_debut, date_fin, demi_jour_debut, demi_jour_fin')
+      .lte('date_debut', fin)
+      .gte('date_fin', debut)
+      .order('date_debut', { ascending: true }),
+  );
 
   if (error) {
     logger.error('queries.absences', 'getAbsencesForUserAndPeriod failed', {

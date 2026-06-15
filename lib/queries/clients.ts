@@ -1,18 +1,21 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
+import { withClockSkewRetry } from '@/lib/supabase/clock-skew-retry';
 
 export async function getClientsList() {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from('clients')
-    .select(
-      'id, trigramme, raison_sociale, siret, adresse, localisation, date_entree',
-    )
-    .eq('archive', false)
-    .not('raison_sociale', 'ilike', '%(systeme)%')
-    .order('raison_sociale');
+  const { data, error } = await withClockSkewRetry(() =>
+    supabase
+      .from('clients')
+      .select(
+        'id, trigramme, raison_sociale, siret, adresse, localisation, date_entree',
+      )
+      .eq('archive', false)
+      .not('raison_sociale', 'ilike', '%(systeme)%')
+      .order('raison_sociale'),
+  );
 
   if (error) {
     logger.error('queries.clients', 'getClientsList failed', { error });

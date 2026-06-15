@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import type { Database } from '@/types/database';
+import { withClockSkewRetry } from '@/lib/supabase/clock-skew-retry';
 
 export async function getParametresByCategorie(categorie: string) {
   const supabase = await createClient();
@@ -26,10 +27,12 @@ export async function getParametresByCategorie(categorie: string) {
 
 export async function getTypologies() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('typologies_projet')
-    .select('id, code, libelle, actif')
-    .order('code');
+  const { data, error } = await withClockSkewRetry(() =>
+    supabase
+      .from('typologies_projet')
+      .select('id, code, libelle, actif')
+      .order('code'),
+  );
   if (error) {
     logger.error('queries.parametres', 'getTypologies failed', { error });
     throw new AppError(

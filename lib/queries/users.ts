@@ -2,21 +2,26 @@ import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
+import { withClockSkewRetry } from '@/lib/supabase/clock-skew-retry';
 
 export async function getUsersList() {
   const supabase = await createClient();
 
   const [usersResult, projetsResult] = await Promise.all([
-    supabase
-      .from('users')
-      .select(
-        'id, email, nom, prenom, role, actif, derniere_connexion, pipeline_access, can_validate_ideas, can_ship_ideas',
-      )
-      .order('nom'),
-    supabase
-      .from('projets')
-      .select('cdp_id, backup_cdp_id')
-      .eq('archive', false),
+    withClockSkewRetry(() =>
+      supabase
+        .from('users')
+        .select(
+          'id, email, nom, prenom, role, actif, derniere_connexion, pipeline_access, can_validate_ideas, can_ship_ideas',
+        )
+        .order('nom'),
+    ),
+    withClockSkewRetry(() =>
+      supabase
+        .from('projets')
+        .select('cdp_id, backup_cdp_id')
+        .eq('archive', false),
+    ),
   ]);
 
   if (usersResult.error) {

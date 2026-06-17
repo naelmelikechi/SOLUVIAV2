@@ -3174,6 +3174,69 @@ export type Database = {
           },
         ];
       };
+      signature_requests: {
+        Row: {
+          created_at: string;
+          document_path: string | null;
+          id: string;
+          initiated_by: string | null;
+          prospect_id: string;
+          provider: string;
+          provider_request_id: string | null;
+          sent_at: string | null;
+          signed_at: string | null;
+          signed_document_path: string | null;
+          statut: Database['public']['Enums']['statut_signature'];
+          titre: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          document_path?: string | null;
+          id?: string;
+          initiated_by?: string | null;
+          prospect_id: string;
+          provider?: string;
+          provider_request_id?: string | null;
+          sent_at?: string | null;
+          signed_at?: string | null;
+          signed_document_path?: string | null;
+          statut?: Database['public']['Enums']['statut_signature'];
+          titre: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          document_path?: string | null;
+          id?: string;
+          initiated_by?: string | null;
+          prospect_id?: string;
+          provider?: string;
+          provider_request_id?: string | null;
+          sent_at?: string | null;
+          signed_at?: string | null;
+          signed_document_path?: string | null;
+          statut?: Database['public']['Enums']['statut_signature'];
+          titre?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'signature_requests_initiated_by_fkey';
+            columns: ['initiated_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'signature_requests_prospect_id_fkey';
+            columns: ['prospect_id'];
+            isOneToOne: false;
+            referencedRelation: 'prospects';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       societes_emettrices: {
         Row: {
           actif: boolean;
@@ -3536,6 +3599,13 @@ export type Database = {
       statut_idee: 'proposee' | 'validee' | 'implementee' | 'rejetee';
       statut_projet: 'actif' | 'en_pause' | 'termine' | 'archive';
       statut_rdv: 'prevu' | 'realise' | 'annule' | 'reporte';
+      statut_signature:
+        | 'brouillon'
+        | 'envoyee'
+        | 'signee'
+        | 'refusee'
+        | 'expiree'
+        | 'annulee';
       type_notification:
         | 'facture_retard'
         | 'tache_retard'
@@ -3549,7 +3619,9 @@ export type Database = {
         | 'prospect_rdv_a_venir'
         | 'prospect_rdv_sans_mail'
         | 'prospect_sans_activite'
-        | 'modele_publie';
+        | 'modele_publie'
+        | 'contrat_a_signer'
+        | 'contrat_signe';
       type_prospect: 'cfa' | 'entreprise';
       type_rdv:
         | 'presentation'
@@ -3738,6 +3810,14 @@ export const Constants = {
       statut_idee: ['proposee', 'validee', 'implementee', 'rejetee'],
       statut_projet: ['actif', 'en_pause', 'termine', 'archive'],
       statut_rdv: ['prevu', 'realise', 'annule', 'reporte'],
+      statut_signature: [
+        'brouillon',
+        'envoyee',
+        'signee',
+        'refusee',
+        'expiree',
+        'annulee',
+      ],
       type_notification: [
         'facture_retard',
         'tache_retard',
@@ -3752,6 +3832,8 @@ export const Constants = {
         'prospect_rdv_sans_mail',
         'prospect_sans_activite',
         'modele_publie',
+        'contrat_a_signer',
+        'contrat_signe',
       ],
       type_prospect: ['cfa', 'entreprise'],
       type_rdv: [

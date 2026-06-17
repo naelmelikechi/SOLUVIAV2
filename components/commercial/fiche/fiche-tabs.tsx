@@ -17,6 +17,8 @@ import type {
   ProspectStageHistoryItem,
 } from '@/lib/queries/prospects';
 import type { RdvCommercialWithRefs } from '@/lib/queries/rdv';
+import type { SignatureRequestWithInitiator } from '@/lib/queries/signatures';
+import { SignatureSection } from './signature-section';
 
 export interface FicheCommercial {
   id: string;
@@ -45,6 +47,7 @@ interface FicheTabsProps {
   commerciaux: FicheCommercial[];
   currentUserId: string;
   isAdmin: boolean;
+  signatures: SignatureRequestWithInitiator[];
 }
 
 export function FicheTabs(props: FicheTabsProps) {
@@ -64,6 +67,7 @@ function FicheTabsInner({
   stageHistory,
   commerciaux,
   currentUserId,
+  signatures,
 }: FicheTabsProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -136,6 +140,11 @@ function FicheTabsInner({
 
       <TabsContent value="negociation" className="mt-4">
         <FicheNegociation prospect={prospect} locked={locked} />
+        <SignatureSection
+          prospectId={prospect.id}
+          signatures={signatures}
+          locked={locked}
+        />
       </TabsContent>
 
       <TabsContent value="historique" className="mt-4">

@@ -11,6 +11,7 @@ import {
   getCommerciaux,
 } from '@/lib/queries/prospects';
 import { getRdvCommerciauxByProspectId } from '@/lib/queries/rdv';
+import { getSignatureRequestsByProspect } from '@/lib/queries/signatures';
 import { createClient } from '@/lib/supabase/server';
 import { canAccessPipeline, isAdmin } from '@/lib/utils/roles';
 import { FicheHeader } from '@/components/commercial/fiche/fiche-header';
@@ -61,6 +62,7 @@ export default async function ProspectDetailPage({
     communications,
     stageHistory,
     commerciaux,
+    signatures,
   ] = await Promise.all([
     getProspectById(id),
     getProspectContacts(id),
@@ -69,6 +71,7 @@ export default async function ProspectDetailPage({
     getProspectCommunications(id),
     getProspectStageHistory(id),
     getCommerciaux(),
+    getSignatureRequestsByProspect(id),
   ]);
 
   if (!prospect) {
@@ -97,6 +100,7 @@ export default async function ProspectDetailPage({
         commerciaux={commerciaux}
         currentUserId={user.id}
         isAdmin={isAdmin(currentUser?.role)}
+        signatures={signatures}
       />
     </div>
   );

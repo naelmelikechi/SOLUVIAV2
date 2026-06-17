@@ -12,6 +12,8 @@ import {
   ROLE_DECISION_LABELS,
   SANTE_PROSPECT_LABELS,
   SANTE_PROSPECT_COLORS,
+  STATUT_SIGNATURE_LABELS,
+  STATUT_SIGNATURE_COLORS,
   TAUX_NPEC_PLANCHER,
 } from '@/lib/utils/constants';
 
@@ -47,6 +49,14 @@ const VALEURS = {
   ],
   roleDecision: ['signataire', 'sponsor', 'operationnel', 'soutien'],
   sante: ['vert', 'orange', 'rouge'],
+  statutSignature: [
+    'brouillon',
+    'envoyee',
+    'signee',
+    'refusee',
+    'expiree',
+    'annulee',
+  ],
 } as const;
 
 // Chaque valeur attendue possède un libellé non vide, et la map n'a aucune clé
@@ -113,6 +123,11 @@ describe('maps commerciales — complétude label / couleur', () => {
   it('SanteProspect : labels + couleurs complets', () => {
     expectLabelsComplets(VALEURS.sante, SANTE_PROSPECT_LABELS);
     expectColorsAlignees(SANTE_PROSPECT_LABELS, SANTE_PROSPECT_COLORS);
+  });
+
+  it('StatutSignature : labels + couleurs complets', () => {
+    expectLabelsComplets(VALEURS.statutSignature, STATUT_SIGNATURE_LABELS);
+    expectColorsAlignees(STATUT_SIGNATURE_LABELS, STATUT_SIGNATURE_COLORS);
   });
 });
 

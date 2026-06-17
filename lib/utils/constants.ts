@@ -228,3 +228,30 @@ export const AXES_TEMPS = [
   { code: 'qualite', label: 'Qualité', color: '#0891b2' },
   { code: 'commercial', label: 'Commercial', color: '#6366f1' },
 ] as const;
+
+// Statut de signature de contrat (Feature 5)
+export type StatutSignature =
+  | 'brouillon'
+  | 'envoyee'
+  | 'signee'
+  | 'refusee'
+  | 'expiree'
+  | 'annulee';
+
+export const STATUT_SIGNATURE_LABELS: Record<StatutSignature, string> = {
+  brouillon: 'Brouillon',
+  envoyee: 'Envoyée',
+  signee: 'Signée',
+  refusee: 'Refusée',
+  expiree: 'Expirée',
+  annulee: 'Annulée',
+};
+
+export const STATUT_SIGNATURE_COLORS: Record<StatutSignature, BadgeColor> = {
+  brouillon: 'gray',
+  envoyee: 'blue',
+  signee: 'green',
+  refusee: 'red',
+  expiree: 'orange',
+  annulee: 'gray',
+};

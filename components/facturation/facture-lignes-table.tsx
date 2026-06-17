@@ -19,6 +19,7 @@ import {
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { LigneEditDialog, type LigneEditMode } from './ligne-edit-dialog';
 import { formatCurrency } from '@/lib/utils/formatters';
+import { htToTtc } from '@/lib/utils/montant-ht';
 import { removeLigneFromBrouillon } from '@/lib/actions/facture-lignes';
 import type { FactureDetail } from '@/lib/queries/factures';
 
@@ -31,6 +32,7 @@ interface FactureLignesTableProps {
   projetId: string;
   isBrouillon: boolean;
   tauxCommission: number;
+  tauxTva: number;
 }
 
 export function FactureLignesTable({
@@ -40,6 +42,7 @@ export function FactureLignesTable({
   projetId,
   isBrouillon,
   tauxCommission,
+  tauxTva,
 }: FactureLignesTableProps) {
   const { refresh } = useRouter();
   const [editConfig, setEditConfig] = useState<LigneEditMode | null>(null);
@@ -142,6 +145,26 @@ export function FactureLignesTable({
           </div>
         ),
       },
+      {
+        id: 'montant_ttc',
+        accessorFn: (l) => htToTtc(l.montant_ht, tauxTva / 100),
+        header: ({ column }) => (
+          <DataTableColumnHeader
+            column={column}
+            title="Montant TTC"
+            className="justify-end"
+          />
+        ),
+        cell: ({ row }) => (
+          <div
+            className={`text-right font-mono ${
+              est_avoir ? 'text-red-600 dark:text-red-400' : ''
+            }`}
+          >
+            {formatCurrency(htToTtc(row.original.montant_ht, tauxTva / 100))}
+          </div>
+        ),
+      },
     ];
     if (isBrouillon) {
       base.push({
@@ -188,7 +211,7 @@ export function FactureLignesTable({
     }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [est_avoir, isBrouillon, factureId, projetId, tauxCommission]);
+  }, [est_avoir, isBrouillon, factureId, projetId, tauxCommission, tauxTva]);
 
   return (
     <TooltipProvider delay={200}>

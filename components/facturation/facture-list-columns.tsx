@@ -166,6 +166,22 @@ export function createFactureListColumns(
       },
     },
     {
+      accessorKey: 'montant_ttc',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Montant TTC" />
+      ),
+      cell: ({ row }) => {
+        const { montant_ttc, est_avoir } = row.original;
+        return (
+          <span
+            className={`text-right font-mono text-sm tabular-nums ${est_avoir ? 'text-[var(--destructive)]' : ''}`}
+          >
+            {formatCurrency(montant_ttc)}
+          </span>
+        );
+      },
+    },
+    {
       accessorKey: 'date_echeance',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Échéance" />

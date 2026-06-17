@@ -47,9 +47,12 @@ export interface RafContratRow {
   facturableHt: number;
   facturableTtc: number;
   bloqueHt: number;
+  bloqueTtc: number;
   dejaFactureHt: number;
   previsionnelHt: number;
+  previsionnelTtc: number;
   emisNonPayeHt: number; // émis (TRANSMIS) mais pas encore payé par l'OPCO
+  emisNonPayeTtc: number;
   potentielHt: number; // npec × taux / 100, en HT
   nbFacturable: number; // nb events 'available'
   nbBloque: number; // nb events 'locked'
@@ -61,10 +64,14 @@ export interface RafProjetRow {
   projetRef: string;
   client: string;
   facturableHt: number;
+  facturableTtc: number;
   bloqueHt: number;
+  bloqueTtc: number;
   dejaFactureHt: number;
   previsionnelHt: number;
+  previsionnelTtc: number;
   emisNonPayeHt: number;
+  emisNonPayeTtc: number;
   nbContrats: number; // contrats avec facturable | bloqué | prévisionnel > 0
   nbContratsFacturable: number;
   nbContratsBloque: number;
@@ -74,9 +81,13 @@ export interface RafOpcoRow {
   opcoCode: string | null;
   opcoNom: string; // "Non résolu" si opco non identifié
   facturableHt: number;
+  facturableTtc: number;
   bloqueHt: number;
+  bloqueTtc: number;
   previsionnelHt: number;
+  previsionnelTtc: number;
   emisNonPayeHt: number;
+  emisNonPayeTtc: number;
   nbContratsFacturable: number;
 }
 
@@ -192,9 +203,12 @@ export function buildResteAFacturer(
         facturableHt: toHt(facturableTtc),
         facturableTtc: round2(facturableTtc),
         bloqueHt: toHt(bloqueTtc),
+        bloqueTtc: round2(bloqueTtc),
         dejaFactureHt: toHt(dejaTtc),
         previsionnelHt: toHt(previsionnelTtc),
+        previsionnelTtc: round2(previsionnelTtc),
         emisNonPayeHt: toHt(emisNonPayeTtc),
+        emisNonPayeTtc: round2(emisNonPayeTtc),
         potentielHt: toHt(potentielTtc),
         nbFacturable: agg?.nbFacturable ?? 0,
         nbBloque: agg?.nbBloque ?? 0,
@@ -262,10 +276,14 @@ function buildParProjet(rows: RafContratRow[]): RafProjetRow[] {
         projetRef: r.projetRef,
         client: r.client,
         facturableHt: 0,
+        facturableTtc: 0,
         bloqueHt: 0,
+        bloqueTtc: 0,
         dejaFactureHt: 0,
         previsionnelHt: 0,
+        previsionnelTtc: 0,
         emisNonPayeHt: 0,
+        emisNonPayeTtc: 0,
         nbContrats: 0,
         nbContratsFacturable: 0,
         nbContratsBloque: 0,
@@ -273,10 +291,14 @@ function buildParProjet(rows: RafContratRow[]): RafProjetRow[] {
       map.set(r.projetId, row);
     }
     row.facturableHt = round2(row.facturableHt + r.facturableHt);
+    row.facturableTtc = round2(row.facturableTtc + r.facturableTtc);
     row.bloqueHt = round2(row.bloqueHt + r.bloqueHt);
+    row.bloqueTtc = round2(row.bloqueTtc + r.bloqueTtc);
     row.dejaFactureHt = round2(row.dejaFactureHt + r.dejaFactureHt);
     row.previsionnelHt = round2(row.previsionnelHt + r.previsionnelHt);
+    row.previsionnelTtc = round2(row.previsionnelTtc + r.previsionnelTtc);
     row.emisNonPayeHt = round2(row.emisNonPayeHt + r.emisNonPayeHt);
+    row.emisNonPayeTtc = round2(row.emisNonPayeTtc + r.emisNonPayeTtc);
     if (r.facturableHt > 0) row.nbContratsFacturable += 1;
     if (r.bloqueHt > 0) row.nbContratsBloque += 1;
     if (
@@ -313,17 +335,25 @@ function buildParOpco(rows: RafContratRow[]): RafOpcoRow[] {
         opcoCode: r.opcoCode,
         opcoNom: r.opcoNom ?? OPCO_NON_RESOLU,
         facturableHt: 0,
+        facturableTtc: 0,
         bloqueHt: 0,
+        bloqueTtc: 0,
         previsionnelHt: 0,
+        previsionnelTtc: 0,
         emisNonPayeHt: 0,
+        emisNonPayeTtc: 0,
         nbContratsFacturable: 0,
       };
       map.set(key, row);
     }
     row.facturableHt = round2(row.facturableHt + r.facturableHt);
+    row.facturableTtc = round2(row.facturableTtc + r.facturableTtc);
     row.bloqueHt = round2(row.bloqueHt + r.bloqueHt);
+    row.bloqueTtc = round2(row.bloqueTtc + r.bloqueTtc);
     row.previsionnelHt = round2(row.previsionnelHt + r.previsionnelHt);
+    row.previsionnelTtc = round2(row.previsionnelTtc + r.previsionnelTtc);
     row.emisNonPayeHt = round2(row.emisNonPayeHt + r.emisNonPayeHt);
+    row.emisNonPayeTtc = round2(row.emisNonPayeTtc + r.emisNonPayeTtc);
     if (r.facturableHt > 0) row.nbContratsFacturable += 1;
   }
   return Array.from(map.values()).sort(

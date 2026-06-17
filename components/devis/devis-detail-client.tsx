@@ -13,6 +13,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { htToTtc } from '@/lib/utils/montant-ht';
 import { DevisStatusBadge } from './devis-status-badge';
 import { DevisLignesEditor } from './devis-lignes-editor';
 import { SendDevisDialog } from './send-devis-dialog';
@@ -206,6 +207,12 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
                       scope="col"
                       className="py-2 pr-3 text-right whitespace-nowrap"
                     >
+                      PU TTC
+                    </th>
+                    <th
+                      scope="col"
+                      className="py-2 pr-3 text-right whitespace-nowrap"
+                    >
                       TVA%
                     </th>
                     <th
@@ -241,6 +248,15 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
                       </td>
                       <td className="py-2 pr-3 text-right align-top whitespace-nowrap tabular-nums">
                         {Number(l.prix_unitaire_ht)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        €
+                      </td>
+                      <td className="py-2 pr-3 text-right align-top whitespace-nowrap tabular-nums">
+                        {htToTtc(
+                          Number(l.prix_unitaire_ht),
+                          Number(l.taux_tva) / 100,
+                        )
                           .toFixed(2)
                           .replace('.', ',')}{' '}
                         €

@@ -2241,6 +2241,113 @@ export type Database = {
         };
         Relationships: [];
       };
+      linkedin_events: {
+        Row: {
+          contenu_message: string | null;
+          created_at: string;
+          date_evenement: string | null;
+          fonction: string | null;
+          id: string;
+          interlocuteur_cree_id: string | null;
+          linkedin_company_name: string | null;
+          linkedin_company_url: string | null;
+          linkedin_profil_url: string | null;
+          outil_source: string | null;
+          prenom_nom: string | null;
+          prospect_cree_id: string | null;
+          raison_ignore: string | null;
+          statut: Database['public']['Enums']['statut_evenement_linkedin'];
+          traite_le: string | null;
+          type_evenement: Database['public']['Enums']['type_evenement_linkedin'];
+        };
+        Insert: {
+          contenu_message?: string | null;
+          created_at?: string;
+          date_evenement?: string | null;
+          fonction?: string | null;
+          id?: string;
+          interlocuteur_cree_id?: string | null;
+          linkedin_company_name?: string | null;
+          linkedin_company_url?: string | null;
+          linkedin_profil_url?: string | null;
+          outil_source?: string | null;
+          prenom_nom?: string | null;
+          prospect_cree_id?: string | null;
+          raison_ignore?: string | null;
+          statut?: Database['public']['Enums']['statut_evenement_linkedin'];
+          traite_le?: string | null;
+          type_evenement: Database['public']['Enums']['type_evenement_linkedin'];
+        };
+        Update: {
+          contenu_message?: string | null;
+          created_at?: string;
+          date_evenement?: string | null;
+          fonction?: string | null;
+          id?: string;
+          interlocuteur_cree_id?: string | null;
+          linkedin_company_name?: string | null;
+          linkedin_company_url?: string | null;
+          linkedin_profil_url?: string | null;
+          outil_source?: string | null;
+          prenom_nom?: string | null;
+          prospect_cree_id?: string | null;
+          raison_ignore?: string | null;
+          statut?: Database['public']['Enums']['statut_evenement_linkedin'];
+          traite_le?: string | null;
+          type_evenement?: Database['public']['Enums']['type_evenement_linkedin'];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'linkedin_events_interlocuteur_cree_id_fkey';
+            columns: ['interlocuteur_cree_id'];
+            isOneToOne: false;
+            referencedRelation: 'prospect_contacts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'linkedin_events_prospect_cree_id_fkey';
+            columns: ['prospect_cree_id'];
+            isOneToOne: false;
+            referencedRelation: 'prospects';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      linkedin_mapping_rules: {
+        Row: {
+          actif: boolean;
+          created_at: string;
+          developpeur_affecte_id: string | null;
+          id: string;
+          linkedin_company_pattern: string;
+          priorite: number;
+        };
+        Insert: {
+          actif?: boolean;
+          created_at?: string;
+          developpeur_affecte_id?: string | null;
+          id?: string;
+          linkedin_company_pattern: string;
+          priorite?: number;
+        };
+        Update: {
+          actif?: boolean;
+          created_at?: string;
+          developpeur_affecte_id?: string | null;
+          id?: string;
+          linkedin_company_pattern?: string;
+          priorite?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'linkedin_mapping_rules_developpeur_affecte_id_fkey';
+            columns: ['developpeur_affecte_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       notifications: {
         Row: {
           created_at: string;
@@ -3747,6 +3854,7 @@ export type Database = {
         | 'expire'
         | 'remplace'
         | 'annule';
+      statut_evenement_linkedin: 'nouveau' | 'traite' | 'ignore' | 'erreur';
       statut_facture: 'a_emettre' | 'emise' | 'payee' | 'en_retard' | 'avoir';
       statut_idee: 'proposee' | 'validee' | 'implementee' | 'rejetee';
       statut_projet: 'actif' | 'en_pause' | 'termine' | 'archive';
@@ -3763,6 +3871,11 @@ export type Database = {
         | 'diffusee_vague1'
         | 'diffusee_vague2'
         | 'archivee';
+      type_evenement_linkedin:
+        | 'reponse_positive'
+        | 'connexion_acceptee'
+        | 'mention_interet'
+        | 'rdv_demande';
       type_notification:
         | 'facture_retard'
         | 'tache_retard'
@@ -3782,7 +3895,9 @@ export type Database = {
         | 'cdp_a_affecter'
         | 'cdp_affecte'
         | 'cdp_saturation'
-        | 'passation_diffusee';
+        | 'passation_diffusee'
+        | 'linkedin_prospect_cree'
+        | 'linkedin_erreur';
       type_prospect: 'cfa' | 'entreprise';
       type_rdv:
         | 'presentation'
@@ -3967,6 +4082,7 @@ export const Constants = {
         'remplace',
         'annule',
       ],
+      statut_evenement_linkedin: ['nouveau', 'traite', 'ignore', 'erreur'],
       statut_facture: ['a_emettre', 'emise', 'payee', 'en_retard', 'avoir'],
       statut_idee: ['proposee', 'validee', 'implementee', 'rejetee'],
       statut_projet: ['actif', 'en_pause', 'termine', 'archive'],
@@ -3984,6 +4100,12 @@ export const Constants = {
         'diffusee_vague1',
         'diffusee_vague2',
         'archivee',
+      ],
+      type_evenement_linkedin: [
+        'reponse_positive',
+        'connexion_acceptee',
+        'mention_interet',
+        'rdv_demande',
       ],
       type_notification: [
         'facture_retard',
@@ -4005,6 +4127,8 @@ export const Constants = {
         'cdp_affecte',
         'cdp_saturation',
         'passation_diffusee',
+        'linkedin_prospect_cree',
+        'linkedin_erreur',
       ],
       type_prospect: ['cfa', 'entreprise'],
       type_rdv: [

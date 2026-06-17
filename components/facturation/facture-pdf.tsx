@@ -15,6 +15,7 @@ import {
   AUTOLIQUIDATION_MENTION,
   resolveTvaRegime,
 } from '@/lib/utils/tva-intracom';
+import { formatClientAddressLines } from '@/lib/utils/fr-address';
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA',
@@ -106,12 +107,13 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 8,
   },
-  colDeca: { width: '20%' },
-  colApprenant: { width: '22%' },
+  colNum: { width: '6%' },
+  colDeca: { width: '16%' },
+  colApprenant: { width: '20%' },
   colDescription: { width: '26%' },
   colMontantHt: { width: '16%', textAlign: 'right' },
   colMontantTtc: { width: '16%', textAlign: 'right' },
-  colDescriptionWide: { width: '60%' },
+  colDescriptionWide: { width: '54%' },
   colMontantHtWide: { width: '20%', textAlign: 'right' },
   colMontantTtcWide: { width: '20%', textAlign: 'right' },
   // Totals
@@ -355,10 +357,12 @@ export function FacturePdf({
           <Text style={styles.bold}>
             {facture.client?.raison_sociale ?? ''}
           </Text>
-          {facture.client?.adresse && <Text>{facture.client.adresse}</Text>}
-          {facture.client?.localisation && (
-            <Text>{facture.client.localisation}</Text>
-          )}
+          {formatClientAddressLines(
+            facture.client?.adresse,
+            facture.client?.localisation,
+          ).map((line, i) => (
+            <Text key={i}>{line}</Text>
+          ))}
           {facture.client?.siret && (
             <Text style={styles.muted}>SIRET {facture.client.siret}</Text>
           )}
@@ -382,6 +386,7 @@ export function FacturePdf({
 
         {/* Table header */}
         <View style={styles.tableHeader}>
+          <Text style={[styles.colNum, styles.bold]}>N°</Text>
           {hasContratLignes && (
             <Text style={[styles.colDeca, styles.bold]}>DECA</Text>
           )}
@@ -421,7 +426,10 @@ export function FacturePdf({
             distinctOpcoCount > 1 ||
             (distinctOpcoCount === 1 && groupMap.has('_no_opco'));
 
-          const renderLine = (ligne: (typeof lignes)[number]) => {
+          const renderLine = (
+            ligne: (typeof lignes)[number],
+            numero: number,
+          ) => {
             const ligneTtc =
               Math.round(
                 ligne.montant_ht * (1 + facture.taux_tva / 100) * 100,
@@ -431,6 +439,7 @@ export function FacturePdf({
               ligne.contrat?.contract_number ?? ligne.contrat?.ref ?? '';
             return (
               <View key={ligne.id} style={styles.tableRow}>
+                <Text style={styles.colNum}>{numero}</Text>
                 {hasContratLignes && (
                   <Text style={styles.colDeca}>{decaLabel}</Text>
                 )}
@@ -452,10 +461,11 @@ export function FacturePdf({
 
           if (!hasMultipleOpcos) {
             // Single-OPCO or no OPCO: flat render as before.
-            return lignes.map(renderLine);
+            return lignes.map((ligne, i) => renderLine(ligne, i + 1));
           }
 
           // Multi-OPCO: render with group headers and subtotals.
+          let lineNo = 0;
           return groups.map(([key, groupLines]) => {
             const label = key === '_no_opco' ? 'Non spécifié' : `OPCO : ${key}`;
             const subtotalHt =
@@ -465,7 +475,10 @@ export function FacturePdf({
             return (
               <View key={key}>
                 <Text style={styles.opcoHeader}>{label}</Text>
-                {groupLines.map(renderLine)}
+                {groupLines.map((ligne) => {
+                  lineNo += 1;
+                  return renderLine(ligne, lineNo);
+                })}
                 <Text style={styles.opcoSubtotal}>
                   {`Sous-total HT ${key === '_no_opco' ? '' : key} : ${formatEur(subtotalHt)}`}
                 </Text>

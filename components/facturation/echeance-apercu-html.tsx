@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/utils/formatters';
 import { diffDaysIso } from '@/lib/utils/dates';
+import { formatClientAddressLines } from '@/lib/utils/fr-address';
 
 interface PreviewData {
   ref: string;
@@ -131,8 +132,12 @@ export function EcheanceApercuHtml({ echeanceId }: { echeanceId: string }) {
             Facturer à
           </p>
           <p className="font-bold">{data.client?.raison_sociale ?? ''}</p>
-          {data.client?.adresse && <p>{data.client.adresse}</p>}
-          {data.client?.localisation && <p>{data.client.localisation}</p>}
+          {formatClientAddressLines(
+            data.client?.adresse,
+            data.client?.localisation,
+          ).map((line, i) => (
+            <p key={i}>{line}</p>
+          ))}
           {data.client?.siret && (
             <p className="text-neutral-500">SIRET {data.client.siret}</p>
           )}

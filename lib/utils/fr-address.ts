@@ -42,3 +42,33 @@ export function parseFrAddress(
   // Fallback : aucun code postal reperable -> rue seule, CP/ville inconnus.
   return { street: addr || null, zip: null, city: null };
 }
+
+// Lignes d'adresse a afficher sur un document legal (facture, devis,
+// echeance). `adresse` et `localisation` sont deux champs texte libres
+// souvent redondants : quand `adresse` contient deja "CP VILLE",
+// `localisation` n'est qu'un libelle de region interne ("Lyon", "Rouen",
+// "Aix en Provence") qui n'a rien a faire sur le document. On reutilise
+// parseFrAddress (meme logique que la sync Odoo) pour ne garder que la rue +
+// "CP VILLE", sans jamais dupliquer ni inventer la ville.
+//
+//   adresse "rue, CP VILLE" + localisation "Lyon" -> ["rue", "CP VILLE"]
+//   adresse "rue"           + localisation "CP VILLE" -> ["rue", "CP VILLE"]
+//   aucun CP reperable      -> [rue, localisation] (on ne perd pas une
+//                              ville libre sans code postal)
+export function formatClientAddressLines(
+  adresse: string | null | undefined,
+  localisation: string | null | undefined,
+): string[] {
+  const { street, zip, city } = parseFrAddress(adresse, localisation);
+  const lines: string[] = [];
+  if (street) lines.push(street);
+  if (zip && city) {
+    lines.push(`${zip} ${city}`);
+    return lines;
+  }
+  // Aucun code postal repere : conserver la localisation libre uniquement si
+  // elle apporte une info absente de la rue (ville sans CP).
+  const loc = (localisation ?? '').trim();
+  if (loc && loc !== street) lines.push(loc);
+  return lines;
+}

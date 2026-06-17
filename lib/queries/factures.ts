@@ -211,6 +211,7 @@ export async function getFactureByRef(ref: string) {
     `,
     )
     .eq('ref', ref)
+    .order('ordre', { foreignTable: 'lignes', nullsFirst: false })
     .single();
   if (error) {
     logger.error('queries.factures', 'getFactureByRef failed', { ref, error });
@@ -244,6 +245,7 @@ export async function getFactureById(id: string) {
     `,
     )
     .eq('id', id)
+    .order('ordre', { foreignTable: 'lignes', nullsFirst: false })
     .single();
   if (error) {
     logger.error('queries.factures', 'getFactureById failed', { id, error });

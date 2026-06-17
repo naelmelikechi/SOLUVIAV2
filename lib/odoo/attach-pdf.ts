@@ -49,6 +49,7 @@ export async function pushFacturePdfToOdoo(
     `,
     )
     .eq('id', factureId)
+    .order('ordre', { foreignTable: 'lignes', nullsFirst: false })
     .single();
 
   if (fErr || !facture || !facture.odoo_id || !facture.ref) {

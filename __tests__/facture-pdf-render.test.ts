@@ -210,4 +210,20 @@ describe('renderFacturePdfBuffer', () => {
     );
     expectValidPdf(buf);
   });
+
+  it('facture multi-OPCO (lignes groupees + numerotation continue) -> PDF valide', async () => {
+    // Exerce le chemin groupé par opco_code : la numérotation N° doit rester
+    // continue (1..N) à travers les groupes sans planter le rendu.
+    const buf = await renderPdf(
+      factureFixture({
+        lignes: [
+          ligne({ id: 'l1', opco_code: 'AKTO' }),
+          ligne({ id: 'l2', opco_code: 'OPCO_EP' }),
+          ligne({ id: 'l3', opco_code: 'OPCO_EP' }),
+          ligne({ id: 'l4', opco_code: null }),
+        ],
+      }),
+    );
+    expectValidPdf(buf);
+  });
 });

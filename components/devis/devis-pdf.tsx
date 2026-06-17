@@ -11,6 +11,7 @@ import {
 import type { DevisDetail } from '@/lib/queries/devis';
 import { SIGNATURE_SOLUVIA_DATA_URI } from '@/lib/assets/signature-soluvia';
 import { type ReactElement } from 'react';
+import { formatClientAddressLines } from '@/lib/utils/fr-address';
 
 const styles = StyleSheet.create({
   page: {
@@ -236,8 +237,12 @@ export function DevisPdf({
           {client ? (
             <>
               <Text style={styles.bold}>{client.raison_sociale}</Text>
-              {client.adresse ? <Text>{client.adresse}</Text> : null}
-              {client.localisation ? <Text>{client.localisation}</Text> : null}
+              {formatClientAddressLines(
+                client.adresse,
+                client.localisation,
+              ).map((line, i) => (
+                <Text key={i}>{line}</Text>
+              ))}
               {client.siret ? (
                 <Text style={styles.muted}>SIRET {client.siret}</Text>
               ) : null}

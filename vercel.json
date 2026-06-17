@@ -30,7 +30,7 @@
     },
     {
       "path": "/api/sync/odoo",
-      "schedule": "0 9,12,15,18 * * 1-5"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/chat-cleanup",
@@ -79,6 +79,10 @@
     {
       "path": "/api/cron/devis-relance",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/prospect-alertes",
+      "schedule": "0 8 * * *"
     }
   ]
 }

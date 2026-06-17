@@ -32,6 +32,7 @@ import type {
   ProspectStageHistoryItem,
 } from '@/lib/queries/prospects';
 import type { RdvCommercialWithRefs } from '@/lib/queries/rdv';
+import { LinkedinEncart } from '@/components/commercial/linkedin/linkedin-encart';
 
 interface Props {
   prospect: ProspectDetail;
@@ -261,6 +262,9 @@ export function FicheOverview({
             </p>
           )}
         </Card>
+        {prospect.canal_origine === 'linkedin_auto' && (
+          <LinkedinEncart prospectId={prospect.id} />
+        )}
       </div>
     </div>
   );

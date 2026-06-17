@@ -115,6 +115,18 @@ const navSections: NavSection[] = [
         icon: BarChart3,
         requiresReferentCdp: true,
       },
+      {
+        href: '/commercial/kpis',
+        label: 'KPIs',
+        icon: LineChart,
+        requiresPipelineAccess: true,
+      },
+      {
+        href: '/commercial/linkedin',
+        label: 'LinkedIn',
+        icon: Activity,
+        requiresPipelineAccess: true,
+      },
     ],
   },
   {

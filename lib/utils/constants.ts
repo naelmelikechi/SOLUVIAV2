@@ -25,26 +25,32 @@ export const STATUT_PROJET_COLORS: Record<string, BadgeColor> = {
 
 // Prospect stages (pipeline commercial)
 export const STAGE_PROSPECT_ORDER = [
-  'non_contacte',
-  'r1',
-  'r2',
+  'a_qualifier',
+  'presente',
+  'cadre',
+  'audite',
   'signe',
+  'perdu',
 ] as const;
 
 export type StageProspect = (typeof STAGE_PROSPECT_ORDER)[number];
 
 export const STAGE_PROSPECT_LABELS: Record<StageProspect, string> = {
-  non_contacte: 'Non contacté',
-  r1: 'R1 validé',
-  r2: 'R2 validé',
+  a_qualifier: 'À qualifier',
+  presente: 'Présenté',
+  cadre: 'Cadré',
+  audite: 'Audité',
   signe: 'Signé',
+  perdu: 'Perdu',
 };
 
 export const STAGE_PROSPECT_COLORS: Record<StageProspect, BadgeColor> = {
-  non_contacte: 'gray',
-  r1: 'blue',
-  r2: 'orange',
+  a_qualifier: 'gray',
+  presente: 'blue',
+  cadre: 'orange',
+  audite: 'purple',
   signe: 'green',
+  perdu: 'red',
 };
 
 export type TypeProspect = 'cfa' | 'entreprise';
@@ -95,19 +101,107 @@ export const CIBLE_IDEE_COLORS: Record<CibleIdee, BadgeColor> = {
 };
 
 // RDV (formateurs et commerciaux)
-export type StatutRdv = 'prevu' | 'realise' | 'annule';
+export type StatutRdv = 'prevu' | 'realise' | 'annule' | 'reporte';
 
 export const STATUT_RDV_LABELS: Record<StatutRdv, string> = {
-  prevu: 'Prévu',
-  realise: 'Réalisé',
+  prevu: 'Planifié',
+  realise: 'Tenu',
   annule: 'Annulé',
+  reporte: 'Reporté',
 };
 
 export const STATUT_RDV_COLORS: Record<StatutRdv, BadgeColor> = {
   prevu: 'blue',
   realise: 'green',
   annule: 'gray',
+  reporte: 'orange',
 };
+
+// Types de RDV commerciaux (tunnel 4 RDV)
+export type TypeRdv =
+  | 'presentation'
+  | 'cadrage'
+  | 'audit_tunnel_a'
+  | 'audit_tunnel_b'
+  | 'signature'
+  | 'autre';
+
+export const TYPE_RDV_LABELS: Record<TypeRdv, string> = {
+  presentation: 'Présentation',
+  cadrage: 'Cadrage',
+  audit_tunnel_a: 'Audit Tunnel A — Entreprise',
+  audit_tunnel_b: 'Audit Tunnel B — CFA existant',
+  signature: 'Signature',
+  autre: 'Autre',
+};
+
+export type FormatRdv =
+  | 'presentiel'
+  | 'visio_meet'
+  | 'visio_zoom'
+  | 'visio_teams'
+  | 'telephone';
+
+export const FORMAT_RDV_LABELS: Record<FormatRdv, string> = {
+  presentiel: 'Présentiel',
+  visio_meet: 'Visio Meet',
+  visio_zoom: 'Visio Zoom',
+  visio_teams: 'Visio Teams',
+  telephone: 'Téléphone',
+};
+
+// Canal d'origine d'un prospect
+export type CanalOrigine =
+  | 'reseau_developpeur'
+  | 'reseau_direction'
+  | 'linkedin_auto'
+  | 'salon'
+  | 'apporteur'
+  | 'autre';
+
+export const CANAL_ORIGINE_LABELS: Record<CanalOrigine, string> = {
+  reseau_developpeur: 'Réseau Développeur',
+  reseau_direction: 'Réseau Direction',
+  linkedin_auto: 'LinkedIn auto',
+  salon: 'Salon',
+  apporteur: 'Apporteur',
+  autre: 'Autre',
+};
+
+// Rôle d'un interlocuteur dans la décision
+export type RoleDecisionContact =
+  | 'signataire'
+  | 'sponsor'
+  | 'operationnel'
+  | 'soutien';
+
+export const ROLE_DECISION_LABELS: Record<RoleDecisionContact, string> = {
+  signataire: 'Signataire',
+  sponsor: 'Sponsor',
+  operationnel: 'Opérationnel',
+  soutien: 'Soutien',
+};
+
+// Santé prospect : calculée sur le délai depuis la dernière action (Feature 1 §5)
+export type SanteProspect = 'vert' | 'orange' | 'rouge';
+
+export const SANTE_PROSPECT_SEUIL_VERT_JOURS = 7;
+export const SANTE_PROSPECT_SEUIL_ORANGE_JOURS = 14;
+
+export const SANTE_PROSPECT_LABELS: Record<SanteProspect, string> = {
+  vert: 'À jour',
+  orange: 'À relancer',
+  rouge: 'En retard',
+};
+
+export const SANTE_PROSPECT_COLORS: Record<SanteProspect, BadgeColor> = {
+  vert: 'green',
+  orange: 'orange',
+  rouge: 'red',
+};
+
+// Plancher tarifaire absolu (NPEC) : sous ce seuil, escalade Direction Générale
+export const TAUX_NPEC_PLANCHER = 35;
 
 // Invoice statuses
 export const STATUT_FACTURE_LABELS: Record<string, string> = {

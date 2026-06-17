@@ -91,6 +91,12 @@ const navSections: NavSection[] = [
         icon: Target,
         requiresPipelineAccess: true,
       },
+      {
+        href: '/commercial/prospects',
+        label: 'Prospects',
+        icon: Users,
+        requiresPipelineAccess: true,
+      },
     ],
   },
   {

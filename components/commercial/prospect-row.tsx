@@ -37,11 +37,28 @@ export const PIPELINE_GRID_COLS =
   'grid-cols-[28px_minmax(0,2.2fr)_minmax(0,1.4fr)_90px_minmax(0,1.4fr)_140px_70px_120px]';
 
 const STAGE_DOT: Record<StageProspect, string> = {
-  non_contacte: 'bg-neutral-400',
-  r1: 'bg-blue-500',
-  r2: 'bg-orange-500',
+  a_qualifier: 'bg-neutral-400',
+  presente: 'bg-blue-500',
+  cadre: 'bg-orange-500',
+  audite: 'bg-purple-500',
   signe: 'bg-green-600',
+  perdu: 'bg-red-500',
 };
+
+// Tunnel commercial linéaire : 'perdu' est une étape de sortie, hors progression.
+const TUNNEL: StageProspect[] = STAGE_PROSPECT_ORDER.filter(
+  (s) => s !== 'perdu',
+);
+
+// Seuil d'alerte « sans contact récent » (jours) selon la position dans le tunnel.
+// Étapes terminales (signature + 'perdu') : pas d'alerte.
+function staleThresholdDays(stage: StageProspect): number | null {
+  const idx = TUNNEL.indexOf(stage);
+  if (idx === -1 || idx === TUNNEL.length - 1) return null;
+  if (idx === 0) return 30;
+  if (idx === 1) return 14;
+  return 10;
+}
 
 function formatVolume(n: number | null): string {
   if (n === null) return '';
@@ -71,8 +88,8 @@ function freshnessTone(
   className: string;
 } | null {
   if (days === null) return null;
-  if (stage === 'signe') return null;
-  const threshold = stage === 'non_contacte' ? 30 : stage === 'r1' ? 14 : 10;
+  const threshold = staleThresholdDays(stage);
+  if (threshold === null) return null;
   if (days < threshold) return null;
   const heavy = days >= threshold * 2;
   return {

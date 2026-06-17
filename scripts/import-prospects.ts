@@ -94,14 +94,14 @@ interface ProspectRow {
   emails_generiques: string | null;
   telephone_standard: string | null;
   notes_import: string | null;
-  stage: 'non_contacte' | 'r1' | 'r2' | 'signe';
+  stage: 'a_qualifier' | 'presente' | 'cadre' | 'audite' | 'signe' | 'perdu';
 }
 
 function deriveStage(row: Record<string, unknown>): ProspectRow['stage'] {
   if (truthy(row['Contractualisé'])) return 'signe';
-  if (truthy(row['R2 validé'])) return 'r2';
-  if (truthy(row['R1 validé'])) return 'r1';
-  return 'non_contacte';
+  if (truthy(row['R2 validé'])) return 'cadre';
+  if (truthy(row['R1 validé'])) return 'presente';
+  return 'a_qualifier';
 }
 
 console.log(`Reading ${filePath}...`);

@@ -23,6 +23,7 @@ export interface DashboardShellUser {
   avatar_seed: string | null;
   avatar_regen_date: string | null;
   pipeline_access: boolean;
+  referent_cdp: boolean;
   can_validate_ideas: boolean;
   can_ship_ideas: boolean;
   onboarding_completed_at: string | null;

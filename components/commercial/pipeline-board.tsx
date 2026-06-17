@@ -61,11 +61,28 @@ interface PipelineBoardProps {
 }
 
 const STAGE_DOT: Record<StageProspect, string> = {
-  non_contacte: 'bg-neutral-400',
-  r1: 'bg-blue-500',
-  r2: 'bg-orange-500',
+  a_qualifier: 'bg-neutral-400',
+  presente: 'bg-blue-500',
+  cadre: 'bg-orange-500',
+  audite: 'bg-purple-500',
   signe: 'bg-green-600',
+  perdu: 'bg-red-500',
 };
+
+// Tunnel commercial linéaire : 'perdu' est une étape de sortie, hors progression.
+const TUNNEL: StageProspect[] = STAGE_PROSPECT_ORDER.filter(
+  (s) => s !== 'perdu',
+);
+
+// Seuil d'alerte « sans contact récent » (jours) selon la position dans le tunnel.
+// Étapes terminales (signature + 'perdu') : pas d'alerte.
+function staleThresholdDays(stage: StageProspect): number | null {
+  const idx = TUNNEL.indexOf(stage);
+  if (idx === -1 || idx === TUNNEL.length - 1) return null;
+  if (idx === 0) return 30;
+  if (idx === 1) return 14;
+  return 10;
+}
 
 type SortKey = 'volume' | 'nom' | 'updated';
 
@@ -99,12 +116,13 @@ export function PipelineBoard({
   const [staleOnly, setStaleOnly] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('volume');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [collapsed, setCollapsed] = useState<Record<StageProspect, boolean>>({
-    non_contacte: false,
-    r1: false,
-    r2: false,
-    signe: false,
-  });
+  const [collapsed, setCollapsed] = useState<Record<StageProspect, boolean>>(
+    () => {
+      const init = {} as Record<StageProspect, boolean>;
+      for (const s of STAGE_PROSPECT_ORDER) init[s] = false;
+      return init;
+    },
+  );
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkPending, startBulkTransition] = useTransition();
@@ -132,8 +150,6 @@ export function PipelineBoard({
     const result = {} as Record<StageProspect, ProspectWithCommercial[]>;
     const term = search.trim().toLowerCase();
     const minV = minVolume ? parseInt(minVolume, 10) : null;
-    const staleThreshold = (stage: StageProspect) =>
-      stage === 'non_contacte' ? 30 : stage === 'r1' ? 14 : 10;
 
     for (const stage of STAGE_PROSPECT_ORDER) {
       const items = grouped[stage].filter((p) => {
@@ -168,16 +184,16 @@ export function PipelineBoard({
           return false;
         if (minV !== null && !isNaN(minV) && (p.volume_apprenants ?? 0) < minV)
           return false;
-        if (staleOnly && stage !== 'signe') {
+        if (staleOnly) {
+          const threshold = staleThresholdDays(stage);
+          if (threshold === null) return false;
           const days = p.updated_at
             ? Math.floor(
                 (nowMs - new Date(p.updated_at).getTime()) /
                   (1000 * 60 * 60 * 24),
               )
             : null;
-          if (days === null || days < staleThreshold(stage)) return false;
-        } else if (staleOnly && stage === 'signe') {
-          return false;
+          if (days === null || days < threshold) return false;
         }
         return true;
       });
@@ -287,12 +303,10 @@ export function PipelineBoard({
       }
       toast.success(`${result.updated} prospect(s) mis à jour`);
       setGrouped((prev) => {
-        const next: Record<StageProspect, ProspectWithCommercial[]> = {
-          non_contacte: [...prev.non_contacte],
-          r1: [...prev.r1],
-          r2: [...prev.r2],
-          signe: [...prev.signe],
-        };
+        const next = {} as Record<StageProspect, ProspectWithCommercial[]>;
+        for (const stage of STAGE_PROSPECT_ORDER) {
+          next[stage] = [...prev[stage]];
+        }
         const idSet = new Set(ids);
         const now = new Date().toISOString();
 
@@ -338,12 +352,8 @@ export function PipelineBoard({
   }
 
   const totals = useMemo(() => {
-    const counts: Record<StageProspect, number> = {
-      non_contacte: filtered.non_contacte.length,
-      r1: filtered.r1.length,
-      r2: filtered.r2.length,
-      signe: filtered.signe.length,
-    };
+    const counts = {} as Record<StageProspect, number>;
+    for (const s of STAGE_PROSPECT_ORDER) counts[s] = filtered[s].length;
     const total = STAGE_PROSPECT_ORDER.reduce((acc, s) => acc + counts[s], 0);
     const volume = STAGE_PROSPECT_ORDER.reduce(
       (acc, s) =>
@@ -351,10 +361,9 @@ export function PipelineBoard({
         filtered[s].reduce((sub, p) => sub + (p.volume_apprenants ?? 0), 0),
       0,
     );
-    const inFunnel = counts.r1 + counts.r2 + counts.signe;
+    // Pipeline actif : étapes du tunnel au-delà de la première (hors 'perdu').
+    const inFunnel = TUNNEL.slice(1).reduce((acc, s) => acc + counts[s], 0);
     const conversion = total > 0 ? (counts.signe / total) * 100 : 0;
-    const r1ToR2 = counts.r1 + counts.r2 + counts.signe;
-    const r2ToSigne = counts.r2 + counts.signe;
     const monthStart = startOfMonth(new Date(nowMs));
     const signedThisMonth = filtered.signe.filter((p) =>
       p.updated_at ? new Date(p.updated_at).getTime() >= monthStart : false,
@@ -366,8 +375,6 @@ export function PipelineBoard({
       volume,
       inFunnel,
       conversion,
-      r1ToR2,
-      r2ToSigne,
       signedThisMonth,
     };
   }, [filtered, nowMs]);
@@ -697,26 +704,13 @@ export function PipelineBoard({
         {STAGE_PROSPECT_ORDER.map((stage) => {
           const items = filtered[stage];
           const isCollapsed = collapsed[stage];
-          const fromStage =
-            stage === 'r1'
-              ? totals.counts.non_contacte +
-                totals.counts.r1 +
-                totals.counts.r2 +
-                totals.counts.signe
-              : stage === 'r2'
-                ? totals.counts.r1 + totals.counts.r2 + totals.counts.signe
-                : stage === 'signe'
-                  ? totals.counts.r2 + totals.counts.signe
-                  : null;
+          const tunnelIdx = TUNNEL.indexOf(stage);
+          const sumFromTunnel = (i: number) =>
+            TUNNEL.slice(i).reduce((acc, s) => acc + totals.counts[s], 0);
           const stageRate =
-            fromStage && fromStage > 0
+            tunnelIdx >= 1 && sumFromTunnel(tunnelIdx - 1) > 0
               ? formatPercent(
-                  ((stage === 'r1'
-                    ? totals.counts.r1 + totals.counts.r2 + totals.counts.signe
-                    : stage === 'r2'
-                      ? totals.counts.r2 + totals.counts.signe
-                      : totals.counts.signe) /
-                    fromStage) *
+                  (sumFromTunnel(tunnelIdx) / sumFromTunnel(tunnelIdx - 1)) *
                     100,
                 )
               : null;
@@ -742,7 +736,7 @@ export function PipelineBoard({
                 <span className="text-muted-foreground/70 tabular-nums">
                   {items.length}
                 </span>
-                {stage !== 'non_contacte' && stageRate && (
+                {stageRate && (
                   <span className="text-muted-foreground/50 ml-2 text-[10px]">
                     conversion entrants → {stageRate}
                   </span>

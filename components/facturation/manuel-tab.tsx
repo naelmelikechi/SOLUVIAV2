@@ -13,6 +13,8 @@ import type {
   ProjetBillableEvents,
   BillableEvent,
 } from '@/lib/queries/billable-events';
+import { ttcToHt } from '@/lib/utils/montant-ht';
+import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -222,16 +224,17 @@ export function ManuelTab({ projets }: ManuelTabProps) {
   };
 
   const totals = useMemo(() => {
-    if (!projet) return { count: 0, ht: 0 };
+    if (!projet) return { count: 0, ht: 0, ttc: 0 };
+    const tvaRate = resolveTvaRegime(projet.clientTvaIntracom).taux / 100;
     let count = 0;
-    let ht = 0;
+    let ttc = 0;
     for (const e of projet.events) {
       if (selected.has(eventKey(e))) {
         count += 1;
-        ht += e.montant_commissionne;
+        ttc += e.montant_commissionne;
       }
     }
-    return { count, ht };
+    return { count, ht: ttcToHt(ttc, tvaRate), ttc };
   }, [projet, selected]);
 
   const onCancel = () => {
@@ -421,13 +424,14 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                     <TableHead>Type</TableHead>
                     <TableHead>État</TableHead>
                     <TableHead className="text-right">HT</TableHead>
+                    <TableHead className="text-right">TTC</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {displayedEvents.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={7}
                         className="text-muted-foreground h-16 text-center text-sm"
                       >
                         Aucun événement à afficher.
@@ -442,6 +446,11 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                       const isBilled = e.status === 'billed';
                       const disabled = isLocked || isBilled;
                       const checked = isSelected(e);
+                      const montantTtc = e.montant_commissionne;
+                      const montantHt = ttcToHt(
+                        montantTtc,
+                        resolveTvaRegime(projet.clientTvaIntracom).taux / 100,
+                      );
 
                       const deca = e.contract_number ?? e.contrat_ref ?? '';
                       const stepSuffix =
@@ -681,13 +690,29 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                     isBilled && 'text-muted-foreground',
                                   )}
                                 >
-                                  {formatCurrency(e.montant_commissionne)}
+                                  {formatCurrency(montantHt)}
                                 </span>
                                 <span className="text-muted-foreground text-[10px] tabular-nums">
                                   {formatCurrency(e.montant_brut)} {'×'}{' '}
                                   {projet.tauxCommission}%
                                 </span>
                               </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {isLocked ? (
+                              <span className="text-muted-foreground font-mono text-sm">
+                                {NDASH}
+                              </span>
+                            ) : (
+                              <span
+                                className={cn(
+                                  'font-mono text-sm tabular-nums',
+                                  isBilled && 'text-muted-foreground',
+                                )}
+                              >
+                                {formatCurrency(montantTtc)}
+                              </span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -710,6 +735,11 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                 Total HT{' '}
                 <span className="text-foreground font-semibold tabular-nums">
                   {formatCurrency(totals.ht)}
+                </span>
+                {' · '}
+                Total TTC{' '}
+                <span className="text-foreground font-semibold tabular-nums">
+                  {formatCurrency(totals.ttc)}
                 </span>
                 {' · '}
                 Commission {projet.tauxCommission}%

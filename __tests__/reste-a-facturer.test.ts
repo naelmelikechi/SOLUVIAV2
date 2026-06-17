@@ -115,6 +115,10 @@ describe('buildResteAFacturer - statuts et conversion HT (domestique 20 %)', () 
     expect(row.potentielHt).toBe(4166.67);
     // émis TTC = 1200+600+240 = 2040 ; prévisionnel = 2960 TTC -> 2466.67 HT
     expect(row.previsionnelHt).toBe(2466.67);
+    // TTC exposés directement (avant conversion HT)
+    expect(row.bloqueTtc).toBe(600);
+    expect(row.previsionnelTtc).toBe(2960);
+    expect(row.emisNonPayeTtc).toBe(0);
 
     expect(raf.totals.facturableHt).toBe(1000);
     expect(raf.totals.bloqueHt).toBe(500);

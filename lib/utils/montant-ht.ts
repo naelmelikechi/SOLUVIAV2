@@ -33,3 +33,12 @@ export const TVA_RATE = 0.2;
 export function ttcToHt(montantTtc: number, tvaRate = TVA_RATE): number {
   return montantTtc / (1 + tvaRate);
 }
+
+/**
+ * Calcule le TTC à partir d'un HT et d'un taux de TVA (fraction, ex. 0,2 = 20 %).
+ * Inverse de ttcToHt. Vaut le HT pour un taux 0 (régime intracom / autoliquidation).
+ * L'arrondi d'affichage est délégué à formatCurrency.
+ */
+export function htToTtc(montantHt: number, tvaRate = TVA_RATE): number {
+  return montantHt * (1 + tvaRate);
+}

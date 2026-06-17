@@ -10,6 +10,8 @@ import {
   DataTableColumnHeader,
 } from '@/components/shared/data-table';
 import { formatCurrency } from '@/lib/utils/formatters';
+import { htToTtc } from '@/lib/utils/montant-ht';
+import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 import { toast } from 'sonner';
 import { createFactures } from '@/lib/actions/factures';
 
@@ -88,6 +90,36 @@ export function EcheanceTable({ echeances, onPreview }: EcheanceTableProps) {
           <div className="text-right">
             <span className="font-mono text-sm tabular-nums">
               {formatCurrency(row.original.montant_prevu_ht)}
+            </span>
+          </div>
+        ),
+      },
+      {
+        id: 'montant_prevu_ttc',
+        accessorFn: (e) =>
+          htToTtc(
+            e.montant_prevu_ht,
+            resolveTvaRegime(e.projet?.client?.tva_intracommunautaire).taux /
+              100,
+          ),
+        header: ({ column }) => (
+          <DataTableColumnHeader
+            column={column}
+            title="Montant TTC"
+            className="justify-end"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="text-right">
+            <span className="font-mono text-sm tabular-nums">
+              {formatCurrency(
+                htToTtc(
+                  row.original.montant_prevu_ht,
+                  resolveTvaRegime(
+                    row.original.projet?.client?.tva_intracommunautaire,
+                  ).taux / 100,
+                ),
+              )}
             </span>
           </div>
         ),

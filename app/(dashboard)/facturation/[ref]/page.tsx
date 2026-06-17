@@ -143,6 +143,7 @@ export default async function FactureDetailPage({
           projetId={projetId}
           isBrouillon={isBrouillon}
           tauxCommission={tauxCommission}
+          tauxTva={facture.taux_tva}
         />
       </Card>
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { htRatio, encaisseHt, ttcToHt } from '@/lib/utils/montant-ht';
+import { htRatio, encaisseHt, ttcToHt, htToTtc } from '@/lib/utils/montant-ht';
 
 describe('htRatio', () => {
   it('TVA 20% : 120 ttc -> ratio 100/120', () => {
@@ -44,5 +44,23 @@ describe('ttcToHt', () => {
 
   it('taux de TVA paramétrable (0% -> inchangé)', () => {
     expect(ttcToHt(500, 0)).toBe(500);
+  });
+});
+
+describe('htToTtc', () => {
+  it('TVA 20% par défaut : 100 HT -> 120 TTC', () => {
+    expect(htToTtc(100)).toBeCloseTo(120, 6);
+  });
+
+  it('taux 0% (intracom / autoliquidation) : HT = TTC', () => {
+    expect(htToTtc(500, 0)).toBe(500);
+  });
+
+  it('inverse de ttcToHt : htToTtc(ttcToHt(120)) ≈ 120', () => {
+    expect(htToTtc(ttcToHt(120))).toBeCloseTo(120, 6);
+  });
+
+  it('commission HEOL : 3333.33 HT × 20% ≈ 4000 TTC', () => {
+    expect(htToTtc(3333.33, 0.2)).toBeCloseTo(4000, 1);
   });
 });

@@ -282,7 +282,7 @@ export async function getEcheancesPending() {
     .select(
       `
       id, mois_concerne, date_emission_prevue, montant_prevu_ht, validee,
-      projet:projets!echeances_projet_id_fkey(id, ref, client:clients!projets_client_id_fkey(trigramme, raison_sociale))
+      projet:projets!echeances_projet_id_fkey(id, ref, client:clients!projets_client_id_fkey(trigramme, raison_sociale, tva_intracommunautaire))
     `,
     )
     .is('facture_id', null)

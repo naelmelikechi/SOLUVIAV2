@@ -214,6 +214,19 @@ function createContratColumns(): ColumnDef<RafContratRow>[] {
       ),
     },
     {
+      accessorKey: 'facturableTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Facturable TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.facturableTtc} tone="facturable" />
+      ),
+    },
+    {
       accessorKey: 'emisNonPayeHt',
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -224,6 +237,19 @@ function createContratColumns(): ColumnDef<RafContratRow>[] {
       ),
       cell: ({ row }) => (
         <MoneyCell value={row.original.emisNonPayeHt} tone="attente" />
+      ),
+    },
+    {
+      accessorKey: 'emisNonPayeTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="En attente TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.emisNonPayeTtc} tone="attente" />
       ),
     },
     {
@@ -256,6 +282,19 @@ function createContratColumns(): ColumnDef<RafContratRow>[] {
       },
     },
     {
+      accessorKey: 'bloqueTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Bloqué TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.bloqueTtc} tone="bloque" />
+      ),
+    },
+    {
       accessorKey: 'previsionnelHt',
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -266,6 +305,19 @@ function createContratColumns(): ColumnDef<RafContratRow>[] {
       ),
       cell: ({ row }) => (
         <MoneyCell value={row.original.previsionnelHt} tone="previsionnel" />
+      ),
+    },
+    {
+      accessorKey: 'previsionnelTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Prévisionnel TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.previsionnelTtc} tone="previsionnel" />
       ),
     },
     {
@@ -315,6 +367,19 @@ function createProjetColumns(): ColumnDef<RafProjetRow>[] {
       ),
     },
     {
+      accessorKey: 'facturableTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Facturable TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.facturableTtc} tone="facturable" />
+      ),
+    },
+    {
       accessorKey: 'emisNonPayeHt',
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -325,6 +390,19 @@ function createProjetColumns(): ColumnDef<RafProjetRow>[] {
       ),
       cell: ({ row }) => (
         <MoneyCell value={row.original.emisNonPayeHt} tone="attente" />
+      ),
+    },
+    {
+      accessorKey: 'emisNonPayeTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="En attente TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.emisNonPayeTtc} tone="attente" />
       ),
     },
     {
@@ -341,6 +419,19 @@ function createProjetColumns(): ColumnDef<RafProjetRow>[] {
       ),
     },
     {
+      accessorKey: 'bloqueTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Bloqué TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.bloqueTtc} tone="bloque" />
+      ),
+    },
+    {
       accessorKey: 'previsionnelHt',
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -351,6 +442,19 @@ function createProjetColumns(): ColumnDef<RafProjetRow>[] {
       ),
       cell: ({ row }) => (
         <MoneyCell value={row.original.previsionnelHt} tone="previsionnel" />
+      ),
+    },
+    {
+      accessorKey: 'previsionnelTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Prévisionnel TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.previsionnelTtc} tone="previsionnel" />
       ),
     },
     {
@@ -403,6 +507,19 @@ function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
       ),
     },
     {
+      accessorKey: 'facturableTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Facturable TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.facturableTtc} tone="facturable" />
+      ),
+    },
+    {
       accessorKey: 'emisNonPayeHt',
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -413,6 +530,19 @@ function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
       ),
       cell: ({ row }) => (
         <MoneyCell value={row.original.emisNonPayeHt} tone="attente" />
+      ),
+    },
+    {
+      accessorKey: 'emisNonPayeTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="En attente TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.emisNonPayeTtc} tone="attente" />
       ),
     },
     {
@@ -429,6 +559,19 @@ function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
       ),
     },
     {
+      accessorKey: 'bloqueTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Bloqué TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.bloqueTtc} tone="bloque" />
+      ),
+    },
+    {
       accessorKey: 'previsionnelHt',
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -439,6 +582,19 @@ function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
       ),
       cell: ({ row }) => (
         <MoneyCell value={row.original.previsionnelHt} tone="previsionnel" />
+      ),
+    },
+    {
+      accessorKey: 'previsionnelTtc',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Prévisionnel TTC"
+          className="justify-end"
+        />
+      ),
+      cell: ({ row }) => (
+        <MoneyCell value={row.original.previsionnelTtc} tone="previsionnel" />
       ),
     },
     {

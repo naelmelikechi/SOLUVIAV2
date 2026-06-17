@@ -1,16 +1,5 @@
 {
   "regions": ["cdg1"],
-  "git": {
-    "deploymentEnabled": {
-      "fix/sprint-1-security": false,
-      "fix/sprint-2-hardening": false,
-      "fix/sprint-3-polish": false,
-      "fix/sprint-4-finalize": false,
-      "chore/e2e-auth-setup": false,
-      "chore/sprint-7-ci-pgtap": false,
-      "feat/dashboard-premium": false
-    }
-  },
   "crons": [
     {
       "path": "/api/cron/snapshot",

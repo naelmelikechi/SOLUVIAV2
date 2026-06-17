@@ -16,7 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { updateProspectIdentite } from '@/lib/actions/prospects';
+import {
+  updateProspectIdentite,
+  verifyProspectSiren,
+} from '@/lib/actions/prospects';
 import { CANAL_ORIGINE_LABELS, type CanalOrigine } from '@/lib/utils/constants';
 import type { ProspectDetail } from '@/lib/queries/prospects';
 
@@ -77,6 +80,8 @@ export function FicheIdentiteForm({ prospect, locked }: Props) {
     prospect.notes_inter_equipe ?? '',
   );
   const [isPending, startTransition] = useTransition();
+  const [siren, setSiren] = useState(prospect.siren ?? '');
+  const [isVerifying, startVerify] = useTransition();
 
   const handleSubmit = useCallback(() => {
     let volumeApprenants: number | null = null;
@@ -127,6 +132,23 @@ export function FicheIdentiteForm({ prospect, locked }: Props) {
     router,
   ]);
 
+  const handleVerifySiren = useCallback(() => {
+    const clean = siren.replace(/\s+/g, '');
+    if (!/^\d{9}$/.test(clean)) {
+      toast.error('SIREN attendu : 9 chiffres');
+      return;
+    }
+    startVerify(async () => {
+      const r = await verifyProspectSiren(prospect.id, clean);
+      if (r.success) {
+        toast.success('Identité enrichie via INSEE');
+        router.refresh();
+      } else {
+        toast.error(r.error ?? 'SIREN introuvable');
+      }
+    });
+  }, [prospect.id, siren, router]);
+
   useCmdEnter(handleSubmit, !isPending);
 
   return (
@@ -173,6 +195,29 @@ export function FicheIdentiteForm({ prospect, locked }: Props) {
         />
         <ReadOnlyField label="Effectif" value={prospect.effectif_tranche} />
       </div>
+
+      {!locked && (
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="ident-siren">SIREN (9 chiffres)</Label>
+            <Input
+              id="ident-siren"
+              value={siren}
+              onChange={(e) => setSiren(e.target.value)}
+              placeholder="123456789"
+              className="w-44"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleVerifySiren}
+            disabled={isVerifying}
+          >
+            {isVerifying ? 'Vérification...' : 'Vérifier via INSEE'}
+          </Button>
+        </div>
+      )}
 
       {/* Bloc éditable */}
       <div className="grid gap-4 sm:grid-cols-2">

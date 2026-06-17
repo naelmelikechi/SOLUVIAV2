@@ -87,7 +87,9 @@ export async function getProspectsGroupedByStage(
   return grouped;
 }
 
-export async function getProspectNotes(prospectId: string) {
+export async function getProspectNotes(
+  prospectId: string,
+): Promise<ProspectNote[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -108,10 +110,18 @@ export async function getProspectNotes(prospectId: string) {
     );
   }
 
-  return data;
+  return data ?? [];
 }
 
-export type ProspectNote = Awaited<ReturnType<typeof getProspectNotes>>[number];
+export type ProspectNote =
+  Database['public']['Tables']['prospect_notes']['Row'] & {
+    user: {
+      id: string;
+      nom: string;
+      prenom: string;
+      role: Database['public']['Enums']['role_utilisateur'];
+    } | null;
+  };
 
 export async function getProspectRegions(): Promise<string[]> {
   const supabase = await createClient();
@@ -292,7 +302,9 @@ export async function getProspectContacts(
   return data ?? [];
 }
 
-export async function getProspectStageHistory(prospectId: string) {
+export async function getProspectStageHistory(
+  prospectId: string,
+): Promise<ProspectStageHistoryItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('prospect_stage_history')
@@ -312,9 +324,10 @@ export async function getProspectStageHistory(prospectId: string) {
   return data ?? [];
 }
 
-export type ProspectStageHistoryItem = Awaited<
-  ReturnType<typeof getProspectStageHistory>
->[number];
+export type ProspectStageHistoryItem =
+  Database['public']['Tables']['prospect_stage_history']['Row'] & {
+    changed_by_user: { id: string; nom: string; prenom: string } | null;
+  };
 
 // Doublon potentiel renvoyé par la RPC find_prospect_duplicates (Feature 2 §7).
 export interface ProspectDuplicate {
@@ -325,7 +338,9 @@ export interface ProspectDuplicate {
   similarite: number;
 }
 
-export async function getProspectCommunications(prospectId: string) {
+export async function getProspectCommunications(
+  prospectId: string,
+): Promise<ProspectCommunication[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('prospect_communications')
@@ -345,11 +360,14 @@ export async function getProspectCommunications(prospectId: string) {
   return data ?? [];
 }
 
-export type ProspectCommunication = Awaited<
-  ReturnType<typeof getProspectCommunications>
->[number];
+export type ProspectCommunication =
+  Database['public']['Tables']['prospect_communications']['Row'] & {
+    user: { id: string; nom: string; prenom: string } | null;
+  };
 
-export async function getProspectById(id: string) {
+export async function getProspectById(
+  id: string,
+): Promise<ProspectDetail | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('prospects')
@@ -363,9 +381,11 @@ export async function getProspectById(id: string) {
     logger.error('queries.prospects', 'getProspectById failed', { id, error });
     return null;
   }
-  return data;
+  return data as ProspectDetail | null;
 }
 
-export type ProspectDetail = NonNullable<
-  Awaited<ReturnType<typeof getProspectById>>
->;
+export type ProspectDetail =
+  Database['public']['Tables']['prospects']['Row'] & {
+    commercial: { id: string; nom: string; prenom: string } | null;
+    client: { id: string; raison_sociale: string; trigramme: string } | null;
+  };

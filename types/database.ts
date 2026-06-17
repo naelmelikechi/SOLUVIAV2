@@ -1074,6 +1074,84 @@ export type Database = {
           },
         ];
       };
+      document_template_versions: {
+        Row: {
+          active: boolean;
+          fichier_nom: string | null;
+          id: string;
+          notes: string | null;
+          published_at: string;
+          published_by: string | null;
+          storage_path: string;
+          template_id: string;
+          version: number;
+        };
+        Insert: {
+          active?: boolean;
+          fichier_nom?: string | null;
+          id?: string;
+          notes?: string | null;
+          published_at?: string;
+          published_by?: string | null;
+          storage_path: string;
+          template_id: string;
+          version: number;
+        };
+        Update: {
+          active?: boolean;
+          fichier_nom?: string | null;
+          id?: string;
+          notes?: string | null;
+          published_at?: string;
+          published_by?: string | null;
+          storage_path?: string;
+          template_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'document_template_versions_published_by_fkey';
+            columns: ['published_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'document_template_versions_template_id_fkey';
+            columns: ['template_id'];
+            isOneToOne: false;
+            referencedRelation: 'document_templates';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      document_templates: {
+        Row: {
+          code: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          nom: string;
+          ordre: number;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          nom: string;
+          ordre?: number;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          nom?: string;
+          ordre?: number;
+        };
+        Relationships: [];
+      };
       donnees_financieres: {
         Row: {
           contrat_id: string;
@@ -3470,7 +3548,8 @@ export type Database = {
         | 'collaborateur_a_affecter'
         | 'prospect_rdv_a_venir'
         | 'prospect_rdv_sans_mail'
-        | 'prospect_sans_activite';
+        | 'prospect_sans_activite'
+        | 'modele_publie';
       type_prospect: 'cfa' | 'entreprise';
       type_rdv:
         | 'presentation'
@@ -3672,6 +3751,7 @@ export const Constants = {
         'prospect_rdv_a_venir',
         'prospect_rdv_sans_mail',
         'prospect_sans_activite',
+        'modele_publie',
       ],
       type_prospect: ['cfa', 'entreprise'],
       type_rdv: [

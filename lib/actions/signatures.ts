@@ -8,6 +8,7 @@ import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import type { Database } from '@/types/database';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSignatureProvider } from '@/lib/signature';
 
 const BUCKET = 'signature-documents';
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 Mo
@@ -277,4 +278,86 @@ export async function getSignatureDocumentUrl(
     .createSignedUrl(path, 300);
   if (error || !data) return { error: 'Lien indisponible' };
   return { url: data.signedUrl };
+}
+
+/**
+ * Envoie le contrat à signer via le prestataire e-signature (Yousign).
+ * Dormant tant que YOUSIGN_API_KEY n'est pas provisionnée : renvoie alors une
+ * erreur explicite (le mode manuel reste disponible). À l'activation, crée la
+ * demande chez le prestataire et bascule la signature en provider='yousign'.
+ */
+export async function sendForElectronicSignature(
+  id: string,
+  signerEmail: string,
+  signerName: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!uuidSchema.safeParse(id).success) {
+    return { success: false, error: 'Demande invalide' };
+  }
+  const email = signerEmail.trim();
+  const name = signerName.trim();
+  if (!email || !name) {
+    return { success: false, error: 'Signataire (nom + email) requis' };
+  }
+
+  const { supabase, userId, role, pipeline } = await getAuth();
+  if (!userId || !(isAdmin(role) || canAccessPipeline(role, pipeline))) {
+    return { success: false, error: 'Accès refusé' };
+  }
+
+  const provider = getSignatureProvider('yousign');
+  if (!provider) {
+    return {
+      success: false,
+      error:
+        'Signature électronique non configurée (YOUSIGN_API_KEY manquante). Utilisez le mode manuel.',
+    };
+  }
+
+  const { data: req } = await supabase
+    .from('signature_requests')
+    .select('document_path, titre')
+    .eq('id', id)
+    .single();
+  if (!req) return { success: false, error: 'Demande inconnue' };
+  if (!req.document_path) {
+    return { success: false, error: 'Aucun contrat à signer attaché' };
+  }
+
+  try {
+    const { providerRequestId } = await provider.send({
+      documentPath: req.document_path,
+      signerEmail: email,
+      signerName: name,
+      titre: req.titre,
+    });
+    const { error } = await supabase
+      .from('signature_requests')
+      .update({
+        provider: 'yousign',
+        provider_request_id: providerRequestId,
+        statut: 'envoyee',
+        sent_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+    if (error) return { success: false, error: error.message };
+  } catch (err) {
+    logger.error('actions.signatures', 'yousign send failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return {
+      success: false,
+      error: 'Envoi au prestataire de signature échoué',
+    };
+  }
+
+  logAudit(
+    'signature_request_sent_provider',
+    'signature_request',
+    id,
+    { provider: 'yousign' },
+    userId,
+  );
+  revalidatePath('/commercial/prospects');
+  return { success: true };
 }

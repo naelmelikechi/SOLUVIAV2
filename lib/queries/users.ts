@@ -86,7 +86,7 @@ export const getUser = cache(async () => {
   const { data } = await supabase
     .from('users')
     .select(
-      'id, email, nom, prenom, role, actif, telephone, avatar_mode, avatar_seed, avatar_regen_date, pipeline_access, can_validate_ideas, can_ship_ideas, onboarding_completed_at',
+      'id, email, nom, prenom, role, actif, telephone, avatar_mode, avatar_seed, avatar_regen_date, pipeline_access, referent_cdp, can_validate_ideas, can_ship_ideas, onboarding_completed_at',
     )
     .eq('id', authUser.id)
     .single();
@@ -102,6 +102,7 @@ export const getUser = cache(async () => {
     pipeline_access: data.pipeline_access ?? false,
     can_validate_ideas: data.can_validate_ideas ?? false,
     can_ship_ideas: data.can_ship_ideas ?? false,
+    referent_cdp: data.referent_cdp ?? false,
   };
 });
 

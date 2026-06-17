@@ -23,6 +23,16 @@ export function canAccessPipeline(
 }
 
 /**
+ * Référent CDP : attribut (flag users.referent_cdp) ; admins implicites.
+ */
+export function isReferentCdp(
+  role: string | null | undefined,
+  referentCdp: boolean | null | undefined,
+): boolean {
+  return isAdmin(role) || referentCdp === true;
+}
+
+/**
  * Validating / rejecting ideas is admin-only.
  * The `_canValidateFlag` parameter is kept for backwards compatibility
  * with existing callers but its value is ignored.
@@ -51,6 +61,8 @@ export function getRoleLabel(role: string | null | undefined): string {
       return 'Commercial';
     case 'cdp':
       return 'CDP';
+    case 'referent_cdp':
+      return 'Référent CDP';
     default:
       return role ?? '';
   }

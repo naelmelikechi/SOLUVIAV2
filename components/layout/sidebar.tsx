@@ -31,7 +31,12 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
-import { isAdmin, canAccessPipeline, getRoleLabel } from '@/lib/utils/roles';
+import {
+  isAdmin,
+  canAccessPipeline,
+  isReferentCdp,
+  getRoleLabel,
+} from '@/lib/utils/roles';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import type { BadgeCounts } from '@/hooks/use-badge-counts';
@@ -44,6 +49,7 @@ type MainNavItem = {
   adminOnly?: boolean;
   requiresIndicateursAccess?: boolean;
   requiresPipelineAccess?: boolean;
+  requiresReferentCdp?: boolean;
   unassignedOnly?: boolean;
   exactMatch?: boolean;
 };
@@ -102,6 +108,12 @@ const navSections: NavSection[] = [
         label: 'Modèles',
         icon: ClipboardList,
         requiresPipelineAccess: true,
+      },
+      {
+        href: '/commercial/cdp',
+        label: 'Plan de charge CDP',
+        icon: BarChart3,
+        requiresReferentCdp: true,
       },
     ],
   },
@@ -188,6 +200,7 @@ interface SidebarProps {
     avatar_seed: string | null;
     avatar_regen_date?: string | null;
     pipeline_access?: boolean;
+    referent_cdp?: boolean;
   } | null;
   /** Collaborateur sans projet client affecte (ni admin, ni commercial). */
   isUnassigned?: boolean;
@@ -328,6 +341,11 @@ export function Sidebar({
               if (
                 item.requiresPipelineAccess &&
                 !canAccessPipeline(user?.role, user?.pipeline_access)
+              )
+                return false;
+              if (
+                item.requiresReferentCdp &&
+                !isReferentCdp(user?.role, user?.referent_cdp)
               )
                 return false;
               if (item.unassignedOnly && !isUnassigned) return false;

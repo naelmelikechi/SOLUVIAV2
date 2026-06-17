@@ -255,3 +255,43 @@ export const STATUT_SIGNATURE_COLORS: Record<StatutSignature, BadgeColor> = {
   expiree: 'orange',
   annulee: 'gray',
 };
+
+// Disponibilité déclarée d'un CDP (Feature 7, V1 = champ libre)
+export type DispoCdp = 'disponible' | 'tendu' | 'sature';
+
+export const DISPO_CDP_LABELS: Record<DispoCdp, string> = {
+  disponible: 'Disponible',
+  tendu: 'Tendu',
+  sature: 'Saturé',
+};
+
+export const DISPO_CDP_COLORS: Record<DispoCdp, BadgeColor> = {
+  disponible: 'green',
+  tendu: 'orange',
+  sature: 'red',
+};
+
+// Saturation théorique d'un CDP (Feature 7) : le seuil le plus contraignant.
+export const CDP_SATURATION_CLIENTS = 5;
+export const CDP_SATURATION_ALTERNANTS = 300;
+
+// Statut d'une synthèse de passation (Feature 6)
+export type StatutSynthese =
+  | 'generee'
+  | 'diffusee_vague1'
+  | 'diffusee_vague2'
+  | 'archivee';
+
+export const STATUT_SYNTHESE_LABELS: Record<StatutSynthese, string> = {
+  generee: 'Générée',
+  diffusee_vague1: 'Diffusée (Référent + Direction)',
+  diffusee_vague2: 'Diffusée (CDP affecté)',
+  archivee: 'Archivée',
+};
+
+export const STATUT_SYNTHESE_COLORS: Record<StatutSynthese, BadgeColor> = {
+  generee: 'blue',
+  diffusee_vague1: 'purple',
+  diffusee_vague2: 'green',
+  archivee: 'gray',
+};

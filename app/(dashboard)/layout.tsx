@@ -60,6 +60,7 @@ export default async function DashboardLayout({
         avatar_seed: user.avatar_seed ?? null,
         avatar_regen_date: user.avatar_regen_date ?? null,
         pipeline_access: user.pipeline_access,
+        referent_cdp: user.referent_cdp,
         can_validate_ideas: user.can_validate_ideas,
         can_ship_ideas: user.can_ship_ideas,
         onboarding_completed_at: user.onboarding_completed_at ?? null,

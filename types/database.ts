@@ -3504,6 +3504,7 @@ export type Database = {
           siret: string;
           telephone: string | null;
           tva_intracom: string;
+          tva_sur_debits: boolean;
           updated_at: string;
           validite_devis_jours: number;
           ville: string;
@@ -3533,6 +3534,7 @@ export type Database = {
           siret: string;
           telephone?: string | null;
           tva_intracom: string;
+          tva_sur_debits?: boolean;
           updated_at?: string;
           validite_devis_jours?: number;
           ville: string;
@@ -3562,6 +3564,7 @@ export type Database = {
           siret?: string;
           telephone?: string | null;
           tva_intracom?: string;
+          tva_sur_debits?: boolean;
           updated_at?: string;
           validite_devis_jours?: number;
           ville?: string;

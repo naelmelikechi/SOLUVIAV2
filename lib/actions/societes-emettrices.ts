@@ -37,6 +37,7 @@ const SocieteEmettriceSchema = z.object({
   odoo_company_id: z.number().int().nullish(),
   odoo_journal_id: z.number().int().nullish(),
   est_defaut: z.boolean().default(false),
+  tva_sur_debits: z.boolean().default(false),
 });
 
 export type SocieteEmettriceInput = z.input<typeof SocieteEmettriceSchema>;

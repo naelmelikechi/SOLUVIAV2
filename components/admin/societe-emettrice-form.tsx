@@ -45,6 +45,7 @@ export function SocieteEmettriceForm({ societe }: Props) {
     odoo_company_id: societe?.odoo_company_id ?? null,
     odoo_journal_id: societe?.odoo_journal_id ?? null,
     est_defaut: societe?.est_defaut ?? false,
+    tva_sur_debits: societe?.tva_sur_debits ?? false,
   });
 
   function set<K extends keyof SocieteEmettriceInput>(
@@ -265,6 +266,16 @@ export function SocieteEmettriceForm({ societe }: Props) {
           />
           <Label htmlFor="se-defaut">
             Société par défaut (utilisée si une seule active)
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="se-tva-debits"
+            checked={form.tva_sur_debits ?? false}
+            onCheckedChange={(c) => set('tva_sur_debits', c === true)}
+          />
+          <Label htmlFor="se-tva-debits">
+            Option TVA sur les débits (mention légale e-invoicing)
           </Label>
         </div>
       </fieldset>

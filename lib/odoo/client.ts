@@ -1,5 +1,6 @@
 import { logger } from '@/lib/utils/logger';
 import { buildClientReconcileModelVals } from '@/lib/odoo/reconcile-model-vals';
+import { buildOdooNarration } from '@/lib/utils/e-invoicing-mentions';
 
 // ---------------------------------------------------------------------------
 // Odoo client interface
@@ -36,6 +37,9 @@ export interface OdooInvoicePayload {
   // quand le tenant heberge plusieurs societes (SOLUVIA, EDUVIA, HEOL).
   odoo_company_id?: number | null;
   odoo_journal_id?: number | null;
+  // Option TVA sur les debits de la societe emettrice. Pilote la mention legale
+  // reportee dans la narration du move (carrier e-invoicing, cf. Phase 1).
+  tva_sur_debits?: boolean | null;
 }
 
 /**
@@ -621,6 +625,7 @@ class OdooJsonRpcClient implements OdooClient {
         invoice_date_due: payload.date_due,
         ref: payload.ref,
         invoice_line_ids: lineIds,
+        narration: buildOdooNarration({ tvaSurDebits: payload.tva_sur_debits }),
       };
       if (companyId) moveVals.company_id = companyId;
       if (journalId) moveVals.journal_id = journalId;

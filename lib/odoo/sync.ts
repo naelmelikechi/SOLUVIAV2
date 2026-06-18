@@ -65,7 +65,7 @@ async function pushFactures(
       id, ref, date_emission, date_echeance, est_avoir,
       montant_ht, montant_ttc, taux_tva,
       client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo, adresse, localisation),
-      societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id),
+      societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id, tva_sur_debits),
       projet:projets!factures_projet_id_fkey(code_analytique),
       lignes:facture_lignes(id, description, montant_ht, analytic_line_odoo_id)
     `,
@@ -98,6 +98,7 @@ async function pushFactures(
       const societe = f.societe as unknown as {
         odoo_company_id: number | null;
         odoo_journal_id: number | null;
+        tva_sur_debits: boolean | null;
       } | null;
 
       const projet = f.projet as unknown as {
@@ -139,6 +140,7 @@ async function pushFactures(
         is_draft: client?.is_demo === true,
         odoo_company_id: societe?.odoo_company_id ?? null,
         odoo_journal_id: societe?.odoo_journal_id ?? null,
+        tva_sur_debits: societe?.tva_sur_debits ?? false,
       };
 
       // oxlint-disable-next-line react-doctor/async-await-in-loop
@@ -299,7 +301,7 @@ async function pushAvoirs(
       id, ref, date_emission, date_echeance,
       montant_ht, montant_ttc, taux_tva,
       client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo, adresse, localisation),
-      societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id),
+      societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id, tva_sur_debits),
       lignes:facture_lignes(description, montant_ht)
     `,
     )
@@ -330,6 +332,7 @@ async function pushAvoirs(
       const societe = a.societe as unknown as {
         odoo_company_id: number | null;
         odoo_journal_id: number | null;
+        tva_sur_debits: boolean | null;
       } | null;
 
       // Sur un out_refund Odoo, les price_unit doivent etre POSITIFS.
@@ -368,6 +371,7 @@ async function pushAvoirs(
         is_draft: client?.is_demo === true,
         odoo_company_id: societe?.odoo_company_id ?? null,
         odoo_journal_id: societe?.odoo_journal_id ?? null,
+        tva_sur_debits: societe?.tva_sur_debits ?? false,
       };
 
       // oxlint-disable-next-line react-doctor/async-await-in-loop

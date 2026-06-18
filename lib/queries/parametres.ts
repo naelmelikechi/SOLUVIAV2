@@ -97,6 +97,9 @@ export interface EmetteurInfo {
   // Mentions legales completes (forme + capital + SIRET + RCS + TVA) - rendu en
   // pied du PDF. Source authoritative : societes_emettrices.mentions_legales.
   mentions_legales?: string | null;
+  // Option fiscale "paiement de la TVA d'apres les debits" de la societe
+  // emettrice. Pilote l'affichage de la mention legale correspondante.
+  tva_sur_debits?: boolean | null;
 }
 
 export const EMETTEUR_FALLBACK: EmetteurInfo = {
@@ -127,6 +130,7 @@ export function mapSocieteToEmetteur(s: SocieteEmettriceRow): EmetteurInfo {
     banque: s.banque_nom,
     titulaire_compte: s.raison_sociale,
     mentions_legales: s.mentions_legales,
+    tva_sur_debits: s.tva_sur_debits,
   };
 }
 

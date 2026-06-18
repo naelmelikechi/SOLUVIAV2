@@ -203,6 +203,41 @@ describe('renderFacturePdfBuffer', () => {
     expectValidPdf(buf);
   });
 
+  it('emetteur avec tva_sur_debits=true -> PDF valide', async () => {
+    const emetteur: EmetteurInfo = {
+      raison_sociale: 'S.A.S. SOLUVIA',
+      adresse: '27 Rue Jacqueline Cochran, 79000 Niort',
+      siret: '994 241 537 00012',
+      tva: 'FR37994241537',
+      iban: null,
+      bic: null,
+      banque: null,
+      titulaire_compte: null,
+      tva_sur_debits: true,
+    };
+    const buf = await renderPdf(factureFixture(), { emetteur });
+    expectValidPdf(buf);
+  });
+
+  it('avoir avec tva_sur_debits=false -> PDF valide', async () => {
+    const emetteur: EmetteurInfo = {
+      raison_sociale: 'S.A.S. SOLUVIA',
+      adresse: '27 Rue Jacqueline Cochran, 79000 Niort',
+      siret: '994 241 537 00012',
+      tva: 'FR37994241537',
+      iban: null,
+      bic: null,
+      banque: null,
+      titulaire_compte: null,
+      tva_sur_debits: false,
+    };
+    const buf = await renderPdf(
+      factureFixture({ est_avoir: true, avoir_motif: 'Rupture' }),
+      { emetteur, origineRef: 'FAC-DUP-0041' },
+    );
+    expectValidPdf(buf);
+  });
+
   it('apercu brouillon (isDraft) -> PDF valide', async () => {
     const buf = await renderPdf(
       factureFixture({ ref: null, numero_seq: null, statut: 'a_emettre' }),

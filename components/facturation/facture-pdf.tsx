@@ -16,6 +16,7 @@ import {
   resolveTvaRegime,
 } from '@/lib/utils/tva-intracom';
 import { formatClientAddressLines } from '@/lib/utils/fr-address';
+import { buildEInvoicingMentions } from '@/lib/utils/e-invoicing-mentions';
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA',
@@ -181,6 +182,12 @@ const styles = StyleSheet.create({
     color: '#dc2626',
     fontFamily: 'Helvetica-Bold',
     fontSize: 12,
+  },
+  legalMentions: {
+    marginTop: 12,
+    fontSize: 8,
+    color: '#4b5563',
+    lineHeight: 1.4,
   },
   draftBanner: {
     backgroundColor: '#fffbeb',
@@ -513,6 +520,16 @@ export function FacturePdf({
             </Text>
           </View>
         )}
+
+        {/* Mentions e-invoicing 2026 : categorie d'operation (toujours) +
+            option TVA sur les debits (si la societe a opte). */}
+        <View style={styles.legalMentions}>
+          {buildEInvoicingMentions({
+            tvaSurDebits: EMETTEUR.tva_sur_debits,
+          }).map((m) => (
+            <Text key={m}>{m}</Text>
+          ))}
+        </View>
 
         {/* Modalites de paiement / RIB */}
         {(EMETTEUR.iban || EMETTEUR.bic) && (

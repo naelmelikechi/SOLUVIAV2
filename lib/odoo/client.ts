@@ -1,6 +1,7 @@
 import { logger } from '@/lib/utils/logger';
 import { buildClientReconcileModelVals } from '@/lib/odoo/reconcile-model-vals';
 import { buildOdooNarration } from '@/lib/utils/e-invoicing-mentions';
+import { resolveInvoiceEdiFormat } from '@/lib/odoo/invoice-edi-format';
 
 // ---------------------------------------------------------------------------
 // Odoo client interface
@@ -434,6 +435,14 @@ class OdooJsonRpcClient implements OdooClient {
     const cleanSiret = siret.replace(/\s/g, '');
     const cleanVat = vat?.replace(/\s/g, '') ?? null;
 
+    // Format e-invoice a poser sur le partner (Factur-X pour les clients FR avec
+    // SIRET). Le routage Peppol (EAS/endpoint) est derive par Odoo du
+    // company_registry, on ne le touche pas.
+    const ediFormat = resolveInvoiceEdiFormat({
+      countryCode: address?.countryCode,
+      companyRegistry: cleanSiret,
+    });
+
     // Match strictly by VAT or SIRET. Fallback name ilike removed: deux clients
     // SOLUVIA avec meme raison_sociale et SIRET differents finiraient lies au
     // meme partner Odoo, ce qui mele les comptabilites client.
@@ -452,7 +461,13 @@ class OdooJsonRpcClient implements OdooClient {
         [domain],
         { limit: 1 },
       );
-      if (ids.length > 0 && ids[0] !== undefined) return ids[0];
+      if (ids.length > 0 && ids[0] !== undefined) {
+        const existingId = ids[0];
+        // Backfill best-effort : pose le format seulement s'il est encore vide.
+        if (ediFormat)
+          await this.backfillInvoiceEdiFormat(existingId, ediFormat);
+        return existingId;
+      }
     }
 
     // Adresse posee UNIQUEMENT a la creation : on ne met jamais a jour un
@@ -463,6 +478,7 @@ class OdooJsonRpcClient implements OdooClient {
       company_registry: cleanSiret || false,
       is_company: true,
     };
+    if (ediFormat) vals.invoice_edi_format = ediFormat;
     if (address) {
       if (address.street) vals.street = address.street;
       if (address.zip) vals.zip = address.zip;
@@ -478,6 +494,37 @@ class OdooJsonRpcClient implements OdooClient {
     ]);
     logger.info(SCOPE, 'Created partner', { id: created, name });
     return created;
+  }
+
+  // Pose invoice_edi_format sur un partner EXISTANT uniquement s'il est encore
+  // vide : on n'ecrase jamais une valeur deja posee (compta ou push precedent).
+  // Best-effort : un echec ici ne doit jamais casser le push facture.
+  private async backfillInvoiceEdiFormat(
+    partnerId: number,
+    format: string,
+  ): Promise<void> {
+    try {
+      const rows = await this.executeKw<
+        Array<{ id: number; invoice_edi_format: string | false }>
+      >('res.partner', 'read', [[partnerId]], {
+        fields: ['invoice_edi_format'],
+      });
+      const current = rows[0]?.invoice_edi_format;
+      if (current) return; // deja pose -> ne pas ecraser
+      await this.executeKw<boolean>('res.partner', 'write', [
+        [partnerId],
+        { invoice_edi_format: format },
+      ]);
+      logger.info(SCOPE, 'Backfilled invoice_edi_format', {
+        partnerId,
+        format,
+      });
+    } catch (err) {
+      logger.warn(SCOPE, 'backfillInvoiceEdiFormat failed (non bloquant)', {
+        partnerId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   // Resout l'id Odoo d'un pays depuis son code ISO2 (cache process-local).

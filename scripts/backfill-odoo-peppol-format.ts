@@ -76,6 +76,10 @@ async function main() {
     company_registry: string | false;
     invoice_edi_format: string | false;
   };
+  // NB : invoice_edi_format est un champ CALCULE non stocke sur cette instance
+  // Odoo -> illisible dans un domaine de search (erreur "no SQL representation").
+  // On le recupere dans les fields (search_read calcule la valeur) et on filtre
+  // le format vide cote client.
   const partners = await exec<Partner[]>(
     'res.partner',
     'search_read',
@@ -84,7 +88,6 @@ async function main() {
         ['customer_rank', '>', 0],
         ['country_id.code', '=', 'FR'],
         ['company_registry', '!=', false],
-        ['invoice_edi_format', '=', false],
       ],
     ],
     { fields: ['id', 'name', 'company_registry', 'invoice_edi_format'] },
@@ -92,6 +95,7 @@ async function main() {
 
   const targets = partners.filter(
     (p) =>
+      !p.invoice_edi_format &&
       resolveInvoiceEdiFormat({
         countryCode: 'FR',
         companyRegistry:

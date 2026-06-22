@@ -16,7 +16,7 @@ export default async function SocietesEmettricesPage() {
     getUser(),
     listSocietesEmettrices(),
   ]);
-  if (!isAdmin(user?.role)) redirect('/projets');
+  if (!isAdmin(user?.role)) redirect('/accueil');
 
   return (
     <div className="space-y-4 p-6">

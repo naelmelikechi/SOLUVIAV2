@@ -111,7 +111,7 @@ export default async function AuditPage() {
   ]);
 
   if (!isAdmin(user?.role)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   const logs = full.error

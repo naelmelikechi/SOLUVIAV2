@@ -39,7 +39,7 @@ export default async function AdminBugsPage({
     getBugReports(currentTab),
     getBugReportCounts(),
   ]);
-  if (!isAdmin(user?.role)) redirect('/projets');
+  if (!isAdmin(user?.role)) redirect('/accueil');
 
   return (
     <div className="space-y-6">

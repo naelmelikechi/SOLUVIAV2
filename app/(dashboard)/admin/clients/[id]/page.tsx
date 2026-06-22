@@ -51,7 +51,7 @@ export default async function ClientDetailPage({
   ]);
 
   if (!isAdmin(currentUser?.role)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
   if (!client) {
     notFound();

@@ -27,7 +27,7 @@ export default async function SyncsPage() {
     getRecentSyncRuns(),
   ]);
   if (!isAdmin(user?.role)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   return (

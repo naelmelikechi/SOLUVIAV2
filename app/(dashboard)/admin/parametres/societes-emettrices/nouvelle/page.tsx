@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'Nouvelle société - SOLUVIA' };
 
 export default async function NouvelleSocietePage() {
   const user = await getUser();
-  if (!isAdmin(user?.role)) redirect('/projets');
+  if (!isAdmin(user?.role)) redirect('/accueil');
 
   return (
     <div className="space-y-4 p-6">

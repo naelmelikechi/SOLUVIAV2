@@ -128,7 +128,7 @@ export default async function QualiopiCampusPage({
   return (
     <div>
       <PageHeader
-        title={`Qualiopi - ${client.raison_sociale}`}
+        title={`Qualité - ${client.raison_sociale}`}
         description={`${campus.denomination} · ${conformeCriteria}/${criteriaWithStats.length} critères conformes`}
       >
         <CriteriaFilter

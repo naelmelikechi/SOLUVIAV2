@@ -16,7 +16,7 @@ export default async function UtilisateursPage() {
     getEmployeeCostDefaults(),
   ]);
   if (!isAdmin(user?.role)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   return (

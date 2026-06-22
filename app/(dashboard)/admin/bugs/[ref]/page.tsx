@@ -26,7 +26,7 @@ export default async function BugDetailPage({
   // user + bug en parallele : independants. On paye getBugReportByRef si
   // l user n est pas admin (rare, la page est gated par la sidebar).
   const [user, bug] = await Promise.all([getUser(), getBugReportByRef(ref)]);
-  if (!isAdmin(user?.role)) redirect('/projets');
+  if (!isAdmin(user?.role)) redirect('/accueil');
   if (!bug) notFound();
 
   async function sign(path: string | null | undefined): Promise<string | null> {

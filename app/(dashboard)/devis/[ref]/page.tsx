@@ -10,7 +10,7 @@ interface Props {
 
 export default async function DevisDetailPage({ params }: Props) {
   const [{ ref }, user] = await Promise.all([params, getUser()]);
-  if (!isAdmin(user?.role)) redirect('/projets');
+  if (!isAdmin(user?.role)) redirect('/accueil');
 
   // ref peut etre un ref final (DEV-SOL-0001) ou un UUID (brouillon sans ref)
   const devis = ref.startsWith('DEV-')

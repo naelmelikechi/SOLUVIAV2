@@ -40,7 +40,7 @@ export default async function CommercialKpisPage({
     .single();
 
   if (!canAccessPipeline(currentUser?.role, currentUser?.pipeline_access)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   const admin = isAdmin(currentUser?.role);

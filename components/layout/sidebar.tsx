@@ -28,6 +28,7 @@ import {
   Sparkles,
   Bug,
   Landmark,
+  Send,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -51,6 +52,7 @@ type MainNavItem = {
   requiresPipelineAccess?: boolean;
   requiresReferentCdp?: boolean;
   unassignedOnly?: boolean;
+  requiresCdpOrAdmin?: boolean;
   exactMatch?: boolean;
 };
 
@@ -134,6 +136,12 @@ const navSections: NavSection[] = [
     items: [
       { href: '/devis', label: 'Devis', icon: ScrollText, adminOnly: true },
       { href: '/facturation', label: 'Facturation', icon: FileText },
+      {
+        href: '/a-facturer',
+        label: 'À facturer',
+        icon: Send,
+        requiresCdpOrAdmin: true,
+      },
     ],
   },
   {
@@ -228,7 +236,12 @@ interface SidebarProps {
 const badgeConfig: Record<
   string,
   {
-    key: 'facturesEnRetard' | 'tempsNonSaisi' | 'intercontrat' | 'bugsNouveaux';
+    key:
+      | 'facturesEnRetard'
+      | 'tempsNonSaisi'
+      | 'intercontrat'
+      | 'bugsNouveaux'
+      | 'contratsAFacturer';
     color: string;
   }
 > = {
@@ -236,6 +249,7 @@ const badgeConfig: Record<
   '/temps': { key: 'tempsNonSaisi', color: 'bg-orange-500' },
   '/admin/intercontrat': { key: 'intercontrat', color: 'bg-amber-500' },
   '/admin/bugs': { key: 'bugsNouveaux', color: 'bg-red-500' },
+  '/a-facturer': { key: 'contratsAFacturer', color: 'bg-blue-500' },
 };
 
 const INITIAL_BADGE_COUNTS: BadgeCounts = {
@@ -244,6 +258,7 @@ const INITIAL_BADGE_COUNTS: BadgeCounts = {
   notifications: 0,
   intercontrat: 0,
   bugsNouveaux: 0,
+  contratsAFacturer: 0,
 };
 
 // oxlint-disable-next-line react-doctor/no-giant-component
@@ -361,6 +376,12 @@ export function Sidebar({
               )
                 return false;
               if (item.unassignedOnly && !isUnassigned) return false;
+              if (
+                item.requiresCdpOrAdmin &&
+                !isAdmin(user?.role) &&
+                user?.role !== 'cdp'
+              )
+                return false;
               return true;
             });
             return items.length > 0 ? [{ title: section.title, items }] : [];

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import {
   currentMondayLocalISO,
   currentFridayLocalISO,
+  toLocalISODate,
 } from '@/lib/utils/dates';
 import { logger } from '@/lib/utils/logger';
 
@@ -14,6 +15,7 @@ export interface BadgeCounts {
   notifications: number;
   intercontrat: number;
   bugsNouveaux: number;
+  contratsAFacturer: number;
 }
 
 const INITIAL_COUNTS: BadgeCounts = {
@@ -22,6 +24,7 @@ const INITIAL_COUNTS: BadgeCounts = {
   notifications: 0,
   intercontrat: 0,
   bugsNouveaux: 0,
+  contratsAFacturer: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -121,6 +124,32 @@ async function fetchBugsCount(): Promise<number> {
   return res.count ?? 0;
 }
 
+/**
+ * Compte les contrats à facturer : contrats ENGAGE/TRANSMIS (non archivés,
+ * non verrouillés) avec une échéance OPCO ouverte mais non transmise
+ * (eduvia_invoice_steps.invoice_state null, opening_date <= aujourd'hui).
+ * RLS scope par CDP (admin = tout) via la policy de eduvia_invoice_steps.
+ */
+async function fetchAFacturerCount(): Promise<number> {
+  const today = toLocalISODate(new Date());
+  const res = await supabaseClient()
+    .from('eduvia_invoice_steps')
+    .select(
+      'contrat_id, contrats!inner(contract_state, archive, facturation_verrouillee)',
+    )
+    .is('invoice_state', null)
+    .lte('opening_date', today);
+  const ids = new Set<string>();
+  for (const r of res.data ?? []) {
+    const c = Array.isArray(r.contrats) ? r.contrats[0] : r.contrats;
+    if (!c || c.archive || c.facturation_verrouillee) continue;
+    if (c.contract_state !== 'ENGAGE' && c.contract_state !== 'TRANSMIS')
+      continue;
+    ids.add(r.contrat_id);
+  }
+  return ids.size;
+}
+
 /** Fetch all badge counts at once (used for initial load). */
 async function fetchAllBadgeCounts(): Promise<BadgeCounts> {
   const [
@@ -129,12 +158,14 @@ async function fetchAllBadgeCounts(): Promise<BadgeCounts> {
     notifications,
     intercontrat,
     bugsNouveaux,
+    contratsAFacturer,
   ] = await Promise.all([
     fetchFacturesCount(),
     fetchTempsCount(),
     fetchNotificationsCount(),
     fetchIntercontratCount(),
     fetchBugsCount(),
+    fetchAFacturerCount(),
   ]);
 
   return {
@@ -143,6 +174,7 @@ async function fetchAllBadgeCounts(): Promise<BadgeCounts> {
     notifications,
     intercontrat,
     bugsNouveaux,
+    contratsAFacturer,
   };
 }
 
@@ -214,6 +246,15 @@ export function useBadgeCounts(): BadgeCounts {
       .catch((err) => logger.warn('badge-counts.bugs', err));
   }, []);
 
+  const refreshAFacturer = useCallback(() => {
+    fetchAFacturerCount()
+      .then((v) => {
+        if (mountedRef.current)
+          setCounts((prev) => ({ ...prev, contratsAFacturer: v }));
+      })
+      .catch((err) => logger.warn('badge-counts.a-facturer', err));
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
 
@@ -234,6 +275,7 @@ export function useBadgeCounts(): BadgeCounts {
       temps: null,
       intercontrat: null,
       bugs: null,
+      aFacturer: null,
     };
     const debouncedRefresh = (key: keyof typeof debouncers, fn: () => void) => {
       if (debouncers[key]) clearTimeout(debouncers[key]!);
@@ -302,6 +344,14 @@ export function useBadgeCounts(): BadgeCounts {
           { event: '*', schema: 'public', table: 'bug_reports' },
           () => debouncedRefresh('bugs', refreshBugs),
         )
+        // eduvia_invoice_steps : invoice_state passe a TRANSMIS/REGLE (sync
+        // Eduvia) ou nouvelle echeance ouverte -> le compte "a facturer"
+        // change. RLS scope les events par CDP.
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'eduvia_invoice_steps' },
+          () => debouncedRefresh('aFacturer', refreshAFacturer),
+        )
         .subscribe();
     } catch {
       // Realtime unavailable (e.g. bad API key) - badges still work via initial fetch
@@ -323,6 +373,7 @@ export function useBadgeCounts(): BadgeCounts {
     refreshTemps,
     refreshIntercontrat,
     refreshBugs,
+    refreshAFacturer,
   ]);
 
   return counts;

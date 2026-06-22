@@ -3,6 +3,9 @@ export interface OpcoInfo {
   nom: string;
 }
 
+/** Libellé affiché quand aucun OPCO n'est résolu depuis l'IDCC. */
+export const OPCO_NON_RESOLU = 'Non résolu';
+
 /** IDCC (convention collective, 4 chiffres) -> OPCO. */
 export type OpcoMapping = Map<string, OpcoInfo>;
 

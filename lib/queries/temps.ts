@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
+import {
+  currentMondayLocalISO,
+  currentFridayLocalISO,
+  businessDaysElapsedThisWeek,
+} from '@/lib/utils/dates';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -391,4 +396,22 @@ export async function getTeamWeekSummary(
       weekTotal,
     };
   });
+}
+
+/**
+ * Jours ouvrés de CETTE semaine SANS saisie de temps pour `userId`.
+ * Définition UNIQUE de « jours sans saisie » — partagée par l'accueil
+ * (worklist) et le dashboard (alerte). Toujours PERSONNELLE (mes jours non
+ * saisis), jamais agrégée équipe, pour rester cohérente d'une vue à l'autre.
+ */
+export async function getJoursSansSaisie(userId: string): Promise<number> {
+  const supabase = await createClient();
+  const res = await supabase
+    .from('saisies_temps')
+    .select('date')
+    .eq('user_id', userId)
+    .gte('date', currentMondayLocalISO())
+    .lte('date', currentFridayLocalISO());
+  const joursSaisis = new Set((res.data ?? []).map((s) => s.date)).size;
+  return Math.max(0, businessDaysElapsedThisWeek() - joursSaisis);
 }

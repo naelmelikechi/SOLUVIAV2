@@ -35,17 +35,34 @@ const INITIAL_COUNTS: BadgeCounts = {
 const supabaseClient = () => createClient();
 
 async function fetchFacturesCount(): Promise<number> {
+  // Exclut les clients démo/archivés pour s'aligner sur dashboard + accueil
+  // (même définition de « factures en retard » partout).
   const res = await supabaseClient()
     .from('factures')
-    .select('id', { count: 'exact', head: true })
+    .select('id, projet:projets!inner(client:clients!inner(is_demo, archive))')
     .eq('statut', 'en_retard');
-  return res.count ?? 0;
+  let count = 0;
+  for (const f of res.data ?? []) {
+    const projet = Array.isArray(f.projet) ? f.projet[0] : f.projet;
+    const client =
+      projet &&
+      (Array.isArray(projet.client) ? projet.client[0] : projet.client);
+    if (client && !client.is_demo && !client.archive) count++;
+  }
+  return count;
 }
 
 async function fetchTempsCount(): Promise<number> {
-  const res = await supabaseClient()
+  // Jours sans saisie PERSONNELS (mêmes que l'accueil/dashboard via
+  // getJoursSansSaisie). On scope explicitement sur l'utilisateur courant.
+  const supabase = supabaseClient();
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) return 0;
+  const res = await supabase
     .from('saisies_temps')
     .select('date')
+    .eq('user_id', uid)
     .gte('date', currentMondayLocalISO())
     .lte('date', currentFridayLocalISO());
   const uniqueDays = new Set((res.data ?? []).map((s) => s.date));

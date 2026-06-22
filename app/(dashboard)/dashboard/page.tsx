@@ -9,6 +9,7 @@ import {
   getUserWeekHours,
 } from '@/lib/queries/dashboard';
 import { getUser } from '@/lib/queries/users';
+import { getJoursSansSaisie } from '@/lib/queries/temps';
 import { getKpiSeriesBatch } from '@/lib/queries/kpi-history';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
@@ -58,6 +59,7 @@ export default async function DashboardPage({
     invoiceBreakdown,
     weekHours,
     pageKpiSeries,
+    joursSansSaisie,
   ] = await Promise.all([
     getDashboardData(),
     getDashboardFinancials(periode),
@@ -76,6 +78,7 @@ export default async function DashboardPage({
       scope,
       scopeId,
     }),
+    getJoursSansSaisie(user.id),
   ]);
 
   // Sparklines sont des Server Components async : on les instancie ici (Server Component)
@@ -145,6 +148,7 @@ export default async function DashboardPage({
           monthlyTrend={monthlyTrend}
           invoiceBreakdown={invoiceBreakdown}
           weekHours={weekHours}
+          joursSansSaisie={joursSansSaisie}
           periode={periode}
           sparklines={sparklines}
         />

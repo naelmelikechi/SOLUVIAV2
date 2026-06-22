@@ -89,9 +89,9 @@ export function FacturationPageClient({
   // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: FacturationPageClientProps) {
   const { push } = useRouter();
-  // Onglet par defaut : Brouillons s'il y en a (priorite revue), sinon
-  // Echeances. Le user peut toujours basculer manuellement.
-  const [activeTab, setActiveTab] = useState(brouillons.length > 0 ? 0 : 1);
+  // Onglet par défaut : Brouillons s'il y en a (à émettre), sinon Factures.
+  // Jamais l'onglet Échéances (legacy, structurellement vide en prod).
+  const [activeTab, setActiveTab] = useState(brouillons.length > 0 ? 0 : 3);
   const [echeanceView, setEcheanceView] = useState<'list' | 'calendar'>('list');
   const [newFactureOpen, setNewFactureOpen] = useState(false);
   const [newFactureLibreOpen, setNewFactureLibreOpen] = useState(false);
@@ -179,14 +179,16 @@ export function FacturationPageClient({
               Facture libre
             </Button>
           )}
-          <Button
-            size="sm"
-            onClick={() => setNewFactureOpen(true)}
-            disabled={projetsForFacturation.length === 0}
-          >
-            <Plus className="mr-1.5 size-4" />
-            Nouvelle facture
-          </Button>
+          {isAdmin && (
+            <Button
+              size="sm"
+              onClick={() => setNewFactureOpen(true)}
+              disabled={projetsForFacturation.length === 0}
+            >
+              <Plus className="mr-1.5 size-4" />
+              Nouvelle facture
+            </Button>
+          )}
         </div>
         <EmptyState
           icon={FileText}
@@ -224,14 +226,16 @@ export function FacturationPageClient({
             Facture libre
           </Button>
         )}
-        <Button
-          size="sm"
-          onClick={() => setNewFactureOpen(true)}
-          disabled={projetsForFacturation.length === 0}
-        >
-          <Plus className="mr-1.5 size-4" />
-          Nouvelle facture
-        </Button>
+        {isAdmin && (
+          <Button
+            size="sm"
+            onClick={() => setNewFactureOpen(true)}
+            disabled={projetsForFacturation.length === 0}
+          >
+            <Plus className="mr-1.5 size-4" />
+            Nouvelle facture
+          </Button>
+        )}
       </div>
       <TabsList variant="line">
         <TabsTrigger value={0}>
@@ -252,7 +256,7 @@ export function FacturationPageClient({
         </TabsTrigger>
         {manualProjets.length > 0 && (
           <TabsTrigger value={2}>
-            Manuel
+            Commission
             <span className="text-muted-foreground ml-1.5 text-xs">
               ({manualProjets.length})
             </span>

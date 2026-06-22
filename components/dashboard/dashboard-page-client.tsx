@@ -45,6 +45,7 @@ export function DashboardPageClient({
   monthlyTrend,
   invoiceBreakdown,
   weekHours,
+  joursSansSaisie,
   periode,
   sparklines,
 }: {
@@ -54,6 +55,7 @@ export function DashboardPageClient({
   monthlyTrend: MonthlyTrendRow[];
   invoiceBreakdown: InvoiceStatusBreakdown;
   weekHours: number;
+  joursSansSaisie: number;
   periode?: Periode;
   sparklines?: DashboardSparklines;
 }) {
@@ -73,10 +75,9 @@ export function DashboardPageClient({
     nbApprenantsRqth,
     rqthPct,
     tauxSaisieTemps,
-    tempsNonSaisi,
   } = financials;
 
-  const alerts = buildAlerts(data, tempsNonSaisi);
+  const alerts = buildAlerts(data, joursSansSaisie);
   const evolutionData = buildEvolutionData(data, financials, previousKpis);
 
   const hasPrevious = Object.keys(previousKpis).length > 0;

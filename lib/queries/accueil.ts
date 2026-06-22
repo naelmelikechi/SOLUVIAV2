@@ -4,11 +4,7 @@ import {
   getContratsAFacturer,
   type ContratAFacturer,
 } from '@/lib/queries/contrats-a-facturer';
-import {
-  currentMondayLocalISO,
-  currentFridayLocalISO,
-  businessDaysElapsedThisWeek,
-} from '@/lib/utils/dates';
+import { getJoursSansSaisie } from '@/lib/queries/temps';
 
 // ---------------------------------------------------------------------------
 // Accueil CDP : worklist « À faire ». Agrège les signaux actionnables déjà
@@ -45,26 +41,16 @@ export async function getAccueilCdpData(
 ): Promise<AccueilCdpData> {
   const supabase = await createClient();
 
-  const [dash, aFacturer, tempsRes, notifRes] = await Promise.all([
+  const [dash, aFacturer, joursSansSaisie, notifRes] = await Promise.all([
     getDashboardData(),
     getContratsAFacturer(),
-    supabase
-      .from('saisies_temps')
-      .select('date')
-      .eq('user_id', userId)
-      .gte('date', currentMondayLocalISO())
-      .lte('date', currentFridayLocalISO()),
+    getJoursSansSaisie(userId),
     supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
       .is('read_at', null),
   ]);
 
-  const joursSansSaisie = Math.max(
-    0,
-    businessDaysElapsedThisWeek() -
-      new Set((tempsRes.data ?? []).map((s) => s.date)).size,
-  );
   const notifications = notifRes.count ?? 0;
 
   const allItems: AccueilWorklistItem[] = [
@@ -126,6 +112,6 @@ export async function getAccueilCdpData(
   return {
     items,
     aFacturerPreview: aFacturer.slice(0, 3),
-    totalActions: items.reduce((sum, i) => sum + i.count, 0),
+    totalActions: items.length,
   };
 }

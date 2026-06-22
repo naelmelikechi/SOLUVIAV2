@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition, useEffect } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import {
   Search,
@@ -8,8 +8,6 @@ import {
   ChevronDown,
   TrendingUp,
   X,
-  LayoutGrid,
-  Table as TableIcon,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -37,7 +35,6 @@ import {
 import { ProspectRow, PIPELINE_GRID_COLS } from './prospect-row';
 import { ProspectDetailSheet } from './prospect-detail-sheet';
 import { ProspectImportButton } from './prospect-import-button';
-import { PipelineTable } from './pipeline-table';
 import type {
   ProspectWithCommercial,
   ProspectNote,
@@ -135,16 +132,6 @@ export function PipelineBoard({
     id: string;
     raison_sociale: string;
   } | null>(null);
-
-  const [layoutView, setLayoutView] = useState<'kanban' | 'table'>(() => {
-    if (typeof window === 'undefined') return 'kanban';
-    const saved = localStorage.getItem('commercial_view');
-    return saved === 'table' ? 'table' : 'kanban';
-  });
-
-  useEffect(() => {
-    localStorage.setItem('commercial_view', layoutView);
-  }, [layoutView]);
 
   const filtered = useMemo(() => {
     const result = {} as Record<StageProspect, ProspectWithCommercial[]>;
@@ -387,11 +374,6 @@ export function PipelineBoard({
     return ids;
   }, [filtered]);
 
-  const flatFiltered = useMemo(
-    () => STAGE_PROSPECT_ORDER.flatMap((s) => filtered[s]),
-    [filtered],
-  );
-
   const allSelected =
     allVisibleIds.length > 0 &&
     allVisibleIds.every((id) => selectedIds.has(id));
@@ -520,34 +502,6 @@ export function PipelineBoard({
         )}
 
         <div className="ml-auto flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setLayoutView('kanban')}
-            className={cn(
-              'flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
-              layoutView === 'kanban'
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-border/60 text-muted-foreground hover:bg-muted/60 bg-transparent',
-            )}
-            aria-pressed={layoutView === 'kanban'}
-          >
-            <LayoutGrid className="size-3.5" />
-            Kanban
-          </button>
-          <button
-            type="button"
-            onClick={() => setLayoutView('table')}
-            className={cn(
-              'flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
-              layoutView === 'table'
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-border/60 text-muted-foreground hover:bg-muted/60 bg-transparent',
-            )}
-            aria-pressed={layoutView === 'table'}
-          >
-            <TableIcon className="size-3.5" />
-            Tableau
-          </button>
           {isAdmin && <ProspectImportButton />}
         </div>
       </div>
@@ -563,16 +517,9 @@ export function PipelineBoard({
         />
       )}
 
-      {layoutView === 'table' ? (
-        <div className="flex-1 overflow-auto">
-          <PipelineTable prospects={flatFiltered} onRowClick={handleRowClick} />
-        </div>
-      ) : null}
-
       <div
         className={cn(
           'border-border/60 bg-card flex-1 overflow-auto rounded-lg border',
-          layoutView === 'table' && 'hidden',
         )}
       >
         <div

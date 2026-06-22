@@ -1,10 +1,16 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getProspectsList, getCommerciaux } from '@/lib/queries/prospects';
+import {
+  getProspectsList,
+  getProspectsGroupedByStage,
+  getProspectRegions,
+  getCommerciaux,
+  getProspectTimeInStageMedian,
+} from '@/lib/queries/prospects';
 import { createClient } from '@/lib/supabase/server';
-import { canAccessPipeline } from '@/lib/utils/roles';
+import { canAccessPipeline, isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
-import { ProspectsDataTable } from '@/components/commercial/prospects-data-table';
+import { ProspectsView } from '@/components/commercial/prospects-view';
 import { ProspectCreateButton } from '@/components/commercial/prospect-create-button';
 
 export const metadata: Metadata = {
@@ -26,23 +32,31 @@ export default async function ProspectsPage() {
     .single();
 
   if (!canAccessPipeline(currentUser?.role, currentUser?.pipeline_access)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
-  const [prospects, commerciaux] = await Promise.all([
-    getProspectsList(),
-    getCommerciaux(),
-  ]);
+  const [prospects, grouped, regions, commerciaux, stageMedians] =
+    await Promise.all([
+      getProspectsList(),
+      getProspectsGroupedByStage(),
+      getProspectRegions(),
+      getCommerciaux(),
+      getProspectTimeInStageMedian(),
+    ]);
 
   return (
-    <div>
+    <div className="flex h-full flex-col">
       <PageHeader title="Prospects" description="Pipeline commercial">
         <ProspectCreateButton />
       </PageHeader>
-      <ProspectsDataTable
-        data={prospects}
+      <ProspectsView
+        prospects={prospects}
+        grouped={grouped}
+        regions={regions}
         commerciaux={commerciaux}
         currentUserId={user.id}
+        isAdmin={isAdmin(currentUser?.role)}
+        stageMedians={stageMedians}
       />
     </div>
   );

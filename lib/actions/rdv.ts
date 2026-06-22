@@ -299,7 +299,7 @@ export async function createRdvCommercial(
     { type: d.typeRdv ?? 'autre' },
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   revalidatePath(`/commercial/prospects/${pid}`);
   return { success: true, id: rdv.id };
 }
@@ -345,7 +345,7 @@ export async function updateRdvCommercialStatut(
     { statut: parsed.data.statut },
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   return { success: true };
 }
 
@@ -388,7 +388,7 @@ export async function deleteRdvCommercial(
     .eq('id', id);
   if (error) return { success: false, error: error.message };
   logAudit('rdv_commercial_deleted', 'rdv_commercial', id, undefined, user.id);
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   return { success: true };
 }
 
@@ -444,7 +444,7 @@ export async function updateRdvCommercial(input: {
     { statut: d.statut, type: d.typeRdv },
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   if (row?.prospect_id) {
     revalidatePath(`/commercial/prospects/${row.prospect_id}`);
   }
@@ -530,7 +530,7 @@ export async function markRdvMailSent(
     undefined,
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   if (row?.prospect_id) {
     revalidatePath(`/commercial/prospects/${row.prospect_id}`);
   }

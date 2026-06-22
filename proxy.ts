@@ -6,7 +6,7 @@ import { updateSession } from '@/lib/supabase/middleware';
 // imbriquee. Garde 308 (permanent) pour que les bookmarks soient mis a jour.
 const REDIRECTS: Record<string, string> = {
   '/qualite': '/qualiopi',
-  '/pipeline': '/commercial/pipeline',
+  '/pipeline': '/commercial/prospects',
 };
 
 export async function proxy(request: NextRequest) {

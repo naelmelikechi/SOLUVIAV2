@@ -113,9 +113,9 @@ const COMMERCIAL_TOUR: TourStep[] = [
     },
   },
   {
-    element: '[data-tour="/commercial/pipeline"]',
+    element: '[data-tour="/commercial/prospects"]',
     popover: {
-      title: 'Pipeline',
+      title: 'Prospects',
       description:
         'Tes opportunités commerciales regroupées par étape. Suis chaque affaire jusqu’à la signature.',
       side: 'right',
@@ -123,10 +123,10 @@ const COMMERCIAL_TOUR: TourStep[] = [
     },
   },
   {
-    route: '/commercial/pipeline',
-    element: '[data-tour="/commercial/pipeline"]',
+    route: '/commercial/prospects',
+    element: '[data-tour="/commercial/prospects"]',
     popover: {
-      title: 'Page Pipeline',
+      title: 'Page Prospects',
       description:
         'Vue façon Notion de toutes les affaires en cours, regroupées par stage (Non contacté, R1 validé, R2 validé, Signé). Clique sur une ligne pour ouvrir le détail.',
       side: 'right',

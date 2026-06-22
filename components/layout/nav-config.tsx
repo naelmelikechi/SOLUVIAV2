@@ -8,7 +8,6 @@ import {
   Clock,
   ShieldCheck,
   TrendingUp,
-  Target,
   Users,
   UsersRound,
   FileText,
@@ -80,12 +79,6 @@ export const navSections: NavSection[] = [
   {
     title: 'Commercial',
     items: [
-      {
-        href: '/commercial/pipeline',
-        label: 'Pipeline',
-        icon: Target,
-        requiresPipelineAccess: true,
-      },
       {
         href: '/commercial/prospects',
         label: 'Prospects',

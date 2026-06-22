@@ -5,208 +5,19 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getAvatarUrl } from '@/components/shared/user-avatar';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  Activity,
-  ClipboardList,
-  ShieldCheck,
-  Clock,
-  TrendingUp,
-  FileText,
-  ScrollText,
-  BarChart3,
-  Users,
-  UsersRound,
-  Building2,
-  Settings,
-  ChevronLeft,
-  LogOut,
-  User,
-  X,
-  Target,
-  Lightbulb,
-  LineChart,
-  Sparkles,
-  Bug,
-  Landmark,
-  Send,
-  Home,
-} from 'lucide-react';
+import { ChevronLeft, LogOut, User, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
-import {
-  isAdmin,
-  canAccessPipeline,
-  isReferentCdp,
-  getRoleLabel,
-} from '@/lib/utils/roles';
+import { isAdmin, getRoleLabel } from '@/lib/utils/roles';
 import { Separator } from '@/components/ui/separator';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
 import type { BadgeCounts } from '@/hooks/use-badge-counts';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-
-type MainNavItem = {
-  href: string;
-  label: string;
-  icon: typeof ClipboardList;
-  adminOnly?: boolean;
-  requiresIndicateursAccess?: boolean;
-  requiresPipelineAccess?: boolean;
-  requiresReferentCdp?: boolean;
-  unassignedOnly?: boolean;
-  requiresCdpOrAdmin?: boolean;
-  exactMatch?: boolean;
-};
-
-type NavSection = {
-  title: string;
-  items: MainNavItem[];
-};
-
-const navSections: NavSection[] = [
-  {
-    title: 'Pilotage',
-    items: [
-      {
-        href: '/accueil',
-        label: 'Accueil',
-        icon: Home,
-      },
-      { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-      {
-        href: '/indicateurs',
-        label: 'Indicateurs',
-        icon: LineChart,
-        requiresIndicateursAccess: true,
-      },
-    ],
-  },
-  {
-    title: 'Opérations',
-    items: [
-      { href: '/projets', label: 'Projets', icon: ClipboardList },
-      { href: '/projets/internes', label: 'Projets internes', icon: Sparkles },
-      { href: '/temps', label: 'Temps', icon: Clock },
-      { href: '/qualiopi', label: 'Qualité', icon: ShieldCheck },
-      { href: '/production', label: 'Production', icon: TrendingUp },
-    ],
-  },
-  {
-    title: 'Commercial',
-    items: [
-      {
-        href: '/commercial/pipeline',
-        label: 'Pipeline',
-        icon: Target,
-        requiresPipelineAccess: true,
-      },
-      {
-        href: '/commercial/prospects',
-        label: 'Prospects',
-        icon: Users,
-        requiresPipelineAccess: true,
-      },
-      {
-        href: '/commercial/modeles',
-        label: 'Modèles',
-        icon: ClipboardList,
-        requiresPipelineAccess: true,
-      },
-      {
-        href: '/commercial/cdp',
-        label: 'Plan de charge CDP',
-        icon: BarChart3,
-        requiresReferentCdp: true,
-      },
-      {
-        href: '/commercial/kpis',
-        label: 'KPIs',
-        icon: LineChart,
-        requiresPipelineAccess: true,
-      },
-      {
-        href: '/commercial/linkedin',
-        label: 'LinkedIn',
-        icon: Activity,
-        requiresPipelineAccess: true,
-      },
-    ],
-  },
-  {
-    title: 'Facturation',
-    items: [
-      { href: '/devis', label: 'Devis', icon: ScrollText, adminOnly: true },
-      { href: '/facturation', label: 'Facturation', icon: FileText },
-      {
-        href: '/a-facturer',
-        label: 'À facturer',
-        icon: Send,
-        requiresCdpOrAdmin: true,
-      },
-    ],
-  },
-  {
-    title: 'Équipe',
-    items: [
-      { href: '/equipe', label: 'Équipe', icon: UsersRound },
-      { href: '/idees', label: 'Idées', icon: Lightbulb },
-    ],
-  },
-];
-
-function canAccessIndicateurs(
-  role: string | null | undefined,
-  pipelineAccess: boolean | null | undefined,
-): boolean {
-  return (
-    isAdmin(role) || role === 'cdp' || canAccessPipeline(role, pipelineAccess)
-  );
-}
-
-const adminNavItems = [
-  {
-    href: '/admin/clients',
-    label: 'Clients',
-    icon: Building2,
-    adminOnly: true,
-  },
-  {
-    href: '/admin/utilisateurs',
-    label: 'Utilisateurs',
-    icon: Users,
-    adminOnly: true,
-  },
-  {
-    href: '/admin/intercontrat',
-    label: 'Intercontrat',
-    icon: UsersRound,
-    adminOnly: true,
-  },
-  {
-    href: '/admin/bugs',
-    label: 'Bugs',
-    icon: Bug,
-    adminOnly: true,
-  },
-  {
-    href: '/admin/syncs',
-    label: 'Syncs',
-    icon: Activity,
-    adminOnly: true,
-  },
-  {
-    href: '/admin/parametres',
-    label: 'Paramètres',
-    icon: Settings,
-    adminOnly: true,
-    exactMatch: true,
-  },
-  {
-    href: '/admin/parametres/opcos',
-    label: 'Referentiel OPCO',
-    icon: Landmark,
-    adminOnly: true,
-  },
-];
+import {
+  navSections,
+  adminNavItems,
+  canAccessNavItem,
+} from '@/components/layout/nav-config';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -222,8 +33,6 @@ interface SidebarProps {
     pipeline_access?: boolean;
     referent_cdp?: boolean;
   } | null;
-  /** Collaborateur sans projet client affecte (ni admin, ni commercial). */
-  isUnassigned?: boolean;
   /** Mobile overlay mode */
   mobile?: boolean;
   /** Close the mobile sidebar */
@@ -266,7 +75,6 @@ export function Sidebar({
   collapsed,
   onToggle,
   user,
-  isUnassigned = false,
   mobile,
   onClose,
   badgeCounts = INITIAL_BADGE_COUNTS,
@@ -315,7 +123,7 @@ export function Sidebar({
         ) : (
           <>
             <Link
-              href="/projets"
+              href="/accueil"
               className="flex shrink-0 items-center"
               onClick={mobile ? onClose : undefined}
             >
@@ -358,32 +166,9 @@ export function Sidebar({
       >
         {(() => {
           const visibleSections = navSections.flatMap((section) => {
-            const items = section.items.filter((item) => {
-              if (item.adminOnly && !isAdmin(user?.role)) return false;
-              if (
-                item.requiresIndicateursAccess &&
-                !canAccessIndicateurs(user?.role, user?.pipeline_access)
-              )
-                return false;
-              if (
-                item.requiresPipelineAccess &&
-                !canAccessPipeline(user?.role, user?.pipeline_access)
-              )
-                return false;
-              if (
-                item.requiresReferentCdp &&
-                !isReferentCdp(user?.role, user?.referent_cdp)
-              )
-                return false;
-              if (item.unassignedOnly && !isUnassigned) return false;
-              if (
-                item.requiresCdpOrAdmin &&
-                !isAdmin(user?.role) &&
-                user?.role !== 'cdp'
-              )
-                return false;
-              return true;
-            });
+            const items = section.items.filter((item) =>
+              canAccessNavItem(item, user ?? {}),
+            );
             return items.length > 0 ? [{ title: section.title, items }] : [];
           });
 

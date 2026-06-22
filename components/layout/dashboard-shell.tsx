@@ -57,7 +57,6 @@ export function DashboardShell({
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           user={user}
-          isUnassigned={showUnassignedBanner}
           badgeCounts={badgeCounts}
         />
       </div>
@@ -91,7 +90,6 @@ export function DashboardShell({
               collapsed={false}
               onToggle={() => setMobileOpen(false)}
               user={user}
-              isUnassigned={showUnassignedBanner}
               mobile
               onClose={() => setMobileOpen(false)}
               badgeCounts={badgeCounts}
@@ -100,7 +98,13 @@ export function DashboardShell({
         </div>
       )}
 
-      <CommandPalette />
+      <CommandPalette
+        user={{
+          role: user.role,
+          pipeline_access: user.pipeline_access,
+          referent_cdp: user.referent_cdp,
+        }}
+      />
       <OnboardingTour
         role={user.role}
         completedAt={user.onboarding_completed_at}

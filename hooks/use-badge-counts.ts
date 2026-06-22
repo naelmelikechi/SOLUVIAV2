@@ -6,6 +6,7 @@ import {
   currentMondayLocalISO,
   currentFridayLocalISO,
   toLocalISODate,
+  businessDaysElapsedThisWeek,
 } from '@/lib/utils/dates';
 import { logger } from '@/lib/utils/logger';
 
@@ -28,23 +29,6 @@ const INITIAL_COUNTS: BadgeCounts = {
 };
 
 // ---------------------------------------------------------------------------
-// Date helpers
-// ---------------------------------------------------------------------------
-// Les helpers sont dans lib/utils/dates.ts pour eviter le piege TZ documente
-// dans ce fichier (toISOString = UTC, qui shift d'un jour cote Europe/Paris).
-
-/**
- * Returns the number of business days (Mon-Fri) elapsed this week, including
- * today. On Saturday/Sunday it returns 5 (the full work-week).
- */
-function getBusinessDaysElapsed(): number {
-  const day = new Date().getDay(); // 0 = Sun … 6 = Sat
-  if (day === 0) return 5; // Sunday  → full week
-  if (day === 6) return 5; // Saturday → full week
-  return day; // Mon=1 … Fri=5
-}
-
-// ---------------------------------------------------------------------------
 // Targeted fetch functions - one per badge type
 // ---------------------------------------------------------------------------
 
@@ -65,7 +49,7 @@ async function fetchTempsCount(): Promise<number> {
     .gte('date', currentMondayLocalISO())
     .lte('date', currentFridayLocalISO());
   const uniqueDays = new Set((res.data ?? []).map((s) => s.date));
-  return Math.max(0, getBusinessDaysElapsed() - uniqueDays.size);
+  return Math.max(0, businessDaysElapsedThisWeek() - uniqueDays.size);
 }
 
 async function fetchNotificationsCount(): Promise<number> {

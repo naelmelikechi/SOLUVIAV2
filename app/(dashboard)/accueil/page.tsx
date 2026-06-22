@@ -4,39 +4,77 @@ import { getUser } from '@/lib/queries/users';
 import { getCollabStatus } from '@/lib/queries/collab-status';
 import { getParametreValeur } from '@/lib/queries/parametres';
 import { createClient } from '@/lib/supabase/server';
+import { isAdmin } from '@/lib/utils/roles';
+import { resolveAccueilView } from '@/lib/utils/accueil-routing';
+import { getAccueilCdpData } from '@/lib/queries/accueil';
+import { getContratsNonFacturesGlobal } from '@/lib/queries/contrats-a-facturer';
 import { AccueilPageClient } from '@/components/accueil/accueil-page-client';
+import { AccueilCdp } from '@/components/accueil/accueil-cdp';
+import { AccueilSuperadmin } from '@/components/accueil/accueil-superadmin';
 
 export const metadata: Metadata = { title: 'Accueil - SOLUVIA' };
 export const revalidate = 0;
 
+// Landing universelle, rôle-adaptative :
+//   - admin/superadmin -> supervision globale (contrats non facturés Eduvia)
+//   - CDP (>=1 projet)  -> worklist « À faire »
+//   - commercial pur    -> redirect /commercial/prospects
+//   - sinon             -> onboarding collaborateur (inchangé)
 export default async function AccueilPage() {
   const user = await getUser();
   if (!user) redirect('/login');
 
   const status = await getCollabStatus(user.id);
+  const view = resolveAccueilView({
+    isAdmin: isAdmin(user.role),
+    projetsCount: status.projetsCount,
+    status: status.status,
+  });
 
-  // Cette page est un parcours d onboarding pour les collaborateurs sans
-  // projet affecte. Tous les autres rôles sont rediriges vers leur entree
-  // habituelle.
-  if (status.status !== 'unassigned_collaborator') {
-    redirect('/projets');
+  if (view === 'superadmin') {
+    const contrats = await getContratsNonFacturesGlobal();
+    return <AccueilSuperadmin prenom={user.prenom ?? ''} contrats={contrats} />;
   }
 
+  if (view === 'cdp') {
+    const data = await getAccueilCdpData(user.id);
+    return <AccueilCdp prenom={user.prenom ?? ''} data={data} />;
+  }
+
+  if (view === 'commercial') {
+    redirect('/commercial/prospects');
+  }
+
+  return (
+    <OnboardingView
+      userId={user.id}
+      prenom={user.prenom ?? ''}
+      telephone={user.telephone}
+    />
+  );
+}
+
+// Onboarding des collaborateurs sans projet affecté (parcours inchangé).
+async function OnboardingView({
+  userId,
+  prenom,
+  telephone,
+}: {
+  userId: string;
+  prenom: string;
+  telephone: string | null;
+}) {
   const supabase = await createClient();
 
   const monthStart = new Date();
   monthStart.setDate(1);
   const monthStartIso = monthStart.toISOString().split('T')[0]!;
 
-  // 3 lectures independantes : on parallelise pour reduire la latence
-  // d affichage de la page d accueil (chemin critique apres login).
   const [saisiesCountRes, heuresMoisRes, wikiUrl] = await Promise.all([
-    // Heures internes saisies (lifetime) pour cocher la checklist
     supabase
       .from('saisies_temps')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id),
-    // Heures internes cumulees ce mois-ci par categorie
+      .eq('user_id', userId),
     supabase
       .from('saisies_temps')
       .select(
@@ -50,7 +88,7 @@ export default async function AccueilPage() {
         )
       `,
       )
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .gte('date', monthStartIso),
     getParametreValeur('onboarding_wiki_url'),
   ]);
@@ -74,12 +112,12 @@ export default async function AccueilPage() {
     heuresMoisTotal += row.heures ?? 0;
   }
 
-  const profilComplet = !!user.telephone && user.telephone.trim().length > 0;
+  const profilComplet = !!telephone && telephone.trim().length > 0;
   const aSaisiTemps = (saisiesCount ?? 0) > 0;
 
   return (
     <AccueilPageClient
-      prenom={user.prenom ?? ''}
+      prenom={prenom}
       profilComplet={profilComplet}
       aSaisiTemps={aSaisiTemps}
       heuresMoisTotal={heuresMoisTotal}

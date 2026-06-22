@@ -53,7 +53,7 @@ function LoginPageContent() {
   useEffect(() => {
     if (state.success) {
       router.refresh();
-      router.push('/projets');
+      router.push('/accueil');
     }
   }, [state.success, router]);
 
@@ -110,7 +110,7 @@ function LoginPageContent() {
       }
 
       router.refresh();
-      router.push('/projets');
+      router.push('/accueil');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erreur inconnue';
       if (/NotAllowed|cancelled|abort|denied/i.test(msg)) {

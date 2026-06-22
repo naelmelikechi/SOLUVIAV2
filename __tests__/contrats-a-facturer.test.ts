@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   selectContratsAFacturer,
+  selectContratsNonFactures,
   OPCO_NON_RESOLU,
   type AFacturerContratInput,
   type AFacturerStepInput,
@@ -201,5 +202,112 @@ describe('selectContratsAFacturer', () => {
       today: TODAY,
     });
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe('selectContratsNonFactures', () => {
+  it('inclut une échéance à venir, statut a_venir, retard 0', () => {
+    const rows = selectContratsNonFactures({
+      contrats: [contrat()],
+      steps: [step({ opening_date: '2026-12-01' })],
+      opcoByContratId: new Map([['c1', 'AKTO']]),
+      cdpNomByContratId: new Map([['c1', 'Ilies Ladj']]),
+      today: TODAY,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      statut: 'a_venir',
+      retardJours: 0,
+      opco: 'AKTO',
+      cdpNom: 'Ilies Ladj',
+      nonTransmisCount: 1,
+      prochaineEcheance: '2026-12-01',
+    });
+  });
+
+  it('statut echu + retard pour une échéance passée', () => {
+    const rows = selectContratsNonFactures({
+      contrats: [contrat()],
+      steps: [step({ opening_date: '2026-02-01' })],
+      opcoByContratId: new Map(),
+      cdpNomByContratId: new Map(),
+      today: TODAY,
+    });
+    expect(rows[0]!.statut).toBe('echu');
+    expect(rows[0]!.retardJours).toBeGreaterThan(100);
+  });
+
+  it('exclut les steps transmis et les contrats inéligibles', () => {
+    expect(
+      selectContratsNonFactures({
+        contrats: [contrat()],
+        steps: [step({ invoice_state: 'REGLE' })],
+        opcoByContratId: new Map(),
+        cdpNomByContratId: new Map(),
+        today: TODAY,
+      }),
+    ).toHaveLength(0);
+    expect(
+      selectContratsNonFactures({
+        contrats: [contrat({ contract_state: 'ANNULE' })],
+        steps: [step()],
+        opcoByContratId: new Map(),
+        cdpNomByContratId: new Map(),
+        today: TODAY,
+      }),
+    ).toHaveLength(0);
+  });
+
+  it('agrège montant + count, prochaine = plus ancienne, statut echu si une échue', () => {
+    const rows = selectContratsNonFactures({
+      contrats: [contrat()],
+      steps: [
+        step({
+          step_number: 1,
+          opening_date: '2026-02-01',
+          total_amount: 1000,
+        }),
+        step({ step_number: 2, opening_date: '2026-12-01', total_amount: 500 }),
+      ],
+      opcoByContratId: new Map(),
+      cdpNomByContratId: new Map(),
+      today: TODAY,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      nonTransmisCount: 2,
+      montantNonTransmis: 1500,
+      prochaineEcheance: '2026-02-01',
+      statut: 'echu',
+    });
+  });
+
+  it('trie les échus avant les à venir', () => {
+    const rows = selectContratsNonFactures({
+      contrats: [
+        contrat({ id: 'fut', ref: 'CTR-fut' }),
+        contrat({ id: 'echu', ref: 'CTR-echu' }),
+      ],
+      steps: [
+        step({ contrat_id: 'fut', opening_date: '2026-12-01' }),
+        step({ contrat_id: 'echu', opening_date: '2026-03-01' }),
+      ],
+      opcoByContratId: new Map(),
+      cdpNomByContratId: new Map(),
+      today: TODAY,
+    });
+    expect(rows.map((r) => r.contratId)).toEqual(['echu', 'fut']);
+  });
+
+  it('cdpNom absent -> null ; opco fallback Non résolu', () => {
+    const rows = selectContratsNonFactures({
+      contrats: [contrat()],
+      steps: [step()],
+      opcoByContratId: new Map(),
+      cdpNomByContratId: new Map(),
+      today: TODAY,
+    });
+    expect(rows[0]!.cdpNom).toBeNull();
+    expect(rows[0]!.opco).toBe(OPCO_NON_RESOLU);
   });
 });

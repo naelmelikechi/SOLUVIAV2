@@ -29,6 +29,7 @@ import {
   Bug,
   Landmark,
   Send,
+  Home,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
@@ -68,8 +69,7 @@ const navSections: NavSection[] = [
       {
         href: '/accueil',
         label: 'Accueil',
-        icon: Sparkles,
-        unassignedOnly: true,
+        icon: Home,
       },
       { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
       {

@@ -100,3 +100,14 @@ export function diffDaysIso(fromIso: string, toIso: string): number {
   const toMs = Date.UTC(ty, tm - 1, td);
   return Math.round((toMs - fromMs) / 86_400_000);
 }
+
+/**
+ * Nombre de jours ouvrés (lun-ven) écoulés cette semaine, aujourd'hui inclus.
+ * Samedi/dimanche -> 5 (semaine pleine). Sert au compte de jours travaillés
+ * non saisis (badge sidebar + worklist accueil).
+ */
+export function businessDaysElapsedThisWeek(now: Date = new Date()): number {
+  const day = now.getDay(); // 0 = Sun … 6 = Sat
+  if (day === 0 || day === 6) return 5;
+  return day; // Mon=1 … Fri=5
+}

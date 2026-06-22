@@ -201,7 +201,7 @@ export async function updateProspectStage(
     { stage: parsed.data.stage },
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   return { success: true };
 }
 
@@ -248,7 +248,7 @@ export async function updateProspectAssignment(
     { commercialId: parsed.data.commercialId },
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   return { success: true };
 }
 
@@ -304,7 +304,7 @@ export async function bulkUpdateProspects(
     },
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   return { success: true, updated: parsed.data.ids.length };
 }
 
@@ -345,7 +345,7 @@ export async function addProspectNote(
     undefined,
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   return { success: true };
 }
 
@@ -444,7 +444,7 @@ export async function convertProspectToClient(
     { clientId: client.id },
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   revalidatePath('/admin/clients');
   return { success: true, clientId: client.id };
 }
@@ -487,7 +487,7 @@ export async function deleteProspect(
   }
 
   logAudit('prospect_deleted', 'prospect', parsed.data.id, undefined, user.id);
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   return { success: true };
 }
 
@@ -768,7 +768,7 @@ export async function importProspectsFromExcel(formData: FormData): Promise<{
     },
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   return { success: true, created, updated, skipped };
 }
 
@@ -959,7 +959,7 @@ export async function createProspect(input: {
     },
     user.id,
   );
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   revalidatePath('/commercial/prospects');
   return { success: true, id: created.id };
 }
@@ -1354,6 +1354,6 @@ export async function setProspectContactPrincipal(
     user.id,
   );
   revalidatePath(`/commercial/prospects/${prospectId}`);
-  revalidatePath('/commercial/pipeline');
+  revalidatePath('/commercial/prospects');
   return { success: true };
 }

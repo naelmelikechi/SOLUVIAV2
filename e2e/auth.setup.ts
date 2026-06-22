@@ -37,8 +37,8 @@ setup('authenticate as admin', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Mot de passe' }).fill(adminPassword);
   await page.getByRole('button', { name: /connexion|se connecter/i }).click();
 
-  // Attend le redirect vers /projets (route par defaut post-login)
-  await expect(page).toHaveURL(/\/projets/);
+  // Attend le redirect vers /accueil (landing post-login rôle-adaptative)
+  await expect(page).toHaveURL(/\/accueil/);
 
   // Persist la session pour les autres specs
   await page.context().storageState({ path: 'e2e/.auth/admin.json' });

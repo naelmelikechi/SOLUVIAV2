@@ -282,10 +282,8 @@ export function ManuelTab({ projets }: ManuelTabProps) {
       <Card className="p-6">
         <EmptyState
           icon={FileText}
-          title="Aucun projet en mode facturation manuelle"
-          description={
-            'Configure un projet en mode "manuel" depuis sa fiche pour pouvoir facturer manuellement.'
-          }
+          title="Aucun contrat à facturer"
+          description="Aucun projet n'a d'événement de commission (engagement ou règlement OPCO) à facturer pour le moment."
         />
       </Card>
     );

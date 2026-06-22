@@ -10,15 +10,15 @@ export function ProjetEcheancierManualPlaceholder() {
         <h3 className="text-sm font-semibold">Échéancier de facturation</h3>
       </div>
       <p className="text-muted-foreground text-sm">
-        Ce projet est en facturation manuelle. Allez dans Facturation, onglet
-        Manuel, pour facturer les engagements ou règlements OPCO.
+        La facturation de ce projet (commission SOLUVIA) est gérée depuis
+        l&apos;espace Facturation.
       </p>
       <div className="mt-3">
         <Link
-          href="/facturation?tab=manuel"
+          href="/facturation"
           className="text-primary text-xs font-medium underline-offset-2 hover:underline"
         >
-          Ouvrir l&apos;onglet Manuel
+          Ouvrir Facturation
         </Link>
       </div>
     </Card>

@@ -51,7 +51,7 @@ export default async function ProspectDetailPage({
     .single();
 
   if (!canAccessPipeline(currentUser?.role, currentUser?.pipeline_access)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   const [

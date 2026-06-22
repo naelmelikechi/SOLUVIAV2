@@ -15,7 +15,7 @@ export default async function ClientsPage() {
   // rien (cas rare : sidebar gate).
   const [user, clients] = await Promise.all([getUser(), getClientsList()]);
   if (!isAdmin(user?.role)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   return (

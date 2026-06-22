@@ -38,7 +38,7 @@ export default async function CdpPage({
     .single();
 
   if (!isReferentCdp(currentUser?.role, currentUser?.referent_cdp)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   const { cdp: selectedCdpId } = await searchParams;

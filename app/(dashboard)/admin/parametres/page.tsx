@@ -45,7 +45,7 @@ export default async function ParametresPage() {
     listEcheancierTemplates(),
   ]);
   if (!isAdmin(user?.role)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   // Convert params arrays to key-value maps

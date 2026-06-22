@@ -18,7 +18,7 @@ export default async function DevisPage() {
     listSocietesEmettricesActives(),
     getClientsList(),
   ]);
-  if (!isAdmin(user?.role)) redirect('/projets');
+  if (!isAdmin(user?.role)) redirect('/accueil');
 
   return (
     <div className="space-y-4 p-6">

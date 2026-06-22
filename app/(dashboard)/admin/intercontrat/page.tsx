@@ -20,7 +20,7 @@ export default async function IntercontratPage() {
     getTauxBillableTeam30j(),
   ]);
   if (!isAdmin(currentUser?.role)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   return <IntercontratList data={users} tauxBillable={tauxBillable} />;

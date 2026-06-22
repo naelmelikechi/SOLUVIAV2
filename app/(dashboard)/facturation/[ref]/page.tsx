@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import {
   getFactureByRef,
   getPaiementsByFactureId,
@@ -10,6 +10,7 @@ import {
 import { getContactsByClientId } from '@/lib/queries/clients';
 import { getEmetteurInfo } from '@/lib/queries/parametres';
 import { getUser } from '@/lib/queries/users';
+import { isAdmin } from '@/lib/utils/roles';
 
 export async function generateMetadata({
   params,
@@ -35,6 +36,8 @@ export default async function FactureDetailPage({
   params: Promise<{ ref: string }>;
 }) {
   const { ref } = await params;
+  const currentUser = await getUser();
+  if (!currentUser || !isAdmin(currentUser.role)) redirect('/accueil');
   const facture = await getFactureByRef(ref);
 
   if (!facture) {
@@ -52,7 +55,6 @@ export default async function FactureDetailPage({
     EMETTEUR,
     projetData,
     contacts,
-    currentUser,
   ] = await Promise.all([
     getPaiementsByFactureId(facture.id),
     facture.est_avoir ? Promise.resolve(null) : getAvoirForFacture(facture.id),
@@ -64,7 +66,6 @@ export default async function FactureDetailPage({
       ? getProjetActiveContratsForFacturation(projetId)
       : Promise.resolve(null),
     clientId ? getContactsByClientId(clientId) : Promise.resolve([]),
-    getUser(),
   ]);
 
   const isBrouillon = facture.statut === 'a_emettre';

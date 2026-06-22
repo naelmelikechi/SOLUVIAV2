@@ -18,7 +18,7 @@ export default async function EditSocietePage({ params }: PageProps) {
     getUser(),
     getSocieteEmettriceById(id),
   ]);
-  if (!isAdmin(user?.role)) redirect('/projets');
+  if (!isAdmin(user?.role)) redirect('/accueil');
   if (!societe) notFound();
 
   return (

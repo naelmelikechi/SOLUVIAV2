@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import {
   getIndicateursScope,
@@ -41,7 +41,7 @@ export default async function IndicateursPage({
 }: IndicateursPageProps) {
   const scope = await getIndicateursScope();
   if (!scope) {
-    notFound();
+    redirect('/accueil');
   }
 
   const params = await searchParams;

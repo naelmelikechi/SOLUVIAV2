@@ -63,22 +63,6 @@ export async function getAccueilCdpData(
       color: 'blue',
     },
     {
-      key: 'factures-retard',
-      count: dash.facturesEnRetard,
-      title: 'Factures en retard',
-      description: 'Paiement dépassé, à relancer',
-      href: '/facturation',
-      color: 'red',
-    },
-    {
-      key: 'echeances',
-      count: dash.echeancesAFacturer,
-      title: 'Échéances prêtes',
-      description: 'Échéances à facturer côté SOLUVIA',
-      href: '/facturation',
-      color: 'blue',
-    },
-    {
       key: 'temps',
       count: joursSansSaisie,
       title: 'Jours sans saisie',

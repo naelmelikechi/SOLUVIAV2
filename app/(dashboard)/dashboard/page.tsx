@@ -23,7 +23,7 @@ import {
 import { resolvePeriode, type PeriodeKey } from '@/lib/utils/dashboard-periode';
 import { format, startOfMonth, addMonths } from 'date-fns';
 
-export const metadata: Metadata = { title: 'Tableau de bord - SOLUVIA' };
+export const metadata: Metadata = { title: 'Dashboard - SOLUVIA' };
 export const revalidate = 30;
 
 const VALID_PERIODES: PeriodeKey[] = ['ce_mois', 'mois_precedent', '30j'];

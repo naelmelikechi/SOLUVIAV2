@@ -31,7 +31,7 @@ export default async function ModelesPage() {
     .single();
 
   if (!canAccessPipeline(currentUser?.role, currentUser?.pipeline_access)) {
-    redirect('/projets');
+    redirect('/accueil');
   }
 
   const templates = await getTemplatesWithActiveVersion();

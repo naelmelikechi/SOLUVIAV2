@@ -115,7 +115,12 @@ export const navSections: NavSection[] = [
     title: 'Facturation',
     items: [
       { href: '/devis', label: 'Devis', icon: ScrollText, adminOnly: true },
-      { href: '/facturation', label: 'Facturation', icon: FileText },
+      {
+        href: '/facturation',
+        label: 'Facturation',
+        icon: FileText,
+        adminOnly: true,
+      },
       {
         href: '/a-facturer',
         label: 'À facturer',

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import {
   getFacturesList,
   getEcheancesPending,
@@ -24,6 +25,13 @@ export default async function FacturationPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+  const { data: me } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+  if (!isAdmin(me?.role)) redirect('/accueil');
 
   // oxlint-disable-next-line react-doctor/server-sequential-independent-await
   const [

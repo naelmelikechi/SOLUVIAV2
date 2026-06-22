@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: 'Referentiel OPCO - SOLUVIA' };
 
 export default async function OpcosPage() {
   const auth = await checkAuth();
-  if (!auth.ok) redirect('/');
+  if (!auth.ok) redirect('/accueil');
 
   const opcos = await listOpcos(true);
 

@@ -42,7 +42,7 @@ export default async function QualiopiClientPage({
   return (
     <div>
       <PageHeader
-        title={`Qualiopi - ${client.raison_sociale}`}
+        title={`Qualité - ${client.raison_sociale}`}
         description="Sélectionnez un campus"
       />
       {campuses.length === 0 ? (

@@ -66,7 +66,7 @@ export async function proxy(request: NextRequest) {
     if (!user) {
       return supabaseResponse;
     }
-    const redirect = NextResponse.redirect(new URL('/projets', request.url));
+    const redirect = NextResponse.redirect(new URL('/accueil', request.url));
     supabaseResponse.cookies.getAll().forEach((c) => redirect.cookies.set(c));
     return redirect;
   }

@@ -41,7 +41,7 @@ export default function SetPasswordPage() {
       return;
     }
 
-    push('/projets');
+    push('/accueil');
   }
 
   return (

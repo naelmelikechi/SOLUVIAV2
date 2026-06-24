@@ -35,12 +35,3 @@ export async function getAbsencesForUserAndPeriod(
 
   return data ?? [];
 }
-
-/**
- * Retourne toutes les absences d un user (pour vue historique future).
- * Limite a un an pour eviter des dumps massifs.
- */
-export async function getAbsencesForCurrentYear(): Promise<AbsencePeriod[]> {
-  const year = new Date().getFullYear();
-  return getAbsencesForUserAndPeriod(`${year}-01-01`, `${year}-12-31`);
-}

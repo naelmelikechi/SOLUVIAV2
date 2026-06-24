@@ -87,39 +87,3 @@ export async function getIdeeById(id: string): Promise<IdeeWithRefs | null> {
   }
   return data as IdeeWithRefs | null;
 }
-
-export interface IdeesStats {
-  proposees: number;
-  validees: number;
-  implementees: number;
-  rejetees: number;
-}
-
-export async function getIdeesStats(
-  from?: Date,
-  to?: Date,
-): Promise<IdeesStats> {
-  const supabase = await createClient();
-  let query = supabase.from('idees').select('statut', { count: 'exact' });
-
-  if (from) query = query.gte('created_at', from.toISOString());
-  if (to) query = query.lt('created_at', to.toISOString());
-
-  const { data, error } = await query;
-  if (error) {
-    return { proposees: 0, validees: 0, implementees: 0, rejetees: 0 };
-  }
-  const stats: IdeesStats = {
-    proposees: 0,
-    validees: 0,
-    implementees: 0,
-    rejetees: 0,
-  };
-  for (const row of data ?? []) {
-    if (row.statut === 'proposee') stats.proposees++;
-    else if (row.statut === 'validee') stats.validees++;
-    else if (row.statut === 'implementee') stats.implementees++;
-    else if (row.statut === 'rejetee') stats.rejetees++;
-  }
-  return stats;
-}

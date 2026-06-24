@@ -32,8 +32,17 @@ export default async function AccueilPage() {
   });
 
   if (view === 'superadmin') {
-    const contrats = await getContratsNonFacturesGlobal();
-    return <AccueilSuperadmin prenom={user.prenom ?? ''} contrats={contrats} />;
+    const [contrats, worklist] = await Promise.all([
+      getContratsNonFacturesGlobal(),
+      getAccueilCdpData(user.id),
+    ]);
+    return (
+      <AccueilSuperadmin
+        prenom={user.prenom ?? ''}
+        contrats={contrats}
+        worklist={worklist.items}
+      />
+    );
   }
 
   if (view === 'cdp') {

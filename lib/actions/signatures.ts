@@ -2,48 +2,16 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthWithPipeline } from '@/lib/auth/guards';
 import { isAdmin, canAccessPipeline } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import type { Database } from '@/types/database';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getSignatureProvider } from '@/lib/signature';
+import { sanitizeFileName } from '@/lib/utils/strings';
 
 const BUCKET = 'signature-documents';
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 Mo
-
-type Role = Database['public']['Enums']['role_utilisateur'];
-
-async function getAuth() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return {
-      supabase,
-      userId: null,
-      role: null as Role | null,
-      pipeline: false,
-    };
-  }
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role, pipeline_access')
-    .eq('id', user.id)
-    .single();
-  return {
-    supabase,
-    userId: user.id,
-    role: (profile?.role ?? null) as Role | null,
-    pipeline: profile?.pipeline_access ?? false,
-  };
-}
-
-function sanitizeFileName(name: string): string {
-  return name.replace(/[^\w.\-]+/g, '_').slice(0, 120) || 'document';
-}
 
 const uuidSchema = z.string().uuid();
 const titreSchema = z.string().trim().min(1, 'Titre requis').max(200);
@@ -83,7 +51,7 @@ export async function createSignatureRequest(
     return { success: false, error: titreParsed.error.issues[0]?.message };
   }
 
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId) return { success: false, error: 'Non authentifié' };
   if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { success: false, error: 'Accès refusé' };
@@ -139,7 +107,7 @@ export async function updateSignatureStatut(
     return { success: false, error: 'Statut invalide' };
   }
 
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId) return { success: false, error: 'Non authentifié' };
   if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { success: false, error: 'Accès refusé' };
@@ -184,7 +152,7 @@ export async function uploadSignedDocument(
   if (!uuidSchema.safeParse(id).success) {
     return { success: false, error: 'Demande invalide' };
   }
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId) return { success: false, error: 'Non authentifié' };
   if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { success: false, error: 'Accès refusé' };
@@ -260,7 +228,7 @@ export async function getSignatureDocumentUrl(
   if (!uuidSchema.safeParse(id).success) {
     return { error: 'Demande invalide' };
   }
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId || !(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { error: 'Accès refusé' };
   }
@@ -278,86 +246,4 @@ export async function getSignatureDocumentUrl(
     .createSignedUrl(path, 300);
   if (error || !data) return { error: 'Lien indisponible' };
   return { url: data.signedUrl };
-}
-
-/**
- * Envoie le contrat à signer via le prestataire e-signature (Yousign).
- * Dormant tant que YOUSIGN_API_KEY n'est pas provisionnée : renvoie alors une
- * erreur explicite (le mode manuel reste disponible). À l'activation, crée la
- * demande chez le prestataire et bascule la signature en provider='yousign'.
- */
-export async function sendForElectronicSignature(
-  id: string,
-  signerEmail: string,
-  signerName: string,
-): Promise<{ success: boolean; error?: string }> {
-  if (!uuidSchema.safeParse(id).success) {
-    return { success: false, error: 'Demande invalide' };
-  }
-  const email = signerEmail.trim();
-  const name = signerName.trim();
-  if (!email || !name) {
-    return { success: false, error: 'Signataire (nom + email) requis' };
-  }
-
-  const { supabase, userId, role, pipeline } = await getAuth();
-  if (!userId || !(isAdmin(role) || canAccessPipeline(role, pipeline))) {
-    return { success: false, error: 'Accès refusé' };
-  }
-
-  const provider = getSignatureProvider('yousign');
-  if (!provider) {
-    return {
-      success: false,
-      error:
-        'Signature électronique non configurée (YOUSIGN_API_KEY manquante). Utilisez le mode manuel.',
-    };
-  }
-
-  const { data: req } = await supabase
-    .from('signature_requests')
-    .select('document_path, titre')
-    .eq('id', id)
-    .single();
-  if (!req) return { success: false, error: 'Demande inconnue' };
-  if (!req.document_path) {
-    return { success: false, error: 'Aucun contrat à signer attaché' };
-  }
-
-  try {
-    const { providerRequestId } = await provider.send({
-      documentPath: req.document_path,
-      signerEmail: email,
-      signerName: name,
-      titre: req.titre,
-    });
-    const { error } = await supabase
-      .from('signature_requests')
-      .update({
-        provider: 'yousign',
-        provider_request_id: providerRequestId,
-        statut: 'envoyee',
-        sent_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-    if (error) return { success: false, error: error.message };
-  } catch (err) {
-    logger.error('actions.signatures', 'yousign send failed', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return {
-      success: false,
-      error: 'Envoi au prestataire de signature échoué',
-    };
-  }
-
-  logAudit(
-    'signature_request_sent_provider',
-    'signature_request',
-    id,
-    { provider: 'yousign' },
-    userId,
-  );
-  revalidatePath('/commercial/prospects');
-  return { success: true };
 }

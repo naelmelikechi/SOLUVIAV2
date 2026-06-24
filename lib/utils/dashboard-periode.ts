@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { capitalize } from '@/lib/utils/strings';
 
 export type PeriodeKey = 'ce_mois' | 'mois_precedent' | '30j';
 
@@ -61,8 +62,4 @@ export function resolvePeriode(
       };
     }
   }
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }

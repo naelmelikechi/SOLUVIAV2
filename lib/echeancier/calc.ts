@@ -13,6 +13,8 @@
 // Pas d'import date-fns : on utilise UTC pur pour eviter les bugs timezone
 // (l'app peut tourner en CET/CEST en local et UTC en prod Vercel).
 
+import { round2 } from '@/lib/utils/number';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -51,11 +53,6 @@ export interface EcheanceProjetAggregee {
 // ---------------------------------------------------------------------------
 // Helpers de base
 // ---------------------------------------------------------------------------
-
-/** Round half-up a 2 decimales (cohérent avec le reste de l'app, evite les flottants) */
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
 
 /** ISO yyyy-mm-dd du 1er du mois M+x relatif a date_debut. UTC pur. */
 export function moisAbsoluFromRelatif(

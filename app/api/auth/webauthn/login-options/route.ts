@@ -7,17 +7,12 @@ import { saveChallenge } from '@/lib/webauthn/challenge-store';
 import { checkRateLimit } from '@/lib/utils/rate-limit';
 import { logger } from '@/lib/utils/logger';
 import { env } from '@/lib/env';
-
-function getClientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() ?? 'unknown';
-  return req.headers.get('x-real-ip') ?? 'unknown';
-}
+import { clientIpFromHeaders } from '@/lib/utils/request-id';
 
 export async function POST(req: Request) {
   // Route anonyme : un attaquant peut spammer pour saturer Redis (challenges
   // store) ou tenter une enumeration via timing. Limite IP-based defensive.
-  const ip = getClientIp(req);
+  const ip = clientIpFromHeaders(req.headers);
   const rl = await checkRateLimit('webauthn-login-options', ip, {
     limit: 20,
     windowSeconds: 5 * 60,

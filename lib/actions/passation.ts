@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthWithPipeline } from '@/lib/auth/guards';
 import { isAdmin, canAccessPipeline } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -12,38 +12,10 @@ import {
   getSyntheseByProspect,
 } from '@/lib/queries/passation';
 import type { PassationSynthese } from '@/lib/queries/passation';
-import type { Database, Json } from '@/types/database';
+import type { Json } from '@/types/database';
 
 const BUCKET = 'passation-documents';
 const uuidSchema = z.string().uuid();
-
-type Role = Database['public']['Enums']['role_utilisateur'];
-
-async function getAuth() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return {
-      supabase,
-      userId: null,
-      role: null as Role | null,
-      pipeline: false,
-    };
-  }
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role, pipeline_access')
-    .eq('id', user.id)
-    .single();
-  return {
-    supabase,
-    userId: user.id,
-    role: (profile?.role ?? null) as Role | null,
-    pipeline: profile?.pipeline_access ?? false,
-  };
-}
 
 /**
  * Génère la synthèse de passation : un PDF complet (sections 1 à 8, pour
@@ -56,7 +28,7 @@ export async function genererSynthese(
   if (!uuidSchema.safeParse(prospectId).success) {
     return { success: false, error: 'Prospect invalide' };
   }
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId) return { success: false, error: 'Non authentifié' };
   if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { success: false, error: 'Accès refusé' };
@@ -173,7 +145,7 @@ export async function diffuserVague1(
   if (!uuidSchema.safeParse(syntheseId).success) {
     return { success: false, error: 'Synthèse invalide' };
   }
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId) return { success: false, error: 'Non authentifié' };
   if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { success: false, error: 'Accès refusé' };
@@ -256,7 +228,7 @@ export async function diffuserVague2(
   if (!uuidSchema.safeParse(syntheseId).success) {
     return { success: false, error: 'Synthèse invalide' };
   }
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId) return { success: false, error: 'Non authentifié' };
   if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { success: false, error: 'Accès refusé' };
@@ -332,7 +304,7 @@ export async function getSyntheseDownloadUrl(
   if (!uuidSchema.safeParse(syntheseId).success) {
     return { error: 'Synthèse invalide' };
   }
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId || !(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { error: 'Accès refusé' };
   }
@@ -372,7 +344,7 @@ export async function getPassationState(prospectId: string): Promise<{
       error: 'Prospect invalide',
     };
   }
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId || !(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { synthese: null, hasCdpReferent: false, error: 'Accès refusé' };
   }

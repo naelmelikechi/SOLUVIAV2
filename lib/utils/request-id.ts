@@ -47,3 +47,14 @@ export async function getRequestId(): Promise<string | null> {
   if (!headers) return null;
   return headers.get('x-vercel-id') ?? headers.get('x-request-id') ?? null;
 }
+
+/**
+ * Extrait l'IP client depuis un objet Headers (x-forwarded-for premier
+ * segment, fallback x-real-ip). Vercel injecte x-forwarded-for sur chaque
+ * requete.
+ */
+export function clientIpFromHeaders(h: Headers): string {
+  const forwarded = h.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0]?.trim() ?? 'unknown';
+  return h.get('x-real-ip') ?? 'unknown';
+}

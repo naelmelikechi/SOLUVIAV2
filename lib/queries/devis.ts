@@ -121,3 +121,23 @@ export async function getDevisById(id: string): Promise<DevisDetail | null> {
   detail.lignes = detail.lignes.toSorted((a, b) => a.ordre - b.ordre);
   return detail;
 }
+
+/**
+ * Compteur pilotage : devis envoyés dont la relance est due (envoi >= 7 jours,
+ * relances actives, pas encore acceptés/refusés). RLS = périmètre de l'user.
+ */
+export async function getDevisARelancerCount(): Promise<number> {
+  const supabase = await createClient();
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const { count, error } = await supabase
+    .from('devis')
+    .select('id', { count: 'exact', head: true })
+    .eq('statut', 'envoye')
+    .eq('relances_actives', true)
+    .lte('date_envoi', sevenDaysAgo);
+  if (error) {
+    logger.error('queries.devis', 'getDevisARelancerCount failed', { error });
+    return 0;
+  }
+  return count ?? 0;
+}

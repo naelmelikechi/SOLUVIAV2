@@ -17,9 +17,6 @@ import type { SyncClientResult } from '@/lib/eduvia/sync';
 // ces queries renvoient simplement 0 ligne, la page redirige de toute facon.
 // ---------------------------------------------------------------------------
 
-/** Statut brut d'un run en DB (CHECK en migration). */
-export type SyncRunStatut = 'success' | 'partial' | 'error';
-
 /** Etat derive de la sync d'un client (cf. deriveSyncState). */
 export type SyncState = 'ok' | 'degraded' | 'down' | 'stale' | 'never';
 

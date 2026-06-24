@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { checkRateLimit } from '@/lib/utils/rate-limit';
 import { logger } from '@/lib/utils/logger';
-import { getRequestId } from '@/lib/utils/request-id';
+import { getRequestId, clientIpFromHeaders } from '@/lib/utils/request-id';
 import { getSession } from '@/lib/auth/session-shim';
 
 // Auth actions server-side. Le login etait fait client-side, ce qui rendait
@@ -13,11 +13,7 @@ import { getSession } from '@/lib/auth/session-shim';
 // (fail-open si non configure).
 
 async function getClientIp(): Promise<string> {
-  const h = await headers();
-  // Vercel injecte x-forwarded-for; premier segment = IP du client reel.
-  const forwarded = h.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() ?? 'unknown';
-  return h.get('x-real-ip') ?? 'unknown';
+  return clientIpFromHeaders(await headers());
 }
 
 function normaliseEmail(value: string): string {

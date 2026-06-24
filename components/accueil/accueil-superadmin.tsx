@@ -9,6 +9,8 @@ import { formatCurrency } from '@/lib/utils/formatters';
 import { cn } from '@/lib/utils';
 import type { ContratNonFacture } from '@/lib/queries/contrats-a-facturer';
 import { supervisionColumns } from './accueil-supervision-columns';
+import { WorklistGrid } from './worklist-grid';
+import type { AccueilWorklistItem } from '@/lib/queries/accueil';
 
 function StatCard({
   label,
@@ -30,9 +32,11 @@ function StatCard({
 export function AccueilSuperadmin({
   prenom,
   contrats,
+  worklist,
 }: {
   prenom: string;
   contrats: ContratNonFacture[];
+  worklist: AccueilWorklistItem[];
 }) {
   const [selectedContratId, setSelectedContratId] = useState<string | null>(
     null,
@@ -68,6 +72,8 @@ export function AccueilSuperadmin({
             value={formatCurrency(montantTotal)}
           />
         </div>
+
+        {worklist.length > 0 && <WorklistGrid items={worklist} />}
 
         <Card className="p-6">
           <h3 className="mb-4 text-sm font-semibold">

@@ -3,6 +3,8 @@ import { fr } from 'date-fns/locale';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { encaisseHt, ttcToHt } from '@/lib/utils/montant-ht';
+import { round2 } from '@/lib/utils/number';
+import { capitalize } from '@/lib/utils/strings';
 
 // -----------------------------------------------------------------------------
 // Pure computation: theoretical payment schedule per contract
@@ -41,10 +43,6 @@ function addMonthsKey(start: Date, n: number): string {
   const d = new Date(start);
   d.setMonth(d.getMonth() + n);
   return monthKey(d);
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 export function computeContractSchedule(
@@ -98,10 +96,6 @@ export interface ProductionRow {
   encaisse: number;
   /** Sum of factures.montant_ht with statut = 'en_retard' */
   en_retard: number;
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 /** 25-month window: 12 past + current + 12 future, ISO YYYY-MM-DD strings. */

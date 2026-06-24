@@ -9,7 +9,7 @@ Lit les données opérationnelles depuis Eduvia, gère les processus internes
 - **Frontend** : Next.js 16 (App Router), React 19, TypeScript 5 (strict)
 - **UI** : TailwindCSS 4 + shadcn/ui (base-ui)
 - **Backend** : Supabase (PostgreSQL + RLS + Auth + Storage + Realtime)
-- **Intégrations** : Eduvia API (sync contrats/apprenants), Resend (emails), Odoo (désactivé)
+- **Intégrations** : Eduvia API (sync contrats/apprenants), Resend (emails), Odoo (push factures + rapprochement paiements)
 - **Monitoring** : Sentry (gated sur DSN), Vercel Analytics + Speed Insights
 - **Rate limiting** : Upstash Redis (gated sur URL/TOKEN)
 - **Déploiement** : Vercel (région `cdg1`), crons Vercel
@@ -136,8 +136,8 @@ backup_cdp_id = auth.uid()` sur les projets et cascade.
 
 ### Conventions
 
-- Composants : PascalCase (`Sidebar.tsx`)
-- Utilitaires : camelCase (`formatters.ts`)
+- Fichiers : kebab-case (`sidebar.tsx`, `data-table.tsx`, `formatters.ts`, `cron-auth.ts`)
+- Exports : PascalCase pour les composants (`export function Sidebar()`), camelCase pour les fonctions
 - Domaine en français (projet, contrat, facture, qualité, temps)
 - UI en français, **pas d'em-dash** (`—`), uniquement hyphens simples (`-`)
 - DataTable partagé : `components/shared/data-table/`
@@ -170,14 +170,13 @@ observation.
 
 ## Stack tests
 
-Aucune suite de tests automatisés pour l'instant. Le CI valide :
+Tests unitaires et d'intégration avec **Vitest** (`npm run test`) : ~900 tests
+répartis dans `__tests__/`, couvrant les invariants critiques (facturation,
+échéanciers, sync Eduvia/Odoo, KPIs commerciaux, montants HT/TVA).
 
-- `npm run lint`
-- `npm run typecheck`
-- `npm run build`
+Tests E2E avec **Playwright** (`npm run test:e2e`) dans `e2e/`.
 
-Ajouter des tests sur les invariants critiques (gapless facturation,
-chiffrement clés API, sync Eduvia) est dans le backlog.
+Le CI valide : `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`.
 
 ## Aide au debug
 

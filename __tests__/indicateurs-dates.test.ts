@@ -13,11 +13,7 @@ vi.mock('@/lib/utils/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-import {
-  getPeriodRange,
-  getPreviousWeekRange,
-  getTechRange,
-} from '@/lib/queries/indicateurs';
+import { getPeriodRange, getTechRange } from '@/lib/queries/indicateurs';
 
 describe('getPeriodRange', () => {
   it('week period returns Monday → Sunday spanning the reference date', () => {
@@ -36,20 +32,6 @@ describe('getPeriodRange', () => {
     expect(start.getDate()).toBe(1);
     expect(start.getMonth()).toBe(ref.getMonth());
     expect(end.getTime()).toBe(ref.getTime());
-  });
-});
-
-describe('getPreviousWeekRange', () => {
-  it('returns Monday → Sunday of the week before the reference', () => {
-    // 2026-04-29 (Wed) → previous week starts Mon 2026-04-20 → Sun 2026-04-26
-    const ref = new Date('2026-04-29T12:00:00Z');
-    const { start, end } = getPreviousWeekRange(ref);
-    expect(start.getDay()).toBe(1);
-    expect(end.getDay()).toBe(0);
-    const deltaDays = (ref.getTime() - end.getTime()) / (1000 * 60 * 60 * 24);
-    // Sunday of previous week is 2 to 9 days before any midweek reference
-    expect(deltaDays).toBeGreaterThan(2);
-    expect(deltaDays).toBeLessThan(9);
   });
 });
 

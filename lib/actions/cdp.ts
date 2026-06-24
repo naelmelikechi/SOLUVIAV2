@@ -153,15 +153,6 @@ export async function affectCdp(
   return applyAffectation(clientId, cdpId, justification, false);
 }
 
-/** Réaffecte un client vers un autre CDP. Justification obligatoire. */
-export async function reaffectCdp(
-  clientId: string,
-  newCdpId: string,
-  justification: string,
-): Promise<{ success: boolean; error?: string }> {
-  return applyAffectation(clientId, newCdpId, justification, true);
-}
-
 /** Le CDP courant met à jour sa propre disponibilité (users.cdp_disponibilite). */
 export async function updateCdpDisponibilite(
   disponibilite: DispoCdp,

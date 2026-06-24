@@ -5,6 +5,9 @@ import {
   type ContratAFacturer,
 } from '@/lib/queries/contrats-a-facturer';
 import { getJoursSansSaisie } from '@/lib/queries/temps';
+import { formatCurrency } from '@/lib/utils/formatters';
+import { getDevisARelancerCount } from '@/lib/queries/devis';
+import { getRdvFormateursAVenirCount } from '@/lib/queries/rdv';
 
 // ---------------------------------------------------------------------------
 // Accueil CDP : worklist « À faire ». Agrège les signaux actionnables déjà
@@ -41,10 +44,19 @@ export async function getAccueilCdpData(
 ): Promise<AccueilCdpData> {
   const supabase = await createClient();
 
-  const [dash, aFacturer, joursSansSaisie, notifRes] = await Promise.all([
+  const [
+    dash,
+    aFacturer,
+    joursSansSaisie,
+    devisARelancer,
+    rdvAVenir,
+    notifRes,
+  ] = await Promise.all([
     getDashboardData(),
     getContratsAFacturer(),
     getJoursSansSaisie(userId),
+    getDevisARelancerCount(),
+    getRdvFormateursAVenirCount(),
     supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
@@ -52,15 +64,26 @@ export async function getAccueilCdpData(
   ]);
 
   const notifications = notifRes.count ?? 0;
+  // Dimension € du pilotage : montant total des échéances OPCO échues à
+  // facturer (donnée déjà chargée, agrégée sans requête supplémentaire).
+  const montantAFacturer = aFacturer.reduce((s, c) => s + (c.montant ?? 0), 0);
+  // Urgence : au moins une échéance en retard -> rouge (priorité max), sinon
+  // orange. Fait remonter le signal phare en tête de la worklist.
+  const aFacturerColor: WorklistColor = aFacturer.some((c) => c.retardJours > 0)
+    ? 'red'
+    : 'orange';
 
   const allItems: AccueilWorklistItem[] = [
     {
       key: 'a-facturer',
       count: aFacturer.length,
       title: 'Contrats à facturer',
-      description: 'Échéances OPCO échues à transmettre dans Eduvia',
+      description:
+        montantAFacturer > 0
+          ? `≈ ${formatCurrency(Math.round(montantAFacturer))} d'échéances OPCO échues`
+          : 'Échéances OPCO échues à transmettre dans Eduvia',
       href: '/a-facturer',
-      color: 'blue',
+      color: aFacturerColor,
     },
     {
       key: 'temps',
@@ -77,6 +100,22 @@ export async function getAccueilCdpData(
       description: 'Aucune activité depuis plus de 30 jours',
       href: '/projets',
       color: 'orange',
+    },
+    {
+      key: 'devis-relance',
+      count: devisARelancer,
+      title: 'Devis à relancer',
+      description: 'Envoyés sans réponse depuis 7 jours ou plus',
+      href: '/devis',
+      color: 'orange',
+    },
+    {
+      key: 'rdv',
+      count: rdvAVenir,
+      title: 'RDV à venir',
+      description: 'Rendez-vous formateurs planifiés',
+      href: '/projets',
+      color: 'blue',
     },
     {
       key: 'notifications',
@@ -96,6 +135,6 @@ export async function getAccueilCdpData(
   return {
     items,
     aFacturerPreview: aFacturer.slice(0, 3),
-    totalActions: items.length,
+    totalActions: items.reduce((sum, i) => sum + i.count, 0),
   };
 }

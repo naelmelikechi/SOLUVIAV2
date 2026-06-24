@@ -54,21 +54,6 @@ export async function getSocieteEmettriceById(
   return data;
 }
 
-export async function getDefaultSocieteEmettrice(): Promise<SocieteEmettriceRow | null> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('societes_emettrices')
-    .select('*')
-    .eq('est_defaut', true)
-    .eq('actif', true)
-    .maybeSingle();
-  if (error) {
-    logger.error('queries.societes_emettrices', 'getDefault failed', { error });
-    return null;
-  }
-  return data;
-}
-
 // Keep the lightweight ID-only helper used by lib/actions/factures
 // (Task 2 introduced it before the full module existed).
 export async function getDefaultSocieteEmettriceId(): Promise<string> {

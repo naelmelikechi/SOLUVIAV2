@@ -131,23 +131,3 @@ describe('getAbsencesForUserAndPeriod', () => {
     expect(result).toEqual([]);
   });
 });
-
-describe('getAbsencesForCurrentYear', () => {
-  it('cible 01-01 au 12-31 de l annee courante', async () => {
-    const { client, ops } = buildSupabase({ data: [] });
-    vi.mocked(createClient).mockResolvedValue(
-      client as unknown as Awaited<ReturnType<typeof createClient>>,
-    );
-
-    const { getAbsencesForCurrentYear } =
-      await import('@/lib/queries/absences');
-    await getAbsencesForCurrentYear();
-
-    const year = new Date().getFullYear();
-    const op = ops[0]!;
-    const fLte = op.filters.find((f) => f.op === 'lte');
-    const fGte = op.filters.find((f) => f.op === 'gte');
-    expect(fLte?.val).toBe(`${year}-12-31`);
-    expect(fGte?.val).toBe(`${year}-01-01`);
-  });
-});

@@ -115,42 +115,6 @@ export async function createDevis(
   return { success: true, id: devis.id };
 }
 
-const UpdateInfoSchema = z.object({
-  objet: z.string().min(1).optional(),
-  date_validite: z.string().optional(),
-  conditions_reglement: z.string().nullish(),
-  notes_internes: z.string().nullish(),
-});
-
-export async function updateDevisInfo(
-  id: string,
-  input: z.input<typeof UpdateInfoSchema>,
-): Promise<Result> {
-  const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
-  const parsed = UpdateInfoSchema.safeParse(input);
-  if (!parsed.success)
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message ?? 'Données invalides',
-    };
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('devis')
-    .update(parsed.data)
-    .eq('id', id)
-    .eq('statut', 'brouillon');
-  if (error) return { success: false, error: error.message };
-  logAudit(
-    'devis_info_updated',
-    'devis',
-    id,
-    parsed.data as Record<string, string>,
-  );
-  revalidatePath(`/devis`);
-  return { success: true };
-}
-
 export async function addLigne(
   devisId: string,
   ligne: z.input<typeof LigneSchema>,

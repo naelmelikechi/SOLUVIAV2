@@ -11,16 +11,10 @@ import { resolveRP } from '@/lib/webauthn/config';
 import { consumeChallenge } from '@/lib/webauthn/challenge-store';
 import { checkRateLimit } from '@/lib/utils/rate-limit';
 import { logger } from '@/lib/utils/logger';
+import { clientIpFromHeaders } from '@/lib/utils/request-id';
 
 interface VerifyBody {
   response: AuthenticationResponseJSON;
-}
-
-/** Extrait l IP client depuis les headers Vercel (x-forwarded-for premier segment). */
-function getClientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() ?? 'unknown';
-  return req.headers.get('x-real-ip') ?? 'unknown';
 }
 
 export async function POST(req: Request) {
@@ -30,7 +24,7 @@ export async function POST(req: Request) {
   // Budget : 10 tentatives par IP / 5 min - laxiste pour les vrais
   // utilisateurs (re-tentative apres pop-up annulee ok), serre pour un
   // brute force.
-  const ip = getClientIp(req);
+  const ip = clientIpFromHeaders(req.headers);
   const rl = await checkRateLimit('webauthn-login', ip, {
     limit: 10,
     windowSeconds: 5 * 60,

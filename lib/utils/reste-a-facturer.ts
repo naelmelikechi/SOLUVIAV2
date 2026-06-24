@@ -4,6 +4,7 @@ import type {
 } from '@/lib/queries/billable-events';
 import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 import { isContratActif } from '@/lib/utils/contrat-states';
+import { round2 } from '@/lib/utils/number';
 
 // ---------------------------------------------------------------------------
 // Reste à facturer : agrégation pure (sans DB, sans React) des billable
@@ -112,10 +113,6 @@ export interface ResteAFacturer {
 }
 
 const OPCO_NON_RESOLU = 'Non résolu';
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
 
 interface ContratAgg {
   facturableTtc: number;

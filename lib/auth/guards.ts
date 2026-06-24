@@ -21,8 +21,10 @@
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin, isSuperAdmin } from '@/lib/utils/roles';
+import type { Database } from '@/types/database';
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+type RoleUtilisateur = Database['public']['Enums']['role_utilisateur'];
 
 type BaseAuthOk = {
   ok: true;
@@ -127,5 +129,38 @@ export async function requireSuperAdmin(): Promise<
     supabase: auth.supabase,
     user: auth.user,
     role: auth.profile.role,
+  };
+}
+
+/**
+ * Resout supabase + identite + (role, pipeline_access) SANS gater l'acces :
+ * l'autorisation fine est laissee a chaque action (tests sur `role`/`pipeline`).
+ * Contrairement a requireAuth, ne verifie pas `actif` - c'est la semantique
+ * historique des actions passation/signatures/templates, preservee a
+ * l'identique. Retourne userId=null si pas de session.
+ */
+export async function getAuthWithPipeline(): Promise<{
+  supabase: SupabaseServerClient;
+  userId: string | null;
+  role: RoleUtilisateur | null;
+  pipeline: boolean;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { supabase, userId: null, role: null, pipeline: false };
+  }
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role, pipeline_access')
+    .eq('id', user.id)
+    .single();
+  return {
+    supabase,
+    userId: user.id,
+    role: (profile?.role ?? null) as RoleUtilisateur | null,
+    pipeline: profile?.pipeline_access ?? false,
   };
 }

@@ -76,13 +76,6 @@ export function getPeriodRange(
   };
 }
 
-export function getPreviousWeekRange(reference: Date = new Date()): DateRange {
-  return {
-    start: startOfWeek(addWeeks(reference, -1), { weekStartsOn: 1 }),
-    end: endOfWeek(addWeeks(reference, -1), { weekStartsOn: 1 }),
-  };
-}
-
 export function getTechRange(
   period: TechPeriod,
   reference: Date = new Date(),

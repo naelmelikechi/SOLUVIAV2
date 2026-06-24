@@ -69,3 +69,24 @@ export async function getRdvCommerciauxByProspectId(
   }
   return (data ?? []) as RdvCommercialWithRefs[];
 }
+
+/**
+ * Compteur pilotage : RDV formateurs planifiés à venir (statut prévu, date >=
+ * aujourd'hui). RLS = CDP (projet.cdp_id), admin = global.
+ */
+export async function getRdvFormateursAVenirCount(): Promise<number> {
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { count, error } = await supabase
+    .from('rdv_formateurs')
+    .select('id', { count: 'exact', head: true })
+    .eq('statut', 'prevu')
+    .gte('date_prevue', today);
+  if (error) {
+    logger.error('queries.rdv', 'getRdvFormateursAVenirCount failed', {
+      error,
+    });
+    return 0;
+  }
+  return count ?? 0;
+}

@@ -2,46 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthWithPipeline } from '@/lib/auth/guards';
 import { isAdmin, canAccessPipeline } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
-import type { Database } from '@/types/database';
+import { sanitizeFileName } from '@/lib/utils/strings';
 
 const BUCKET = 'commercial-templates';
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 Mo
-
-type Role = Database['public']['Enums']['role_utilisateur'];
-
-async function getAuth() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return {
-      supabase,
-      userId: null,
-      role: null as Role | null,
-      pipeline: false,
-    };
-  }
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role, pipeline_access')
-    .eq('id', user.id)
-    .single();
-  return {
-    supabase,
-    userId: user.id,
-    role: (profile?.role ?? null) as Role | null,
-    pipeline: profile?.pipeline_access ?? false,
-  };
-}
-
-function sanitizeFileName(name: string): string {
-  return name.replace(/[^\w.\-]+/g, '_').slice(0, 120) || 'fichier';
-}
 
 /**
  * Publie une nouvelle version d'un modèle (Direction seule) : upload du fichier,
@@ -52,7 +20,7 @@ export async function publishTemplateVersion(
   templateCode: string,
   formData: FormData,
 ): Promise<{ success: boolean; error?: string }> {
-  const { supabase, userId, role } = await getAuth();
+  const { supabase, userId, role } = await getAuthWithPipeline();
   if (!userId) return { success: false, error: 'Non authentifié' };
   if (!isAdmin(role)) {
     return {
@@ -86,7 +54,7 @@ export async function publishTemplateVersion(
     .maybeSingle();
   const nextVersion = (last?.version ?? 0) + 1;
 
-  const path = `${tmpl.id}/v${nextVersion}-${Date.now()}-${sanitizeFileName(file.name)}`;
+  const path = `${tmpl.id}/v${nextVersion}-${Date.now()}-${sanitizeFileName(file.name, 'fichier')}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   const { error: upErr } = await supabase.storage
     .from(BUCKET)
@@ -160,7 +128,7 @@ export async function setActiveTemplateVersion(
   if (!z.string().uuid().safeParse(versionId).success) {
     return { success: false, error: 'Version invalide' };
   }
-  const { supabase, userId, role } = await getAuth();
+  const { supabase, userId, role } = await getAuthWithPipeline();
   if (!userId) return { success: false, error: 'Non authentifié' };
   if (!isAdmin(role)) return { success: false, error: 'Accès refusé' };
 
@@ -199,7 +167,7 @@ export async function getTemplateDownloadUrl(
   if (!z.string().uuid().safeParse(versionId).success) {
     return { error: 'Version invalide' };
   }
-  const { supabase, userId, role, pipeline } = await getAuth();
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId || !(isAdmin(role) || canAccessPipeline(role, pipeline))) {
     return { error: 'Accès refusé' };
   }

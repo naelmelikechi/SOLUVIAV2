@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { computeContractSchedule } from '@/lib/queries/production';
 import { encaisseHt } from '@/lib/utils/montant-ht';
+import { round2 } from '@/lib/utils/number';
 import { checkAuth } from '@/lib/auth/guards';
 
 // ---------------------------------------------------------------------------
@@ -37,10 +38,6 @@ export interface ProductionByProjetRow {
   enRetardSoluvia: number;
   commission: number;
   nbContrats: number;
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 /** Sum of OPCO schedule entries for the contract that fall in monthKey (YYYY-MM). */

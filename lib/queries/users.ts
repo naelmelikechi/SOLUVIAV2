@@ -125,8 +125,6 @@ export async function getCurrentUserActiveProjetsCount(): Promise<number> {
   return count ?? 0;
 }
 
-export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getUser>>>;
-
 export async function getActiveUsersMinimal() {
   const supabase = await createClient();
 

@@ -33,7 +33,7 @@ interface LogRecord {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-function serializeError(err: unknown): LogRecord['error'] {
+export function serializeError(err: unknown): LogRecord['error'] {
   if (err instanceof Error) {
     const code =
       'code' in err && typeof (err as { code?: unknown }).code === 'string'
@@ -46,6 +46,32 @@ function serializeError(err: unknown): LogRecord['error'] {
       cause: err.cause,
       code,
     };
+  }
+  // Non-Error rejections (Supabase/PostgREST errors, thrown plain objects, ...)
+  // carry a { message, code, details, hint } shape. Collapsing them through
+  // String() yields the useless "[object Object]" Sentry title (cf. SOLUVIA-1M)
+  // and destroys the diagnostic payload, so extract the real fields instead.
+  if (typeof err === 'object' && err !== null) {
+    const o = err as Record<string, unknown>;
+    const str = (v: unknown): string | undefined =>
+      typeof v === 'string' && v.length > 0 ? v : undefined;
+    const detail = [str(o.message), str(o.details), str(o.hint)].filter(
+      (v): v is string => v !== undefined,
+    );
+    let message: string;
+    if (detail.length > 0) {
+      message = detail.join(' — ');
+    } else {
+      try {
+        message = JSON.stringify(err);
+      } catch {
+        message = Object.prototype.toString.call(err);
+      }
+      if (message === '{}') message = Object.prototype.toString.call(err);
+    }
+    const ctor = (o.constructor as { name?: string } | undefined)?.name;
+    const name = str(o.name) ?? (ctor && ctor !== 'Object' ? ctor : 'Unknown');
+    return { name, message, code: str(o.code) };
   }
   return { name: 'Unknown', message: String(err) };
 }

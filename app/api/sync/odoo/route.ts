@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyCronAuth } from '@/lib/utils/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { waitForDb } from '@/lib/supabase/db-wake';
 import { syncOdoo } from '@/lib/odoo/sync';
 import { logger } from '@/lib/utils/logger';
 
@@ -13,6 +14,9 @@ export async function GET(request: Request) {
 
   try {
     const supabase = createAdminClient();
+    // Réveille l'instance (auto-pause Supavia) avant la sync : évite la cascade
+    // SOLUVIA-1H/1J/W/1K. Si toujours injoignable, lève une seule erreur ci-bas.
+    await waitForDb(supabase);
     const result = await syncOdoo(supabase);
 
     return NextResponse.json({

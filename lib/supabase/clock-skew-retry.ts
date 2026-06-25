@@ -14,7 +14,8 @@
  */
 
 const JWT_ISSUED_AT_FUTURE = 'PGRST303';
-const DEFAULT_DELAYS_MS = [400, 1000] as const;
+// 3 essais : couvre les skews jusqu'à ~3,9 s cumulés (SOLUVIA-M dépassait 2 essais).
+const DEFAULT_DELAYS_MS = [400, 1000, 2500] as const;
 
 function delay(ms: number): Promise<void> {
   const { promise, resolve } = Promise.withResolvers<void>();

@@ -142,6 +142,8 @@ export async function requestPasswordResetAction(
     logger.error('actions.auth', 'password reset failed', {
       email,
       code: error.code,
+      status: error.status,
+      reason: error.message,
       requestId,
     });
     // Reponse neutre: on ne revele pas si l'email existe.

@@ -291,7 +291,7 @@ class OdooJsonRpcClient implements OdooClient {
         }
         const base = RETRY_BACKOFF_MS[attempt] ?? 4_000;
         const delay = Math.round(base + base * 0.2 * Math.random());
-        logger.warn(SCOPE, 'Transient RPC error, retrying', {
+        logger.info(SCOPE, 'Transient RPC error, retrying', {
           service,
           method,
           attempt: attempt + 1,

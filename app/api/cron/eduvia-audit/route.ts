@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyCronAuth } from '@/lib/utils/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { waitForDb } from '@/lib/supabase/db-wake';
 import { syncAllEduviaClients } from '@/lib/eduvia/sync';
 import {
   notifyAuditAnomalies,
@@ -31,6 +32,10 @@ export async function GET(request: Request) {
 
   try {
     const supabase = createAdminClient();
+
+    // Réveille l'instance (auto-pause Supavia) avant le sync nocturne minuit :
+    // évite SOLUVIA-1M (erreur non-Error remontée d'un catch sur DB injoignable).
+    await waitForDb(supabase);
 
     // Étape 1 : sync complet
     const syncResults = await syncAllEduviaClients(supabase);

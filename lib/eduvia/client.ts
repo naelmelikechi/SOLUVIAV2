@@ -359,7 +359,7 @@ async function fetchJson<T>(url: string, apiKey: string): Promise<T> {
       if (attempt < MAX_RETRIES) {
         lastErr = err;
         const delay = jittered(RETRY_BACKOFF_MS[attempt] ?? 4_000);
-        logger.warn('eduvia.client', 'network error, will retry', {
+        logger.info('eduvia.client', 'network error, will retry', {
           url,
           attempt: attempt + 1,
           nextDelayMs: delay,

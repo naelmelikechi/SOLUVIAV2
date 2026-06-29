@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
+import { withClockSkewRetry } from '@/lib/supabase/clock-skew-retry';
 import type { StatutIdee, CibleIdee } from '@/lib/utils/constants';
 import type { Database } from '@/types/database';
 
@@ -24,26 +25,28 @@ export async function getIdeesGroupedByStatut(
   filters?: IdeeFilters,
 ): Promise<Record<StatutIdee, IdeeWithRefs[]>> {
   const supabase = await createClient();
-  let query = supabase
-    .from('idees')
-    .select(
-      `*,
-       auteur:users!idees_auteur_id_fkey(id, nom, prenom, role),
-       validee_par_user:users!idees_validee_par_fkey(id, nom, prenom, role),
-       implementee_par_user:users!idees_implementee_par_fkey(id, nom, prenom, role)`,
-    )
-    .order('created_at', { ascending: false });
 
-  if (!filters?.showArchived) {
-    query = query.eq('archive', false);
-  }
-  if (filters?.auteurId) query = query.eq('auteur_id', filters.auteurId);
-  if (filters?.cible) query = query.eq('cible', filters.cible);
-  if (filters?.search?.trim()) {
-    query = query.ilike('titre', `%${filters.search.trim()}%`);
-  }
+  const { data, error } = await withClockSkewRetry(() => {
+    let query = supabase
+      .from('idees')
+      .select(
+        `*,
+         auteur:users!idees_auteur_id_fkey(id, nom, prenom, role),
+         validee_par_user:users!idees_validee_par_fkey(id, nom, prenom, role),
+         implementee_par_user:users!idees_implementee_par_fkey(id, nom, prenom, role)`,
+      )
+      .order('created_at', { ascending: false });
 
-  const { data, error } = await query;
+    if (!filters?.showArchived) {
+      query = query.eq('archive', false);
+    }
+    if (filters?.auteurId) query = query.eq('auteur_id', filters.auteurId);
+    if (filters?.cible) query = query.eq('cible', filters.cible);
+    if (filters?.search?.trim()) {
+      query = query.ilike('titre', `%${filters.search.trim()}%`);
+    }
+    return query;
+  });
   if (error) {
     logger.error('queries.idees', 'getIdeesGroupedByStatut failed', { error });
     throw new AppError(
@@ -68,16 +71,18 @@ export async function getIdeesGroupedByStatut(
 
 export async function getIdeeById(id: string): Promise<IdeeWithRefs | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('idees')
-    .select(
-      `*,
-       auteur:users!idees_auteur_id_fkey(id, nom, prenom, role),
-       validee_par_user:users!idees_validee_par_fkey(id, nom, prenom, role),
-       implementee_par_user:users!idees_implementee_par_fkey(id, nom, prenom, role)`,
-    )
-    .eq('id', id)
-    .maybeSingle();
+  const { data, error } = await withClockSkewRetry(() =>
+    supabase
+      .from('idees')
+      .select(
+        `*,
+         auteur:users!idees_auteur_id_fkey(id, nom, prenom, role),
+         validee_par_user:users!idees_validee_par_fkey(id, nom, prenom, role),
+         implementee_par_user:users!idees_implementee_par_fkey(id, nom, prenom, role)`,
+      )
+      .eq('id', id)
+      .maybeSingle(),
+  );
 
   if (error) {
     logger.error('queries.idees', 'getIdeeById failed', { id, error });

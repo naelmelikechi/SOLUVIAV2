@@ -146,20 +146,29 @@ export async function sendDevisRelanceEmail(p: RelanceParams): Promise<void> {
     return;
   }
 
+  // Destinataires : contacts flaggés recoit_factures, sinon fallback sur le
+  // premier contact avec email - même règle que resolveFactureRecipients
+  // (lib/email/client.ts), pour qu'une relance parte au lieu d'être skippée
+  // quand le client n'a coché aucun contact "reçoit les factures".
   const { data: contacts } = await supabase
     .from('client_contacts')
-    .select('email')
+    .select('email, recoit_factures')
     .eq('client_id', devis.client_id)
-    .eq('recoit_factures', true);
+    .not('email', 'is', null);
 
-  const to = (contacts ?? []).flatMap((c) =>
-    c.email ? [c.email] : [],
-  ) as string[];
+  const list = contacts ?? [];
+  let to = list.flatMap((c) =>
+    c.recoit_factures && c.email ? [c.email as string] : [],
+  );
   if (to.length === 0) {
-    logger.warn('email.devis.relance', 'aucun contact recoit_factures', {
-      ref: devis.ref,
-    });
-    return;
+    const fallback = list.find((c) => c.email)?.email;
+    if (!fallback) {
+      logger.warn('email.devis.relance', 'aucun contact avec email', {
+        ref: devis.ref,
+      });
+      return;
+    }
+    to = [fallback];
   }
 
   const link = `${getAppUrl()}/devis/public/${devis.acceptation_token}`;

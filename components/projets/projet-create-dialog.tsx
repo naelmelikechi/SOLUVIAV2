@@ -114,8 +114,10 @@ export function ProjetCreateDialog({
 
   useCmdEnter(handleSubmit, !isPending);
 
-  // Filter active typologies (exclude ABS)
-  const activeTypologies = typologies.filter((t) => t.code !== 'ABS');
+  // Filter active typologies (exclude ABS et LIB systeme)
+  const activeTypologies = typologies.filter(
+    (t) => t.code !== 'ABS' && t.code !== 'LIB',
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

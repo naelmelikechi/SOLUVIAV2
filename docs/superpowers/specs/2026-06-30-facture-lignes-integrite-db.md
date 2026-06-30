@@ -28,7 +28,7 @@ futures (point clé pour la précondition data, §Précondition).
 
 ### Chantier 1 — lignes mutables post-émission
 
-- `supabase/migrations/00030_rls_policies.sql:109-111` : `facture_lignes_insert/update/delete` sont
+- `supabase/migrations/20260511225656_consolidate_multipermissive_policies_lot3.sql:109-111` : `facture_lignes_insert/update/delete` sont
   ouverts à `is_admin()` **sans condition de statut**. RLS autorise donc tout admin (ou tout appel
   service-role / PostgREST direct) à muter les lignes d'une facture émise.
 - L'immutabilité repose à 100 % sur `assertBrouillon()`
@@ -222,7 +222,7 @@ header. Tant que ce retrait n'est pas fait, app + trigger **co-existent sans con
 ## Composants (SQL exact)
 
 Migration cible (à créer par le contrôleur, **non** dans cette spec) :
-`supabase/migrations/20260630140000_facture_lignes_integrite_db.sql`.
+`supabase/migrations/20260630141000_facture_lignes_integrite_db.sql`.
 
 ### 1. Gel column-scoped des lignes
 
@@ -409,7 +409,7 @@ FOR EACH ROW EXECUTE FUNCTION recompute_facture_totaux_on_emission();
 
 1. Écrire `supabase/tests/25_facture_lignes_integrite_db.sql` (cf. §Tests) **avant** la migration ;
    `supabase test db` doit **échouer** (triggers absents).
-2. Écrire la migration `20260630140000_facture_lignes_integrite_db.sql` (les 3 blocs ci-dessus).
+2. Écrire la migration `20260630141000_facture_lignes_integrite_db.sql` (les 3 blocs ci-dessus).
 3. `supabase test db` doit **passer** ; `supabase db reset` rejoue toute la chaîne sans erreur.
 
 **Ordre de déploiement (gating Supavia au merge) :**
@@ -435,7 +435,7 @@ Fichier `supabase/tests/25_facture_lignes_integrite_db.sql`, calqué sur
 
 ```sql
 -- ===========================================================================
--- Test : integrite DB facture_lignes (20260630140000)
+-- Test : integrite DB facture_lignes (20260630141000)
 --   * immutabilite column-scoped post-emission
 --   * SUM(lignes) = header (recompute brouillon + filet emission)
 -- ===========================================================================

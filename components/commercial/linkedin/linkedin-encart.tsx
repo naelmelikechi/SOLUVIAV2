@@ -65,11 +65,15 @@ export function LinkedinEncart({ prospectId }: Props) {
 
   useEffect(() => {
     let active = true;
-    void getLastLinkedinEvent(prospectId).then((e) => {
-      if (!active) return;
-      setEvent(e);
-      setLoaded(true);
-    });
+    void getLastLinkedinEvent(prospectId)
+      .then((e) => {
+        if (!active) return;
+        setEvent(e);
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (active) setLoaded(true);
+      });
     return () => {
       active = false;
     };

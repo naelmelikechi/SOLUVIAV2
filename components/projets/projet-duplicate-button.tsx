@@ -61,6 +61,7 @@ export function ProjetDuplicateButton({
         title="Dupliquer le projet"
         description={`Dupliquer le projet ${projetRef} ? Un nouveau projet sera créé avec les mêmes paramètres (client, typologie, CDP, commission).`}
         confirmText="Dupliquer"
+        isPending={loading}
         onConfirm={handleDuplicate}
       />
     </>

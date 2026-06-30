@@ -140,6 +140,7 @@ export function ClientDocumentActions({
         title="Supprimer le document"
         description={`Voulez-vous supprimer "${fileName}" ? Cette action est irréversible.`}
         confirmText="Supprimer"
+        isPending={deleting}
         onConfirm={handleDelete}
       />
       <DocumentPreviewSheet

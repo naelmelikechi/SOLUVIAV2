@@ -77,9 +77,12 @@ export function DevisDetailClient({ devis }: DevisDetailClientProps) {
 
   function copyLink() {
     if (!publicLink) return;
-    navigator.clipboard.writeText(publicLink).then(() => {
-      toast.success('Lien copié dans le presse-papiers.');
-    });
+    navigator.clipboard
+      .writeText(publicLink)
+      .then(() => {
+        toast.success('Lien copié dans le presse-papiers.');
+      })
+      .catch(() => toast.error('Copie impossible'));
   }
 
   return (

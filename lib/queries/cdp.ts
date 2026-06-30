@@ -208,7 +208,8 @@ export async function getCdpPipeline(
     .in('client_id', clientIds)
     .eq('statut', 'actif')
     .eq('archive', false)
-    .eq('est_interne', false);
+    .eq('est_interne', false)
+    .eq('est_libre', false);
 
   if (projetsError) {
     logger.error('queries.cdp', 'getCdpPipeline projets failed', {

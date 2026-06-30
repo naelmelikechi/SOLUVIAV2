@@ -40,6 +40,7 @@ async function getProjetsList() {
     `,
     )
     .eq('archive', false)
+    .eq('est_libre', false)
     .order('ref', { ascending: true });
 
   if (error) {

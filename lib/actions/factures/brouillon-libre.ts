@@ -14,6 +14,7 @@ import {
   montantHtSchema,
   type SupabaseServerClient,
 } from '@/lib/actions/factures/brouillons-shared';
+import { getOrCreateProjetLibre } from '@/lib/projets/projet-libre';
 
 const BlankBrouillonLigneSchema = z.object({
   contratId: uuidSchema('contratId'),
@@ -33,10 +34,11 @@ const CreateBlankBrouillonSchema = z.object({
     .max(500, 'Trop de lignes'),
 });
 
-// Facture libre : rattachee a un client uniquement (pas de projet ni de
-// contrats). Chaque ligne est juste une description + montant HT, et la TVA
-// est calculee a 20% sur le total. Admin only - les CDPs ne peuvent ni en
-// creer ni en voir (RLS via projet_id NULL == EXISTS-subquery vide).
+// Facture libre : rattachee au projet libre systeme du client (pas de projet
+// metier ni de contrats). Chaque ligne est juste une description + montant HT,
+// et la TVA est calculee a 20% sur le total. Admin only - les CDPs ne peuvent
+// ni en creer ni en voir : le projet libre a cdp_id/backup_cdp_id NULL, donc
+// l'EXISTS-subquery de la RLS CDP est vide pour eux.
 const FreeLigneSchema = z.object({
   description: z.string().trim().min(1, 'Description requise').max(2000),
   montantHt: montantHtSchema,
@@ -55,7 +57,8 @@ const CreateFreeBrouillonSchema = z.object({
 // Helper interne : insert brouillon facture + lignes
 // ---------------------------------------------------------------------------
 // Partage la mecanique commune entre createBlankBrouillon (facture rattachee
-// projet) et createFreeBrouillon (facture libre, projet_id=null). Calcule la
+// projet) et createFreeBrouillon (facture libre, rattachee au projet libre du
+// client). Calcule la
 // TVA 20% en cents entiers pour preserver l'invariant
 // SUM(facture_lignes.montant_ht) == factures.montant_ht et rollback la
 // facture si l'insert des lignes echoue (autorise tant que statut='a_emettre'
@@ -254,7 +257,8 @@ export async function createBlankBrouillon(params: {
 
 // ---------------------------------------------------------------------------
 // createFreeBrouillon - facture libre (prestations one-shot, conseil, audit...)
-// rattachee a un client mais sans projet ni contrats. Admin/superadmin only.
+// rattachee au projet libre du client (pas de projet metier ni de contrats).
+// Admin/superadmin only.
 // ---------------------------------------------------------------------------
 export interface FreeLigne {
   description: string;
@@ -275,9 +279,9 @@ export async function createFreeBrouillon(params: {
   }
   const { clientId, societeEmettriceId, lignes } = parsed.data;
 
-  // Admin only : les factures libres sont hors perimetre CDP (pas de projet
-  // -> pas de rattachement metier). Garantit que la RLS CDP (EXISTS sur
-  // projet) ne soit pas contournee par un appel direct au server action.
+  // Admin only : la facture libre est rattachee au projet libre du client
+  // (cree plus bas). checkAuth garantit que la RLS CDP (EXISTS sur projet)
+  // ne soit pas contournee par un appel direct au server action.
   const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -294,10 +298,16 @@ export async function createFreeBrouillon(params: {
     return { success: false, error: 'Client archivé' };
   }
 
+  // Invariant "aucune facture sans projet" : rattache la facture libre au
+  // projet libre du client (cree a la volee si absent). Admin-only deja
+  // garanti par checkAuth ci-dessus -> l'INSERT du projet passe la RLS.
+  const projetLibre = await getOrCreateProjetLibre(supabase, clientId);
+  if (!projetLibre.ok) return { success: false, error: projetLibre.error };
+
   const result = await insertBrouillonWithLignes({
     supabase,
     userId: user.id,
-    projetId: null,
+    projetId: projetLibre.projetId,
     clientId,
     societeEmettriceId,
     lignes: lignes.map((l) => ({

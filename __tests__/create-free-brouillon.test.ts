@@ -7,15 +7,16 @@ import type { User } from '@supabase/supabase-js';
 /**
  * Tests pour lib/actions/factures/brouillons.ts::createFreeBrouillon.
  *
- * Use case : facture rattachée à un client mais sans projet ni contrats
- * (conseil, audit, prestation one-shot).
+ * Use case : facture rattachée au projet libre du client (sans projet métier
+ *   ni contrats : conseil, audit, prestation one-shot).
  *
  * Invariants couverts :
  * - Validation Zod : clientId UUID, lignes non vides, description requise,
  *   montant strictement positif.
  * - Admin only : checkAuth → 403 si pas admin.
  * - Client doit exister et ne pas être archivé.
- * - Insert facture avec projet_id=NULL, status=a_emettre, sans ref/numero_seq.
+ * - Insert facture rattachée au projet libre du client (projet_id non NULL,
+ *   résolu via get_or_create_projet_libre), status=a_emettre, sans ref/numero_seq.
  * - Insert facture_lignes avec contrat_id=NULL.
  * - TVA 20% sur le total HT, cents entiers (cohérence SUM lignes).
  */
@@ -55,6 +56,7 @@ interface MockState {
   client: ClientRow | null;
   insertError: { message: string } | null;
   lignesError: { message: string } | null;
+  rpcError: { message: string } | null;
   insertedFactureId: string;
 }
 
@@ -66,10 +68,12 @@ const mockState: MockState = {
   client: { id: VALID_CLIENT_UUID, archive: false, trigramme: 'ACM' },
   insertError: null,
   lignesError: null,
+  rpcError: null,
   insertedFactureId: 'fac-new-id',
 };
 
 const recordedInserts: Array<{ table: string; payload: unknown }> = [];
+const recordedRpc: Array<{ fn: string; args: unknown }> = [];
 
 function buildSupabase() {
   return {
@@ -126,6 +130,13 @@ function buildSupabase() {
         },
       };
     },
+    rpc(fn: string, args: unknown) {
+      recordedRpc.push({ fn, args });
+      return Promise.resolve({
+        data: mockState.rpcError ? null : 'projet-libre-id',
+        error: mockState.rpcError,
+      });
+    },
   };
 }
 
@@ -146,6 +157,7 @@ vi.mock('@/lib/auth/guards', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   recordedInserts.length = 0;
+  recordedRpc.length = 0;
   mockState.authResult = {
     ok: true,
     user: { id: VALID_USER_UUID } as User,
@@ -157,6 +169,7 @@ beforeEach(() => {
   };
   mockState.insertError = null;
   mockState.lignesError = null;
+  mockState.rpcError = null;
   mockState.insertedFactureId = 'fac-new-id';
 });
 
@@ -245,7 +258,7 @@ describe('createFreeBrouillon', () => {
     expect(result.error).toMatch(/[Aa]rchivé/);
   });
 
-  it('insère la facture avec projet_id=NULL, statut=a_emettre, sans ref', async () => {
+  it('rattache la facture au projet libre du client (projet_id non null)', async () => {
     const { createFreeBrouillon } =
       await import('@/lib/actions/factures/brouillons');
     const result = await createFreeBrouillon({
@@ -255,10 +268,15 @@ describe('createFreeBrouillon', () => {
     expect(result.success).toBe(true);
     expect(result.id).toBe('fac-new-id');
 
+    expect(recordedRpc[0]).toEqual({
+      fn: 'get_or_create_projet_libre',
+      args: { p_client_id: VALID_CLIENT_UUID },
+    });
+
     const factureInsert = recordedInserts.find((i) => i.table === 'factures');
     expect(factureInsert).toBeDefined();
     const payload = factureInsert!.payload as Record<string, unknown>;
-    expect(payload.projet_id).toBeNull();
+    expect(payload.projet_id).toBe('projet-libre-id');
     expect(payload.client_id).toBe(VALID_CLIENT_UUID);
     expect(payload.statut).toBe('a_emettre');
     expect(payload.est_avoir).toBe(false);
@@ -320,5 +338,19 @@ describe('createFreeBrouillon', () => {
     });
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/lignes insert failed/);
+  });
+
+  it('refuse si getOrCreateProjetLibre échoue (projet libre indisponible)', async () => {
+    mockState.rpcError = { message: 'projet libre KO' };
+    const { createFreeBrouillon } =
+      await import('@/lib/actions/factures/brouillons');
+    const result = await createFreeBrouillon({
+      clientId: VALID_CLIENT_UUID,
+      lignes: [{ description: 'Audit', montantHt: 1000 }],
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/projet libre KO/);
+    // Aucune facture ne doit être insérée si le projet libre est indisponible.
+    expect(recordedInserts.find((i) => i.table === 'factures')).toBeUndefined();
   });
 });

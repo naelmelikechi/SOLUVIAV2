@@ -10,6 +10,7 @@ import { isAdmin } from '@/lib/utils/roles';
 import { getDevisById } from '@/lib/queries/devis';
 import { addDaysIso } from '@/lib/utils/dates';
 import { getDelaiEcheanceJours } from '@/lib/queries/parametres';
+import { getOrCreateProjetLibre } from '@/lib/projets/projet-libre';
 
 type Result<T = object> =
   | ({ success: true } & T)
@@ -61,6 +62,11 @@ export async function createFactureFromDevis(
     };
 
   const supabase = await createClient();
+
+  // Invariant "aucune facture sans projet" : la table devis n'a pas de lien
+  // projet -> on rattache au projet libre du client du devis.
+  const projetLibre = await getOrCreateProjetLibre(supabase, devis.client_id);
+  if (!projetLibre.ok) return { success: false, error: projetLibre.error };
 
   // Recuperer le total deja facture pour ce devis (pour calcul du solde)
   const { data: existingFactures } = await supabase
@@ -140,6 +146,7 @@ export async function createFactureFromDevis(
     .from('factures')
     .insert({
       client_id: devis.client_id,
+      projet_id: projetLibre.projetId,
       societe_emettrice_id: devis.societe_emettrice_id,
       devis_id: devis.id,
       statut: 'a_emettre',

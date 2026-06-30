@@ -46,7 +46,8 @@ export async function GET(request: Request) {
           .from('projets')
           .select('cdp_id, backup_cdp_id')
           .eq('archive', false)
-          .eq('est_interne', false);
+          .eq('est_interne', false)
+          .eq('est_libre', false);
 
         if (projetsError) {
           logger.error(SCOPE, 'fetch projets failed', { error: projetsError });

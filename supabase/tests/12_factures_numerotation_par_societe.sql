@@ -29,6 +29,7 @@ DECLARE
   v_sol UUID;
   v_dig UUID;
   v_f UUID;
+  v_projet UUID;
 BEGIN
   SELECT id INTO v_sol FROM societes_emettrices WHERE code = 'SOL';
 
@@ -43,27 +44,31 @@ BEGIN
   INSERT INTO clients (id, trigramme, raison_sociale, is_demo, archive)
   VALUES (v_client, 'NUM', 'Client Test Numerotation', false, false);
 
+  INSERT INTO projets (id, client_id, typologie_id, ref, statut, est_interne, archive)
+  VALUES (gen_random_uuid(), v_client, (SELECT id FROM typologies_projet LIMIT 1), 'NUM-PROJ', 'actif', false, false)
+  RETURNING id INTO v_projet;
+
   INSERT INTO factures (
-    societe_emettrice_id, client_id, statut, est_avoir,
+    projet_id, societe_emettrice_id, client_id, statut, est_avoir,
     montant_ht, montant_tva, montant_ttc, taux_tva, date_emission, date_echeance
   ) VALUES (
-    v_sol, v_client, 'emise', FALSE, 100, 20, 120, 20, CURRENT_DATE, CURRENT_DATE + 30
+    v_projet, v_sol, v_client, 'emise', FALSE, 100, 20, 120, 20, CURRENT_DATE, CURRENT_DATE + 30
   ) RETURNING id INTO v_f;
   INSERT INTO _fx VALUES ('sol1', v_f);
 
   INSERT INTO factures (
-    societe_emettrice_id, client_id, statut, est_avoir,
+    projet_id, societe_emettrice_id, client_id, statut, est_avoir,
     montant_ht, montant_tva, montant_ttc, taux_tva, date_emission, date_echeance
   ) VALUES (
-    v_dig, v_client, 'emise', FALSE, 200, 40, 240, 20, CURRENT_DATE, CURRENT_DATE + 30
+    v_projet, v_dig, v_client, 'emise', FALSE, 200, 40, 240, 20, CURRENT_DATE, CURRENT_DATE + 30
   ) RETURNING id INTO v_f;
   INSERT INTO _fx VALUES ('dig1', v_f);
 
   INSERT INTO factures (
-    societe_emettrice_id, client_id, statut, est_avoir,
+    projet_id, societe_emettrice_id, client_id, statut, est_avoir,
     montant_ht, montant_tva, montant_ttc, taux_tva, date_emission, date_echeance
   ) VALUES (
-    v_dig, v_client, 'emise', FALSE, 300, 60, 360, 20, CURRENT_DATE, CURRENT_DATE + 30
+    v_projet, v_dig, v_client, 'emise', FALSE, 300, 60, 360, 20, CURRENT_DATE, CURRENT_DATE + 30
   ) RETURNING id INTO v_f;
   INSERT INTO _fx VALUES ('dig2', v_f);
 END $$;

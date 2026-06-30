@@ -129,7 +129,8 @@ async function computeKpisForScope(
     .eq('statut', 'actif')
     .eq('archive', false)
     .eq('client.is_demo', false)
-    .eq('client.archive', false);
+    .eq('client.archive', false)
+    .eq('est_libre', false);
 
   if (scope === 'projet') {
     projetsQ = projetsQ.eq('id', scopeId as string);
@@ -381,7 +382,8 @@ export async function GET(request: Request) {
         .eq('statut', 'actif')
         .eq('archive', false)
         .eq('client.is_demo', false)
-        .eq('client.archive', false),
+        .eq('client.archive', false)
+        .eq('est_libre', false),
       supabase.from('users').select('id').eq('role', 'cdp').eq('actif', true),
     ]);
 

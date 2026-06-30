@@ -55,7 +55,8 @@ export async function getIntercontratUsers(): Promise<IntercontratUser[]> {
       .from('projets')
       .select('cdp_id, backup_cdp_id')
       .eq('archive', false)
-      .eq('est_interne', false),
+      .eq('est_interne', false)
+      .eq('est_libre', false),
   ]);
 
   if (usersResult.error) {

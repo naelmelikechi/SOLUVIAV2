@@ -176,6 +176,7 @@ export async function listBillableProjets(): Promise<
     `,
     )
     .eq('archive', false)
+    .eq('est_libre', false)
     .order('ref');
 
   if (error) {

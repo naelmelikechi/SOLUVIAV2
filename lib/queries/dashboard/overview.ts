@@ -22,7 +22,8 @@ export async function getDashboardData() {
         .eq('statut', 'actif')
         .eq('archive', false)
         .eq('client.is_demo', false)
-        .eq('client.archive', false),
+        .eq('client.archive', false)
+        .eq('est_libre', false),
       supabase
         .from('factures')
         .select(

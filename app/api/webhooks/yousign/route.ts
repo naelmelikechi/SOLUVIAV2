@@ -40,18 +40,22 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
 
   const secret = process.env.YOUSIGN_WEBHOOK_SECRET;
-  if (secret) {
-    const provided = request.headers.get('x-yousign-signature-256');
-    const expected = `sha256=${createHmac('sha256', secret)
-      .update(rawBody)
-      .digest('hex')}`;
-    if (!timingSafeStrEqual(provided, expected)) {
-      logger.warn(SCOPE, 'Signature de webhook invalide');
-      return NextResponse.json(
-        { error: 'Signature invalide' },
-        { status: 401 },
-      );
-    }
+  // Fail-closed : sans secret configure, on refuse (comme linkedin/bank-lines/
+  // odoo). Auparavant un secret absent => webhook traite sans authentification.
+  if (!secret) {
+    logger.error(SCOPE, 'YOUSIGN_WEBHOOK_SECRET absent : webhook refuse');
+    return NextResponse.json(
+      { error: 'Webhook non configure' },
+      { status: 503 },
+    );
+  }
+  const provided = request.headers.get('x-yousign-signature-256');
+  const expected = `sha256=${createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex')}`;
+  if (!timingSafeStrEqual(provided, expected)) {
+    logger.warn(SCOPE, 'Signature de webhook invalide');
+    return NextResponse.json({ error: 'Signature invalide' }, { status: 401 });
   }
 
   let event: YousignEvent;

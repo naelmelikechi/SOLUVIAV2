@@ -376,13 +376,16 @@ export async function syncEduviaForClient(
       try {
         const learner = learnerById.get(contract.employee_id);
         const formation = formationById.get(contract.formation_id);
-        const duree_mois =
+        const dureeRaw =
           contract.contract_start_date && contract.contract_end_date
             ? differenceInMonths(
                 new Date(contract.contract_end_date),
                 new Date(contract.contract_start_date),
               )
             : null;
+        // Dates Eduvia malformees -> Invalid Date -> differenceInMonths = NaN,
+        // qui ferait echouer l'upsert du contrat. On retombe sur null.
+        const duree_mois = Number.isFinite(dureeRaw) ? dureeRaw : null;
 
         // oxlint-disable-next-line react-doctor/async-await-in-loop
         const { error: upsertError } = await supabase.from('contrats').upsert(

@@ -2698,6 +2698,7 @@ export type Database = {
           eduvia_company_ids: number[] | null;
           est_absence: boolean;
           est_interne: boolean;
+          est_libre: boolean;
           id: string;
           ref: string | null;
           statut: Database['public']['Enums']['statut_projet'];
@@ -2719,6 +2720,7 @@ export type Database = {
           eduvia_company_ids?: number[] | null;
           est_absence?: boolean;
           est_interne?: boolean;
+          est_libre?: boolean;
           id?: string;
           ref?: string | null;
           statut?: Database['public']['Enums']['statut_projet'];
@@ -2740,6 +2742,7 @@ export type Database = {
           eduvia_company_ids?: number[] | null;
           est_absence?: boolean;
           est_interne?: boolean;
+          est_libre?: boolean;
           id?: string;
           ref?: string | null;
           statut?: Database['public']['Enums']['statut_projet'];
@@ -3788,6 +3791,10 @@ export type Database = {
       get_devis_public: {
         Args: { p_ip?: unknown; p_token: string; p_user_agent?: string };
         Returns: Json;
+      };
+      get_or_create_projet_libre: {
+        Args: { p_client_id: string };
+        Returns: string;
       };
       get_prospect_time_in_stage_median: {
         Args: never;

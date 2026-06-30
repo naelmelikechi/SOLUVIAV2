@@ -7,15 +7,16 @@ import type { User } from '@supabase/supabase-js';
 /**
  * Tests pour lib/actions/factures/brouillons.ts::createFreeBrouillon.
  *
- * Use case : facture rattachée à un client mais sans projet ni contrats
- * (conseil, audit, prestation one-shot).
+ * Use case : facture rattachée au projet libre du client (sans projet métier
+ *   ni contrats : conseil, audit, prestation one-shot).
  *
  * Invariants couverts :
  * - Validation Zod : clientId UUID, lignes non vides, description requise,
  *   montant strictement positif.
  * - Admin only : checkAuth → 403 si pas admin.
  * - Client doit exister et ne pas être archivé.
- * - Insert facture avec projet_id=NULL, status=a_emettre, sans ref/numero_seq.
+ * - Insert facture rattachée au projet libre du client (projet_id non NULL,
+ *   résolu via get_or_create_projet_libre), status=a_emettre, sans ref/numero_seq.
  * - Insert facture_lignes avec contrat_id=NULL.
  * - TVA 20% sur le total HT, cents entiers (cohérence SUM lignes).
  */

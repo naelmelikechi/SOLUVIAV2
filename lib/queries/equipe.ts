@@ -52,6 +52,7 @@ export async function getEquipeWithProjets(): Promise<EquipeMember[]> {
       )
       .eq('archive', false)
       .eq('est_interne', false)
+      .eq('est_libre', false)
       .in('statut', ['actif', 'en_pause']),
   ]);
 

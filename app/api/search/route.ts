@@ -46,6 +46,7 @@ export async function GET(request: Request) {
       .select('ref, client:clients!projets_client_id_fkey(raison_sociale)')
       .ilike('ref', pattern)
       .eq('archive', false)
+      .eq('est_libre', false)
       .limit(5),
     supabase
       .from('clients')
@@ -94,6 +95,7 @@ export async function GET(request: Request) {
             foreignTable: 'clients',
           })
           .eq('archive', false)
+          .eq('est_libre', false)
           .limit(5)
       : { data: [] };
 

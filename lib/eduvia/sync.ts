@@ -164,7 +164,8 @@ export async function syncEduviaForClient(
     .from('projets')
     .select('id, client_id, archive, eduvia_company_ids')
     .eq('client_id', clientId)
-    .eq('archive', false);
+    .eq('archive', false)
+    .eq('est_libre', false);
 
   if (projetsError) {
     result.errors.push(`Erreur récupération projets: ${projetsError.message}`);

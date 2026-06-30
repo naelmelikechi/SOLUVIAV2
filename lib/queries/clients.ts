@@ -144,6 +144,7 @@ export async function getProjetsByClientId(clientId: string) {
     `,
     )
     .eq('client_id', clientId)
+    .eq('est_libre', false)
     .order('ref');
 
   if (error) {

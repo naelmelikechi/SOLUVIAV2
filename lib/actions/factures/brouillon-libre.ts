@@ -34,10 +34,11 @@ const CreateBlankBrouillonSchema = z.object({
     .max(500, 'Trop de lignes'),
 });
 
-// Facture libre : rattachee a un client uniquement (pas de projet ni de
-// contrats). Chaque ligne est juste une description + montant HT, et la TVA
-// est calculee a 20% sur le total. Admin only - les CDPs ne peuvent ni en
-// creer ni en voir (RLS via projet_id NULL == EXISTS-subquery vide).
+// Facture libre : rattachee au projet libre systeme du client (pas de projet
+// metier ni de contrats). Chaque ligne est juste une description + montant HT,
+// et la TVA est calculee a 20% sur le total. Admin only - les CDPs ne peuvent
+// ni en creer ni en voir : le projet libre a cdp_id/backup_cdp_id NULL, donc
+// l'EXISTS-subquery de la RLS CDP est vide pour eux.
 const FreeLigneSchema = z.object({
   description: z.string().trim().min(1, 'Description requise').max(2000),
   montantHt: montantHtSchema,
@@ -56,7 +57,8 @@ const CreateFreeBrouillonSchema = z.object({
 // Helper interne : insert brouillon facture + lignes
 // ---------------------------------------------------------------------------
 // Partage la mecanique commune entre createBlankBrouillon (facture rattachee
-// projet) et createFreeBrouillon (facture libre, projet_id=null). Calcule la
+// projet) et createFreeBrouillon (facture libre, rattachee au projet libre du
+// client). Calcule la
 // TVA 20% en cents entiers pour preserver l'invariant
 // SUM(facture_lignes.montant_ht) == factures.montant_ht et rollback la
 // facture si l'insert des lignes echoue (autorise tant que statut='a_emettre'
@@ -255,7 +257,8 @@ export async function createBlankBrouillon(params: {
 
 // ---------------------------------------------------------------------------
 // createFreeBrouillon - facture libre (prestations one-shot, conseil, audit...)
-// rattachee a un client mais sans projet ni contrats. Admin/superadmin only.
+// rattachee au projet libre du client (pas de projet metier ni de contrats).
+// Admin/superadmin only.
 // ---------------------------------------------------------------------------
 export interface FreeLigne {
   description: string;

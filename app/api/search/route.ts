@@ -56,8 +56,8 @@ export async function GET(request: Request) {
       .limit(5),
     supabase
       .from('factures')
-      .select('numero, projet:projets!factures_projet_id_fkey(ref)')
-      .ilike('numero', pattern)
+      .select('ref, projet:projets!factures_projet_id_fkey(ref)')
+      .ilike('ref', pattern)
       .limit(5),
     supabase
       .from('apprenants')

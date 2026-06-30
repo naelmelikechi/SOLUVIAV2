@@ -84,34 +84,39 @@ export async function GET(request: Request) {
       }
     }
 
+    const notifPayloads: {
+      type: 'facture_retard';
+      user_id: string;
+      titre: string;
+      message: string;
+      lien: string;
+    }[] = [];
     for (const facture of overdueFactures) {
       const cdpId = facture.projet?.cdp_id;
       if (!cdpId || !facture.ref) continue;
-
       const lien = `/facturation/${facture.ref}`;
       if (existingLinks.has(lien)) continue;
-
-      // oxlint-disable-next-line react-doctor/async-await-in-loop
+      notifPayloads.push({
+        type: 'facture_retard',
+        user_id: cdpId,
+        titre: 'Facture en retard',
+        message: `La facture ${facture.ref} est en retard de paiement depuis le ${facture.date_echeance}`,
+        lien,
+      });
+    }
+    // Un seul INSERT batch (vs N round-trips) ; borne par le nb de factures
+    // en retard non encore notifiees.
+    if (notifPayloads.length > 0) {
       const { error: notifError } = await supabase
         .from('notifications')
-        .insert({
-          type: 'facture_retard',
-          user_id: cdpId,
-          titre: 'Facture en retard',
-          message: `La facture ${facture.ref} est en retard de paiement depuis le ${facture.date_echeance}`,
-          lien,
+        .insert(notifPayloads);
+      if (notifError) {
+        logger.warn('cron.factures-retard', 'Batch insert notifications KO', {
+          error: notifError,
+          count: notifPayloads.length,
         });
-
-      if (!notifError) {
-        notificationsCreated++;
       } else {
-        logger.warn(
-          'cron.factures-retard',
-          `Failed to create notification for ${facture.ref}`,
-          {
-            error: notifError,
-          },
-        );
+        notificationsCreated += notifPayloads.length;
       }
     }
 

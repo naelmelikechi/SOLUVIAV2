@@ -45,7 +45,7 @@ SELECT
   COALESCE((SELECT MAX(numero_seq) FROM factures), 0);
 
 INSERT INTO clients (id, raison_sociale, trigramme, is_demo, archive)
-SELECT client_id, 'Test Concurrency SAS', 'CON', false, false FROM _ctx;
+SELECT client_id, 'Test Concurrency SAS', 'CNC', false, false FROM _ctx;
 
 INSERT INTO projets (id, client_id, typologie_id, ref, statut, est_interne, archive)
 SELECT

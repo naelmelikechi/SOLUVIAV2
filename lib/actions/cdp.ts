@@ -30,14 +30,18 @@ async function getCdpAuth() {
   }
   const { data: profile } = await supabase
     .from('users')
-    .select('role, referent_cdp')
+    .select('role, referent_cdp, actif')
     .eq('id', user.id)
     .single();
+  // Un utilisateur desactive (actif=false) perd tout pouvoir CDP meme si sa
+  // session reste valide : sans ca, un referent_cdp desactive pourrait encore
+  // reaffecter des clients via le client service-role (bypass RLS).
+  const actif = profile?.actif ?? false;
   return {
     supabase,
     userId: user.id,
-    role: (profile?.role ?? null) as Role | null,
-    referentCdp: profile?.referent_cdp ?? false,
+    role: (actif ? (profile?.role ?? null) : null) as Role | null,
+    referentCdp: actif ? (profile?.referent_cdp ?? false) : false,
   };
 }
 

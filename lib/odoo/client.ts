@@ -200,9 +200,13 @@ const SCOPE = 'odoo.client';
 // ---------------------------------------------------------------------------
 
 // Borne chaque requete JSON-RPC : sans elle, un Odoo qui rame bloque le cron
-// jusqu'au timeout Vercel (300s).
-const REQUEST_TIMEOUT_MS = 60_000;
-const MAX_RETRIES = 3;
+// jusqu'a la mort de la fonction. La route /api/sync/odoo a maxDuration=120s ;
+// les entites (factures/avoirs/paiements/annulations) tournent en Promise.all,
+// chacune enchainant plusieurs RPC sequentiels. On dimensionne pour qu'UN RPC
+// bloque ne consomme pas tout le budget : 30s x (1 + 2 retries) + backoff
+// (0.5 + 1.5s) ~= 92s worst-case, sous les 120s de la route.
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 2;
 const RETRY_BACKOFF_MS = [500, 1_500, 4_000];
 
 // Seules les methodes execute_kw SANS effet de bord sont rejouees : rejouer un

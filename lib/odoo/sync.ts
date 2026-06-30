@@ -252,12 +252,27 @@ async function pushFactures(
               continue;
             }
             if (r.analytic_line_odoo_id !== null) {
-              await supabase
+              const { error: persistErr } = await supabase
                 .from('facture_lignes')
                 .update({
                   analytic_line_odoo_id: String(r.analytic_line_odoo_id),
                 })
                 .eq('id', l.id);
+              if (persistErr) {
+                // La ligne analytique EST creee cote Odoo mais l'id n'a pas pu
+                // etre persiste : un re-push ulterieur la recreerait (doublon
+                // de CA analytique). On loggue pour detection (pas de Sentry).
+                logger.warn(
+                  SCOPE,
+                  'Analytic line poussee mais persistance analytic_line_odoo_id KO (risque doublon au re-push)',
+                  {
+                    facture_id: f.id,
+                    ligne_id: l.id,
+                    analytic_line_odoo_id: r.analytic_line_odoo_id,
+                    error: persistErr,
+                  },
+                );
+              }
             }
           } catch (err) {
             logger.warn(SCOPE, 'Push analytic line failed (non bloquant)', {
@@ -306,7 +321,8 @@ async function pushAvoirs(
     `,
     )
     .is('odoo_id', null)
-    .eq('est_avoir', true);
+    .eq('est_avoir', true)
+    .eq('statut', 'avoir');
 
   if (fetchErr) {
     logger.error(SCOPE, 'Failed to fetch avoirs for push', {

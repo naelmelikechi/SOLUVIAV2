@@ -178,6 +178,7 @@ export async function listProjetsForFacturation() {
     )
     .eq('client.archive', false)
     .eq('archive', false)
+    .eq('est_libre', false)
     .order('ref');
   if (error) {
     logger.error('queries.factures', 'listProjetsForFacturation failed', {

@@ -129,7 +129,7 @@ export async function POST(request: Request) {
   );
   const message = `⚠️ Facture ${facture.ref ?? '(sans ref)'} annulée côté Odoo le ${writeDate} (webhook). À réviser.`;
   if (adminIds.length > 0) {
-    await supabase.from('notifications').insert(
+    const { error: notifErr } = await supabase.from('notifications').insert(
       adminIds.map((adminId) => ({
         type: 'erreur_sync' as const,
         user_id: adminId,
@@ -138,6 +138,11 @@ export async function POST(request: Request) {
         lien: facture.ref ? `/facturation/${facture.ref}` : null,
       })),
     );
+    if (notifErr)
+      logger.warn(SCOPE, 'Insert notifications annulation KO', {
+        error: notifErr,
+        ref: facture.ref,
+      });
   }
 
   // Fan-out vers FINANCES (best-effort, ne bloque pas la réponse)
@@ -157,8 +162,11 @@ export async function POST(request: Request) {
         cache: 'no-store',
       });
       financesStatus = res.ok ? 'sent' : 'error';
-    } catch {
+    } catch (err) {
       financesStatus = 'error';
+      logger.warn(SCOPE, 'Fan-out FINANCES annulation KO', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

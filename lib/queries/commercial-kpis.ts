@@ -297,7 +297,23 @@ export async function computeCommercialKpis(
     );
   if (commercialId)
     prospectsQuery = prospectsQuery.eq('commercial_id', commercialId);
-  const { data: prospectsData, error: prospectsErr } = await prospectsQuery;
+  const [
+    { data: prospectsData, error: prospectsErr },
+    { data: historyData, error: historyErr },
+    { data: signaturesData, error: signaturesErr },
+  ] = await Promise.all([
+    prospectsQuery,
+    supabase
+      .from('prospect_stage_history')
+      .select('prospect_id, to_stage, changed_at'),
+    supabase
+      .from('signature_requests')
+      .select('prospect_id, signed_at')
+      .eq('statut', 'signee')
+      .not('signed_at', 'is', null)
+      .gte('signed_at', range.prevStart.toISOString())
+      .lte('signed_at', range.end.toISOString()),
+  ]);
   if (prospectsErr) {
     logger.error('queries.commercial-kpis', 'prospects select failed', {
       error: prospectsErr,
@@ -307,9 +323,6 @@ export async function computeCommercialKpis(
   const prospectIds = new Set(prospects.map((p) => p.id));
 
   // --- 2. Historique des transitions (scope via l'ensemble des prospects).
-  const { data: historyData, error: historyErr } = await supabase
-    .from('prospect_stage_history')
-    .select('prospect_id, to_stage, changed_at');
   if (historyErr) {
     logger.error('queries.commercial-kpis', 'stage history select failed', {
       error: historyErr,
@@ -332,13 +345,6 @@ export async function computeCommercialKpis(
 
   // --- 3. Signatures (statut signee) sur la fenetre courante + precedente,
   //        seconde source du passage a "signe" (OU stage history).
-  const { data: signaturesData, error: signaturesErr } = await supabase
-    .from('signature_requests')
-    .select('prospect_id, signed_at')
-    .eq('statut', 'signee')
-    .not('signed_at', 'is', null)
-    .gte('signed_at', range.prevStart.toISOString())
-    .lte('signed_at', range.end.toISOString());
   if (signaturesErr) {
     logger.error('queries.commercial-kpis', 'signatures select failed', {
       error: signaturesErr,

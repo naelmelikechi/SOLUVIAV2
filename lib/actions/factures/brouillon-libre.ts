@@ -14,6 +14,7 @@ import {
   montantHtSchema,
   type SupabaseServerClient,
 } from '@/lib/actions/factures/brouillons-shared';
+import { getOrCreateProjetLibre } from '@/lib/projets/projet-libre';
 
 const BlankBrouillonLigneSchema = z.object({
   contratId: uuidSchema('contratId'),
@@ -275,9 +276,9 @@ export async function createFreeBrouillon(params: {
   }
   const { clientId, societeEmettriceId, lignes } = parsed.data;
 
-  // Admin only : les factures libres sont hors perimetre CDP (pas de projet
-  // -> pas de rattachement metier). Garantit que la RLS CDP (EXISTS sur
-  // projet) ne soit pas contournee par un appel direct au server action.
+  // Admin only : la facture libre est rattachee au projet libre du client
+  // (cree plus bas). checkAuth garantit que la RLS CDP (EXISTS sur projet)
+  // ne soit pas contournee par un appel direct au server action.
   const auth = await checkAuth();
   if (!auth.ok) return { success: false, error: auth.error };
   const { supabase, user } = auth;
@@ -294,10 +295,16 @@ export async function createFreeBrouillon(params: {
     return { success: false, error: 'Client archivé' };
   }
 
+  // Invariant "aucune facture sans projet" : rattache la facture libre au
+  // projet libre du client (cree a la volee si absent). Admin-only deja
+  // garanti par checkAuth ci-dessus -> l'INSERT du projet passe la RLS.
+  const projetLibre = await getOrCreateProjetLibre(supabase, clientId);
+  if (!projetLibre.ok) return { success: false, error: projetLibre.error };
+
   const result = await insertBrouillonWithLignes({
     supabase,
     userId: user.id,
-    projetId: null,
+    projetId: projetLibre.projetId,
     clientId,
     societeEmettriceId,
     lignes: lignes.map((l) => ({

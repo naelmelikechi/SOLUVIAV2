@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logSync } from '@/lib/odoo/sync-log';
 import { logger } from '@/lib/utils/logger';
 
 // Synergie #4 : webhook Odoo invoqué quand un account.move passe en
@@ -116,6 +117,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, action: 'skipped_avoir_exists' });
   }
 
+  // Dedup (Option B) : si une cancellation par move est deja loggee pour cette
+  // facture (webhook precedent ou cron), on ne re-notifie pas. Cle = facture.id
+  // (PK, robuste au ref nul). Symetrique au skip du cron.
+  const { count: handledCount } = await supabase
+    .from('odoo_sync_logs')
+    .select('id', { count: 'exact', head: true })
+    .eq('entity_type', 'cancellation')
+    .eq('entity_id', facture.id)
+    .in('statut', ['success', 'partial']);
+  if (handledCount && handledCount > 0) {
+    return NextResponse.json({
+      success: true,
+      action: 'skipped_already_notified',
+    });
+  }
+
   // Notif admins
   const { data: admins } = await supabase
     .from('users')
@@ -128,8 +145,9 @@ export async function POST(request: Request) {
     10,
   );
   const message = `⚠️ Facture ${facture.ref ?? '(sans ref)'} annulée côté Odoo le ${writeDate} (webhook). À réviser.`;
+  let notifOk = adminIds.length > 0;
   if (adminIds.length > 0) {
-    await supabase.from('notifications').insert(
+    const { error: notifErr } = await supabase.from('notifications').insert(
       adminIds.map((adminId) => ({
         type: 'erreur_sync' as const,
         user_id: adminId,
@@ -138,7 +156,32 @@ export async function POST(request: Request) {
         lien: facture.ref ? `/facturation/${facture.ref}` : null,
       })),
     );
+    if (notifErr) {
+      notifOk = false;
+      logger.warn(SCOPE, 'Insert notifications annulation KO', {
+        error: notifErr,
+        ref: facture.ref,
+      });
+    }
   }
+
+  // Ecrit une ligne cancellation par move (entity_id = facture.id) : ancre de
+  // dedup que le cron respecte. statut='success' UNIQUEMENT si la notif admin a
+  // bien ete creee ; sinon 'error' -> le cron (qui ne skip que success/partial)
+  // re-detecte le move dans l'heure et re-notifie (pas de perte d'alerte sur
+  // echec d'insert ou 0 admin actif). source='webhook' pour la tracabilite.
+  await logSync(supabase, {
+    direction: 'pull',
+    entity_type: 'cancellation',
+    entity_id: facture.id,
+    statut: notifOk ? 'success' : 'error',
+    payload: {
+      odoo_id: odooId,
+      soluvia_ref: facture.ref,
+      write_date: payload.write_date ?? null,
+      source: 'webhook',
+    },
+  });
 
   // Fan-out vers FINANCES (best-effort, ne bloque pas la réponse)
   const financesUrl = process.env.FINANCES_WEBHOOK_URL;
@@ -157,8 +200,11 @@ export async function POST(request: Request) {
         cache: 'no-store',
       });
       financesStatus = res.ok ? 'sent' : 'error';
-    } catch {
+    } catch (err) {
       financesStatus = 'error';
+      logger.warn(SCOPE, 'Fan-out FINANCES annulation KO', {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

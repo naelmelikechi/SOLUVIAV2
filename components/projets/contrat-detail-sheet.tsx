@@ -169,16 +169,22 @@ function Row({
 // oxlint-disable-next-line react-doctor/no-giant-component
 export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
   const [data, setData] = useState<ContratDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!contratId) return;
     let cancelled = false;
+    // Reset avant chaque fetch : synchronisation explicite avec la ressource.
+    // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setError(null);
     fetchContratDetail(contratId)
       .then((res) => {
         if (!cancelled) setData(res);
       })
       .catch((err) => {
         logger.error('contrat-detail-sheet', err, { contratId });
+        if (!cancelled) setError('Impossible de charger le contrat.');
       });
     return () => {
       cancelled = true;
@@ -193,7 +199,11 @@ export function ContratDetailSheet({ contratId, onOpenChange }: Props) {
         side="right"
         className="!max-w-2xl overflow-y-auto sm:!max-w-2xl"
       >
-        {loading || !data ? (
+        {error ? (
+          <div className="flex flex-1 items-center justify-center px-6 py-20">
+            <p className="text-muted-foreground text-sm">{error}</p>
+          </div>
+        ) : loading || !data ? (
           <div className="flex flex-1 items-center justify-center py-20">
             <Loader2 className="text-muted-foreground size-6 animate-spin" />
           </div>

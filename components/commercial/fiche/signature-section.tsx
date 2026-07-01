@@ -110,7 +110,15 @@ function SignatureRow({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [downloading, setDownloading] = useState<'document' | 'signed' | null>(
+    null,
+  );
   const terminal = s.statut === 'signee' || s.statut === 'annulee';
+
+  const handleOpen = (kind: 'document' | 'signed') => {
+    setDownloading(kind);
+    void openDocument(s.id, kind).finally(() => setDownloading(null));
+  };
 
   const changeStatut = (
     statut: 'envoyee' | 'refusee' | 'expiree' | 'annulee',
@@ -146,7 +154,8 @@ function SignatureRow({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => openDocument(s.id, 'document')}
+            disabled={downloading === 'document'}
+            onClick={() => handleOpen('document')}
           >
             <Download className="size-3.5" /> Contrat
           </Button>
@@ -155,7 +164,8 @@ function SignatureRow({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => openDocument(s.id, 'signed')}
+            disabled={downloading === 'signed'}
+            onClick={() => handleOpen('signed')}
           >
             <Download className="size-3.5" /> Signé
           </Button>

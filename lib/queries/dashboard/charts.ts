@@ -151,19 +151,21 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
 export async function getInvoiceStatusBreakdown(): Promise<InvoiceStatusBreakdown> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase.from('factures').select('statut');
+  const { data, error } = await supabase.rpc('count_factures_by_statut');
 
   if (error)
     logger.error('queries.dashboard', 'getInvoiceStatusBreakdown failed', {
       error,
     });
 
-  const factures = data ?? [];
+  const byStatut = new Map<string, number>(
+    (data ?? []).map((r) => [r.statut, Number(r.n)]),
+  );
   return {
-    emises: factures.filter((f) => f.statut === 'emise').length,
-    payees: factures.filter((f) => f.statut === 'payee').length,
-    en_retard: factures.filter((f) => f.statut === 'en_retard').length,
-    avoirs: factures.filter((f) => f.statut === 'avoir').length,
+    emises: byStatut.get('emise') ?? 0,
+    payees: byStatut.get('payee') ?? 0,
+    en_retard: byStatut.get('en_retard') ?? 0,
+    avoirs: byStatut.get('avoir') ?? 0,
   };
 }
 

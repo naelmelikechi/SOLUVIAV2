@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getAvatarUrl } from '@/components/shared/user-avatar';
@@ -82,11 +82,14 @@ export function Sidebar({
   const pathname = usePathname();
   const { push } = useRouter();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, startLogout] = useTransition();
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    push('/login');
+  const handleLogout = () => {
+    startLogout(async () => {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      push('/login');
+    });
   };
 
   return (
@@ -423,6 +426,7 @@ export function Sidebar({
         title="Déconnexion"
         description="Êtes-vous sûr de vouloir vous déconnecter ?"
         confirmText="Se déconnecter"
+        isPending={loggingOut}
         onConfirm={handleLogout}
       />
     </aside>

@@ -78,7 +78,7 @@ interface BrouillonLigneInsert {
 async function insertBrouillonWithLignes(args: {
   supabase: SupabaseServerClient;
   userId: string;
-  projetId: string | null;
+  projetId: string;
   clientId: string;
   lignes: BrouillonLigneInsert[];
   logScope: string;

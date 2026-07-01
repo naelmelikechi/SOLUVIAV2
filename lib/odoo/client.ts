@@ -200,9 +200,13 @@ const SCOPE = 'odoo.client';
 // ---------------------------------------------------------------------------
 
 // Borne chaque requete JSON-RPC : sans elle, un Odoo qui rame bloque le cron
-// jusqu'au timeout Vercel (300s).
-const REQUEST_TIMEOUT_MS = 60_000;
-const MAX_RETRIES = 3;
+// jusqu'a la mort de la fonction. La route /api/sync/odoo a maxDuration=120s ;
+// les entites (factures/avoirs/paiements/annulations) tournent en Promise.all,
+// chacune enchainant plusieurs RPC sequentiels. On dimensionne pour qu'UN RPC
+// bloque ne consomme pas tout le budget : 30s x (1 + 2 retries) + backoff
+// (0.5 + 1.5s) ~= 92s worst-case, sous les 120s de la route.
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 2;
 const RETRY_BACKOFF_MS = [500, 1_500, 4_000];
 
 // Seules les methodes execute_kw SANS effet de bord sont rejouees : rejouer un
@@ -795,6 +799,34 @@ class OdooJsonRpcClient implements OdooClient {
         skipped: true,
         reason: `account.analytic.account code=${params.code_analytique} introuvable`,
       };
+    }
+
+    // Idempotence cote Odoo : reutilise une ligne analytique deja poussee pour
+    // ce (name, compte, date, montant). Calque le pattern search-before-create
+    // de pushMove. Sans cette recherche, un re-push apres un echec de
+    // persistance de facture_lignes.analytic_line_odoo_id recreerait un doublon
+    // de CA analytique (le trou documente dans lib/odoo/sync.ts).
+    const existing = await this.executeKw<{ id: number }[]>(
+      'account.analytic.line',
+      'search_read',
+      [
+        [
+          ['name', '=', params.name],
+          ['account_id', '=', accountId],
+          ['date', '=', params.date],
+          ['amount', '=', params.amount],
+        ],
+      ],
+      { fields: ['id'], limit: 1 },
+    );
+    const found = existing[0];
+    if (found) {
+      logger.info(SCOPE, 'Reusing existing analytic line', {
+        analytic_line_odoo_id: found.id,
+        account_id: accountId,
+        name: params.name,
+      });
+      return { analytic_line_odoo_id: found.id, skipped: false };
     }
 
     const vals: Record<string, unknown> = {

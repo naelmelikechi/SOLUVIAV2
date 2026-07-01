@@ -32,7 +32,7 @@ import {
 interface SearchResults {
   projets: { ref: string; client: { raison_sociale: string } | null }[];
   clients: { id: string; trigramme: string; raison_sociale: string }[];
-  factures: { numero: string; projet: { ref: string } | null }[];
+  factures: { ref: string; projet: { ref: string } | null }[];
   apprenants: {
     id: string;
     nom: string | null;
@@ -217,13 +217,13 @@ export function CommandPalette({ user }: { user: NavGateUser }) {
                 <CommandGroup heading="Factures">
                   {displayedResults.factures.map((f) => (
                     <CommandItem
-                      key={`facture-${f.numero}`}
-                      value={`facture-${f.numero}`}
-                      onSelect={() => navigateTo(`/facturation/${f.numero}`)}
+                      key={`facture-${f.ref}`}
+                      value={`facture-${f.ref}`}
+                      onSelect={() => navigateTo(`/facturation/${f.ref}`)}
                       className="cursor-pointer"
                     >
                       <FileText className="text-muted-foreground size-4" />
-                      <span className="font-mono text-xs">{f.numero}</span>
+                      <span className="font-mono text-xs">{f.ref}</span>
                       {f.projet && (
                         <span className="text-muted-foreground truncate text-xs">
                           {f.projet.ref}

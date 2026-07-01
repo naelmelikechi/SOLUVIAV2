@@ -63,12 +63,16 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
     });
   }
 
-  async function handleDelete(id: string) {
-    const r = await deleteRdvFormateur(id);
-    if (r.success) {
-      toast.success('RDV supprimé');
-      setConfirmDelete(null);
-    } else toast.error(r.error ?? 'Erreur');
+  function handleDelete(id: string) {
+    setPendingId(id);
+    startTransition(async () => {
+      const r = await deleteRdvFormateur(id);
+      setPendingId(null);
+      if (r.success) {
+        toast.success('RDV supprimé');
+        setConfirmDelete(null);
+      } else toast.error(r.error ?? 'Erreur');
+    });
   }
 
   const columns = useMemo<ColumnDef<RdvFormateurWithRefs>[]>(
@@ -209,6 +213,7 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
         description="Cette action est irréversible."
         confirmText="Supprimer"
         variant="destructive"
+        isPending={pendingId === confirmDelete}
         onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
       />
     </Card>

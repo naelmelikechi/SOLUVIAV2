@@ -56,13 +56,27 @@ INSERT INTO parametres (cle, valeur, categorie, description) VALUES
   ('facturation.taux_tva', '20', 'facturation', 'Taux TVA par defaut (%)'),
   ('facturation.fenetre_debut', '25', 'facturation', 'Jour debut fenetre facturation'),
   ('facturation.fenetre_fin', '3', 'facturation', 'Jour fin fenetre facturation'),
-  ('facturation.delai_echeance_jours', '7', 'facturation', 'Delai echeance en jours (date_echeance = date_emission + N)'),
   ('facturation.mentions_legales', 'Conditions de paiement : 30 jours fin de mois. En cas de retard de paiement, une pénalité de 3 fois le taux d''intérêt légal sera appliquée, ainsi qu''une indemnité forfaitaire de 40 € pour frais de recouvrement. Pas d''escompte pour paiement anticipé.', 'facturation', 'Mentions légales facture');
 
 
 -- ============================================================
 -- DONNEES DE DEMONSTRATION
 -- ============================================================
+
+-- ----------------------------------------------------------
+-- Utilisateur de demo (admin). INDISPENSABLE : projets.cdp_id,
+-- saisies_temps.user_id, factures.created_by et notifications.user_id le
+-- referencent. Sans lui, `supabase db reset` echoue (NOT NULL / FK). auth.users
+-- minimal (id+email) ; definir un mot de passe via Supabase Studio pour se
+-- connecter en local. Idempotent.
+-- ----------------------------------------------------------
+INSERT INTO auth.users (id, email)
+VALUES ('a0000000-0000-0000-0000-000000000001', 'demo@mysoluvia.com')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.users (id, email, nom, prenom, role)
+VALUES ('a0000000-0000-0000-0000-000000000001', 'demo@mysoluvia.com', 'Demo', 'Admin', 'admin')
+ON CONFLICT (id) DO NOTHING;
 
 -- ----------------------------------------------------------
 -- 4 Clients de demo
@@ -200,7 +214,7 @@ INSERT INTO echeances (id, projet_id, mois_concerne, date_emission_prevue, monta
 -- ----------------------------------------------------------
 -- Factures (2 factures: 1 emise, 1 payee) - ref auto-generated
 -- ----------------------------------------------------------
-INSERT INTO factures (id, projet_id, client_id, date_emission, date_echeance, mois_concerne, montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir, created_by) VALUES
+INSERT INTO factures (id, projet_id, client_id, date_emission, date_echeance, mois_concerne, montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir, created_by, societe_emettrice_id) VALUES
   -- Facture 1: Projet 1, janvier 2025 (payee)
   ('fa100000-0000-0000-0000-000000000001',
    'b1000000-0000-0000-0000-000000000001',
@@ -208,7 +222,8 @@ INSERT INTO factures (id, projet_id, client_id, date_emission, date_echeance, mo
    '2025-02-01', '2025-03-03', 'janvier 2025',
    320.83, 20.00, 64.17, 385.00,
    'payee', false,
-   (SELECT id FROM users ORDER BY created_at LIMIT 1)),
+   (SELECT id FROM users ORDER BY created_at LIMIT 1),
+   (SELECT id FROM societes_emettrices WHERE code = 'SOL')),
   -- Facture 2: Projet 1, fevrier 2025 (emise, en attente)
   ('fa100000-0000-0000-0000-000000000002',
    'b1000000-0000-0000-0000-000000000001',
@@ -216,7 +231,8 @@ INSERT INTO factures (id, projet_id, client_id, date_emission, date_echeance, mo
    '2025-03-01', '2025-03-31', 'fevrier 2025',
    320.83, 20.00, 64.17, 385.00,
    'emise', false,
-   (SELECT id FROM users ORDER BY created_at LIMIT 1)),
+   (SELECT id FROM users ORDER BY created_at LIMIT 1),
+   (SELECT id FROM societes_emettrices WHERE code = 'SOL')),
   -- Facture 3: Projet 3, fevrier 2025 (en retard)
   ('fa100000-0000-0000-0000-000000000003',
    'b1000000-0000-0000-0000-000000000003',
@@ -224,7 +240,8 @@ INSERT INTO factures (id, projet_id, client_id, date_emission, date_echeance, mo
    '2025-03-01', '2025-03-31', 'fevrier 2025',
    260.42, 20.00, 52.08, 312.50,
    'en_retard', false,
-   (SELECT id FROM users ORDER BY created_at LIMIT 1));
+   (SELECT id FROM users ORDER BY created_at LIMIT 1),
+   (SELECT id FROM societes_emettrices WHERE code = 'SOL'));
 
 -- Link echeances to factures
 UPDATE echeances SET facture_id = 'fa100000-0000-0000-0000-000000000001' WHERE id = 'ec100000-0000-0000-0000-000000000001';
@@ -234,6 +251,14 @@ UPDATE echeances SET facture_id = 'fa100000-0000-0000-0000-000000000003' WHERE i
 -- ----------------------------------------------------------
 -- Facture lignes
 -- ----------------------------------------------------------
+-- Lignes historiques (factures deja emises/payees) : le trigger de gel
+-- trg_facture_lignes_freeze_after_emission (20260630141000) interdit l'INSERT
+-- de lignes post-emission. Ce seed charge des factures deja emises PUIS leurs
+-- lignes (ordre de chargement, pas un vrai write applicatif post-emission), on
+-- desactive donc temporairement le gel autour du bulk load, comme le backfill
+-- de test 21. Le trigger de recompute (AFTER) no-op pour ces parents non
+-- a_emettre : les headers seedes restent inchanges.
+ALTER TABLE facture_lignes DISABLE TRIGGER trg_facture_lignes_freeze_after_emission;
 INSERT INTO facture_lignes (id, facture_id, contrat_id, description, montant_ht) VALUES
   -- Facture 1 lignes
   ('f1100000-0000-0000-0000-000000000001', 'fa100000-0000-0000-0000-000000000001', 'c0100000-0000-0000-0000-000000000001',
@@ -256,6 +281,7 @@ INSERT INTO facture_lignes (id, facture_id, contrat_id, description, montant_ht)
    'Commission 10% - Comptabilite Gestion - Emma Petit - fevrier 2025', 58.33),
   ('f1100000-0000-0000-0000-000000000009', 'fa100000-0000-0000-0000-000000000003', 'c0100000-0000-0000-0000-000000000008',
    'Commission 10% - Ressources Humaines - Hugo Durand - fevrier 2025', 143.75);
+ALTER TABLE facture_lignes ENABLE TRIGGER trg_facture_lignes_freeze_after_emission;
 
 -- ----------------------------------------------------------
 -- Paiement (sur facture 1 - payee)

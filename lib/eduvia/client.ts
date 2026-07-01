@@ -1,4 +1,5 @@
 import { logger } from '@/lib/utils/logger';
+import { mapWithConcurrency } from '@/lib/utils/concurrency';
 import type { Json } from '@/types/database';
 
 // ---------------------------------------------------------------------------
@@ -223,7 +224,8 @@ export interface EduviaStatus {
 // ---------------------------------------------------------------------------
 
 const REQUEST_TIMEOUT = 15_000; // 15 seconds - covers cold-start Cloudflare routes
-const PER_PAGE = 100;
+const PER_PAGE = 25; // cap API Eduvia (cf. OpenAPI v1.0.0)
+const PAGE_FETCH_CONCURRENCY = 4; // borne le fan-out de pages par appel fetchAllPages
 const MAX_RETRIES = 3;
 const RETRY_BACKOFF_MS = [500, 1_500, 4_000]; // before retry N we wait RETRY_BACKOFF_MS[N-1]
 
@@ -396,13 +398,14 @@ export async function fetchAllPages<T>(
   for (let page = 2; page <= firstPage.meta.total_pages; page++) {
     remainingPages.push(page);
   }
-  const remainingResults = await Promise.all(
-    remainingPages.map((page) =>
+  const remainingResults = await mapWithConcurrency(
+    remainingPages,
+    PAGE_FETCH_CONCURRENCY,
+    (page) =>
       fetchJson<EduviaApiResponse<T>>(
         `${baseUrl}/api/v1/${resource}?page=${page}&per_page=${PER_PAGE}`,
         apiKey,
       ),
-    ),
   );
   for (const result of remainingResults) {
     allItems.push(...result.data);

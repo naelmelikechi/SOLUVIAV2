@@ -221,7 +221,10 @@ async function computeKpisForScope(
   ).length;
   const totalFactureHt = factures
     .filter((f: { est_avoir: boolean }) => !f.est_avoir)
-    .reduce((s: number, f: { montant_ht: number }) => s + f.montant_ht, 0);
+    .reduce(
+      (s: number, f: { montant_ht: number }) => s + (f.montant_ht ?? 0),
+      0,
+    );
   // Encaissé en HT (prorata HT/TTC de chaque facture), cohérent avec total_facture_ht.
   const totalEncaisse = (paiementsRes.data ?? []).reduce(
     (

@@ -157,7 +157,10 @@ export async function searchGiphy(
     : `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(apiKey)}&limit=12&rating=g`;
 
   try {
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5_000),
+    });
     if (!res.ok) {
       logger.error('team_chat', 'giphy search failed', { status: res.status });
       return { success: false, error: 'Giphy indisponible pour le moment.' };

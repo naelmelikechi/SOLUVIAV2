@@ -33,6 +33,8 @@ const fetchAllPagesMock = vi.fn();
 const fetchOneMock = vi.fn();
 const fetchListMock = vi.fn();
 const fetchStatusMock = vi.fn();
+const fetchContractInvoiceLinesMock = vi.fn();
+const fetchContractInvoicesMock = vi.fn();
 
 class EndpointNotAvailableError extends Error {
   constructor(public resource: string) {
@@ -55,8 +57,10 @@ vi.mock('@/lib/eduvia/client', () => ({
   fetchOne: (...args: unknown[]) => fetchOneMock(...args),
   fetchList: (...args: unknown[]) => fetchListMock(...args),
   fetchStatus: (...args: unknown[]) => fetchStatusMock(...args),
-  fetchContractInvoiceLines: () => Promise.resolve([]),
-  fetchContractInvoices: () => Promise.resolve([]),
+  fetchContractInvoiceLines: (...args: unknown[]) =>
+    fetchContractInvoiceLinesMock(...args),
+  fetchContractInvoices: (...args: unknown[]) =>
+    fetchContractInvoicesMock(...args),
   EndpointNotAvailableError,
   AuthError,
 }));
@@ -326,6 +330,8 @@ beforeEach(() => {
   fetchListMock.mockRejectedValue(
     new EndpointNotAvailableError('invoice_steps'),
   );
+  fetchContractInvoiceLinesMock.mockResolvedValue([]);
+  fetchContractInvoicesMock.mockResolvedValue([]);
 });
 
 // ---------------------------------------------------------------------------
@@ -938,7 +944,10 @@ describe('syncEduviaForClient — orphan cleanup invoice_steps', () => {
       eduvia_invoice_steps: {
         // 2 anciens steps en DB absents de l API = candidats orphelins.
         select: () => ({
-          data: [{ id: 'step-old-1' }, { id: 'step-old-2' }],
+          data: [
+            { id: 'step-old-1', eduvia_id: 100 },
+            { id: 'step-old-2', eduvia_id: 101 },
+          ],
           error: null,
         }),
         upsert: () => ({ error: null }),
@@ -1005,6 +1014,181 @@ describe('syncEduviaForClient — orphan cleanup invoice_steps', () => {
   });
 });
 
+describe('syncEduviaForClient — chunking orphan cleanup', () => {
+  function contratsRule() {
+    return {
+      select: () => ({
+        data: [{ id: 'uuid-10', eduvia_id: 10, ref: 'CTR-10' }],
+        error: null,
+      }),
+      upsert: () => ({ error: null }),
+      update: () => ({ error: null }),
+    };
+  }
+  function apiReturnsContract10() {
+    fetchAllPagesMock.mockImplementation((_u, _k, resource: string) =>
+      Promise.resolve(
+        resource === 'contracts' ? [contractFixture({ id: 10 })] : [],
+      ),
+    );
+  }
+
+  it('chunked_delete steps : 450 orphelins -> 3 deletes par PK <=200, aucun .not sur eduvia_id', async () => {
+    apiReturnsContract10();
+    // API renvoie un seul step (eduvia id=9999, hors plage DB 1..450) : les
+    // 450 steps DB sont tous orphelins.
+    fetchListMock.mockImplementation((_u, _k, path: string) =>
+      Promise.resolve(
+        path.endsWith('/invoice_steps')
+          ? [{ id: 9999, contract_id: 10, step_number: 1, invoice_id: null }]
+          : [],
+      ),
+    );
+    const dbSteps = Array.from({ length: 450 }, (_, i) => ({
+      id: `step-${i}`,
+      eduvia_id: i + 1,
+    }));
+
+    const { client, ops } = buildSupabase({
+      projets: projetsRule(),
+      contrats: contratsRule(),
+      eduvia_invoice_steps: {
+        select: () => ({ data: dbSteps, error: null }),
+        upsert: () => ({ error: null }),
+        delete: () => ({ error: null }),
+      },
+      facture_lignes: { select: () => ({ data: [], error: null }) },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      client,
+      'client-X',
+      'inst.eduvia.app',
+      'key',
+    );
+
+    expect(res.invoice_steps_orphan_deleted).toBe(450);
+    const deleteOps = ops.filter(
+      (o) => o.table === 'eduvia_invoice_steps' && o.op === 'delete',
+    );
+    expect(deleteOps.length).toBeGreaterThanOrEqual(3);
+    const sizes = deleteOps.map((o) => {
+      const idFilter = o.filters.find((f) => f.col === 'id');
+      return Array.isArray(idFilter?.val) ? idFilter.val.length : 0;
+    });
+    expect(sizes.every((s) => s <= 200)).toBe(true);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBe(450);
+    // Aucun delete ne filtre sur eduvia_id (plus de NOT IN <liste>).
+    const anyEduviaIdFilter = deleteOps.some((o) =>
+      o.filters.some((f) => f.col === 'eduvia_id'),
+    );
+    expect(anyEduviaIdFilter).toBe(false);
+  });
+
+  it('chunked_delete lines : 450 orphelines -> deletes par PK <=200 + compteur', async () => {
+    apiReturnsContract10();
+    // Step emis (invoice_id != null) -> declenche la passe lignes.
+    fetchListMock.mockImplementation((_u, _k, path: string) =>
+      Promise.resolve(
+        path.endsWith('/invoice_steps')
+          ? [{ id: 200, contract_id: 10, step_number: 1, invoice_id: 500 }]
+          : [],
+      ),
+    );
+    // API renvoie 1 ligne (id=1) : les 450 lignes DB sont orphelines.
+    fetchContractInvoiceLinesMock.mockResolvedValue([
+      {
+        id: 1,
+        invoice_id: 500,
+        amount: 100,
+        line_type: 'PEDAGOGIE',
+        quantity: 1,
+        description: 'x',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+    ]);
+    const dbLines = Array.from({ length: 450 }, (_, i) => ({
+      id: `line-${i}`,
+      eduvia_id: 1000 + i,
+    }));
+
+    const { client, ops } = buildSupabase({
+      projets: projetsRule(),
+      contrats: contratsRule(),
+      eduvia_invoice_lines: {
+        select: () => ({ data: dbLines, error: null }),
+        upsert: () => ({ error: null }),
+        delete: () => ({ error: null }),
+      },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      client,
+      'client-X',
+      'inst.eduvia.app',
+      'key',
+    );
+
+    expect(res.invoice_lines_orphan_deleted).toBe(450);
+    const deleteOps = ops.filter(
+      (o) => o.table === 'eduvia_invoice_lines' && o.op === 'delete',
+    );
+    expect(deleteOps.length).toBeGreaterThanOrEqual(3);
+    const sizes = deleteOps.map((o) => {
+      const idFilter = o.filters.find((f) => f.col === 'id');
+      return Array.isArray(idFilter?.val) ? idFilter.val.length : 0;
+    });
+    expect(sizes.every((s) => s <= 200)).toBe(true);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBe(450);
+    expect(
+      deleteOps.some((o) => o.filters.some((f) => f.col === 'eduvia_id')),
+    ).toBe(false);
+  });
+
+  it('anti_wipe lines : API renvoie 0 ligne mais DB en a -> aucun delete, message wipe', async () => {
+    apiReturnsContract10();
+    fetchListMock.mockImplementation((_u, _k, path: string) =>
+      Promise.resolve(
+        path.endsWith('/invoice_steps')
+          ? [{ id: 200, contract_id: 10, step_number: 1, invoice_id: 500 }]
+          : [],
+      ),
+    );
+    fetchContractInvoiceLinesMock.mockResolvedValue([]); // 0 ligne API
+
+    const { client, ops } = buildSupabase({
+      projets: projetsRule(),
+      contrats: contratsRule(),
+      eduvia_invoice_lines: {
+        // count anti-wipe voit 1 ligne en DB.
+        select: () => ({ data: [{ id: 'line-x', eduvia_id: 5 }], error: null }),
+        upsert: () => ({ error: null }),
+        delete: () => ({ error: null }),
+      },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      client,
+      'client-X',
+      'inst.eduvia.app',
+      'key',
+    );
+
+    expect(res.invoice_lines_orphan_deleted).toBe(0);
+    const deleteOps = ops.filter(
+      (o) => o.table === 'eduvia_invoice_lines' && o.op === 'delete',
+    );
+    expect(deleteOps).toHaveLength(0);
+    expect(
+      res.errors.some((e) => /skip delete pour eviter wipe/i.test(e)),
+    ).toBe(true);
+  });
+});
+
 describe('syncEduviaForClient — limites connues', () => {
   it.skip('apprenant supprimé chez Eduvia → archive côté Soluvia (requires diff/tombstone refactor)', () => {
     // sync.ts ne diff pas la liste reçue avec ce qui existe en base ; il fait
@@ -1031,6 +1215,7 @@ describe('computeSyncStatut', () => {
       invoice_forecast_steps: 0,
       invoice_lines: 0,
       invoice_steps_orphan_deleted: 0,
+      invoice_lines_orphan_deleted: 0,
       contrats_archived_orphan: 0,
       contrats_projet_fallback: 0,
       errors: [] as string[],

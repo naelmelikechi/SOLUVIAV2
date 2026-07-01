@@ -9,6 +9,7 @@ import {
   Trash2,
   Loader2,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +44,7 @@ export function ProspectRdvSection({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const router = useRouter();
 
   function handleToggle(id: string, current: string) {
     setPendingId(id);
@@ -54,9 +56,14 @@ export function ProspectRdvSection({
     });
   }
 
-  async function handleDelete(id: string) {
-    const r = await deleteRdvCommercial(id);
-    if (!r.success) toast.error(r.error ?? 'Erreur');
+  function handleDelete(id: string) {
+    setPendingId(id);
+    startTransition(async () => {
+      const r = await deleteRdvCommercial(id);
+      setPendingId(null);
+      if (r.success) router.refresh();
+      else toast.error(r.error ?? 'Erreur');
+    });
   }
 
   return (
@@ -125,6 +132,7 @@ export function ProspectRdvSection({
                 variant="ghost"
                 size="sm"
                 className="text-destructive hover:text-destructive size-6 p-0"
+                disabled={pendingId === rdv.id}
                 onClick={() => handleDelete(rdv.id)}
                 title="Supprimer"
               >

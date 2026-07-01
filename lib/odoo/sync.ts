@@ -5,6 +5,7 @@ import type {
   OdooUnreconciledBankLine,
 } from '@/lib/odoo/client';
 import { pushFacturePdfToOdoo } from '@/lib/odoo/attach-pdf';
+import { logSync } from '@/lib/odoo/sync-log';
 import { logger } from '@/lib/utils/logger';
 import { matchUnreconciledBankLine } from '@/lib/odoo/bank-line-match';
 import { parseFrAddress } from '@/lib/utils/fr-address';
@@ -19,34 +20,6 @@ export type OdooSyncResult = {
   pulled: number;
   errors: string[];
 };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-async function logSync(
-  supabase: SupabaseClient,
-  opts: {
-    direction: 'push' | 'pull';
-    entity_type: string;
-    entity_id?: string;
-    statut: 'success' | 'error' | 'retry' | 'partial';
-    payload?: unknown;
-    erreur?: string;
-  },
-) {
-  const { error } = await supabase.from('odoo_sync_logs').insert({
-    direction: opts.direction,
-    entity_type: opts.entity_type,
-    entity_id: opts.entity_id ?? null,
-    statut: opts.statut,
-    payload: opts.payload ?? null,
-    erreur: opts.erreur ?? null,
-  });
-  if (error) {
-    logger.error(SCOPE, 'Failed to write sync log', { error });
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Push factures to Odoo
@@ -252,12 +225,27 @@ async function pushFactures(
               continue;
             }
             if (r.analytic_line_odoo_id !== null) {
-              await supabase
+              const { error: persistErr } = await supabase
                 .from('facture_lignes')
                 .update({
                   analytic_line_odoo_id: String(r.analytic_line_odoo_id),
                 })
                 .eq('id', l.id);
+              if (persistErr) {
+                // La ligne analytique EST creee cote Odoo mais l'id n'a pas pu
+                // etre persiste : un re-push ulterieur la recreerait (doublon
+                // de CA analytique). On loggue pour detection (pas de Sentry).
+                logger.warn(
+                  SCOPE,
+                  'Analytic line poussee mais persistance analytic_line_odoo_id KO (risque doublon au re-push)',
+                  {
+                    facture_id: f.id,
+                    ligne_id: l.id,
+                    analytic_line_odoo_id: r.analytic_line_odoo_id,
+                    error: persistErr,
+                  },
+                );
+              }
             }
           } catch (err) {
             logger.warn(SCOPE, 'Push analytic line failed (non bloquant)', {
@@ -306,7 +294,8 @@ async function pushAvoirs(
     `,
     )
     .is('odoo_id', null)
-    .eq('est_avoir', true);
+    .eq('est_avoir', true)
+    .eq('statut', 'avoir');
 
   if (fetchErr) {
     logger.error(SCOPE, 'Failed to fetch avoirs for push', {
@@ -718,12 +707,16 @@ async function pullCancellations(
   odoo: ReturnType<typeof createOdooClient>,
   errors: string[],
 ): Promise<number> {
-  // Determine "since" from last cancellation pull (success ou partial).
+  // Determine "since" from last cancellation pull (success ou partial). On ne
+  // lit QUE la ligne de log globale du cron (entity_id NULL) : les logs par
+  // move (webhook ou cron, entity_id renseigne) ne doivent pas retrecir la
+  // fenetre `since` de facon incoherente.
   const { data: lastLog } = await supabase
     .from('odoo_sync_logs')
     .select('created_at')
     .eq('direction', 'pull')
     .eq('entity_type', 'cancellation')
+    .is('entity_id', null)
     .in('statut', ['success', 'partial'])
     .order('created_at', { ascending: false })
     .limit(1)
@@ -771,17 +764,49 @@ async function pullCancellations(
 
   const adminIds = (admins ?? []).map((a) => a.id);
 
+  // Pre-resolution batch (variante b1 du design) : resoudre toutes les factures
+  // des moves annules en une requete, puis pre-charger les cancellations deja
+  // traitees (log par move : webhook ou cron anterieur) pour dedup. Cle =
+  // facture.id (PK, robuste au ref nul, cf. Option B).
+  const moveIds = cancellations.map((m) => String(m.odoo_id));
+  type FactureRow = {
+    id: string;
+    ref: string | null;
+    statut: string;
+    est_avoir: boolean;
+    odoo_id: string;
+  };
+  const factureByOdooId = new Map<string, FactureRow>();
+  if (moveIds.length > 0) {
+    const { data: factureRows } = await supabase
+      .from('factures')
+      .select('id, ref, statut, est_avoir, odoo_id')
+      .in('odoo_id', moveIds);
+    for (const f of (factureRows ?? []) as FactureRow[]) {
+      factureByOdooId.set(String(f.odoo_id), f);
+    }
+  }
+
+  const factureIds = [...factureByOdooId.values()].map((f) => f.id);
+  const alreadyHandled = new Set<string>();
+  if (factureIds.length > 0) {
+    const { data: handledLogs } = await supabase
+      .from('odoo_sync_logs')
+      .select('entity_id')
+      .eq('entity_type', 'cancellation')
+      .in('statut', ['success', 'partial'])
+      .in('entity_id', factureIds);
+    for (const log of (handledLogs ?? []) as { entity_id: string | null }[]) {
+      if (log.entity_id) alreadyHandled.add(log.entity_id);
+    }
+  }
+
   let processed = 0;
   const errorsBefore = errors.length;
 
   for (const move of cancellations) {
     try {
-      // oxlint-disable-next-line react-doctor/async-await-in-loop
-      const { data: facture } = await supabase
-        .from('factures')
-        .select('id, ref, statut, est_avoir')
-        .eq('odoo_id', move.odoo_id)
-        .maybeSingle();
+      const facture = factureByOdooId.get(String(move.odoo_id));
 
       if (!facture) {
         logger.warn(SCOPE, 'Facture not found for cancelled Odoo move', {
@@ -796,7 +821,16 @@ async function pullCancellations(
         continue;
       }
 
+      // Dedup (Option B) : move deja notifie (webhook, cron anterieur, ou un
+      // move precedent de ce run resolvant la meme facture) -> on skip la notif
+      // mais on compte le move comme traite.
+      if (alreadyHandled.has(facture.id)) {
+        processed++;
+        continue;
+      }
+
       // Skip si un avoir Soluvia existe deja sur cette facture.
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { count: avoirCount } = await supabase
         .from('factures')
         .select('id', { count: 'exact', head: true })
@@ -821,6 +855,7 @@ async function pullCancellations(
         message,
         lien: facture.ref ? `/facturation/${facture.ref}` : null,
       }));
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { error: notifErr } = await supabase
         .from('notifications')
         .insert(notifsToCreate);
@@ -833,6 +868,7 @@ async function pullCancellations(
         });
       }
 
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
       await logSync(supabase, {
         direction: 'pull',
         entity_type: 'cancellation',
@@ -842,9 +878,12 @@ async function pullCancellations(
           odoo_id: move.odoo_id,
           soluvia_ref: facture.ref,
           write_date: move.write_date,
+          source: 'cron',
         },
       });
 
+      // Ancre la dedup pour le reste du run (deux moves -> meme facture).
+      alreadyHandled.add(facture.id);
       processed++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

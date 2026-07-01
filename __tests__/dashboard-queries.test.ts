@@ -326,21 +326,28 @@ describe('getDashboardData', () => {
 // ---------------------------------------------------------------------------
 
 describe('getInvoiceStatusBreakdown', () => {
-  it('counts each statut bucket independently', async () => {
-    const mock = buildSupabase({
-      factures: {
-        data: [
-          { statut: 'emise' },
-          { statut: 'emise' },
-          { statut: 'payee' },
-          { statut: 'en_retard' },
-          { statut: 'avoir' },
-          { statut: 'a_emettre' }, // ignore (not in any bucket)
-        ],
+  function mockRpc(result: { data?: unknown; error?: unknown }) {
+    return {
+      rpc: (name: string) => {
+        expect(name).toBe('count_factures_by_statut');
+        return Promise.resolve({
+          data: result.data ?? null,
+          error: result.error ?? null,
+        });
       },
-    });
+    };
+  }
+
+  it('mappe les paires (statut, n) du RPC vers le breakdown', async () => {
     vi.mocked(createClient).mockResolvedValue(
-      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+      mockRpc({
+        data: [
+          { statut: 'emise', n: 2 },
+          { statut: 'payee', n: 1 },
+          { statut: 'en_retard', n: 1 },
+          { statut: 'avoir', n: 1 },
+        ],
+      }) as unknown as Awaited<ReturnType<typeof createClient>>,
     );
 
     const { getInvoiceStatusBreakdown } =
@@ -352,6 +359,45 @@ describe('getInvoiceStatusBreakdown', () => {
       payees: 1,
       en_retard: 1,
       avoirs: 1,
+    });
+  });
+
+  it('statut absent du RPC -> 0 (preserve « 0 si absent »)', async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      mockRpc({ data: [{ statut: 'emise', n: 5 }] }) as unknown as Awaited<
+        ReturnType<typeof createClient>
+      >,
+    );
+
+    const { getInvoiceStatusBreakdown } =
+      await import('@/lib/queries/dashboard');
+    const breakdown = await getInvoiceStatusBreakdown();
+
+    expect(breakdown).toEqual({
+      emises: 5,
+      payees: 0,
+      en_retard: 0,
+      avoirs: 0,
+    });
+  });
+
+  it('erreur RPC -> tout a 0 (pas de throw)', async () => {
+    vi.mocked(createClient).mockResolvedValue(
+      mockRpc({
+        data: null,
+        error: { message: 'PGRST202' },
+      }) as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getInvoiceStatusBreakdown } =
+      await import('@/lib/queries/dashboard');
+    const breakdown = await getInvoiceStatusBreakdown();
+
+    expect(breakdown).toEqual({
+      emises: 0,
+      payees: 0,
+      en_retard: 0,
+      avoirs: 0,
     });
   });
 });

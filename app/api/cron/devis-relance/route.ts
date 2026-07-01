@@ -59,10 +59,16 @@ export async function GET(request: Request) {
     try {
       // oxlint-disable-next-line react-doctor/async-await-in-loop
       await sendDevisRelanceEmail({ devisId: d.id, niveau: 'j7' });
-      await supabase
+      const { error: updErr } = await supabase
         .from('devis')
         .update({ relance_j7_envoyee_at: now.toISOString() })
         .eq('id', d.id);
+      if (updErr)
+        logger.error(
+          'cron.devis-relance',
+          `j7 ${d.ref} flag non pose (relance pourrait etre renvoyee)`,
+          { error: updErr },
+        );
       sentJ7++;
     } catch (e) {
       logger.warn('cron.devis-relance', `j7 ${d.ref} failed`, { error: e });
@@ -73,10 +79,16 @@ export async function GET(request: Request) {
     try {
       // oxlint-disable-next-line react-doctor/async-await-in-loop
       await sendDevisRelanceEmail({ devisId: d.id, niveau: 'j14' });
-      await supabase
+      const { error: updErr } = await supabase
         .from('devis')
         .update({ relance_j14_envoyee_at: now.toISOString() })
         .eq('id', d.id);
+      if (updErr)
+        logger.error(
+          'cron.devis-relance',
+          `j14 ${d.ref} flag non pose (relance pourrait etre renvoyee)`,
+          { error: updErr },
+        );
       sentJ14++;
     } catch (e) {
       logger.warn('cron.devis-relance', `j14 ${d.ref} failed`, { error: e });

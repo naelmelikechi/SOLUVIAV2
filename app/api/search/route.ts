@@ -12,7 +12,14 @@ export const dynamic = 'force-dynamic';
 // renvoie simplement 0 ligne pour les autres roles.
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const q = (url.searchParams.get('q') ?? '').trim();
+  // Assainit q AVANT interpolation dans les filtres PostgREST .or() (ex.
+  // `trigramme.ilike.${pattern}`) : on ne garde que lettres/chiffres/espace/
+  // tiret. Cela neutralise la filter-injection PostgREST (, ( ) . :) et les
+  // wildcards LIKE (% _). Le tiret reste pour les refs type 0019-ICA-LIB.
+  const q = (url.searchParams.get('q') ?? '')
+    .replace(/[^\p{L}\p{N} \-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (q.length < 2) {
     return NextResponse.json({
       projets: [],
@@ -56,8 +63,8 @@ export async function GET(request: Request) {
       .limit(5),
     supabase
       .from('factures')
-      .select('numero, projet:projets!factures_projet_id_fkey(ref)')
-      .ilike('numero', pattern)
+      .select('ref, projet:projets!factures_projet_id_fkey(ref)')
+      .ilike('ref', pattern)
       .limit(5),
     supabase
       .from('apprenants')

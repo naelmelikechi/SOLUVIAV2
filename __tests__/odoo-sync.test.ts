@@ -864,3 +864,159 @@ describe('syncOdoo - detection encaissement non lettre', () => {
     ).toBeUndefined();
   });
 });
+
+describe('syncOdoo - dedup annulation (Option B)', () => {
+  // Handlers du cron pullCancellations. `handledLogs` = logs cancellation par
+  // move deja ecrits (webhook ou cron anterieur) ; `factureRows` = factures
+  // resolues par batch .in('odoo_id', ...).
+  const cancelHandlers = (
+    factureRows: Array<Record<string, unknown>>,
+    handledLogs: Array<{ entity_id: string | null }>,
+  ) => ({
+    factures: {
+      selectResult: async (op: RecordedOp) => {
+        const isBatch = op.filters.some(
+          (f) => f.kind === 'in' && f.col === 'odoo_id',
+        );
+        return isBatch
+          ? { data: factureRows, error: null }
+          : { data: [], error: null };
+      },
+    },
+    users: {
+      selectResult: async () => ({
+        data: [{ id: 'admin-1' }, { id: 'admin-2' }],
+        error: null,
+      }),
+    },
+    odoo_sync_logs: {
+      // checkpoint `since` (maybeSingle) : aucune ligne globale -> defaut.
+      maybeSingleResult: async () => ({ data: null, error: null }),
+      // preload alreadyHandled (select awaited .in entity_id).
+      selectResult: async () => ({ data: handledLogs, error: null }),
+      insertResult: async () => ({ error: null }),
+    },
+    notifications: {
+      insertResult: async () => ({ error: null }),
+    },
+  });
+
+  const move = {
+    odoo_id: '134',
+    ref: 'FAC-HEO-0001',
+    write_date: '2026-05-22T10:00:00Z',
+  };
+
+  it('cron_dedup_same_move : log par move present -> pas de notif, move compte', async () => {
+    odooMock.pullCancellations.mockResolvedValue([move]);
+    const { client, ops } = buildSupabase(
+      cancelHandlers(
+        [
+          {
+            id: 'fac-1',
+            ref: 'FAC-HEO-0001',
+            statut: 'emise',
+            est_avoir: false,
+            odoo_id: '134',
+          },
+        ],
+        [{ entity_id: 'fac-1' }],
+      ),
+    );
+
+    const { syncOdoo } = await import('@/lib/odoo/sync');
+    const result = await syncOdoo(client as never);
+
+    // Aucune notif inseree (deja traite).
+    expect(
+      ops.find((o) => o.op === 'insert' && o.table === 'notifications'),
+    ).toBeUndefined();
+    // Le move est compte comme traite (pulled inclut la cancellation).
+    expect(result.pulled).toBe(1);
+  });
+
+  it('cron_notifies_when_no_prior_log : pas de log par move -> notif emise (N admins)', async () => {
+    odooMock.pullCancellations.mockResolvedValue([move]);
+    const { client, ops } = buildSupabase(
+      cancelHandlers(
+        [
+          {
+            id: 'fac-1',
+            ref: 'FAC-HEO-0001',
+            statut: 'emise',
+            est_avoir: false,
+            odoo_id: '134',
+          },
+        ],
+        [],
+      ),
+    );
+
+    const { syncOdoo } = await import('@/lib/odoo/sync');
+    await syncOdoo(client as never);
+
+    const notifInsert = ops.find(
+      (o) => o.op === 'insert' && o.table === 'notifications',
+    );
+    expect(notifInsert).toBeDefined();
+    // Une ligne par admin.
+    const rows = Array.isArray(notifInsert!.payload)
+      ? notifInsert!.payload
+      : [];
+    expect(rows).toHaveLength(2);
+
+    // Un log cancellation par move (entity_id renseigne) est ecrit.
+    const perMoveLog = ops.find((o) => {
+      if (o.op !== 'insert' || o.table !== 'odoo_sync_logs') return false;
+      // Payload construit par le test-runner : forme connue.
+      const p = o.payload as { entity_type?: string; entity_id?: string };
+      return p.entity_type === 'cancellation' && p.entity_id === 'fac-1';
+    });
+    expect(perMoveLog).toBeDefined();
+  });
+
+  it('cron_checkpoint_ignores_per_move_logs : since lit entity_id is null', async () => {
+    odooMock.pullCancellations.mockResolvedValue([]);
+    const { client, ops } = buildSupabase(cancelHandlers([], []));
+
+    const { syncOdoo } = await import('@/lib/odoo/sync');
+    await syncOdoo(client as never);
+
+    const checkpointSelect = ops.find(
+      (o) =>
+        o.op === 'select' &&
+        o.table === 'odoo_sync_logs' &&
+        o.filters.some((f) => f.kind === 'is' && f.col === 'entity_id'),
+    );
+    expect(checkpointSelect).toBeDefined();
+    const isFilter = checkpointSelect!.filters.find(
+      (f) => f.kind === 'is' && f.col === 'entity_id',
+    );
+    expect(isFilter!.val).toBeNull();
+  });
+
+  it('cron_handles_null_ref : dedup par facture.id malgre ref null', async () => {
+    odooMock.pullCancellations.mockResolvedValue([{ ...move, ref: null }]);
+    const { client, ops } = buildSupabase(
+      cancelHandlers(
+        [
+          {
+            id: 'fac-noref',
+            ref: null,
+            statut: 'emise',
+            est_avoir: false,
+            odoo_id: '134',
+          },
+        ],
+        [{ entity_id: 'fac-noref' }],
+      ),
+    );
+
+    const { syncOdoo } = await import('@/lib/odoo/sync');
+    await syncOdoo(client as never);
+
+    expect(
+      ops.find((o) => o.op === 'insert' && o.table === 'notifications'),
+    ).toBeUndefined();
+  });
+});

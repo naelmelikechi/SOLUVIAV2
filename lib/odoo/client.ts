@@ -801,6 +801,34 @@ class OdooJsonRpcClient implements OdooClient {
       };
     }
 
+    // Idempotence cote Odoo : reutilise une ligne analytique deja poussee pour
+    // ce (name, compte, date, montant). Calque le pattern search-before-create
+    // de pushMove. Sans cette recherche, un re-push apres un echec de
+    // persistance de facture_lignes.analytic_line_odoo_id recreerait un doublon
+    // de CA analytique (le trou documente dans lib/odoo/sync.ts).
+    const existing = await this.executeKw<{ id: number }[]>(
+      'account.analytic.line',
+      'search_read',
+      [
+        [
+          ['name', '=', params.name],
+          ['account_id', '=', accountId],
+          ['date', '=', params.date],
+          ['amount', '=', params.amount],
+        ],
+      ],
+      { fields: ['id'], limit: 1 },
+    );
+    const found = existing[0];
+    if (found) {
+      logger.info(SCOPE, 'Reusing existing analytic line', {
+        analytic_line_odoo_id: found.id,
+        account_id: accountId,
+        name: params.name,
+      });
+      return { analytic_line_odoo_id: found.id, skipped: false };
+    }
+
     const vals: Record<string, unknown> = {
       account_id: accountId,
       date: params.date,

@@ -251,6 +251,14 @@ UPDATE echeances SET facture_id = 'fa100000-0000-0000-0000-000000000003' WHERE i
 -- ----------------------------------------------------------
 -- Facture lignes
 -- ----------------------------------------------------------
+-- Lignes historiques (factures deja emises/payees) : le trigger de gel
+-- trg_facture_lignes_freeze_after_emission (20260630141000) interdit l'INSERT
+-- de lignes post-emission. Ce seed charge des factures deja emises PUIS leurs
+-- lignes (ordre de chargement, pas un vrai write applicatif post-emission), on
+-- desactive donc temporairement le gel autour du bulk load, comme le backfill
+-- de test 21. Le trigger de recompute (AFTER) no-op pour ces parents non
+-- a_emettre : les headers seedes restent inchanges.
+ALTER TABLE facture_lignes DISABLE TRIGGER trg_facture_lignes_freeze_after_emission;
 INSERT INTO facture_lignes (id, facture_id, contrat_id, description, montant_ht) VALUES
   -- Facture 1 lignes
   ('f1100000-0000-0000-0000-000000000001', 'fa100000-0000-0000-0000-000000000001', 'c0100000-0000-0000-0000-000000000001',
@@ -273,6 +281,7 @@ INSERT INTO facture_lignes (id, facture_id, contrat_id, description, montant_ht)
    'Commission 10% - Comptabilite Gestion - Emma Petit - fevrier 2025', 58.33),
   ('f1100000-0000-0000-0000-000000000009', 'fa100000-0000-0000-0000-000000000003', 'c0100000-0000-0000-0000-000000000008',
    'Commission 10% - Ressources Humaines - Hugo Durand - fevrier 2025', 143.75);
+ALTER TABLE facture_lignes ENABLE TRIGGER trg_facture_lignes_freeze_after_emission;
 
 -- ----------------------------------------------------------
 -- Paiement (sur facture 1 - payee)

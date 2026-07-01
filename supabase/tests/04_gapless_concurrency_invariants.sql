@@ -205,20 +205,33 @@ INSERT INTO _avoir_origine SELECT pg_temp.create_brouillon();
 UPDATE factures SET statut = 'emise'
 WHERE id = (SELECT facture_id FROM _avoir_origine);
 
--- Brouillon qui deviendra l avoir
+-- Brouillon d'avoir construit comme le flux reel (createAvoir + sendFacture,
+-- lib/actions/factures/avoirs.ts) : est_avoir=true ET ligne NEGATIVE des la
+-- creation. Le header est re-derive depuis les lignes par le trigger
+-- d'integrite (20260630141000, filet d'emission 2b). L'ancienne forme (negation
+-- du header seul avec ligne positive) fabriquait un etat SUM(lignes)!=header
+-- devenu impossible sous l'invariant SUM(lignes)=header.
 CREATE TEMP TABLE _avoir (facture_id UUID);
-INSERT INTO _avoir SELECT pg_temp.create_brouillon();
+INSERT INTO _avoir (facture_id) SELECT gen_random_uuid();
 
--- Avoir: la contrainte factures_signe_montants_check exige des montants
--- negatifs pour est_avoir=true (legal FR, montants signes coherents).
-UPDATE factures SET
-  statut = 'avoir',
-  est_avoir = true,
-  montant_ht = -montant_ht,
-  montant_tva = -montant_tva,
-  montant_ttc = -montant_ttc,
-  avoir_motif = 'Test gapless avoir',
-  facture_origine_id = (SELECT facture_id FROM _avoir_origine)
+INSERT INTO factures (
+  id, projet_id, client_id, date_emission, date_echeance, mois_concerne,
+  montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
+  avoir_motif, facture_origine_id, societe_emettrice_id
+)
+SELECT
+  (SELECT facture_id FROM _avoir), projet_id, client_id,
+  '2026-05-01', '2026-06-30', '2026-05',
+  -500, 20, -100, -600, 'a_emettre', true,
+  'Test gapless avoir', (SELECT facture_id FROM _avoir_origine),
+  (SELECT id FROM societes_emettrices WHERE code = 'SOL')
+FROM _ctx;
+
+INSERT INTO facture_lignes (facture_id, contrat_id, description, montant_ht)
+SELECT (SELECT facture_id FROM _avoir), NULL, 'Ligne avoir', -500 FROM _ctx;
+
+-- Emission : a_emettre -> avoir attribue un numero_seq (serie avoir).
+UPDATE factures SET statut = 'avoir'
 WHERE id = (SELECT facture_id FROM _avoir);
 
 SELECT isnt(

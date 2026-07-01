@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getDevisById } from '@/lib/queries/devis';
 import { renderDevisPdfBuffer } from '@/lib/utils/render-devis-pdf';
+import { mapDevisPdfPublic } from '@/lib/queries/devis';
 import { logger } from '@/lib/utils/logger';
 
 export async function GET(
@@ -10,29 +10,22 @@ export async function GET(
 ) {
   const [{ token }, supabase] = await Promise.all([params, createClient()]);
 
-  // Verifier le token + recuperer le devis_id
-  const { data: row, error } = await supabase
-    .from('devis')
-    .select('id, ref')
-    .eq('acceptation_token', token)
-    .gt('acceptation_token_expire_at', new Date().toISOString())
-    .maybeSingle();
-
-  if (error || !row) {
+  // RPC SECURITY DEFINER : token + expiration + statut verifies cote SQL,
+  // projection minimale (pas de service-role, pas d'acces direct a la table).
+  const { data, error } = await supabase.rpc('get_devis_pdf_public', {
+    p_token: token,
+  });
+  if (error || !data) {
     return NextResponse.json(
       { error: 'Lien invalide ou expiré' },
       { status: 404 },
     );
   }
 
-  const devis = await getDevisById(row.id);
-  if (!devis) {
-    return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 });
-  }
-
+  const devis = mapDevisPdfPublic(data);
   try {
     const buffer = await renderDevisPdfBuffer(devis);
-    const filename = devis.ref ? `${devis.ref}.pdf` : `devis-${devis.id}.pdf`;
+    const filename = devis.ref ? `${devis.ref}.pdf` : 'devis.pdf';
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/pdf',
@@ -41,7 +34,7 @@ export async function GET(
       },
     });
   } catch (e) {
-    logger.error('api.devis.pdf', 'render failed', { token, error: e });
+    logger.error('api.devis.pdf', 'render failed', { error: e });
     return NextResponse.json(
       { error: 'Erreur génération PDF' },
       { status: 500 },

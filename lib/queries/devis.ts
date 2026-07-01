@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { z } from 'zod';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import type { Database } from '@/types/database';
@@ -54,6 +55,131 @@ export interface DevisDetail extends DevisRow {
   } | null;
   lignes: DevisLigneRow[];
   factures_liees: FactureLieeRow[];
+}
+
+/**
+ * Projection minimale consommee par components/devis/devis-pdf.tsx.
+ *
+ * Sur-ensemble structurel : `DevisDetail` reste assignable a ce type (les
+ * routes PDF authentifiees passent un `DevisDetail` sans changement). La route
+ * publique, elle, ne dispose que de la sortie de la RPC `get_devis_pdf_public`
+ * (mappee par `mapDevisPdfPublic`), qui n'expose que ces champs -- jamais
+ * notes_internes, acceptation_*, ni ids internes.
+ */
+export interface DevisPdfData {
+  ref: string | null;
+  objet: string;
+  date_emission: string | null;
+  date_validite: string | null;
+  montant_ht: number;
+  montant_ttc: number;
+  conditions_reglement: string | null;
+  lignes: Array<{
+    ordre: number;
+    libelle: string;
+    description: string | null;
+    quantite: number;
+    prix_unitaire_ht: number;
+    taux_tva: number;
+    total_ht: number;
+    total_tva: number;
+  }>;
+  societe_emettrice: {
+    raison_sociale: string;
+    forme_juridique: string | null;
+    capital_social: number | null;
+    siret: string;
+    tva_intracom: string;
+    adresse: string;
+    code_postal: string;
+    ville: string;
+    logo_url: string | null;
+    conditions_reglement_default: string | null;
+    mentions_legales: string | null;
+    banque_nom: string | null;
+    banque_iban: string | null;
+    banque_bic: string | null;
+  } | null;
+  client: {
+    raison_sociale: string;
+    adresse: string | null;
+    localisation: string | null;
+    siret: string | null;
+    tva_intracommunautaire: string | null;
+  } | null;
+}
+
+const DevisPdfPublicSchema = z.object({
+  devis: z.object({
+    ref: z.string().nullable(),
+    objet: z.string(),
+    date_emission: z.string().nullable(),
+    date_validite: z.string().nullable(),
+    montant_ht: z.number(),
+    montant_ttc: z.number(),
+    conditions_reglement: z.string().nullable(),
+  }),
+  lignes: z.array(
+    z.object({
+      ordre: z.number(),
+      libelle: z.string(),
+      description: z.string().nullable(),
+      quantite: z.number(),
+      prix_unitaire_ht: z.number(),
+      taux_tva: z.number(),
+      total_ht: z.number(),
+      total_tva: z.number(),
+    }),
+  ),
+  societe: z
+    .object({
+      raison_sociale: z.string(),
+      forme_juridique: z.string().nullable(),
+      capital_social: z.number().nullable(),
+      siret: z.string(),
+      tva_intracom: z.string(),
+      adresse: z.string(),
+      code_postal: z.string(),
+      ville: z.string(),
+      logo_url: z.string().nullable(),
+      conditions_reglement_default: z.string().nullable(),
+      mentions_legales: z.string().nullable(),
+      banque_nom: z.string().nullable(),
+      banque_iban: z.string().nullable(),
+      banque_bic: z.string().nullable(),
+    })
+    .nullable(),
+  client: z
+    .object({
+      raison_sociale: z.string(),
+      adresse: z.string().nullable(),
+      localisation: z.string().nullable(),
+      siret: z.string().nullable(),
+      tva_intracommunautaire: z.string().nullable(),
+    })
+    .nullable(),
+});
+
+/**
+ * Convertit la sortie JSON de la RPC `get_devis_pdf_public` en `DevisPdfData`.
+ * Fonction pure (aucune I/O) : leve si la forme du payload est inattendue
+ * (colonne renommee cote SQL, RPC absente...) plutot que de rendre un PDF
+ * silencieusement tronque.
+ */
+export function mapDevisPdfPublic(payload: unknown): DevisPdfData {
+  const parsed = DevisPdfPublicSchema.parse(payload);
+  return {
+    ref: parsed.devis.ref,
+    objet: parsed.devis.objet,
+    date_emission: parsed.devis.date_emission,
+    date_validite: parsed.devis.date_validite,
+    montant_ht: parsed.devis.montant_ht,
+    montant_ttc: parsed.devis.montant_ttc,
+    conditions_reglement: parsed.devis.conditions_reglement,
+    lignes: parsed.lignes,
+    societe_emettrice: parsed.societe,
+    client: parsed.client,
+  };
 }
 
 export async function listDevis(): Promise<DevisListItem[]> {

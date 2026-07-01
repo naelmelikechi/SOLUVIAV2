@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { timingSafeStrEqual } from '@/lib/utils/secure-compare';
 import { logger } from '@/lib/utils/logger';
-import { ingestLinkedinEvent } from '@/lib/actions/linkedin';
+import { ingestLinkedinEvent } from '@/lib/linkedin/ingest';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;

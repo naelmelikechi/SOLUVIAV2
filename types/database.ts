@@ -1950,7 +1950,7 @@ export type Database = {
           objet: string | null;
           odoo_id: string | null;
           pdf_url: string | null;
-          projet_id: string | null;
+          projet_id: string;
           ref: string | null;
           societe_emettrice_id: string;
           statut: Database['public']['Enums']['statut_facture'];
@@ -1981,7 +1981,7 @@ export type Database = {
           objet?: string | null;
           odoo_id?: string | null;
           pdf_url?: string | null;
-          projet_id?: string | null;
+          projet_id: string;
           ref?: string | null;
           societe_emettrice_id: string;
           statut?: Database['public']['Enums']['statut_facture'];
@@ -2012,7 +2012,7 @@ export type Database = {
           objet?: string | null;
           odoo_id?: string | null;
           pdf_url?: string | null;
-          projet_id?: string | null;
+          projet_id?: string;
           ref?: string | null;
           societe_emettrice_id?: string;
           statut?: Database['public']['Enums']['statut_facture'];
@@ -3788,6 +3788,7 @@ export type Database = {
           stage: Database['public']['Enums']['stage_prospect'];
         }[];
       };
+      get_devis_pdf_public: { Args: { p_token: string }; Returns: Json };
       get_devis_public: {
         Args: { p_ip?: unknown; p_token: string; p_user_agent?: string };
         Returns: Json;

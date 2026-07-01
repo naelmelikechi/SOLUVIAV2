@@ -8,7 +8,7 @@ import {
   Image,
   type DocumentProps,
 } from '@react-pdf/renderer';
-import type { DevisDetail } from '@/lib/queries/devis';
+import type { DevisPdfData } from '@/lib/queries/devis';
 import { SIGNATURE_SOLUVIA_DATA_URI } from '@/lib/assets/signature-soluvia';
 import { type ReactElement } from 'react';
 import { formatClientAddressLines } from '@/lib/utils/fr-address';
@@ -164,7 +164,7 @@ function formatDate(s: string | null | undefined): string {
 export function DevisPdf({
   devis,
 }: {
-  devis: DevisDetail;
+  devis: DevisPdfData;
 }): ReactElement<DocumentProps> {
   const soc = devis.societe_emettrice;
   const client = devis.client;
@@ -272,7 +272,7 @@ export function DevisPdf({
           <Text style={[styles.colMontant, styles.bold]}>Montant HT</Text>
         </View>
         {lignes.map((l, idx) => (
-          <View key={l.id} style={styles.tableRow} wrap={false}>
+          <View key={l.ordre} style={styles.tableRow} wrap={false}>
             <Text style={styles.colNum}>{idx + 1}</Text>
             <View style={styles.colLibelle}>
               <Text>{l.libelle}</Text>

@@ -14,7 +14,7 @@ const FACTURES_LIST_SELECT = `
       id, ref, numero_seq, date_emission, date_echeance, mois_concerne,
       montant_ht, taux_tva, montant_tva, montant_ttc,
       statut, est_avoir, avoir_motif, facture_origine_id,
-      projet:projets!factures_projet_id_fkey(id, ref),
+      projet:projets!factures_projet_id_fkey!inner(id, ref),
       client:clients!factures_client_id_fkey!inner(id, trigramme, raison_sociale, is_demo, archive)
     ` as const;
 
@@ -22,7 +22,7 @@ const FACTURES_LIST_SELECT = `
 // les filtres embedded (client.archive, projet.ref) restent applicables.
 const FACTURES_COUNT_SELECT = `
       id,
-      projet:projets!factures_projet_id_fkey(id),
+      projet:projets!factures_projet_id_fkey!inner(id),
       client:clients!factures_client_id_fkey!inner(id)
     ` as const;
 

@@ -14,7 +14,9 @@ export const maxDuration = 60;
 // Cap dur : plafonne un export pathologique (append-only, table sans borne).
 const EXPORT_MAX_ROWS = 50_000;
 // Taille de page interne pour boucler getFacturesPage jusqu'a epuisement.
-const EXPORT_PAGE_SIZE = 500;
+// Alignee sur le plafond interne de getFacturesPage (Math.min(100, ...)) :
+// au-dela, la valeur serait silencieusement ramenee a 100.
+const EXPORT_PAGE_SIZE = 100;
 
 const VALID_STATUTS: Record<FactureStatutFiltrable, true> = {
   emise: true,

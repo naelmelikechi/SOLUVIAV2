@@ -156,9 +156,14 @@ export function FacturationPageClient({
 
   const handleLoadMore = useCallback(async () => {
     if (!nextCursor || isLoadingMore) return;
+    // Anti-course : si un re-filtrage (handleQueryChange) survient pendant le
+    // fetch, reqId devient perime -> on n'appende pas des lignes d'un autre
+    // jeu de filtres (evite le melange + curseur corrompu).
+    const reqId = requestIdRef.current;
     setIsLoadingMore(true);
     const res = await fetchFacturesPage(toPageParams(query, nextCursor));
     setIsLoadingMore(false);
+    if (reqId !== requestIdRef.current) return; // reponse perimee (filtre change)
     if (res.ok) {
       setRows((prev) => [...prev, ...res.page.rows]);
       setNextCursor(res.page.nextCursor);

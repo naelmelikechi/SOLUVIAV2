@@ -28,6 +28,7 @@ interface RecordedOp {
 interface TableRules {
   countResult?: () => { count: number | null; error: unknown };
   selectResult?: () => { data: unknown; error: unknown };
+  insertResult?: () => { error: unknown };
 }
 
 interface AdminHarness {
@@ -87,7 +88,9 @@ function buildAdmin(rules: Record<string, TableRules>): AdminHarness {
         insert(payload: unknown) {
           const op: RecordedOp = { table, op: 'insert', filters: [], payload };
           ops.push(op);
-          return Promise.resolve({ error: null });
+          return Promise.resolve(
+            rule?.insertResult ? rule.insertResult() : { error: null },
+          );
         },
       };
     },
@@ -200,5 +203,49 @@ describe('POST /api/webhooks/odoo/move-cancelled — dedup Option B', () => {
         (o) => o.op === 'insert' && o.table === 'odoo_sync_logs',
       ),
     ).toBeUndefined();
+  });
+
+  it('notif_insert_echoue : ancre log statut=error (le cron re-notifiera)', async () => {
+    adminBuild = buildAdmin({
+      factures: {
+        selectResult: () => ({ data: FACTURE, error: null }),
+        countResult: () => ({ count: 0, error: null }),
+      },
+      odoo_sync_logs: {
+        countResult: () => ({ count: 0, error: null }),
+      },
+      users: {
+        selectResult: () => ({ data: [{ id: 'admin-1' }], error: null }),
+      },
+      notifications: {
+        insertResult: () => ({ error: { message: 'insert KO' } }),
+      },
+    });
+
+    // Exception ts-no-dynamic-import : frontiere de chargement de module (le
+    // handler doit etre importe APRES l'enregistrement des vi.mock).
+    const { POST } =
+      await import('@/app/api/webhooks/odoo/move-cancelled/route');
+    const res = await POST(
+      makeRequest({ odoo_id: 134, write_date: '2026-05-22T10:00:00Z' }),
+    );
+    expect(res.status).toBe(200);
+
+    // La notif a bien ete tentee...
+    expect(
+      adminBuild.ops.find(
+        (o) => o.op === 'insert' && o.table === 'notifications',
+      ),
+    ).toBeDefined();
+    // ...mais comme l'insert a echoue, l'ancre est statut='error' -> le cron
+    // (qui ne skippe que success/partial) re-notifiera dans l'heure.
+    const logInsert = adminBuild.ops.find(
+      (o) => o.op === 'insert' && o.table === 'odoo_sync_logs',
+    );
+    expect(logInsert).toBeDefined();
+    const p = logInsert!.payload;
+    const statut =
+      p && typeof p === 'object' && 'statut' in p ? p.statut : undefined;
+    expect(statut).toBe('error');
   });
 });

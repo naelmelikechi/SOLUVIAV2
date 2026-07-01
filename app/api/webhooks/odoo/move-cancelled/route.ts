@@ -145,6 +145,7 @@ export async function POST(request: Request) {
     10,
   );
   const message = `⚠️ Facture ${facture.ref ?? '(sans ref)'} annulée côté Odoo le ${writeDate} (webhook). À réviser.`;
+  let notifOk = adminIds.length > 0;
   if (adminIds.length > 0) {
     const { error: notifErr } = await supabase.from('notifications').insert(
       adminIds.map((adminId) => ({
@@ -155,22 +156,25 @@ export async function POST(request: Request) {
         lien: facture.ref ? `/facturation/${facture.ref}` : null,
       })),
     );
-    if (notifErr)
+    if (notifErr) {
+      notifOk = false;
       logger.warn(SCOPE, 'Insert notifications annulation KO', {
         error: notifErr,
         ref: facture.ref,
       });
+    }
   }
 
-  // Ecrit une ligne cancellation par move (entity_id = facture.id). C'est
-  // l'ancre de dedup que le cron respecte : sans elle, le cron re-detecte le
-  // move (state=cancel) dans l'heure et re-notifie. source='webhook' pour
-  // la tracabilite.
+  // Ecrit une ligne cancellation par move (entity_id = facture.id) : ancre de
+  // dedup que le cron respecte. statut='success' UNIQUEMENT si la notif admin a
+  // bien ete creee ; sinon 'error' -> le cron (qui ne skip que success/partial)
+  // re-detecte le move dans l'heure et re-notifie (pas de perte d'alerte sur
+  // echec d'insert ou 0 admin actif). source='webhook' pour la tracabilite.
   await logSync(supabase, {
     direction: 'pull',
     entity_type: 'cancellation',
     entity_id: facture.id,
-    statut: 'success',
+    statut: notifOk ? 'success' : 'error',
     payload: {
       odoo_id: odooId,
       soluvia_ref: facture.ref,

@@ -780,16 +780,22 @@ export async function syncEduviaForClient(
                 .filter((r) => !apiStepIds.has(r.eduvia_id))
                 .map((r) => r.id);
               if (orphanStepIds.length > 0) {
-                // Garde legale : exclure les steps adosses a une ligne live.
-                const { data: billedLines } = await supabase
-                  .from('facture_lignes')
-                  .select('event_source_id')
-                  .eq('event_type', 'opco_step')
-                  .eq('est_avoir', false)
-                  .in('event_source_id', orphanStepIds);
-                const billedStepIds = new Set(
-                  (billedLines ?? []).map((l) => l.event_source_id),
-                );
+                // Garde legale chunkee (meme plafond d'URL que le delete) : on
+                // interroge les lignes live par lots d'ids orphelins, puis on
+                // agrege les steps factures a conserver.
+                const billedStepIds = new Set<string>();
+                for (const idsChunk of chunk(orphanStepIds, DELETE_CHUNK)) {
+                  // oxlint-disable-next-line react-doctor/async-await-in-loop
+                  const { data: billedLines } = await supabase
+                    .from('facture_lignes')
+                    .select('event_source_id')
+                    .eq('event_type', 'opco_step')
+                    .eq('est_avoir', false)
+                    .in('event_source_id', idsChunk);
+                  for (const l of billedLines ?? []) {
+                    if (l.event_source_id) billedStepIds.add(l.event_source_id);
+                  }
+                }
                 const deletable = orphanStepIds.filter(
                   (id) => !billedStepIds.has(id),
                 );

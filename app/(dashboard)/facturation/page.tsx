@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import {
-  getFacturesList,
+  getFacturesPage,
   getEcheancesPending,
   getBrouillons,
   listProjetsForFacturation,
@@ -35,7 +35,7 @@ export default async function FacturationPage() {
 
   // oxlint-disable-next-line react-doctor/server-sequential-independent-await
   const [
-    factures,
+    facturesPage,
     echeances,
     ajustements,
     brouillons,
@@ -45,7 +45,7 @@ export default async function FacturationPage() {
     clientsForFacturation,
     societesActives,
   ] = await Promise.all([
-    getFacturesList(),
+    getFacturesPage({ limit: 25 }),
     getEcheancesPending(),
     listAjustementsPending(),
     getBrouillons(),
@@ -78,7 +78,7 @@ export default async function FacturationPage() {
     <div>
       <PageHeader title="Facturation" />
       <FacturationPageClient
-        factures={factures}
+        facturesPage={facturesPage}
         echeances={echeances}
         ajustements={ajustements}
         brouillons={brouillons}

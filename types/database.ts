@@ -3777,6 +3777,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      count_factures_by_statut: {
+        Args: never;
+        Returns: {
+          n: number;
+          statut: Database['public']['Enums']['statut_facture'];
+        }[];
+      };
       delete_user_cascade: { Args: { p_user_id: string }; Returns: undefined };
       find_prospect_duplicates: {
         Args: { p_nom: string; p_siren?: string };

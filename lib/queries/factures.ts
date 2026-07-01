@@ -1,41 +1,174 @@
+import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
+import type { Database } from '@/types/database';
 
-export async function getFacturesList() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('factures')
-    .select(
-      `
+type FactureRow = Database['public']['Tables']['factures']['Row'];
+type ProjetRow = Database['public']['Tables']['projets']['Row'];
+type ClientRow = Database['public']['Tables']['clients']['Row'];
+
+// Projection partagee par la liste paginee (getFacturesPage) et l'export.
+// `as const` : preserve le type litteral pour l'inference PostgREST du .select.
+const FACTURES_LIST_SELECT = `
       id, ref, numero_seq, date_emission, date_echeance, mois_concerne,
       montant_ht, taux_tva, montant_tva, montant_ttc,
       statut, est_avoir, avoir_motif, facture_origine_id,
       projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey!inner(id, trigramme, raison_sociale, is_demo, archive)
-    `,
-    )
-    // Les clients de demo (is_demo=true) restent visibles : utilises pour
-    // les smoke-tests reels et vu que leurs factures sont pushees en
-    // brouillon Odoo (is_draft=true), pas de risque comptable. Pour les
-    // masquer, l UI peut filtrer via le badge is_demo dans la liste.
+    ` as const;
+
+// Projection minimale pour le count exact (page 1) : embeds requis pour que
+// les filtres embedded (client.archive, projet.ref) restent applicables.
+const FACTURES_COUNT_SELECT = `
+      id,
+      projet:projets!factures_projet_id_fkey(id),
+      client:clients!factures_client_id_fkey!inner(id)
+    ` as const;
+
+// Type public de la liste des factures (colonnes + joins projet/client).
+// Nomme explicitement (pas d'inference via ReturnType) pour servir de contrat
+// stable aux colonnes de la DataTable et a l'export.
+export interface FactureListItem {
+  id: FactureRow['id'];
+  ref: FactureRow['ref'];
+  numero_seq: FactureRow['numero_seq'];
+  date_emission: FactureRow['date_emission'];
+  date_echeance: FactureRow['date_echeance'];
+  mois_concerne: FactureRow['mois_concerne'];
+  montant_ht: FactureRow['montant_ht'];
+  taux_tva: FactureRow['taux_tva'];
+  montant_tva: FactureRow['montant_tva'];
+  montant_ttc: FactureRow['montant_ttc'];
+  statut: FactureRow['statut'];
+  est_avoir: FactureRow['est_avoir'];
+  avoir_motif: FactureRow['avoir_motif'];
+  facture_origine_id: FactureRow['facture_origine_id'];
+  projet: Pick<ProjetRow, 'id' | 'ref'> | null;
+  client: Pick<
+    ClientRow,
+    'id' | 'trigramme' | 'raison_sociale' | 'is_demo' | 'archive'
+  >;
+}
+
+// Statuts filtrables cote UI (tous les statuts emis ; a_emettre exclu).
+export type FactureStatutFiltrable = 'emise' | 'payee' | 'en_retard' | 'avoir';
+
+export interface FacturesPageParams {
+  limit?: number; // defaut 25 ; borne [1, 100]
+  cursor?: string | null; // base64url({ s: numero_seq, i: id }) ; null = page 1
+  statuts?: FactureStatutFiltrable[]; // [] = tous (sauf a_emettre)
+  searchRef?: string; // ilike sur ref (omnibox)
+  filterProjet?: string; // ilike sur projet.ref
+  filterClient?: string; // ilike sur client.raison_sociale
+}
+
+export interface FacturesPage {
+  rows: FactureListItem[];
+  nextCursor: string | null;
+  total: number | null; // calcule page 1 uniquement, sinon null
+}
+
+// Curseur opaque : encapsule le tuple keyset (numero_seq, id). L'UI ne raisonne
+// jamais dessus. Valide par zod cote serveur (curseur invalide -> page 1).
+const cursorSchema = z.object({ s: z.number().int(), i: z.string().uuid() });
+type FactureCursor = z.infer<typeof cursorSchema>;
+
+export function encodeCursor(cursor: FactureCursor): string {
+  return Buffer.from(JSON.stringify(cursor)).toString('base64url');
+}
+
+export function decodeCursor(
+  raw: string | null | undefined,
+): FactureCursor | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = cursorSchema.safeParse(
+      JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')),
+    );
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// getFacturesPage : pagination serveur keyset (numero_seq DESC, id DESC).
+// Cout borne a une page quelle que soit la taille de l'historique (append-only).
+// Filtres/recherche pousses cote serveur. Count exact page 1 uniquement.
+// ---------------------------------------------------------------------------
+export async function getFacturesPage(
+  params: FacturesPageParams = {},
+): Promise<FacturesPage> {
+  const supabase = await createClient();
+  const limit = Math.min(100, Math.max(1, params.limit ?? 25));
+
+  let q = supabase
+    .from('factures')
+    .select(FACTURES_LIST_SELECT)
     .eq('client.archive', false)
-    .neq('statut', 'a_emettre') // exclut les brouillons (vus dans onglet dedie)
-    .order('numero_seq', { ascending: false });
+    .neq('statut', 'a_emettre');
+
+  if (params.statuts?.length) q = q.in('statut', params.statuts);
+  if (params.searchRef?.trim())
+    q = q.ilike('ref', `%${params.searchRef.trim()}%`);
+  if (params.filterProjet?.trim())
+    q = q.ilike('projet.ref', `%${params.filterProjet.trim()}%`);
+  if (params.filterClient?.trim())
+    q = q.ilike('client.raison_sociale', `%${params.filterClient.trim()}%`);
+
+  const cursor = decodeCursor(params.cursor);
+  if (cursor)
+    q = q.or(
+      `numero_seq.lt.${cursor.s},and(numero_seq.eq.${cursor.s},id.lt.${cursor.i})`,
+    );
+
+  const { data, error } = await q
+    .order('numero_seq', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(limit + 1);
+
   if (error) {
-    logger.error('queries.factures', 'getFacturesList failed', { error });
+    logger.error('queries.factures', 'getFacturesPage failed', { error });
     throw new AppError(
       'FACTURES_FETCH_FAILED',
       'Impossible de charger les factures',
       { cause: error },
     );
   }
-  return data;
-}
 
-export type FactureListItem = Awaited<
-  ReturnType<typeof getFacturesList>
->[number];
+  const fetched = data ?? [];
+  const hasMore = fetched.length > limit;
+  const rows = hasMore ? fetched.slice(0, limit) : fetched;
+  const last = rows.at(-1);
+  const nextCursor =
+    hasMore && last && last.numero_seq !== null
+      ? encodeCursor({ s: last.numero_seq, i: last.id })
+      : null;
+
+  // Count exact page 1 uniquement (curseur absent OU invalide -> on repart
+  // page 1, donc on recompte). Le total ne change pas pendant la navigation
+  // keyset. Memes filtres que la requete de donnees.
+  let total: number | null = null;
+  if (!cursor) {
+    let cq = supabase
+      .from('factures')
+      .select(FACTURES_COUNT_SELECT, { count: 'exact', head: true })
+      .eq('client.archive', false)
+      .neq('statut', 'a_emettre');
+    if (params.statuts?.length) cq = cq.in('statut', params.statuts);
+    if (params.searchRef?.trim())
+      cq = cq.ilike('ref', `%${params.searchRef.trim()}%`);
+    if (params.filterProjet?.trim())
+      cq = cq.ilike('projet.ref', `%${params.filterProjet.trim()}%`);
+    if (params.filterClient?.trim())
+      cq = cq.ilike('client.raison_sociale', `%${params.filterClient.trim()}%`);
+    const { count } = await cq;
+    total = count ?? 0;
+  }
+
+  return { rows, nextCursor, total };
+}
 
 // ---------------------------------------------------------------------------
 // Brouillons : factures en statut 'a_emettre' (creees mais pas encore
@@ -59,10 +192,14 @@ export async function getBrouillons() {
     `,
     )
     .eq('statut', 'a_emettre')
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .limit(500);
   if (error) {
     logger.error('queries.factures', 'getBrouillons failed', { error });
     return [];
+  }
+  if (data?.length === 500) {
+    logger.warn('queries.factures', 'brouillons > 500, possible backlog');
   }
   return data ?? [];
 }

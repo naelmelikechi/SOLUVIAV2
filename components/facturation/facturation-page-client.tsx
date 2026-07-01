@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Calendar,
@@ -20,7 +20,7 @@ import {
   type SocieteOption,
 } from '@/components/facturation/new-facture-libre-dialog';
 import { DataTable } from '@/components/shared/data-table';
-import type { FilterOption } from '@/components/shared/data-table';
+import type { FilterOption, ServerQuery } from '@/components/shared/data-table';
 import {
   Sheet,
   SheetContent,
@@ -39,15 +39,17 @@ import { ResteAFacturerTab } from '@/components/facturation/reste-a-facturer-tab
 import { EmptyState } from '@/components/shared/empty-state';
 import type {
   FactureListItem,
+  FacturesPage,
+  FacturesPageParams,
+  FactureStatutFiltrable,
   EcheancePending,
   BrouillonItem,
   listProjetsForFacturation,
 } from '@/lib/queries/factures';
+import { fetchFacturesPage } from '@/lib/actions/factures/list';
 import type { AjustementPending } from '@/lib/queries/ajustements';
 import type { ProjetBillableEvents } from '@/lib/queries/billable-events';
 import { buildResteAFacturer } from '@/lib/utils/reste-a-facturer';
-import { formatDate } from '@/lib/utils/formatters';
-import { STATUT_FACTURE_LABELS } from '@/lib/utils/constants';
 import { cn } from '@/lib/utils';
 
 const FACTURE_FILTERS: FilterOption[] = [
@@ -63,8 +65,36 @@ const FACTURE_FILTERS: FilterOption[] = [
   },
 ];
 
+const FACTURES_PAGE_SIZE = 25;
+
+const STATUTS_FILTRABLES: readonly FactureStatutFiltrable[] = [
+  'emise',
+  'payee',
+  'en_retard',
+  'avoir',
+];
+
+// Mappe la ServerQuery (etat toolbar) vers les params de getFacturesPage.
+// Filtre les statuts au sous-ensemble filtrable (narrow via type guard, pas
+// de cast). Utilise au re-filtrage ET au « Voir plus ».
+function toPageParams(
+  query: ServerQuery,
+  cursor: string | null,
+): FacturesPageParams {
+  return {
+    limit: FACTURES_PAGE_SIZE,
+    cursor: cursor ?? undefined,
+    statuts: query.statuts?.filter((s): s is FactureStatutFiltrable =>
+      (STATUTS_FILTRABLES as readonly string[]).includes(s),
+    ),
+    searchRef: query.searchRef,
+    filterProjet: query.filterProjet,
+    filterClient: query.filterClient,
+  };
+}
+
 interface FacturationPageClientProps {
-  factures: FactureListItem[];
+  facturesPage: FacturesPage;
   echeances: EcheancePending[];
   ajustements: AjustementPending[];
   brouillons: BrouillonItem[];
@@ -77,7 +107,7 @@ interface FacturationPageClientProps {
 
 // oxlint-disable-next-line react-doctor/no-giant-component
 export function FacturationPageClient({
-  factures,
+  facturesPage,
   echeances,
   ajustements,
   brouillons,
@@ -99,6 +129,41 @@ export function FacturationPageClient({
     { kind: 'facture'; ref: string } | { kind: 'echeance'; id: string } | null
   >(null);
   const [previewLoaded, setPreviewLoaded] = useState(false);
+
+  // Pagination serveur keyset : la page 1 vient du SSR (facturesPage), les
+  // pages suivantes / re-filtrages via la Server Action fetchFacturesPage.
+  const [rows, setRows] = useState<FactureListItem[]>(facturesPage.rows);
+  const [nextCursor, setNextCursor] = useState<string | null>(
+    facturesPage.nextCursor,
+  );
+  const [total, setTotal] = useState<number | null>(facturesPage.total);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [query, setQuery] = useState<ServerQuery>({});
+  // Anti-course : seule la reponse de la derniere requete emise gagne.
+  const requestIdRef = useRef(0);
+
+  const handleQueryChange = useCallback(async (next: ServerQuery) => {
+    setQuery(next);
+    const reqId = ++requestIdRef.current;
+    const res = await fetchFacturesPage(toPageParams(next, null));
+    if (reqId !== requestIdRef.current) return; // reponse perimee
+    if (res.ok) {
+      setRows(res.page.rows);
+      setNextCursor(res.page.nextCursor);
+      setTotal(res.page.total);
+    }
+  }, []);
+
+  const handleLoadMore = useCallback(async () => {
+    if (!nextCursor || isLoadingMore) return;
+    setIsLoadingMore(true);
+    const res = await fetchFacturesPage(toPageParams(query, nextCursor));
+    setIsLoadingMore(false);
+    if (res.ok) {
+      setRows((prev) => [...prev, ...res.page.rows]);
+      setNextCursor(res.page.nextCursor);
+    }
+  }, [nextCursor, isLoadingMore, query]);
 
   const factureColumns = useMemo(
     () =>
@@ -137,29 +202,20 @@ export function FacturationPageClient({
     push(`/facturation/${row.ref}`);
   };
 
-  const handleExport = async () => {
-    const XLSX = await import('xlsx');
-    const data = factures.map((f) => ({
-      'N° Facture': f.ref,
-      Projet: f.projet?.ref ?? '',
-      Client: f.client?.raison_sociale ?? '',
-      Émission: f.date_emission ? formatDate(f.date_emission) : '',
-      Mois: f.mois_concerne,
-      'Montant HT': f.montant_ht,
-      Échéance: f.date_echeance ? formatDate(f.date_echeance) : '',
-      État: STATUT_FACTURE_LABELS[f.statut] || f.statut,
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Factures');
-    XLSX.writeFile(
-      wb,
-      `factures_export_${new Date().toISOString().split('T')[0]}.xlsx`,
-    );
+  const handleExport = () => {
+    // L'export lit desormais toutes les lignes cote serveur (le state
+    // in-memory a disparu). On propage les filtres courants a l'endpoint.
+    const params = new URLSearchParams();
+    for (const s of query.statuts ?? []) params.append('statut', s);
+    if (query.searchRef) params.set('searchRef', query.searchRef);
+    if (query.filterProjet) params.set('filterProjet', query.filterProjet);
+    if (query.filterClient) params.set('filterClient', query.filterClient);
+    const qs = params.toString();
+    window.location.href = `/api/factures/export${qs ? `?${qs}` : ''}`;
   };
 
   if (
-    factures.length === 0 &&
+    (facturesPage.total ?? rows.length) === 0 &&
     echeances.length === 0 &&
     ajustements.length === 0 &&
     brouillons.length === 0 &&
@@ -265,7 +321,7 @@ export function FacturationPageClient({
         <TabsTrigger value={3}>
           Factures
           <span className="text-muted-foreground ml-1.5 text-xs">
-            ({factures.length})
+            ({total ?? rows.length})
           </span>
         </TabsTrigger>
         <TabsTrigger value={4}>
@@ -369,12 +425,17 @@ export function FacturationPageClient({
           </div>
           <DataTable
             columns={factureColumns}
-            data={factures}
+            data={rows}
             searchKey="ref"
             searchPlaceholder="Rechercher une facture..."
             onRowClick={handleRowClick}
-            defaultSort={{ id: 'ref', desc: true }}
             filters={FACTURE_FILTERS}
+            serverMode
+            onQueryChange={handleQueryChange}
+            onLoadMore={handleLoadMore}
+            nextCursor={nextCursor}
+            total={total}
+            isLoadingMore={isLoadingMore}
           />
         </div>
       </TabsContent>

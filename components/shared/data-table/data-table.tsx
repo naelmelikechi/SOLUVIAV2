@@ -15,8 +15,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { AlertCircle, X } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { AlertCircle, Loader2, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -30,8 +30,22 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { matchesSearch } from '@/lib/utils/search';
+import { useDebounce } from '@/hooks/use-debounce';
 import { DataTableToolbar, type FilterOption } from './data-table-toolbar';
 import { DataTablePagination } from './data-table-pagination';
+
+/**
+ * Requete cote serveur emise par la DataTable en mode serveur (opt-in).
+ * Mappee depuis l'etat de la toolbar (recherche omnibox + facettes + filtres
+ * colonnes). Les cles correspondent aux ids de colonnes conventionnels de la
+ * liste des factures (ref, statut, projet, client).
+ */
+export interface ServerQuery {
+  searchRef?: string;
+  statuts?: string[];
+  filterProjet?: string;
+  filterClient?: string;
+}
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -64,6 +78,25 @@ interface DataTableProps<TData, TValue> {
   maxHeight?: string;
   /** Contenu additionnel a droite de la toolbar (ex. bouton d'ajout). */
   toolbarExtra?: ReactNode;
+  /**
+   * Mode serveur (opt-in, defaut false). Quand actif : la pagination et le
+   * filtrage sont assumes cote serveur (data = page courante deja filtree).
+   * On desactive getPaginationRowModel/getFilteredRowModel + le tri, on emet
+   * onQueryChange (debounce) au lieu de muter le state local, et on remplace
+   * la barre de pagination par un footer « N resultats — Voir plus ».
+   * AUCUN impact sur les consommateurs qui ne passent pas serverMode.
+   */
+  serverMode?: boolean;
+  /** Emis (debounce 300ms) quand la recherche/facettes/filtres changent. */
+  onQueryChange?: (query: ServerQuery) => void;
+  /** « Voir plus » : charge la page suivante (keyset). */
+  onLoadMore?: () => void;
+  /** Curseur de la page suivante ; sa presence active le bouton « Voir plus ». */
+  nextCursor?: string | null;
+  /** Total de resultats (page 1 uniquement) affiche dans le footer serveur. */
+  total?: number | null;
+  /** Indique un chargement de page suivante en cours (bouton « Voir plus »). */
+  isLoadingMore?: boolean;
 }
 
 /**
@@ -116,6 +149,12 @@ export function DataTable<TData, TValue>({
   paginationMode = 'always',
   maxHeight,
   toolbarExtra,
+  serverMode = false,
+  onQueryChange,
+  onLoadMore,
+  nextCursor,
+  total,
+  isLoadingMore = false,
   // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>(
@@ -165,9 +204,17 @@ export function DataTable<TData, TValue>({
     data,
     columns: allColumns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    // Mode serveur : data = page courante deja filtree/triee cote serveur.
+    // On n'active donc ni pagination ni filtrage client (sinon on refiltre
+    // une page). Le tri est fige (keyset mono-cle) -> enableSorting=false.
+    ...(serverMode
+      ? {}
+      : {
+          getPaginationRowModel: getPaginationRowModel(),
+          getFilteredRowModel: getFilteredRowModel(),
+        }),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    enableSorting: !serverMode,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
@@ -199,9 +246,41 @@ export function DataTable<TData, TValue>({
   const { pageIndex, pageSize } = table.getState().pagination;
   const filteredTotal = table.getFilteredRowModel().rows.length;
   const showPagination =
-    paginationMode === 'always' || filteredTotal > pageSize || pageIndex > 0;
+    !serverMode &&
+    (paginationMode === 'always' || filteredTotal > pageSize || pageIndex > 0);
 
   const visibleColumnCount = table.getVisibleLeafColumns().length;
+
+  // Mode serveur : mappe l'etat toolbar (omnibox + facettes + filtres colonnes)
+  // vers une ServerQuery emise avec debounce 300ms. Ignore le montage initial
+  // (la page 1 est deja rendue en SSR par le parent).
+  const hasEmittedRef = useRef(false);
+  const emitQuery = useDebounce((...args: unknown[]) => {
+    (onQueryChange as ((q: ServerQuery) => void) | undefined)?.(
+      args[0] as ServerQuery,
+    );
+  }, 300);
+  useEffect(() => {
+    if (!serverMode) return;
+    if (!hasEmittedRef.current) {
+      hasEmittedRef.current = true;
+      return;
+    }
+    const readFilter = (id: string) =>
+      columnFilters.find((f) => f.id === id)?.value;
+    const statutRaw = readFilter('statut');
+    const projetRaw = readFilter('projet');
+    const clientRaw = readFilter('client');
+    const refRaw = readFilter('ref');
+    const search =
+      globalFilter.trim() || (typeof refRaw === 'string' ? refRaw : '');
+    emitQuery({
+      searchRef: search || undefined,
+      statuts: Array.isArray(statutRaw) ? (statutRaw as string[]) : undefined,
+      filterProjet: typeof projetRaw === 'string' ? projetRaw : undefined,
+      filterClient: typeof clientRaw === 'string' ? clientRaw : undefined,
+    });
+  }, [serverMode, columnFilters, globalFilter, emitQuery, onQueryChange]);
 
   return (
     <div className="space-y-4">
@@ -370,6 +449,30 @@ export function DataTable<TData, TValue>({
         </div>
       )}
       {showPagination && <DataTablePagination table={table} />}
+      {serverMode && (
+        <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="tabular-nums">
+            {total !== null && total !== undefined
+              ? `${total} résultat${total > 1 ? 's' : ''}`
+              : `${table.getRowModel().rows.length} affichée${
+                  table.getRowModel().rows.length > 1 ? 's' : ''
+                }`}
+          </div>
+          {nextCursor && onLoadMore && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore && (
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
+              )}
+              Voir plus
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

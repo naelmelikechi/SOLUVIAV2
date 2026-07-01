@@ -50,11 +50,17 @@ interface QueryRecord {
   columns: string;
   filters: FilterRecord[];
   orders: OrderRecord[];
+  ors: string[];
+  ilikes: { col: string; val: string }[];
+  limits: number[];
+  count?: string;
+  head?: boolean;
 }
 
 interface TableResult {
   data?: unknown;
   error?: unknown;
+  count?: number;
 }
 
 function buildSupabase(
@@ -80,6 +86,7 @@ function buildSupabase(
       return Promise.resolve({
         data: r.data ?? null,
         error: r.error ?? null,
+        count: r.count,
       });
     };
     const chain: Record<string, unknown> = {
@@ -99,8 +106,20 @@ function buildSupabase(
         record.filters.push({ col, val, op: 'neq' });
         return chain;
       },
+      or(expr: string) {
+        record.ors.push(expr);
+        return chain;
+      },
+      ilike(col: string, val: string) {
+        record.ilikes.push({ col, val });
+        return chain;
+      },
       order(col: string, opts?: { ascending?: boolean }) {
         record.orders.push({ col, ascending: opts?.ascending ?? true });
+        return chain;
+      },
+      limit(n: number) {
+        record.limits.push(n);
         return chain;
       },
       single() {
@@ -121,12 +140,17 @@ function buildSupabase(
     client: {
       from(table: string) {
         return {
-          select(columns: string) {
+          select(columns: string, opts?: { count?: string; head?: boolean }) {
             const record: QueryRecord = {
               table,
               columns,
               filters: [],
               orders: [],
+              ors: [],
+              ilikes: [],
+              limits: [],
+              count: opts?.count,
+              head: opts?.head,
             };
             ops.push(record);
             return makeChain(record);
@@ -282,58 +306,6 @@ describe('getProjetActiveContratsForFacturation', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getFacturesList - tri + exclusion brouillons + filtre demo
-// ---------------------------------------------------------------------------
-
-describe('getFacturesList', () => {
-  it("orders by numero_seq DESC and excludes brouillons (statut='a_emettre')", async () => {
-    const mock = buildSupabase({
-      factures: {
-        data: [
-          { id: 'f2', ref: 'FAC-DUP-0002', numero_seq: 2, statut: 'emise' },
-          { id: 'f1', ref: 'FAC-DUP-0001', numero_seq: 1, statut: 'payee' },
-        ],
-      },
-    });
-    vi.mocked(createClient).mockResolvedValue(
-      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
-    );
-
-    const { getFacturesList } = await import('@/lib/queries/factures');
-    const result = await getFacturesList();
-
-    expect(result).toHaveLength(2);
-    const op = mock.ops.find((o) => o.table === 'factures');
-    expect(op).toBeDefined();
-
-    // tri numero_seq DESC
-    const order = op!.orders.find((o) => o.col === 'numero_seq');
-    expect(order).toBeDefined();
-    expect(order!.ascending).toBe(false);
-
-    // exclusion brouillons via neq
-    const neqStatut = op!.filters.find(
-      (f) => f.col === 'statut' && f.op === 'neq',
-    );
-    expect(neqStatut?.val).toBe('a_emettre');
-
-    // exclusion clients archives uniquement. Le filtre is_demo a ete retire
-    // (commit 5e90f01) : les clients demo restent visibles dans l onglet
-    // Factures, leur push Odoo en is_draft=true gere le risque comptable.
-    expect(
-      op!.filters.find(
-        (f) => f.col === 'client.is_demo' && f.val === false && f.op === 'eq',
-      ),
-    ).toBeUndefined();
-    expect(
-      op!.filters.find(
-        (f) => f.col === 'client.archive' && f.val === false && f.op === 'eq',
-      ),
-    ).toBeDefined();
-  });
-});
-
-// ---------------------------------------------------------------------------
 // getBrouillons - filtre statut='a_emettre', tri ASC
 // ---------------------------------------------------------------------------
 
@@ -371,6 +343,21 @@ describe('getBrouillons', () => {
     const result = await getBrouillons();
 
     expect(result).toEqual([]);
+  });
+
+  it('borne la requete a 500 lignes (.limit(500))', async () => {
+    const mock = buildSupabase({
+      factures: { data: [{ id: 'b1' }] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBrouillons } = await import('@/lib/queries/factures');
+    await getBrouillons();
+
+    const op = mock.ops.find((o) => o.table === 'factures');
+    expect(op!.limits).toContain(500);
   });
 });
 
@@ -414,23 +401,200 @@ describe('getEcheancesPending', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Mandat : pagination + filtre statut explicite
-// Le module factures.ts n'expose pas (au moment de l'ecriture des tests) de
-// helper avec limit/offset ni de filtre statut parametre par l'appelant.
-// Ces capacites sont assurees cote UI / DataTable apres fetch. On documente
-// donc les attentes via it.skip pour qu'elles soient adressees si une telle
-// API est ajoutee plus tard.
+// getFacturesPage - pagination serveur keyset (numero_seq DESC, id DESC)
 // ---------------------------------------------------------------------------
 
-describe('factures.ts - capabilites non implementees', () => {
-  it.skip('supports a limit/offset pagination signature', () => {
-    // Aucun helper exporte n'accepte limit/offset.
-    // A activer si on ajoute getFacturesPage(limit, offset).
+describe('getFacturesPage', () => {
+  it('keyset page 1 : order seq/id DESC, limit+1, pas de .or, count exact', async () => {
+    const mock = buildSupabase({
+      factures: [{ data: [{ id: 'f2', numero_seq: 2 }] }, { count: 7 }],
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getFacturesPage } = await import('@/lib/queries/factures');
+    const page = await getFacturesPage({ limit: 2 });
+
+    const dataOp = mock.ops[0]!;
+    // tri sur les 2 cles
+    expect(dataOp.orders[0]).toEqual({ col: 'numero_seq', ascending: false });
+    expect(dataOp.orders[1]).toEqual({ col: 'id', ascending: false });
+    // limit + 1
+    expect(dataOp.limits).toContain(3);
+    // pas de curseur -> pas de .or
+    expect(dataOp.ors).toHaveLength(0);
+    // count exact head sur la 2e requete
+    const countOp = mock.ops[1]!;
+    expect(countOp.count).toBe('exact');
+    expect(countOp.head).toBe(true);
+    expect(page.total).toBe(7);
+    // invariants preserves
+    expect(
+      dataOp.filters.find((f) => f.col === 'statut' && f.op === 'neq')?.val,
+    ).toBe('a_emettre');
+    expect(
+      dataOp.filters.find((f) => f.col === 'client.archive' && f.op === 'eq')
+        ?.val,
+    ).toBe(false);
   });
 
-  it.skip('supports a parametric filter by statut (a_emettre, emise, payee)', () => {
-    // Les filtres statut existent mais sont hardcodes par helper
-    // (getBrouillons -> a_emettre, getFacturesList -> != a_emettre, etc).
-    // A activer si on expose getFacturesByStatut(statut).
+  it('nextCursor non-null quand limit+1 lignes recues (3 pour limit 2)', async () => {
+    const mock = buildSupabase({
+      factures: [
+        {
+          data: [
+            { id: '33333333-3333-4333-8333-333333333333', numero_seq: 3 },
+            { id: '22222222-2222-4222-8222-222222222222', numero_seq: 2 },
+            { id: '11111111-1111-4111-8111-111111111111', numero_seq: 1 },
+          ],
+        },
+        { count: 3 },
+      ],
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getFacturesPage, decodeCursor } =
+      await import('@/lib/queries/factures');
+    const page = await getFacturesPage({ limit: 2 });
+
+    expect(page.rows).toHaveLength(2);
+    expect(page.nextCursor).not.toBeNull();
+    // curseur = derniere ligne conservee (f2, seq 2)
+    expect(decodeCursor(page.nextCursor)).toEqual({
+      s: 2,
+      i: '22222222-2222-4222-8222-222222222222',
+    });
+  });
+
+  it('derniere page : nextCursor null quand limit lignes recues', async () => {
+    const mock = buildSupabase({
+      factures: [
+        {
+          data: [
+            { id: 'f2', numero_seq: 2 },
+            { id: 'f1', numero_seq: 1 },
+          ],
+        },
+        { count: 2 },
+      ],
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getFacturesPage } = await import('@/lib/queries/factures');
+    const page = await getFacturesPage({ limit: 2 });
+
+    expect(page.rows).toHaveLength(2);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it('page 2 : curseur fourni -> .or emis, aucun count (total null)', async () => {
+    const mock = buildSupabase({
+      factures: [{ data: [{ id: 'f1', numero_seq: 1 }] }],
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getFacturesPage, encodeCursor } =
+      await import('@/lib/queries/factures');
+    const cursor = encodeCursor({
+      s: 2,
+      i: '22222222-2222-4222-8222-222222222222',
+    });
+    const page = await getFacturesPage({ limit: 2, cursor });
+
+    const dataOp = mock.ops[0]!;
+    expect(dataOp.ors).toContain(
+      'numero_seq.lt.2,and(numero_seq.eq.2,id.lt.22222222-2222-4222-8222-222222222222)',
+    );
+    // une seule requete : aucun count
+    expect(mock.ops).toHaveLength(1);
+    expect(page.total).toBeNull();
+  });
+
+  it('filtre statut -> .in(statut, [...])', async () => {
+    const mock = buildSupabase({
+      factures: [{ data: [] }, { count: 0 }],
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getFacturesPage } = await import('@/lib/queries/factures');
+    await getFacturesPage({ limit: 2, statuts: ['emise', 'payee'] });
+
+    const dataOp = mock.ops[0]!;
+    const inStatut = dataOp.filters.find(
+      (f) => f.col === 'statut' && f.op === 'in',
+    );
+    expect(inStatut?.val).toEqual(['emise', 'payee']);
+  });
+
+  it('recherche ref -> .ilike(ref, %...%)', async () => {
+    const mock = buildSupabase({
+      factures: [{ data: [] }, { count: 0 }],
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getFacturesPage } = await import('@/lib/queries/factures');
+    await getFacturesPage({ limit: 2, searchRef: 'FAC-SOL-0007' });
+
+    const dataOp = mock.ops[0]!;
+    expect(dataOp.ilikes).toContainEqual({
+      col: 'ref',
+      val: '%FAC-SOL-0007%',
+    });
+  });
+
+  it('filtres projet/client -> .ilike sur projet.ref et client.raison_sociale', async () => {
+    const mock = buildSupabase({
+      factures: [{ data: [] }, { count: 0 }],
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getFacturesPage } = await import('@/lib/queries/factures');
+    await getFacturesPage({
+      limit: 2,
+      filterProjet: 'ACME',
+      filterClient: 'Dupont',
+    });
+
+    const dataOp = mock.ops[0]!;
+    expect(dataOp.ilikes).toContainEqual({
+      col: 'projet.ref',
+      val: '%ACME%',
+    });
+    expect(dataOp.ilikes).toContainEqual({
+      col: 'client.raison_sociale',
+      val: '%Dupont%',
+    });
+  });
+
+  it('curseur invalide -> repart page 1 (pas de .or) et recompte le total', async () => {
+    const mock = buildSupabase({
+      factures: [{ data: [{ id: 'f1', numero_seq: 1 }] }, { count: 4 }],
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getFacturesPage } = await import('@/lib/queries/factures');
+    const page = await getFacturesPage({ limit: 2, cursor: 'pas-du-base64' });
+
+    const dataOp = mock.ops[0]!;
+    // curseur invalide -> pas de predicat keyset
+    expect(dataOp.ors).toHaveLength(0);
+    // curseur invalide = on repart page 1 -> le count est declenche (gate sur
+    // le curseur DECODE, undefined ici) et le total est recalcule.
+    expect(page.total).toBe(4);
   });
 });

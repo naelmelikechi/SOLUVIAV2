@@ -162,6 +162,10 @@ function buildSupabase(rules: Record<string, TableRules>) {
         op.filters.push({ col, val });
         return chain;
       },
+      in(col: string, vals: unknown) {
+        op.filters.push({ col, val: vals });
+        return chain;
+      },
       then(resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) {
         return settle().then(resolve, reject);
       },
@@ -635,6 +639,15 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
       eduvia_invoice_steps: { upsert: () => ({ error: null }) },
       eduvia_invoice_forecast_steps: { upsert: () => ({ error: null }) },
       eduvia_invoice_lines: {
+        // Diff en memoire : le select renvoie les lignes DB du contrat
+        // (conservee 79 + orpheline 999). L'orpheline est celle absente de l'API.
+        select: () => ({
+          data: [
+            { id: 'line-pk-79', eduvia_id: 79 },
+            { id: 'line-pk-999', eduvia_id: 999 },
+          ],
+          error: null,
+        }),
         upsert: () => ({ error: null }),
         delete: () => ({ error: null }),
       },
@@ -657,16 +670,12 @@ describe('syncEduviaForClient — Phase 5 : sync invoice lines', () => {
     );
     expect(deleteOps).toHaveLength(1);
 
-    // Le delete est scope par contrat (contrat_id), pas par invoice.
+    // Delete par PK : .in('id', [orphelines]) — cible la ligne 999, epargne 79.
     const deleteOp = deleteOps[0]!;
-    const contratFilter = deleteOp.filters.find((f) => f.col === 'contrat_id');
-    expect(contratFilter?.val).toBe(CONTRAT_UUID);
-
-    // Le NOT IN doit exclure l'eduvia_id=79 (la ligne conservee)
-    const notInFilter = deleteOp.filters.find((f) => f.col === 'eduvia_id');
-    expect(notInFilter).toBeDefined();
-    // val est la string "(79)" passee a .not('eduvia_id', 'in', '(79)')
-    expect(String(notInFilter!.val)).toContain('79');
+    const idFilter = deleteOp.filters.find((f) => f.col === 'id');
+    expect(idFilter).toBeDefined();
+    expect(idFilter!.val).toEqual(['line-pk-999']);
+    expect(JSON.stringify(idFilter!.val)).not.toContain('line-pk-79');
   });
 
   it('I2: si Eduvia retourne 0 lignes, skip delete pour eviter wipe', async () => {

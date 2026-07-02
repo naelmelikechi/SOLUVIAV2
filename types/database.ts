@@ -2538,68 +2538,6 @@ export type Database = {
           },
         ];
       };
-      production_mensuelle: {
-        Row: {
-          created_at: string;
-          en_retard: number;
-          encaisse_opco: number;
-          encaisse_soluvia: number;
-          facture_opco: number;
-          facture_soluvia: number;
-          id: string;
-          last_synced_at: string | null;
-          mois: string;
-          production_opco: number;
-          production_soluvia: number;
-          projet_id: string;
-          reste_a_encaisser: number;
-          reste_a_facturer: number;
-          updated_at: string;
-        };
-        Insert: {
-          created_at?: string;
-          en_retard?: number;
-          encaisse_opco?: number;
-          encaisse_soluvia?: number;
-          facture_opco?: number;
-          facture_soluvia?: number;
-          id?: string;
-          last_synced_at?: string | null;
-          mois: string;
-          production_opco?: number;
-          production_soluvia?: number;
-          projet_id: string;
-          reste_a_encaisser?: number;
-          reste_a_facturer?: number;
-          updated_at?: string;
-        };
-        Update: {
-          created_at?: string;
-          en_retard?: number;
-          encaisse_opco?: number;
-          encaisse_soluvia?: number;
-          facture_opco?: number;
-          facture_soluvia?: number;
-          id?: string;
-          last_synced_at?: string | null;
-          mois?: string;
-          production_opco?: number;
-          production_soluvia?: number;
-          projet_id?: string;
-          reste_a_encaisser?: number;
-          reste_a_facturer?: number;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'production_mensuelle_projet_id_fkey';
-            columns: ['projet_id'];
-            isOneToOne: false;
-            referencedRelation: 'projets';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
       progression_snapshots_weekly: {
         Row: {
           captured_at: string;

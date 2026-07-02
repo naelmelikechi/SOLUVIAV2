@@ -18,21 +18,11 @@ import {
   buildAlerts,
   buildEvolutionData,
   computeEvolution,
+  type DashboardData,
 } from '@/lib/utils/build-dashboard-data';
 
-// ============================================================
-// Types
-// ============================================================
-
-export interface DashboardData {
-  projetsActifs: number;
-  facturesEnRetard: number;
-  facturesEmises: number;
-  echeancesAFacturer: number;
-  contratsActifs: number;
-  contratsSansProgression: number;
-  byType: { app: number; pdc: number; poe: number };
-}
+// Re-export pour les consommateurs existants du type via ce module.
+export type { DashboardData };
 
 // ============================================================
 // Main Component

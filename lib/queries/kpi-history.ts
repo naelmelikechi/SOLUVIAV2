@@ -43,19 +43,10 @@ export async function getSparklineData(
     .reverse();
 }
 
-export async function getLatestKpiValue(
-  params: Omit<SparklineParams, 'monthsBack'>,
-): Promise<number | null> {
-  const data = await getSparklineData({ ...params, monthsBack: 1 });
-  const last = data[data.length - 1];
-  return last !== undefined ? last.valeur : null;
-}
-
 /**
  * Version BATCH : charge les series de PLUSIEURS type_kpi pour un meme scope en
  * UNE requete (vs 1 par type). Retourne une Map type_kpi -> points (ordre
- * chronologique, derniers `monthsBack` mois). La derniere valeur d'une serie
- * equivaut a getLatestKpiValue.
+ * chronologique, derniers `monthsBack` mois).
  */
 export async function getKpiSeriesBatch(params: {
   kpiTypes: string[];

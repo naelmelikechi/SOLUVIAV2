@@ -58,10 +58,6 @@
       "schedule": "0 4 * * *"
     },
     {
-      "path": "/api/cron/welcome-emails-broadcast",
-      "schedule": "0 7 18 5 *"
-    },
-    {
       "path": "/api/cron/devis-expiration",
       "schedule": "0 6 * * *"
     },

@@ -7,9 +7,9 @@
  * PRÉREQUIS D'ACTIVATION : la clé API doit être provisionnée par la Direction
  * dans la variable d'environnement `YOUSIGN_API_KEY` (et, en option,
  * `YOUSIGN_BASE_URL` pour cibler le bac à sable, p. ex.
- * https://api-sandbox.yousign.app/v3). Sans clé, `getSignatureProvider`
- * (@/lib/signature) renvoie `null` et l'application reste en mode manuel ; les
- * fonctions de ce module lèvent une erreur explicite plutôt que de planter.
+ * https://api-sandbox.yousign.app/v3). Sans clé, l'application reste en mode
+ * manuel ; les fonctions de ce module lèvent une erreur explicite plutôt que
+ * de planter.
  *
  * Flux `send()` (4 appels, cf. doc « Create your first Signature Request ») :
  *   1. POST /signature_requests                       -> crée un brouillon

@@ -9,43 +9,28 @@ Tous les horaires sont en **UTC** (convention Vercel cron).
 
 ## Vue d'ensemble
 
-| Route                                | Schedule (UTC)   | Fréquence                       | `maxDuration` |
-| ------------------------------------ | ---------------- | ------------------------------- | ------------- |
-| `/api/cron/snapshot`                 | `0 3 1 * *`      | Mensuel, 1er à 03h              | 120s          |
-| `/api/cron/factures-retard`          | `0 9 * * 1-5`    | Quotidien, 09h lun-ven          | 60s           |
-| `/api/sync/eduvia`                   | `0 6 * * 1-5`    | Quotidien, 06h lun-ven          | 300s          |
-| `/api/sync/odoo`                     | `0 8-19 * * 1-5` | Horaire, 08h-19h lun-ven (12×j) | 120s          |
-| `/api/cron/chat-cleanup`             | `0 * * * *`      | Chaque heure                    | 30s           |
-| `/api/cron/email-temps-non-saisi`    | `0 12 * * 5`     | Vendredi 12h                    | 60s           |
-| `/api/cron/email-factures-retard`    | `0 8 * * 1`      | Lundi 08h                       | 60s           |
-| `/api/cron/email-fenetre-debut`      | `0 8 25 * *`     | Le 25 de chaque mois, 08h       | 60s           |
-| `/api/cron/email-fenetre-fin`        | `0 8 2 * *`      | Le 2 de chaque mois, 08h        | 60s           |
-| `/api/cron/email-rapport-mensuel`    | `0 9 1 * *`      | Le 1er de chaque mois, 09h      | 60s           |
-| `/api/cron/progression-snapshot`     | `0 7 * * 1`      | Lundi 07h                       | 60s           |
-| `/api/cron/intercontrat-alerte`      | `0 9 * * 1`      | Lundi 09h                       | 60s           |
-| `/api/cron/cleanup-auth-orphans`     | `0 4 * * *`      | Quotidien, 04h                  | 60s           |
-| `/api/cron/welcome-emails-broadcast` | `0 7 18 5 *`     | One-shot 18/05 07h              | 60s           |
-| `/api/cron/devis-expiration`         | `0 6 * * *`      | Quotidien, 06h                  | 60s           |
-| `/api/cron/devis-relance`            | `0 7 * * *`      | Quotidien, 07h                  | 60s           |
+| Route                             | Schedule (UTC) | Fréquence                     | `maxDuration` |
+| --------------------------------- | -------------- | ----------------------------- | ------------- |
+| `/api/cron/snapshot`              | `0 3 1 * *`    | Mensuel, 1er à 03h            | 120s          |
+| `/api/cron/factures-retard`       | `0 9 * * 1-5`  | Quotidien, 09h lun-ven        | 60s           |
+| `/api/sync/eduvia`                | `0 9-18 * * *` | Horaire, 09h-18h 7j/7 (10×/j) | 300s          |
+| `/api/cron/eduvia-audit`          | `0 0 * * *`    | Quotidien, minuit             | 300s          |
+| `/api/sync/odoo`                  | `0 * * * *`    | Chaque heure (24×/j)          | 120s          |
+| `/api/cron/chat-cleanup`          | `0 */4 * * *`  | Toutes les 4h                 | 30s           |
+| `/api/cron/email-temps-non-saisi` | `0 12 * * 5`   | Vendredi 12h                  | 60s           |
+| `/api/cron/email-factures-retard` | `0 8 * * 1`    | Lundi 08h                     | 60s           |
+| `/api/cron/email-fenetre-debut`   | `0 8 25 * *`   | Le 25 de chaque mois, 08h     | 60s           |
+| `/api/cron/email-fenetre-fin`     | `0 8 2 * *`    | Le 2 de chaque mois, 08h      | 60s           |
+| `/api/cron/email-rapport-mensuel` | `0 9 1 * *`    | Le 1er de chaque mois, 09h    | 60s           |
+| `/api/cron/progression-snapshot`  | `0 7 * * 1`    | Lundi 07h                     | 60s           |
+| `/api/cron/intercontrat-alerte`   | `0 9 * * 1`    | Lundi 09h                     | 60s           |
+| `/api/cron/cleanup-auth-orphans`  | `0 4 * * *`    | Quotidien, 04h                | 60s           |
+| `/api/cron/devis-expiration`      | `0 6 * * *`    | Quotidien, 06h                | 60s           |
+| `/api/cron/devis-relance`         | `0 7 * * *`    | Quotidien, 07h                | 60s           |
+| `/api/cron/prospect-alertes`      | `0 8 * * *`    | Quotidien, 08h                | 60s           |
+| `/api/cron/kpi-digest`            | `0 9 * * 1`    | Lundi 09h                     | 120s          |
 
 ## Détail par cron
-
-### `echeances` — génération des échéances mensuelles
-
-**Finalité** : pour chaque projet actif avec des contrats actifs, génère
-les lignes `echeances` (échéances de facturation prévues M+2 à M+10, puis
-M12 consolidant M10-M12).
-
-**Idempotence** : upsert sur `(projet_id, mois_concerne)` avec
-`ignoreDuplicates: true`. Rejouable sans effet de bord.
-
-**Observation** : retour `{success, echeances_created: N}`. Chercher
-`cron.echeances` dans les logs.
-
-**Symptôme d'échec** : aucune échéance créée en début de mois. Facturation
-du mois entier loupée.
-
----
 
 ### `snapshot` — snapshot KPI mensuel
 
@@ -90,7 +75,7 @@ dashboard mais pas de perte de données.
 - `Aucune taxe de vente "X%" trouvee` → créer la taxe côté Odoo Comptabilité → Configuration → Taxes.
 - Factures restant `odoo_id=NULL` après plusieurs runs → consulter `odoo_sync_logs` (filtrer `statut='error'`).
 
-**Coût** : 120s par run × 12 runs/jour. Cohabite avec FINANCES-WISEMANH sur le même tenant Odoo (compte technique volontairement partagé).
+**Coût** : 120s par run × 24 runs/jour. Cohabite avec FINANCES-WISEMANH sur le même tenant Odoo (compte technique volontairement partagé).
 
 ---
 
@@ -126,13 +111,31 @@ nombre de clients croît.
 
 ---
 
+### `eduvia-audit` - sync nocturne + audit cohérence DB (minuit)
+
+**Finalité** : rejoue un sync Eduvia complet (`syncAllEduviaClients`) puis
+audite la cohérence de la base : contrats actifs à `date_fin` passée,
+contrats sans `projet_id`, contrats actifs avec `npec_amount` 0/NULL,
+contrats résiliés sans `date_fin`, ratio d'orphelins archivés > 10% par
+client (signal API instable).
+
+**Observation** : anomalies loguées (Sentry) + notification in-app aux
+admins (dédupliquée tant que la précédente n'est pas lue). Le sync n'est
+jamais bloqué par l'audit. Chercher `cron.eduvia-audit` dans les logs.
+
+**Symptôme d'échec** : plus de notification d'anomalies alors que des
+incohérences existent, ou instance Supavia non réveillée (`waitForDb`).
+
+---
+
 ### `chat-cleanup` — purge des messages team_chat > 48h
 
 **Finalité** : supprime les messages de chat de plus de 48h pour
 contenir la taille de la table.
 
 **Pagination** : limite `BATCH_LIMIT = 1000` par run. Si le backlog est
-plus gros, un log WARN est émis et le prochain tick horaire reprendra.
+plus gros, un log WARN est émis et le prochain tick (4h plus tard)
+reprendra.
 
 **Symptôme d'échec** : `team_messages` grossit indéfiniment.
 
@@ -190,6 +193,35 @@ lendemain (3).
 
 **Finalité** : prend un instantané hebdo des progressions Eduvia pour
 l'affichage de tendance sur `/indicateurs`.
+
+---
+
+### `prospect-alertes` - alertes commerciales in-app (quotidien 08h)
+
+**Finalité** : deux détections sur le pipeline commercial :
+(a) RDV tenu sans mail post-RDV (commercial à +24h, escalade admins à
++48h) ; (b) prospect actif sans activité (commercial à +14j, escalade
+admins à +30j). Crée des notifications in-app.
+
+**Idempotence** : dédup par `(type, user_id, lien)` sur les notifications
+non lues - rejeu safe.
+
+**Symptôme d'échec** : plus d'alertes commerciales dans la cloche de
+notifications. Chercher `cron.prospect-alertes` dans les logs.
+
+---
+
+### `kpi-digest` - digest hebdo KPI commerciaux (lundi 09h)
+
+**Finalité** : calcule les KPI commerciaux du mois en cours
+(`computeCommercialKpis`) et envoie un email digest aux admins actifs
+(admin + superadmin), avec CTA vers `/commercial/kpis`.
+
+**Idempotence** : lock via `email_send_log` sur clé ISO week
+(`withEmailLock('kpi-digest', isoWeekKey)`), pas de double envoi.
+
+**Symptôme d'échec** : pas d'email le lundi matin. Vérifier
+`RESEND_API_KEY` et la table `email_send_log`.
 
 ## Checklist d'incident cron
 

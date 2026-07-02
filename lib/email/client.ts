@@ -5,6 +5,7 @@ import { buildFactureEmailHtml } from '@/lib/email/templates';
 import { sendEmail } from '@/lib/email/_send';
 import { renderFacturePdfBuffer } from '@/lib/utils/render-facture-pdf';
 import { getEmetteurInfo, type EmetteurInfo } from '@/lib/queries/parametres';
+import { getAppUrl } from '@/lib/utils/app-url';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
@@ -356,6 +357,7 @@ function buildInvitationEmailHtml(params: {
   const inviteePrenom = escapeHtml(params.inviteePrenom);
   const role = escapeHtml(params.role);
   const tempPassword = escapeHtml(params.tempPassword);
+  const appUrl = getAppUrl();
   const greeting = inviteePrenom ? `Bonjour ${inviteePrenom},` : 'Bonjour,';
   const intro =
     params.kind === 'reset'
@@ -382,7 +384,7 @@ function buildInvitationEmailHtml(params: {
 
       <div style="background:#f0f5f0;border:1px solid #d4e4d4;border-radius:8px;padding:16px 20px;margin:16px 0;">
         <p style="margin:0 0 8px;font-size:13px;color:#6b8a6b;">Adresse de connexion</p>
-        <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#1a2e1a;">https://app.mysoluvia.com</p>
+        <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#1a2e1a;">${appUrl}</p>
         <p style="margin:0 0 8px;font-size:13px;color:#6b8a6b;">Mot de passe temporaire</p>
         <p style="margin:0;font-size:16px;font-weight:700;font-family:monospace;color:#16a34a;letter-spacing:1px;">${tempPassword}</p>
       </div>
@@ -392,7 +394,7 @@ function buildInvitationEmailHtml(params: {
       </p>
 
       <div style="text-align:center;margin:24px 0;">
-        <a href="https://app.mysoluvia.com/login" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
+        <a href="${appUrl}/login" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
           Se connecter
         </a>
       </div>

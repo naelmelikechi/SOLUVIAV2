@@ -68,27 +68,3 @@ export async function getIdeesGroupedByStatut(
   }
   return grouped;
 }
-
-export async function getIdeeById(id: string): Promise<IdeeWithRefs | null> {
-  const supabase = await createClient();
-  const { data, error } = await withClockSkewRetry(() =>
-    supabase
-      .from('idees')
-      .select(
-        `*,
-         auteur:users!idees_auteur_id_fkey(id, nom, prenom, role),
-         validee_par_user:users!idees_validee_par_fkey(id, nom, prenom, role),
-         implementee_par_user:users!idees_implementee_par_fkey(id, nom, prenom, role)`,
-      )
-      .eq('id', id)
-      .maybeSingle(),
-  );
-
-  if (error) {
-    logger.error('queries.idees', 'getIdeeById failed', { id, error });
-    throw new AppError('IDEES_FETCH_FAILED', 'Impossible de charger l’idée', {
-      cause: error,
-    });
-  }
-  return data as IdeeWithRefs | null;
-}

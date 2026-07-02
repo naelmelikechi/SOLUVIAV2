@@ -5,7 +5,6 @@ import { render, cleanup } from '@testing-library/react';
 // Mock kpi-history to avoid pulling in supabase/server env validation
 vi.mock('@/lib/queries/kpi-history', () => ({
   getSparklineData: vi.fn().mockResolvedValue([]),
-  getLatestKpiValue: vi.fn().mockResolvedValue(null),
 }));
 
 import { SparklineSvg } from '@/components/shared/sparkline';

@@ -9,7 +9,8 @@ export interface AuditAnomaly {
     | 'contrats_sans_projet'
     | 'npec_zero_actif'
     | 'rupture_sans_date_fin'
-    | 'orphan_resync_warning';
+    | 'orphan_resync_warning'
+    | 'client_sans_sync_24h';
   count: number;
   sample?: string[];
 }
@@ -24,6 +25,8 @@ const ANOMALY_LABELS: Record<AuditAnomaly['type'], string> = {
   rupture_sans_date_fin: 'contrat(s) résilié(s) sans date de fin',
   orphan_resync_warning:
     'contrat(s) orphelin(s) archivé(s) en masse (API instable ?)',
+  client_sans_sync_24h:
+    'client(s) avec clé API active sans synchronisation Eduvia depuis plus de 24h',
 };
 
 export function formatAnomaliesMessage(anomalies: AuditAnomaly[]): string {

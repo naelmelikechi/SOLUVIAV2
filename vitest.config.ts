@@ -13,6 +13,28 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
     },
+    coverage: {
+      provider: 'v8',
+      // Filets anti-regression sur les deux zones critiques de calcul
+      // (echeanciers contractuels + evenements facturables). Valeurs fixees
+      // ~5 points SOUS la couverture mesuree le 2026-07-02 (agregat par zone :
+      // echeancier 56/42/81/58, billable-events 69/60/72/73) : le but est de
+      // bloquer une regression de couverture, pas d'imposer un objectif.
+      thresholds: {
+        'lib/echeancier/**': {
+          statements: 51,
+          branches: 37,
+          functions: 76,
+          lines: 53,
+        },
+        'lib/queries/billable-events/**': {
+          statements: 64,
+          branches: 55,
+          functions: 67,
+          lines: 68,
+        },
+      },
+    },
   },
   resolve: {
     alias: {

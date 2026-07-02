@@ -32,8 +32,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test
-        run: npm run test
+      # Coverage : memes tests que `npm run test`, plus les seuils
+      # coverage.thresholds (vitest.config.ts) qui gatent les zones critiques
+      # lib/echeancier/ et lib/queries/billable-events/ contre les regressions.
+      - name: Test (avec seuils de couverture)
+        run: npm run test:coverage
 
       - name: Build
         run: npm run build

@@ -11,7 +11,14 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import type { ProductionChartRow } from './production-chart';
+// Type defini ici (module feuille) et re-exporte par production-chart pour
+// casser le cycle d'import chart <-> chart-inner (type-only mais piege latent).
+export interface ProductionChartRow {
+  label: string;
+  production: number;
+  facture: number;
+  encaisse: number;
+}
 
 interface Props {
   data: ProductionChartRow[];

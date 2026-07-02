@@ -1,15 +1,13 @@
 'use client';
 
+import { memo } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils/formatters';
 
-export interface ProductionChartRow {
-  label: string;
-  production: number;
-  facture: number;
-  encaisse: number;
-}
+import type { ProductionChartRow } from './production-chart-inner';
+
+export type { ProductionChartRow } from './production-chart-inner';
 
 const RechartsLine = dynamic(
   () =>
@@ -27,7 +25,10 @@ function ChartSkeleton() {
   );
 }
 
-export function ProductionChart({
+// memo : le parent memoise data (useMemo), le graphe recharts ne doit se
+// re-rendre que quand les donnees ou la perspective changent, pas a chaque
+// interaction de la page (filtres, expansion de lignes).
+export const ProductionChart = memo(function ProductionChart({
   data,
   productionOnly = false,
 }: {
@@ -79,4 +80,4 @@ export function ProductionChart({
       </CardContent>
     </Card>
   );
-}
+});

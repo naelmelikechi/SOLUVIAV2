@@ -802,7 +802,6 @@ async function pullCancellations(
   }
 
   let processed = 0;
-  const errorsBefore = errors.length;
 
   for (const move of cancellations) {
     try {
@@ -895,16 +894,17 @@ async function pullCancellations(
     }
   }
 
-  // Toujours logguer une ligne globale pour faire avancer "since" au prochain run.
-  const localErrors = errors.slice(errorsBefore);
+  // Toujours logguer une ligne globale pour faire avancer "since" au prochain
+  // run. `errors` est local a cette tache : le statut ne reflete que les
+  // erreurs d'annulation, jamais celles des autres taches concurrentes.
   const statut: 'success' | 'partial' | 'error' =
-    localErrors.length === 0 ? 'success' : processed > 0 ? 'partial' : 'error';
+    errors.length === 0 ? 'success' : processed > 0 ? 'partial' : 'error';
   await logSync(supabase, {
     direction: 'pull',
     entity_type: 'cancellation',
     statut,
     payload: { since, count: processed },
-    erreur: localErrors.length > 0 ? localErrors.join('; ') : undefined,
+    erreur: errors.length > 0 ? errors.join('; ') : undefined,
   });
 
   return processed;
@@ -920,15 +920,29 @@ export async function syncOdoo(
   logger.info(SCOPE, 'Starting Odoo sync');
 
   const odoo = createOdooClient();
-  const errors: string[] = [];
+
+  // Chaque tache concurrente accumule ses erreurs dans son PROPRE tableau :
+  // un echec de push ne doit pas polluer le statut de log des pulls (et
+  // inversement), sinon l'ancre `since` des annulations peut rester gelee.
+  const pushFacturesErrors: string[] = [];
+  const pushAvoirsErrors: string[] = [];
+  const pullPaymentsErrors: string[] = [];
+  const pullCancellationsErrors: string[] = [];
 
   const [pushedFactures, pushedAvoirs, pulledPayments, pulledCancellations] =
     await Promise.all([
-      pushFactures(supabase, odoo, errors),
-      pushAvoirs(supabase, odoo, errors),
-      pullPayments(supabase, odoo, errors),
-      pullCancellations(supabase, odoo, errors),
+      pushFactures(supabase, odoo, pushFacturesErrors),
+      pushAvoirs(supabase, odoo, pushAvoirsErrors),
+      pullPayments(supabase, odoo, pullPaymentsErrors),
+      pullCancellations(supabase, odoo, pullCancellationsErrors),
     ]);
+
+  const errors = [
+    ...pushFacturesErrors,
+    ...pushAvoirsErrors,
+    ...pullPaymentsErrors,
+    ...pullCancellationsErrors,
+  ];
 
   const result: OdooSyncResult = {
     pushed: pushedFactures + pushedAvoirs,

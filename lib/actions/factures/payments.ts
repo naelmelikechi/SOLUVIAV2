@@ -133,7 +133,10 @@ export async function addManualPayment(params: {
 
   const totalPaye = (allPaiements ?? []).reduce((sum, p) => sum + p.montant, 0);
 
-  if (totalPaye >= facture.montant_ttc) {
+  // Comparaison en centimes entiers : la somme flottante de paiements partiels
+  // (ex. 40.1 + 79.9 = 119.99999...) ne doit pas empecher la bascule a 'payee'
+  // (meme pattern que lib/odoo/bank-line-match.ts).
+  if (Math.round(totalPaye * 100) >= Math.round(facture.montant_ttc * 100)) {
     await supabase
       .from('factures')
       .update({ statut: 'payee' })

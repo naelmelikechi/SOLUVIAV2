@@ -473,6 +473,7 @@ export type Database = {
           is_active: boolean;
           label: string | null;
           last_sync_at: string | null;
+          last_synced_at: string | null;
         };
         Insert: {
           api_key_encrypted: string;
@@ -483,6 +484,7 @@ export type Database = {
           is_active?: boolean;
           label?: string | null;
           last_sync_at?: string | null;
+          last_synced_at?: string | null;
         };
         Update: {
           api_key_encrypted?: string;
@@ -493,6 +495,7 @@ export type Database = {
           is_active?: boolean;
           label?: string | null;
           last_sync_at?: string | null;
+          last_synced_at?: string | null;
         };
         Relationships: [
           {
@@ -3715,6 +3718,15 @@ export type Database = {
         };
         Returns: Json;
       };
+      contrats_actifs_fenetre: {
+        Args: { p_first: string; p_next: string };
+        Returns: {
+          date_debut: string;
+          duree_mois: number;
+          npec_amount: number;
+          taux_commission: number;
+        }[];
+      };
       count_factures_by_statut: {
         Args: never;
         Returns: {
@@ -3766,6 +3778,15 @@ export type Database = {
         }[];
       };
       opcos_check_idcc: { Args: { idccs: string[] }; Returns: boolean };
+      production_month_sums: {
+        Args: { p_first: string; p_next: string };
+        Returns: {
+          en_retard: number;
+          encaisse: number;
+          facture: number;
+          mois: string;
+        }[];
+      };
       refuse_devis_public: {
         Args: { p_motif: string; p_token: string };
         Returns: Json;

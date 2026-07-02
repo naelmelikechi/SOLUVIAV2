@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { logger } from '@/lib/utils/logger';
 import { groupContratsByType } from '@/lib/utils/kpi-computations';
 import { format } from 'date-fns';
@@ -12,34 +13,56 @@ export async function getDashboardData() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const thirtyDaysAgoStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
 
-  const [projetsRes, facturesRes, echeancesRes, contratsRes, staleContratsRes] =
-    await Promise.all([
-      supabase
-        .from('projets')
-        .select(
-          'id, client:clients!projets_client_id_fkey!inner(is_demo, archive)',
-        )
-        .eq('statut', 'actif')
-        .eq('archive', false)
-        .eq('client.is_demo', false)
-        .eq('client.archive', false)
-        .eq('est_libre', false),
-      supabase
-        .from('factures')
-        .select(
-          'id, statut, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-        )
-        .eq('projet.client.is_demo', false)
-        .eq('projet.client.archive', false),
-      supabase
-        .from('echeances')
-        .select(
-          'id, projet:projets!echeances_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-        )
-        .is('facture_id', null)
-        .eq('validee', false)
-        .eq('projet.client.is_demo', false)
-        .eq('projet.client.archive', false),
+  const [
+    projetsRes,
+    facturesRetardRes,
+    facturesEmisesRes,
+    echeancesRes,
+    contratsRes,
+    staleContratsRes,
+  ] = await Promise.all([
+    supabase
+      .from('projets')
+      .select(
+        'id, client:clients!projets_client_id_fkey!inner(is_demo, archive)',
+      )
+      .eq('statut', 'actif')
+      .eq('archive', false)
+      .eq('client.is_demo', false)
+      .eq('client.archive', false)
+      .eq('est_libre', false),
+    // Head-counts (pas de rapatriement de lignes) : on ne veut que le nombre
+    // de factures en_retard / emises, avec les memes filtres demo/archive.
+    supabase
+      .from('factures')
+      .select(
+        'id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        { count: 'exact', head: true },
+      )
+      .eq('statut', 'en_retard')
+      .eq('projet.client.is_demo', false)
+      .eq('projet.client.archive', false),
+    supabase
+      .from('factures')
+      .select(
+        'id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        { count: 'exact', head: true },
+      )
+      .eq('statut', 'emise')
+      .eq('projet.client.is_demo', false)
+      .eq('projet.client.archive', false),
+    supabase
+      .from('echeances')
+      .select(
+        'id, projet:projets!echeances_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+      )
+      .is('facture_id', null)
+      .eq('validee', false)
+      .eq('projet.client.is_demo', false)
+      .eq('projet.client.archive', false),
+    // fetchAllRows : PostgREST plafonne a max_rows=1000, un select non borne
+    // tronquerait silencieusement les compteurs au-dela.
+    fetchAllRows((from, to) =>
       supabase
         .from('contrats')
         .select(
@@ -48,10 +71,14 @@ export async function getDashboardData() {
         .in('contract_state', ACTIVE_STATES_ARRAY)
         .eq('archive', false)
         .eq('projet.client.is_demo', false)
-        .eq('projet.client.archive', false),
-      // Contrats actifs depuis +30j candidats au "sans progression".
-      // On joint contrats_progressions pour avoir last_activity_at (source
-      // Eduvia) en plus du fallback saisies_temps.
+        .eq('projet.client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
+    // Contrats actifs depuis +30j candidats au "sans progression".
+    // On joint contrats_progressions pour avoir last_activity_at (source
+    // Eduvia) en plus du fallback saisies_temps.
+    fetchAllRows((from, to) =>
       supabase
         .from('contrats')
         .select(
@@ -61,18 +88,29 @@ export async function getDashboardData() {
         .in('contract_state', ACTIVE_STATES_ARRAY)
         .lt('date_debut', thirtyDaysAgoStr)
         .eq('projet.client.is_demo', false)
-        .eq('projet.client.archive', false),
-    ]);
+        .eq('projet.client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
+  ]);
 
   // Log any individual query errors but don't throw - dashboard is best-effort
   if (projetsRes.error)
     logger.error('queries.dashboard', 'getDashboardData failed (projets)', {
       error: projetsRes.error,
     });
-  if (facturesRes.error)
-    logger.error('queries.dashboard', 'getDashboardData failed (factures)', {
-      error: facturesRes.error,
-    });
+  if (facturesRetardRes.error)
+    logger.error(
+      'queries.dashboard',
+      'getDashboardData failed (facturesRetard)',
+      { error: facturesRetardRes.error },
+    );
+  if (facturesEmisesRes.error)
+    logger.error(
+      'queries.dashboard',
+      'getDashboardData failed (facturesEmises)',
+      { error: facturesEmisesRes.error },
+    );
   if (echeancesRes.error)
     logger.error('queries.dashboard', 'getDashboardData failed (echeances)', {
       error: echeancesRes.error,
@@ -136,10 +174,8 @@ export async function getDashboardData() {
   const activeContratsList = contratsRes.data ?? [];
   return {
     projetsActifs: projetsRes.data?.length ?? 0,
-    facturesEnRetard:
-      facturesRes.data?.filter((f) => f.statut === 'en_retard').length ?? 0,
-    facturesEmises:
-      facturesRes.data?.filter((f) => f.statut === 'emise').length ?? 0,
+    facturesEnRetard: facturesRetardRes.count ?? 0,
+    facturesEmises: facturesEmisesRes.count ?? 0,
     echeancesAFacturer: echeancesRes.data?.length ?? 0,
     contratsActifs: activeContratsList.length,
     contratsSansProgression,

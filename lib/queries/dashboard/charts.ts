@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { logger } from '@/lib/utils/logger';
 import { computeContractSchedule } from '@/lib/queries/production';
 import { encaisseHt } from '@/lib/utils/montant-ht';
@@ -42,29 +43,48 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
     const d = startOfMonth(addMonths(now, offset));
     months.push(format(d, 'yyyy-MM-dd'));
   }
-  const firstMonth = months[0];
-  const lastMonth = months[months.length - 1];
+  // mois_concerne est un TEXT a formats mixtes ('YYYY-MM' pour certaines
+  // factures, 'YYYY-MM-01' pour d'autres) : on borne avec des cles courtes
+  // 'YYYY-MM' (.gte premier mois, .lt mois SUIVANT le dernier), correct
+  // lexicographiquement pour les deux formats. Une borne basse 'YYYY-MM-01'
+  // exclurait a tort les valeurs 'YYYY-MM' du premier mois.
+  const firstMonthKey = format(startOfMonth(addMonths(now, -11)), 'yyyy-MM');
+  const nextMonthKey = format(startOfMonth(addMonths(now, 1)), 'yyyy-MM');
 
   const [facturesRes, paiementsRes, contratsRes] = await Promise.all([
     supabase
       .from('factures')
-      .select('montant_ht, statut, mois_concerne')
-      .gte('mois_concerne', firstMonth)
-      .lte('mois_concerne', lastMonth)
-      .neq('statut', 'avoir'),
+      .select(
+        'montant_ht, statut, mois_concerne, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+      )
+      .gte('mois_concerne', firstMonthKey)
+      .lt('mois_concerne', nextMonthKey)
+      .neq('statut', 'avoir')
+      .eq('projet.client.is_demo', false)
+      .eq('projet.client.archive', false),
     supabase
       .from('paiements')
       .select(
-        'montant, facture:factures!paiements_facture_id_fkey(mois_concerne, montant_ht, montant_ttc)',
+        'montant, facture:factures!paiements_facture_id_fkey!inner(mois_concerne, montant_ht, montant_ttc, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive)))',
       )
-      .gte('facture.mois_concerne', firstMonth)
-      .lte('facture.mois_concerne', lastMonth),
-    supabase
-      .from('contrats')
-      .select(
-        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey(taux_commission)',
-      )
-      .eq('archive', false),
+      .gte('facture.mois_concerne', firstMonthKey)
+      .lt('facture.mois_concerne', nextMonthKey)
+      .eq('facture.projet.client.is_demo', false)
+      .eq('facture.projet.client.archive', false),
+    // fetchAllRows : PostgREST plafonne a max_rows=1000, un select non borne
+    // tronquerait silencieusement au-dela.
+    fetchAllRows((from, to) =>
+      supabase
+        .from('contrats')
+        .select(
+          'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(taux_commission, client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        )
+        .eq('archive', false)
+        .eq('projet.client.is_demo', false)
+        .eq('projet.client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
   ]);
 
   if (facturesRes.error)

@@ -255,6 +255,10 @@ export async function getProspectsList(
     const { data: rdvs } = await supabase
       .from('rdv_commerciaux')
       .select('prospect_id, date_prevue')
+      .in(
+        'prospect_id',
+        prospects.map((p) => p.id),
+      )
       .eq('statut', 'prevu')
       .gte('date_prevue', today)
       .order('date_prevue', { ascending: true });

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { computeCdpScore, type CdpScore } from '@/lib/utils/cdp-scoring';
@@ -56,11 +57,17 @@ export async function getCdpPlanDeCharge(): Promise<CdpPlanLine[]> {
       .eq('archive', false)
       .eq('est_interne', false)
       .in('cdp_id', cdpIds),
-    supabase
-      .from('contrats')
-      .select('projet:projets!contrats_projet_id_fkey!inner(cdp_id)')
-      .eq('archive', false)
-      .in('projet.cdp_id', cdpIds),
+    // fetchAllRows : PostgREST plafonne a max_rows=1000, un select non borne
+    // tronquerait silencieusement le compteur d'alternants au-dela.
+    fetchAllRows((from, to) =>
+      supabase
+        .from('contrats')
+        .select('projet:projets!contrats_projet_id_fkey!inner(cdp_id)')
+        .eq('archive', false)
+        .in('projet.cdp_id', cdpIds)
+        .order('id')
+        .range(from, to),
+    ),
   ]);
 
   if (clientsRes.error) {

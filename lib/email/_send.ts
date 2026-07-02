@@ -72,7 +72,10 @@ export async function sendEmail(params: EmailParams): Promise<{
   }
 
   try {
-    await resend.emails.send({
+    // Le SDK Resend ne throw jamais sur une erreur API (4xx/5xx, rate limit,
+    // cle invalide) : il retourne { data: null, error }. Ne pas lire `error`
+    // ferait passer tout echec d'envoi pour un succes.
+    const { error } = await resend.emails.send({
       from: params.from,
       to: finalTo,
       cc: finalCc,
@@ -81,6 +84,15 @@ export async function sendEmail(params: EmailParams): Promise<{
       html: params.html,
       attachments: params.attachments,
     });
+    if (error) {
+      logger.error('email', 'Échec envoi email (API Resend)', {
+        to: finalTo,
+        cc: finalCc,
+        subject: finalSubject,
+        error,
+      });
+      return { success: false, error: error.message };
+    }
     return { success: true };
   } catch (error) {
     logger.error('email', 'Échec envoi email', {

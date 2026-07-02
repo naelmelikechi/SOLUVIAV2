@@ -16,6 +16,7 @@ import type { ProductionChartRow } from './production-chart';
 interface Props {
   data: ProductionChartRow[];
   formatCurrency: (v: number) => string;
+  productionOnly?: boolean;
 }
 
 const LEGEND_LABELS: Record<string, string> = {
@@ -62,7 +63,11 @@ function renderLegendText(value: string) {
   return LEGEND_LABELS[value] ?? value;
 }
 
-export function ProductionChartInner({ data, formatCurrency }: Props) {
+export function ProductionChartInner({
+  data,
+  formatCurrency,
+  productionOnly = false,
+}: Props) {
   return (
     <ResponsiveContainer width="100%" height={320}>
       <LineChart data={data} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
@@ -106,22 +111,26 @@ export function ProductionChartInner({ data, formatCurrency }: Props) {
           dot={{ r: 3 }}
           activeDot={{ r: 5 }}
         />
-        <Line
-          dataKey="facture"
-          name="facture"
-          stroke="#3b82f6"
-          strokeWidth={2}
-          dot={{ r: 3 }}
-          activeDot={{ r: 5 }}
-        />
-        <Line
-          dataKey="encaisse"
-          name="encaisse"
-          stroke="#f97316"
-          strokeWidth={2}
-          dot={{ r: 3 }}
-          activeDot={{ r: 5 }}
-        />
+        {!productionOnly && (
+          <Line
+            dataKey="facture"
+            name="facture"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+        )}
+        {!productionOnly && (
+          <Line
+            dataKey="encaisse"
+            name="encaisse"
+            stroke="#f97316"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            activeDot={{ r: 5 }}
+          />
+        )}
       </LineChart>
     </ResponsiveContainer>
   );

@@ -69,12 +69,9 @@ export function buildDisplayData(
       const isFuture = monthKey > currentKey;
       const isCurrent = monthKey === currentKey;
 
-      // For SOLUVIA perspective, scale facture/encaisse/retard by the average
-      // commission ratio derived from the schedule (productionSoluvia / production)
-      const ratio =
-        row.production > 0 ? row.productionSoluvia / row.production : 0;
-      const commission = isSoluvia ? ratio : 1;
-
+      // facture/encaisse/en_retard = montants réels SOLUVIA (commission déjà
+      // facturée), identiques quelle que soit la perspective. Seule la
+      // production diffère (NPEC brut OPCO vs commission SOLUVIA HT).
       return {
         mois: row.mois,
         date: d,
@@ -82,9 +79,9 @@ export function buildDisplayData(
         production: isSoluvia
           ? Math.round(row.productionSoluvia)
           : Math.round(row.production),
-        facture: Math.round(row.facture * commission),
-        encaisse: Math.round(row.encaisse * commission),
-        en_retard: Math.round(row.en_retard * commission),
+        facture: Math.round(row.facture),
+        encaisse: Math.round(row.encaisse),
+        en_retard: Math.round(row.en_retard),
         isFuture,
         isCurrent,
       };

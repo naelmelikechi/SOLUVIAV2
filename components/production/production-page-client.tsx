@@ -105,33 +105,61 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
   const kpiSource = perspective === 'consolide' ? displayDataOpco : displayData;
   const currentMonth = kpiSource?.find((m) => m.isCurrent);
 
-  const kpis = [
-    {
-      label: 'Production du mois',
-      value: currentMonth?.production ?? 0,
-      icon: TrendingUp,
-      color: 'text-emerald-600',
-    },
-    {
-      label: 'Facturé du mois',
-      value: currentMonth?.facture ?? 0,
-      icon: FileText,
-      color: 'text-blue-600',
-    },
-    {
-      label: 'Encaissé du mois',
-      value: currentMonth?.encaisse ?? 0,
-      icon: Check,
-      color: 'text-muted-foreground',
-    },
-    {
-      label: 'En retard',
-      value: currentMonth?.en_retard ?? 0,
-      icon: AlertTriangle,
-      color: 'text-red-600',
-      valueColor: 'text-red-600',
-    },
-  ];
+  const kpis: {
+    label: string;
+    value: number;
+    icon: typeof TrendingUp;
+    color: string;
+    valueColor?: string;
+  }[] =
+    perspective === 'opco'
+      ? [
+          {
+            label: 'Production du mois',
+            value: currentMonth?.production ?? 0,
+            icon: TrendingUp,
+            color: 'text-emerald-600',
+          },
+          {
+            label: 'Production 12 mois',
+            value: currentMonth?.rolling12 ?? 0,
+            icon: TrendingUp,
+            color: 'text-emerald-600',
+          },
+          {
+            label: 'Production année',
+            value: currentMonth?.ytd ?? 0,
+            icon: TrendingUp,
+            color: 'text-emerald-600',
+          },
+        ]
+      : [
+          {
+            label: 'Production du mois',
+            value: currentMonth?.production ?? 0,
+            icon: TrendingUp,
+            color: 'text-emerald-600',
+          },
+          {
+            label: 'Facturé du mois',
+            value: currentMonth?.facture ?? 0,
+            icon: FileText,
+            color: 'text-blue-600',
+          },
+          {
+            label: 'Encaissé du mois',
+            value: currentMonth?.encaisse ?? 0,
+            icon: Check,
+            color: 'text-muted-foreground',
+          },
+          {
+            label: 'En retard',
+            value: currentMonth?.en_retard ?? 0,
+            icon: AlertTriangle,
+            color: 'text-red-600',
+            valueColor: 'text-red-600',
+          },
+        ];
 
   return (
     <div>
@@ -298,6 +326,7 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
             encaisse: m.encaisse,
           }),
         )}
+        productionOnly={perspective === 'opco'}
       />
     </div>
   );

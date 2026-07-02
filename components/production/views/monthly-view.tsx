@@ -73,11 +73,12 @@ export function MonthlyView({
   });
 
   const isSoluvia = perspective === 'soluvia';
+  const isOpco = perspective === 'opco';
 
   const totalColumnCount =
     1 +
-    (showGroups.mois ? 3 : 0) +
-    (showGroups.soldes ? 3 : 0) +
+    (showGroups.mois ? (isOpco ? 1 : 3) : 0) +
+    (showGroups.soldes && !isOpco ? 3 : 0) +
     (showGroups.rolling12 ? 1 : 0) +
     (showGroups.annee ? 1 : 0);
 
@@ -116,7 +117,13 @@ export function MonthlyView({
     startTransition(async () => {
       try {
         const result = await fetchProductionByClient(mois);
-        setClientDataByMois((prev) => new Map(prev).set(mois, result));
+        if (!result.success) {
+          // Pas de mise en cache : le prochain toggle retentera le chargement
+          // au lieu d'afficher definitivement "Aucune donnee".
+          toast.error(result.error);
+          return;
+        }
+        setClientDataByMois((prev) => new Map(prev).set(mois, result.rows));
       } catch {
         toast.error('Erreur lors du chargement des clients');
       } finally {
@@ -147,10 +154,14 @@ export function MonthlyView({
     startTransition(async () => {
       try {
         const result = await fetchProductionByProjet(mois, clientId);
-        setProjetDataByClient((prev) => new Map(prev).set(key, result));
-        if (onProjetsDiscovered && result.length > 0) {
+        if (!result.success) {
+          toast.error(result.error);
+          return;
+        }
+        setProjetDataByClient((prev) => new Map(prev).set(key, result.rows));
+        if (onProjetsDiscovered && result.rows.length > 0) {
           onProjetsDiscovered(
-            result.flatMap((p) => (p.projetRef ? [p.projetRef] : [])),
+            result.rows.flatMap((p) => (p.projetRef ? [p.projetRef] : [])),
           );
         }
       } catch {
@@ -188,14 +199,16 @@ export function MonthlyView({
             >
               Mois
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={showGroups.soldes}
-              onCheckedChange={(v) =>
-                setShowGroups((s) => ({ ...s, soldes: !!v }))
-              }
-            >
-              Soldes
-            </DropdownMenuCheckboxItem>
+            {!isOpco && (
+              <DropdownMenuCheckboxItem
+                checked={showGroups.soldes}
+                onCheckedChange={(v) =>
+                  setShowGroups((s) => ({ ...s, soldes: !!v }))
+                }
+              >
+                Soldes
+              </DropdownMenuCheckboxItem>
+            )}
             <DropdownMenuCheckboxItem
               checked={showGroups.rolling12}
               onCheckedChange={(v) =>
@@ -223,13 +236,13 @@ export function MonthlyView({
               <TableHead rowSpan={2} className="align-bottom" />
               {showGroups.mois && (
                 <TableHead
-                  colSpan={3}
+                  colSpan={isOpco ? 1 : 3}
                   className="border-l-2 border-l-emerald-500 text-center text-xs font-semibold tracking-wider uppercase"
                 >
                   Mois
                 </TableHead>
               )}
-              {showGroups.soldes && (
+              {showGroups.soldes && !isOpco && (
                 <TableHead
                   colSpan={3}
                   className="border-l-2 border-l-blue-500 text-center text-xs font-semibold tracking-wider uppercase"
@@ -260,11 +273,15 @@ export function MonthlyView({
                   <TableHead className="border-l-2 border-l-emerald-500 text-right">
                     Production
                   </TableHead>
-                  <TableHead className="text-right">Facturé</TableHead>
-                  <TableHead className="text-right">Encaissé</TableHead>
+                  {!isOpco && (
+                    <TableHead className="text-right">Facturé</TableHead>
+                  )}
+                  {!isOpco && (
+                    <TableHead className="text-right">Encaissé</TableHead>
+                  )}
                 </>
               )}
-              {showGroups.soldes && (
+              {showGroups.soldes && !isOpco && (
                 <>
                   <TableHead className="border-l-2 border-l-blue-500 text-right">
                     En retard

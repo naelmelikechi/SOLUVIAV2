@@ -1,6 +1,7 @@
 import { addMonths, format, startOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { logger } from '@/lib/utils/logger';
 import { encaisseHt, ttcToHt } from '@/lib/utils/montant-ht';
 import { round2 } from '@/lib/utils/number';
@@ -35,14 +36,16 @@ export interface ContractSchedule {
   soluvia: ScheduleEntry[];
 }
 
-function monthKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
 function addMonthsKey(start: Date, n: number): string {
-  const d = new Date(start);
-  d.setMonth(d.getMonth() + n);
-  return monthKey(d);
+  // Calcul sur (annee, mois) uniquement : setMonth sur la date complete
+  // deborde pour les contrats demarrant les 29/30/31 (31 janv + 1 mois
+  // = 3 mars), ce qui decale les versements OPCO et cree des mois a double
+  // mensualite SOLUVIA. Meme convention que moisAbsoluFromRelatif
+  // (lib/echeancier/calc.ts).
+  const total = start.getFullYear() * 12 + start.getMonth() + n;
+  const y = Math.floor(total / 12);
+  const m = (total % 12) + 1;
+  return `${y}-${String(m).padStart(2, '0')}`;
 }
 
 export function computeContractSchedule(
@@ -113,42 +116,67 @@ export async function getProductionData(): Promise<ProductionRow[]> {
   const supabase = await createClient();
 
   const months = buildMonthRange();
-  const firstMonth = months[0]!;
-  const lastMonth = months[months.length - 1]!;
+  // Bornes COURTES 'YYYY-MM' : mois_concerne est un TEXT a formats mixtes
+  // ('YYYY-MM' event-based, 'YYYY-MM-01' echeancier). Des bornes 'YYYY-MM-DD'
+  // excluent lexicographiquement les factures 'YYYY-MM' du mois borne
+  // ('2025-07' < '2025-07-01'). [firstKey, monthAfterLastKey) est correct
+  // pour tous les formats.
+  const firstKey = months[0]!.slice(0, 7);
+  const lastKey = months[months.length - 1]!.slice(0, 7);
+  const monthAfterLastKey = format(
+    addMonths(new Date(lastKey + '-01T00:00:00'), 1),
+    'yyyy-MM',
+  );
 
   // Exclude clients demo (is_demo=true) et archives : leurs factures gonflent
   // les KPIs sans correspondre a de la production reelle. !inner force la
   // jointure cote SQL pour que le filtre s'applique reellement.
+  // est_avoir=false exclut les avoirs y compris en brouillon (statut encore
+  // 'a_emettre'), que .neq('statut','avoir') laissait passer en negatif.
+  // fetchAllRows + .order('id') : PostgREST tronque silencieusement a
+  // max_rows (1000) sans pagination.
   const [facturesRes, paiementsRes, contratsRes] = await Promise.all([
-    supabase
-      .from('factures')
-      .select(
-        'montant_ht, statut, mois_concerne, client:clients!inner(is_demo, archive)',
-      )
-      .gte('mois_concerne', firstMonth)
-      .lte('mois_concerne', lastMonth)
-      .neq('statut', 'avoir')
-      .eq('client.is_demo', false)
-      .eq('client.archive', false),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('factures')
+        .select(
+          'montant_ht, statut, mois_concerne, client:clients!inner(is_demo, archive)',
+        )
+        .gte('mois_concerne', firstKey)
+        .lt('mois_concerne', monthAfterLastKey)
+        .eq('est_avoir', false)
+        .eq('client.is_demo', false)
+        .eq('client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
 
-    supabase
-      .from('paiements')
-      .select(
-        'montant, facture:factures!inner(mois_concerne, montant_ht, montant_ttc, client:clients!inner(is_demo, archive))',
-      )
-      .gte('facture.mois_concerne', firstMonth)
-      .lte('facture.mois_concerne', lastMonth)
-      .eq('facture.client.is_demo', false)
-      .eq('facture.client.archive', false),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('paiements')
+        .select(
+          'montant, facture:factures!inner(mois_concerne, montant_ht, montant_ttc, client:clients!inner(is_demo, archive))',
+        )
+        .gte('facture.mois_concerne', firstKey)
+        .lt('facture.mois_concerne', monthAfterLastKey)
+        .eq('facture.client.is_demo', false)
+        .eq('facture.client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
 
-    supabase
-      .from('contrats')
-      .select(
-        'date_debut, duree_mois, npec_amount, projet:projets!inner(taux_commission, client:clients!inner(is_demo, archive))',
-      )
-      .eq('archive', false)
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('contrats')
+        .select(
+          'date_debut, duree_mois, npec_amount, projet:projets!inner(taux_commission, client:clients!inner(is_demo, archive))',
+        )
+        .eq('archive', false)
+        .eq('projet.client.is_demo', false)
+        .eq('projet.client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
   ]);
 
   if (facturesRes.error)

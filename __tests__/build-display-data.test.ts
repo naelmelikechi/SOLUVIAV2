@@ -34,21 +34,32 @@ describe('buildDisplayData', () => {
     expect(result[0]!.encaisse).toBe(200);
   });
 
-  it('SOLUVIA : scale facture/encaisse par le ratio commission', () => {
-    // ratio = productionSoluvia / production = 100 / 1000 = 0.1
+  it('SOLUVIA : production = commission, facture/encaisse réels (aucun scaling)', () => {
     const data: ProductionRow[] = [row('2026-01-01', 1000, 100, 500, 200, 50)];
     const result = buildDisplayData(data, 'soluvia');
     expect(result[0]!.production).toBe(100); // = productionSoluvia
-    expect(result[0]!.facture).toBe(50); // 500 * 0.1
-    expect(result[0]!.encaisse).toBe(20); // 200 * 0.1
-    expect(result[0]!.en_retard).toBe(5); // 50 * 0.1
+    // facture/encaisse/en_retard sont déjà la commission SOLUVIA réelle : bruts
+    expect(result[0]!.facture).toBe(500);
+    expect(result[0]!.encaisse).toBe(200);
+    expect(result[0]!.en_retard).toBe(50);
   });
 
-  it('production=0 : ratio=0 (pas de division par zero)', () => {
+  it('facture/encaisse/en_retard identiques OPCO vs SOLUVIA (seule la production diffère)', () => {
+    const data: ProductionRow[] = [row('2026-01-01', 1000, 100, 500, 200, 50)];
+    const opco = buildDisplayData(data, 'opco')[0]!;
+    const soluvia = buildDisplayData(data, 'soluvia')[0]!;
+    expect(soluvia.facture).toBe(opco.facture);
+    expect(soluvia.encaisse).toBe(opco.encaisse);
+    expect(soluvia.en_retard).toBe(opco.en_retard);
+    expect(opco.production).toBe(1000);
+    expect(soluvia.production).toBe(100);
+  });
+
+  it('production=0 : facture/encaisse restent les montants réels', () => {
     const data: ProductionRow[] = [row('2026-01-01', 0, 0, 500, 200)];
     const result = buildDisplayData(data, 'soluvia');
-    expect(result[0]!.facture).toBe(0); // 500 * 0
-    expect(result[0]!.encaisse).toBe(0);
+    expect(result[0]!.facture).toBe(500);
+    expect(result[0]!.encaisse).toBe(200);
   });
 
   it('calcule cumuls raf/rae/rolling12/ytd', () => {
@@ -118,6 +129,6 @@ describe('buildConsolidatedData', () => {
     expect(result[0]!.opco.production).toBe(1000);
     expect(result[0]!.opco.facture).toBe(500);
     expect(result[0]!.soluvia.production).toBe(100);
-    expect(result[0]!.soluvia.facture).toBe(50); // 500 * 0.1
+    expect(result[0]!.soluvia.facture).toBe(500); // brut, pas de scaling
   });
 });

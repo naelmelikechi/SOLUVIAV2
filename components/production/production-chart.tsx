@@ -27,9 +27,17 @@ function ChartSkeleton() {
   );
 }
 
-export function ProductionChart({ data }: { data: ProductionChartRow[] }) {
-  const hasData = data.some(
-    (d) => d.production > 0 || d.facture > 0 || d.encaisse > 0,
+export function ProductionChart({
+  data,
+  productionOnly = false,
+}: {
+  data: ProductionChartRow[];
+  productionOnly?: boolean;
+}) {
+  const hasData = data.some((d) =>
+    productionOnly
+      ? d.production > 0
+      : d.production > 0 || d.facture > 0 || d.encaisse > 0,
   );
 
   if (!hasData) {
@@ -37,7 +45,9 @@ export function ProductionChart({ data }: { data: ProductionChartRow[] }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">
-            Production vs Facturé vs Encaissé
+            {productionOnly
+              ? 'Production (montants bruts OPCO)'
+              : 'Production vs Facturé vs Encaissé'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -55,11 +65,17 @@ export function ProductionChart({ data }: { data: ProductionChartRow[] }) {
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="text-sm font-medium">
-          Production vs Facturé vs Encaissé
+          {productionOnly
+            ? 'Production (montants bruts OPCO)'
+            : 'Production vs Facturé vs Encaissé'}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <RechartsLine data={data} formatCurrency={formatCurrency} />
+        <RechartsLine
+          data={data}
+          formatCurrency={formatCurrency}
+          productionOnly={productionOnly}
+        />
       </CardContent>
     </Card>
   );

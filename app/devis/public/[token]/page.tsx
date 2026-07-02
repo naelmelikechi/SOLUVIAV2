@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { DevisPublicView } from './devis-public-view';
+import { checkRateLimit } from '@/lib/utils/rate-limit';
+import { clientIpFromHeaders } from '@/lib/utils/request-id';
 
 interface Props {
   params: Promise<{ token: string }>;
@@ -16,6 +18,23 @@ export default async function DevisPublicPage({ params }: Props) {
   ]);
   const ip = hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() ?? undefined;
   const ua = hdrs.get('user-agent') ?? undefined;
+
+  // Page publique anonyme : rate limit par IP (fail-open si Upstash absent)
+  const rl = await checkRateLimit(
+    'devis-public-read',
+    clientIpFromHeaders(hdrs),
+    {
+      limit: 30,
+      windowSeconds: 60,
+    },
+  );
+  if (rl.limited) {
+    return (
+      <div className="text-muted-foreground mx-auto max-w-md p-8 text-center text-sm">
+        Trop de requêtes. Réessayez dans quelques instants.
+      </div>
+    );
+  }
 
   const { data, error } = await supabase.rpc('get_devis_public', {
     p_token: token,

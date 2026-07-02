@@ -17,7 +17,9 @@ type LimiterKey =
   | 'webauthn-login-options'
   | 'webauthn-register-options'
   | 'webauthn-register-verify'
-  | 'bug-report';
+  | 'bug-report'
+  | 'devis-public-action'
+  | 'devis-public-read';
 
 function buildLimiter(
   key: LimiterKey,

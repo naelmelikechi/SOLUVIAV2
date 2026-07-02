@@ -4,6 +4,7 @@ import { renderDevisPdfBuffer } from '@/lib/utils/render-devis-pdf';
 import { getAppUrl } from '@/lib/utils/app-url';
 import { logger } from '@/lib/utils/logger';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { escapeHtml } from '@/lib/utils/escape-html';
 
 const FROM = 'SOLUVIA <contact@mysoluvia.com>';
 
@@ -42,21 +43,27 @@ export async function sendDevisEmail(p: SendDevisParams): Promise<void> {
   }
 
   const subject = `[${devis.societe_emettrice.code}] Devis ${devis.ref} - ${devis.objet}`;
+  const escRef = escapeHtml(devis.ref);
+  const escObjet = escapeHtml(devis.objet);
+  const escRaisonSociale = escapeHtml(devis.societe_emettrice.raison_sociale);
+  const escDateValidite = devis.date_validite
+    ? escapeHtml(devis.date_validite)
+    : null;
   const html = `
     <div style="font-family: -apple-system, sans-serif; color: #1a1a1a;">
       <p>Bonjour,</p>
-      <p>Veuillez trouver ci-joint le devis <strong>${devis.ref}</strong> émis par <strong>${devis.societe_emettrice.raison_sociale}</strong>.</p>
-      <p><strong>Objet :</strong> ${devis.objet}<br />
+      <p>Veuillez trouver ci-joint le devis <strong>${escRef}</strong> émis par <strong>${escRaisonSociale}</strong>.</p>
+      <p><strong>Objet :</strong> ${escObjet}<br />
          <strong>Montant TTC :</strong> ${Number(devis.montant_ttc).toFixed(2).replace('.', ',')} EUR<br />
-         <strong>Valide jusqu'au :</strong> ${devis.date_validite ?? 'voir devis'}</p>
+         <strong>Valide jusqu'au :</strong> ${escDateValidite ?? 'voir devis'}</p>
       <p>Pour consulter, télécharger ou accepter ce devis en ligne :</p>
       <p><a href="${link}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none;">Accéder au devis</a></p>
       <p>Le devis PDF est également joint à cet email.</p>
-      <p>Cordialement,<br />${devis.societe_emettrice.raison_sociale}</p>
+      <p>Cordialement,<br />${escRaisonSociale}</p>
       <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;" />
       <p style="font-size: 11px; color: #6b7280;">
-        Ce devis est valable ${devis.date_validite ? `jusqu'au ${devis.date_validite}` : '90 jours'}.
-        Pour toute question : ${devis.societe_emettrice.email_contact}.
+        Ce devis est valable ${escDateValidite ? `jusqu'au ${escDateValidite}` : '90 jours'}.
+        Pour toute question : ${escapeHtml(devis.societe_emettrice.email_contact)}.
       </p>
     </div>
   `;
@@ -88,13 +95,14 @@ export async function sendDevisAcceptationConfirmation(
   const devis = await getDevisById(p.devisId);
   if (!devis || !devis.societe_emettrice) return;
   const subject = `Confirmation acceptation devis ${devis.ref}`;
+  // signataireNom provient du formulaire public anonyme : echappement obligatoire
   const html = `
     <div style="font-family: -apple-system, sans-serif;">
-      <p>Bonjour ${p.signataireNom},</p>
-      <p>Nous confirmons votre acceptation du devis <strong>${devis.ref}</strong> émis par <strong>${devis.societe_emettrice.raison_sociale}</strong>.</p>
+      <p>Bonjour ${escapeHtml(p.signataireNom)},</p>
+      <p>Nous confirmons votre acceptation du devis <strong>${escapeHtml(devis.ref)}</strong> émis par <strong>${escapeHtml(devis.societe_emettrice.raison_sociale)}</strong>.</p>
       <p>Montant accepté : ${Number(devis.montant_ttc).toFixed(2).replace('.', ',')} EUR TTC.</p>
       <p>Nous reviendrons vers vous très prochainement pour la suite.</p>
-      <p>Cordialement,<br />${devis.societe_emettrice.raison_sociale}</p>
+      <p>Cordialement,<br />${escapeHtml(devis.societe_emettrice.raison_sociale)}</p>
     </div>
   `;
   await sendEmail({
@@ -173,10 +181,11 @@ export async function sendDevisRelanceEmail(p: RelanceParams): Promise<void> {
 
   const link = `${getAppUrl()}/devis/public/${devis.acceptation_token}`;
 
+  const escRef = escapeHtml(devis.ref);
   const intro =
     p.niveau === 'j7'
-      ? `Nous nous permettons un petit rappel concernant le devis ${devis.ref}, envoyé il y a une semaine.`
-      : `Nous revenons vers vous concernant le devis ${devis.ref}, envoyé il y a deux semaines. Sa validité expire le ${devis.date_validite}.`;
+      ? `Nous nous permettons un petit rappel concernant le devis ${escRef}, envoyé il y a une semaine.`
+      : `Nous revenons vers vous concernant le devis ${escRef}, envoyé il y a deux semaines. Sa validité expire le ${escapeHtml(devis.date_validite)}.`;
 
   const subject =
     p.niveau === 'j7'
@@ -189,7 +198,7 @@ export async function sendDevisRelanceEmail(p: RelanceParams): Promise<void> {
       <p>${intro}</p>
       <p>Pour consulter et accepter en ligne :</p>
       <p><a href="${link}" style="display:inline-block;background:#16a34a;color:white;padding:12px 20px;border-radius:6px;text-decoration:none;">Accéder au devis</a></p>
-      <p>Cordialement,<br />${devis.societe_emettrice.raison_sociale}</p>
+      <p>Cordialement,<br />${escapeHtml(devis.societe_emettrice.raison_sociale)}</p>
     </div>
   `;
 
@@ -231,9 +240,10 @@ export async function notifyAdminsDevisRefuse(
   if (to.length === 0) return;
 
   const subject = `[Devis] ${devis.ref} refusé par le client`;
+  // motif provient du formulaire public anonyme : echappement obligatoire
   const html = `
-    <p>Le devis <strong>${devis.ref}</strong> (${devis.objet}) a été refusé par le client.</p>
-    <p>Motif : ${p.motif ?? '(aucun)'}</p>
+    <p>Le devis <strong>${escapeHtml(devis.ref)}</strong> (${escapeHtml(devis.objet)}) a été refusé par le client.</p>
+    <p>Motif : ${p.motif ? escapeHtml(p.motif) : '(aucun)'}</p>
     <p>Voir : ${getAppUrl()}/devis/${devis.ref}</p>
   `;
   await sendEmail({ from: FROM, to, subject, html });

@@ -20,13 +20,7 @@ import type { RdvCommercialWithRefs } from '@/lib/queries/rdv';
 import type { SignatureRequestWithInitiator } from '@/lib/queries/signatures';
 import { SignatureSection } from './signature-section';
 import { PassationSection } from './passation-section';
-
-export interface FicheCommercial {
-  id: string;
-  nom: string;
-  prenom: string;
-  role: string;
-}
+import type { FicheCommercial } from './types';
 
 const TAB_VALUES = [
   'overview',

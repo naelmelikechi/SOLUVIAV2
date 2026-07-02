@@ -16,7 +16,7 @@ const eurFormatter = new Intl.NumberFormat('fr-FR', {
   currency: 'EUR',
 });
 
-export async function sendFactureEmail(params: {
+async function sendFactureEmail(params: {
   to: string | string[];
   cc?: string[];
   factureRef: string;

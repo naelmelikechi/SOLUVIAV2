@@ -214,7 +214,18 @@ export async function getContratsByProjetId(projetId: string) {
     .from('contrats')
     .select(
       `
-      *,
+      id,
+      ref,
+      contract_number,
+      internal_number,
+      apprenant_nom,
+      apprenant_prenom,
+      formation_titre,
+      duree_mois,
+      date_debut,
+      date_fin,
+      npec_amount,
+      contract_state,
       progression:contrats_progressions!contrats_progressions_contrat_id_fkey(
         progression_percentage,
         total_spent_time_hours,

@@ -43,7 +43,7 @@ import {
 } from '@/lib/utils/constants';
 import type { ProspectDetail, ProspectContact } from '@/lib/queries/prospects';
 import type { RdvCommercialWithRefs } from '@/lib/queries/rdv';
-import type { FicheCommercial } from './fiche-tabs';
+import type { FicheCommercial } from './types';
 
 const STATUT_RDV_VALUES: StatutRdv[] = [
   'prevu',

@@ -4,10 +4,11 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
+import { env } from '@/lib/env';
+import { getAppUrl } from '@/lib/utils/app-url';
 import './globals.css';
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://soluvia.vercel.app';
+const siteUrl = (env.NEXT_PUBLIC_SITE_URL ?? getAppUrl()).replace(/\/$/, '');
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logSync } from '@/lib/odoo/sync-log';
 import { logger } from '@/lib/utils/logger';
+import { env } from '@/lib/env';
 
 // Synergie #4 : webhook Odoo invoqué quand un account.move passe en
 // state=cancel. Réduit la latence de détection vs cron horaire.
@@ -32,7 +33,7 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export async function POST(request: Request) {
-  const secret = process.env.ODOO_WEBHOOK_SECRET;
+  const secret = env.ODOO_WEBHOOK_SECRET;
   if (!secret) {
     return NextResponse.json(
       { success: false, error: 'ODOO_WEBHOOK_SECRET non configuré' },

@@ -55,6 +55,14 @@ jobs:
       # Requis par lib/env.ts en build/runtime prod ; valeurs de test.
       ENCRYPTION_KEY: e2e-ci-encryption-key-0000000000000000
       CRON_SECRET: e2e-ci-cron-secret-000000
+      # Requis depuis le durcissement env.ts (fail-fast prod). Valeurs
+      # factices locales : aucun flux e2e ne pousse vers Odoo, et
+      # NEXT_PUBLIC_SITE_URL ne sert qu'aux liens emails (non envoyes ici).
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      ODOO_URL: http://localhost:8069
+      ODOO_DB: e2e-ci
+      ODOO_USERNAME: e2e-ci@e2e.test
+      ODOO_API_KEY: e2e-ci-odoo-key-000000
 
     steps:
       - uses: actions/checkout@v5

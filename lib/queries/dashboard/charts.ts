@@ -1,7 +1,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { computeContractSchedule } from '@/lib/queries/production';
-import { encaisseHt } from '@/lib/utils/montant-ht';
+import {
+  getContratsActifs,
+  getMonthSums,
+} from '@/lib/queries/production-aggregates';
 import { capitalize } from '@/lib/utils/strings';
 import { format, startOfMonth, addMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -42,56 +45,39 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
     const d = startOfMonth(addMonths(now, offset));
     months.push(format(d, 'yyyy-MM-dd'));
   }
-  const firstMonth = months[0];
-  const lastMonth = months[months.length - 1];
+  // mois_concerne est un TEXT a formats mixtes ('YYYY-MM' pour certaines
+  // factures, 'YYYY-MM-01' pour d'autres) : on borne avec des cles courtes
+  // 'YYYY-MM' (.gte premier mois, .lt mois SUIVANT le dernier), correct
+  // lexicographiquement pour les deux formats. Une borne basse 'YYYY-MM-01'
+  // exclurait a tort les valeurs 'YYYY-MM' du premier mois.
+  const firstMonthKey = format(startOfMonth(addMonths(now, -11)), 'yyyy-MM');
+  const nextMonthKey = format(startOfMonth(addMonths(now, 1)), 'yyyy-MM');
+  const currentMonthKey = format(startOfMonth(now), 'yyyy-MM');
 
-  const [facturesRes, paiementsRes, contratsRes] = await Promise.all([
-    supabase
-      .from('factures')
-      .select('montant_ht, statut, mois_concerne')
-      .gte('mois_concerne', firstMonth)
-      .lte('mois_concerne', lastMonth)
-      .neq('statut', 'avoir'),
-    supabase
-      .from('paiements')
-      .select(
-        'montant, facture:factures!paiements_facture_id_fkey(mois_concerne, montant_ht, montant_ttc)',
-      )
-      .gte('facture.mois_concerne', firstMonth)
-      .lte('facture.mois_concerne', lastMonth),
-    supabase
-      .from('contrats')
-      .select(
-        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey(taux_commission)',
-      )
-      .eq('archive', false),
+  // Sommes factures/paiements et contrats actifs via le module partage
+  // production-aggregates (RPC SQL, fallback fetchAllRows). Deux alignements
+  // volontaires sur getProductionData au passage :
+  // - est_avoir=false remplace .neq('statut','avoir') qui laissait passer
+  //   les avoirs en brouillon (statut 'a_emettre') en negatif ;
+  // - filtre demo/archive via factures.client_id direct (au lieu du chemin
+  //   projet->client, equivalent : client_id de la facture = celui du projet).
+  // Bonus : les selects factures/paiements n'etaient pas pagines ici
+  // (troncature silencieuse a max_rows=1000), la RPC somme tout cote base.
+  const [monthSums, contrats] = await Promise.all([
+    getMonthSums(supabase, firstMonthKey, nextMonthKey),
+    getContratsActifs(supabase, firstMonthKey, currentMonthKey),
   ]);
-
-  if (facturesRes.error)
-    logger.error('queries.dashboard', 'getMonthlyTrend failed (factures)', {
-      error: facturesRes.error,
-    });
-  if (paiementsRes.error)
-    logger.error('queries.dashboard', 'getMonthlyTrend failed (paiements)', {
-      error: paiementsRes.error,
-    });
-  if (contratsRes.error)
-    logger.error('queries.dashboard', 'getMonthlyTrend failed (contrats)', {
-      error: contratsRes.error,
-    });
 
   // Production from contrats = commission SOLUVIA (NPEC × taux, HT) prorata durée.
   const productionByMonth = new Map<string, number>();
-  for (const c of contratsRes.data ?? []) {
+  for (const c of contrats) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
     if (!c.npec_amount || c.npec_amount <= 0) continue;
-    const projet = c.projet as { taux_commission: number } | null;
-    if (!projet) continue;
     const schedule = computeContractSchedule(
       c.date_debut,
       c.duree_mois,
       c.npec_amount,
-      projet.taux_commission ?? 0,
+      c.taux_commission ?? 0,
     );
     for (const e of schedule.soluvia) {
       productionByMonth.set(
@@ -101,45 +87,17 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
     }
   }
 
-  // Facturé by month + En retard by month
-  const factureByMonth = new Map<string, number>();
-  const enRetardByMonth = new Map<string, number>();
-  for (const f of facturesRes.data ?? []) {
-    if (!f.mois_concerne) continue;
-    const key = f.mois_concerne.slice(0, 7);
-    factureByMonth.set(key, (factureByMonth.get(key) ?? 0) + f.montant_ht);
-    if (f.statut === 'en_retard') {
-      enRetardByMonth.set(key, (enRetardByMonth.get(key) ?? 0) + f.montant_ht);
-    }
-  }
-
-  // Encaissé by month
-  const encaisseByMonth = new Map<string, number>();
-  for (const p of paiementsRes.data ?? []) {
-    const facture = p.facture as {
-      mois_concerne: string | null;
-      montant_ht: number;
-      montant_ttc: number;
-    } | null;
-    if (!facture?.mois_concerne) continue;
-    const key = facture.mois_concerne.slice(0, 7);
-    encaisseByMonth.set(
-      key,
-      (encaisseByMonth.get(key) ?? 0) +
-        encaisseHt(p.montant, facture.montant_ht, facture.montant_ttc),
-    );
-  }
-
   return months.map((mois) => {
     const key = mois.slice(0, 7);
     const d = new Date(mois + 'T00:00:00');
     const label = capitalize(format(d, 'MMM yyyy', { locale: fr }));
+    const sums = monthSums.get(key);
     return {
       mois: label,
       production: Math.round((productionByMonth.get(key) ?? 0) * 100) / 100,
-      facture: Math.round((factureByMonth.get(key) ?? 0) * 100) / 100,
-      encaisse: Math.round((encaisseByMonth.get(key) ?? 0) * 100) / 100,
-      enRetard: Math.round((enRetardByMonth.get(key) ?? 0) * 100) / 100,
+      facture: Math.round((sums?.facture ?? 0) * 100) / 100,
+      encaisse: Math.round((sums?.encaisse ?? 0) * 100) / 100,
+      enRetard: Math.round((sums?.en_retard ?? 0) * 100) / 100,
     };
   });
 }

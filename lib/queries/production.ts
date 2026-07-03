@@ -1,8 +1,11 @@
 import { addMonths, format, startOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { createClient } from '@/lib/supabase/server';
-import { logger } from '@/lib/utils/logger';
-import { encaisseHt, ttcToHt } from '@/lib/utils/montant-ht';
+import {
+  getContratsActifs,
+  getMonthSums,
+} from '@/lib/queries/production-aggregates';
+import { ttcToHt } from '@/lib/utils/montant-ht';
 import { round2 } from '@/lib/utils/number';
 import { capitalize } from '@/lib/utils/strings';
 
@@ -35,14 +38,16 @@ export interface ContractSchedule {
   soluvia: ScheduleEntry[];
 }
 
-function monthKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
 function addMonthsKey(start: Date, n: number): string {
-  const d = new Date(start);
-  d.setMonth(d.getMonth() + n);
-  return monthKey(d);
+  // Calcul sur (annee, mois) uniquement : setMonth sur la date complete
+  // deborde pour les contrats demarrant les 29/30/31 (31 janv + 1 mois
+  // = 3 mars), ce qui decale les versements OPCO et cree des mois a double
+  // mensualite SOLUVIA. Meme convention que moisAbsoluFromRelatif
+  // (lib/echeancier/calc.ts).
+  const total = start.getFullYear() * 12 + start.getMonth() + n;
+  const y = Math.floor(total / 12);
+  const m = (total % 12) + 1;
+  return `${y}-${String(m).padStart(2, '0')}`;
 }
 
 export function computeContractSchedule(
@@ -113,56 +118,26 @@ export async function getProductionData(): Promise<ProductionRow[]> {
   const supabase = await createClient();
 
   const months = buildMonthRange();
-  const firstMonth = months[0]!;
-  const lastMonth = months[months.length - 1]!;
+  // Bornes COURTES 'YYYY-MM' : mois_concerne est un TEXT a formats mixtes
+  // ('YYYY-MM' event-based, 'YYYY-MM-01' echeancier). Des bornes 'YYYY-MM-DD'
+  // excluent lexicographiquement les factures 'YYYY-MM' du mois borne
+  // ('2025-07' < '2025-07-01'). [firstKey, monthAfterLastKey) est correct
+  // pour tous les formats.
+  const firstKey = months[0]!.slice(0, 7);
+  const lastKey = months[months.length - 1]!.slice(0, 7);
+  const monthAfterLastKey = format(
+    addMonths(new Date(lastKey + '-01T00:00:00'), 1),
+    'yyyy-MM',
+  );
 
-  // Exclude clients demo (is_demo=true) et archives : leurs factures gonflent
-  // les KPIs sans correspondre a de la production reelle. !inner force la
-  // jointure cote SQL pour que le filtre s'applique reellement.
-  const [facturesRes, paiementsRes, contratsRes] = await Promise.all([
-    supabase
-      .from('factures')
-      .select(
-        'montant_ht, statut, mois_concerne, client:clients!inner(is_demo, archive)',
-      )
-      .gte('mois_concerne', firstMonth)
-      .lte('mois_concerne', lastMonth)
-      .neq('statut', 'avoir')
-      .eq('client.is_demo', false)
-      .eq('client.archive', false),
-
-    supabase
-      .from('paiements')
-      .select(
-        'montant, facture:factures!inner(mois_concerne, montant_ht, montant_ttc, client:clients!inner(is_demo, archive))',
-      )
-      .gte('facture.mois_concerne', firstMonth)
-      .lte('facture.mois_concerne', lastMonth)
-      .eq('facture.client.is_demo', false)
-      .eq('facture.client.archive', false),
-
-    supabase
-      .from('contrats')
-      .select(
-        'date_debut, duree_mois, npec_amount, projet:projets!inner(taux_commission, client:clients!inner(is_demo, archive))',
-      )
-      .eq('archive', false)
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
+  // Sommes factures/paiements et contrats actifs via le module partage
+  // production-aggregates (RPC SQL cote base, fallback fetchAllRows) :
+  // filtres demo/archive et exclusion est_avoir identiques a l'ancien trio
+  // de requetes ligne a ligne.
+  const [monthSums, contrats] = await Promise.all([
+    getMonthSums(supabase, firstKey, monthAfterLastKey),
+    getContratsActifs(supabase, firstKey, lastKey),
   ]);
-
-  if (facturesRes.error)
-    logger.error('queries.production', 'getProductionData failed (factures)', {
-      error: facturesRes.error,
-    });
-  if (paiementsRes.error)
-    logger.error('queries.production', 'getProductionData failed (paiements)', {
-      error: paiementsRes.error,
-    });
-  if (contratsRes.error)
-    logger.error('queries.production', 'getProductionData failed (contrats)', {
-      error: contratsRes.error,
-    });
 
   // ---------------------------------------------------------------------------
   // 1. Theoretical production per month (OPCO + SOLUVIA) from the new schedule
@@ -170,18 +145,15 @@ export async function getProductionData(): Promise<ProductionRow[]> {
   const productionByMonth = new Map<string, number>();
   const productionSoluviaByMonth = new Map<string, number>();
 
-  for (const c of contratsRes.data ?? []) {
+  for (const c of contrats) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
     if (!c.npec_amount || c.npec_amount <= 0) continue;
-
-    const projet = c.projet as { taux_commission: number } | null;
-    if (!projet) continue;
 
     const schedule = computeContractSchedule(
       c.date_debut,
       c.duree_mois,
       c.npec_amount,
-      projet.taux_commission ?? 10,
+      c.taux_commission ?? 10,
     );
 
     for (const e of schedule.opco) {
@@ -199,47 +171,14 @@ export async function getProductionData(): Promise<ProductionRow[]> {
   }
 
   // ---------------------------------------------------------------------------
-  // 2. Real factures / encaissements / retard from DB
-  // ---------------------------------------------------------------------------
-  const factureByMonth = new Map<
-    string,
-    { facture: number; en_retard: number }
-  >();
-  const encaisseByMonth = new Map<string, number>();
-
-  for (const f of facturesRes.data ?? []) {
-    if (!f.mois_concerne) continue;
-    const key = f.mois_concerne.slice(0, 7);
-    const entry = factureByMonth.get(key) ?? { facture: 0, en_retard: 0 };
-    entry.facture += f.montant_ht;
-    if (f.statut === 'en_retard') entry.en_retard += f.montant_ht;
-    factureByMonth.set(key, entry);
-  }
-
-  for (const p of paiementsRes.data ?? []) {
-    const facture = p.facture as {
-      mois_concerne: string | null;
-      montant_ht: number;
-      montant_ttc: number;
-    } | null;
-    if (!facture?.mois_concerne) continue;
-    const key = facture.mois_concerne.slice(0, 7);
-    encaisseByMonth.set(
-      key,
-      (encaisseByMonth.get(key) ?? 0) +
-        encaisseHt(p.montant, facture.montant_ht, facture.montant_ttc),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // 3. Assemble 25 rows
+  // 2. Assemble 25 rows (sommes reelles facture/encaisse/retard via monthSums)
   // ---------------------------------------------------------------------------
   return months.map((mois) => {
     const key = mois.slice(0, 7);
-    const f = factureByMonth.get(key);
-    const facture = round2(f?.facture ?? 0);
-    const en_retard = round2(f?.en_retard ?? 0);
-    const encaisse = round2(encaisseByMonth.get(key) ?? 0);
+    const sums = monthSums.get(key);
+    const facture = round2(sums?.facture ?? 0);
+    const en_retard = round2(sums?.en_retard ?? 0);
+    const encaisse = round2(sums?.encaisse ?? 0);
     const production = round2(productionByMonth.get(key) ?? 0);
     const productionSoluvia = round2(productionSoluviaByMonth.get(key) ?? 0);
 

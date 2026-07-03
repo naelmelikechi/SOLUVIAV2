@@ -31,7 +31,10 @@ import {
   buildDisplayData,
   type ProductionPerspective,
 } from '@/components/production/views/build-display-data';
-import { MonthlyView } from '@/components/production/views/monthly-view';
+import {
+  MonthlyView,
+  useProductionDrilldown,
+} from '@/components/production/views/monthly-view';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -86,6 +89,11 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
     });
   }, []);
 
+  // Drill-down partage : en vue consolidee, les deux MonthlyView (OPCO et
+  // SOLUVIA) affichent les memes mois - un seul cache evite de charger deux
+  // fois les memes donnees.
+  const drilldown = useProductionDrilldown(handleProjetsDiscovered);
+
   const displayData = useMemo(() => {
     if (perspective === 'consolide') return null;
     return buildDisplayData(data, perspective);
@@ -101,37 +109,85 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
     return buildDisplayData(data, 'soluvia');
   }, [data, perspective]);
 
-  // For KPI cards: use OPCO data in consolide mode
-  const kpiSource = perspective === 'consolide' ? displayDataOpco : displayData;
+  // Donnees du graphique memoisees : recreer le tableau a chaque render
+  // (filtre projets, expansion...) re-rendait recharts inutilement. En
+  // consolide, perspective SOLUVIA : production commission + facture +
+  // encaisse sont homogenes (l'ancien choix OPCO melangeait production brute
+  // OPCO et facture/encaisse commission sur le meme graphe).
+  const chartData = useMemo<ProductionChartRow[]>(() => {
+    const source =
+      perspective === 'consolide' ? displayDataSoluvia! : displayData!;
+    return source.map((m) => ({
+      label: m.label,
+      production: m.production,
+      facture: m.facture,
+      encaisse: m.encaisse,
+    }));
+  }, [perspective, displayData, displayDataSoluvia]);
+
+  // KPI cards en consolide : perspective SOLUVIA (commission HT), pour rester
+  // homogene avec les cartes Facture/Encaisse/En retard qui sont des montants
+  // de commission reels - melanger production OPCO brute et facture commission
+  // rendait les cartes incomparables. La vue OPCO reste dediee aux bruts.
+  const kpiSource =
+    perspective === 'consolide' ? displayDataSoluvia : displayData;
   const currentMonth = kpiSource?.find((m) => m.isCurrent);
 
-  const kpis = [
-    {
-      label: 'Production du mois',
-      value: currentMonth?.production ?? 0,
-      icon: TrendingUp,
-      color: 'text-emerald-600',
-    },
-    {
-      label: 'Facturé du mois',
-      value: currentMonth?.facture ?? 0,
-      icon: FileText,
-      color: 'text-blue-600',
-    },
-    {
-      label: 'Encaissé du mois',
-      value: currentMonth?.encaisse ?? 0,
-      icon: Check,
-      color: 'text-muted-foreground',
-    },
-    {
-      label: 'En retard',
-      value: currentMonth?.en_retard ?? 0,
-      icon: AlertTriangle,
-      color: 'text-red-600',
-      valueColor: 'text-red-600',
-    },
-  ];
+  const kpis: {
+    label: string;
+    value: number;
+    icon: typeof TrendingUp;
+    color: string;
+    valueColor?: string;
+  }[] =
+    perspective === 'opco'
+      ? [
+          {
+            label: 'Production du mois',
+            value: currentMonth?.production ?? 0,
+            icon: TrendingUp,
+            color: 'text-emerald-600',
+          },
+          {
+            label: 'Production 12 mois',
+            value: currentMonth?.rolling12 ?? 0,
+            icon: TrendingUp,
+            color: 'text-emerald-600',
+          },
+          {
+            label: 'Production année',
+            value: currentMonth?.ytd ?? 0,
+            icon: TrendingUp,
+            color: 'text-emerald-600',
+          },
+        ]
+      : [
+          {
+            label: 'Production du mois',
+            value: currentMonth?.production ?? 0,
+            icon: TrendingUp,
+            color: 'text-emerald-600',
+          },
+          {
+            label: 'Facturé du mois',
+            value: currentMonth?.facture ?? 0,
+            icon: FileText,
+            color: 'text-blue-600',
+          },
+          {
+            label: 'Encaissé du mois',
+            value: currentMonth?.encaisse ?? 0,
+            icon: Check,
+            color: 'text-muted-foreground',
+          },
+          {
+            label: 'En retard',
+            value: currentMonth?.en_retard ?? 0,
+            icon: AlertTriangle,
+            color: 'text-red-600',
+            valueColor: 'text-red-600',
+          },
+        ];
 
   return (
     <div>
@@ -262,7 +318,7 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
               data={displayDataOpco!}
               perspective="opco"
               filterProjets={filterProjets}
-              onProjetsDiscovered={handleProjetsDiscovered}
+              drilldown={drilldown}
             />
           </section>
           <section>
@@ -273,7 +329,7 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
               data={displayDataSoluvia!}
               perspective="soluvia"
               filterProjets={filterProjets}
-              onProjetsDiscovered={handleProjetsDiscovered}
+              drilldown={drilldown}
             />
           </section>
         </div>
@@ -282,22 +338,13 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
           data={displayData!}
           perspective={perspective}
           filterProjets={filterProjets}
-          onProjetsDiscovered={handleProjetsDiscovered}
+          drilldown={drilldown}
         />
       )}
 
       <ProductionChart
-        data={(perspective === 'consolide'
-          ? displayDataOpco!
-          : displayData!
-        ).map(
-          (m): ProductionChartRow => ({
-            label: m.label,
-            production: m.production,
-            facture: m.facture,
-            encaisse: m.encaisse,
-          }),
-        )}
+        data={chartData}
+        productionOnly={perspective === 'opco'}
       />
     </div>
   );

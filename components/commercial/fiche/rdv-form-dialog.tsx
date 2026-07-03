@@ -33,7 +33,7 @@ import {
 } from '@/lib/utils/constants';
 import type { ProspectContact } from '@/lib/queries/prospects';
 import type { RdvCommercialWithRefs } from '@/lib/queries/rdv';
-import type { FicheCommercial } from './fiche-tabs';
+import type { FicheCommercial } from './types';
 
 const TYPE_ENTRIES = Object.entries(TYPE_RDV_LABELS) as [TypeRdv, string][];
 const FORMAT_ENTRIES = Object.entries(FORMAT_RDV_LABELS) as [

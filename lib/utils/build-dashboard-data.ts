@@ -2,16 +2,34 @@
 // Helpers purs de transformation de donnees dashboard (sans hooks ni state React).
 
 import { formatCurrency } from '@/lib/utils/formatters';
-import type { Alert } from '@/components/dashboard/alerts-strip';
 import type {
   DashboardFinancials,
   KpiSnapshotMap,
 } from '@/lib/queries/dashboard';
-import type { DashboardData } from '@/components/dashboard/dashboard-page-client';
 
 // ============================================================
 // Types
 // ============================================================
+
+// Compteurs de tete du dashboard (calcules en Server Component).
+// Defini ici (couche lib) ; les composants dashboard l'importent d'ici.
+export interface DashboardData {
+  projetsActifs: number;
+  facturesEnRetard: number;
+  facturesEmises: number;
+  echeancesAFacturer: number;
+  contratsActifs: number;
+  contratsSansProgression: number;
+  byType: { app: number; pdc: number; poe: number };
+}
+
+// Alerte affichee dans le bandeau AlertsStrip (components/dashboard).
+export type Alert = {
+  count: number;
+  title: string;
+  href: string;
+  color: 'red' | 'orange' | 'blue';
+};
 
 export interface EvolutionRow {
   label: string;

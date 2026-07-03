@@ -1370,9 +1370,14 @@ function createStubOdooClient(): OdooClient {
 /**
  * Returns an OdooClient.
  *
- * Reads ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY from env.
- * Falls back to a stub if any is missing (so local dev keeps working
- * without Odoo configured).
+ * Reads ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY from process.env
+ * a l'appel (pas au chargement du module) : les tests les posent dans
+ * beforeEach. La presence et le format en prod sont valides fail-fast
+ * par le schema lib/env.ts.
+ *
+ * Hors prod (dev/test), fallback stub si une variable manque (le dev
+ * local fonctionne sans Odoo configure). En production, THROW : le stub
+ * persisterait de faux odoo_id comptables.
  */
 export function createOdooClient(): OdooClient {
   const url = process.env.ODOO_URL;
@@ -1381,6 +1386,16 @@ export function createOdooClient(): OdooClient {
   const apiKey = process.env.ODOO_API_KEY;
 
   if (!url || !db || !username || !apiKey) {
+    // Meme gate que lib/env.ts : VERCEL_ENV prime (les previews Vercel
+    // tournent avec NODE_ENV=production), sinon NODE_ENV.
+    const isProd = process.env.VERCEL_ENV
+      ? process.env.VERCEL_ENV === 'production'
+      : process.env.NODE_ENV === 'production';
+    if (isProd) {
+      throw new Error(
+        'Odoo env vars missing (ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY) - stub client interdit en production',
+      );
+    }
     logger.warn(SCOPE, 'Odoo env vars missing - using stub client');
     return createStubOdooClient();
   }

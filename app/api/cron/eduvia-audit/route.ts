@@ -19,6 +19,7 @@ export const maxDuration = 300;
  *   - contrats actifs avec npec_amount = 0 ou NULL
  *   - contrats résiliés sans date_fin
  *   - clients où le ratio orphelins archivés ce run > 10% (signal API instable)
+ *   - clients avec clé API active sans sync (tentée) depuis plus de 24h
  *
  * Les anomalies sont loguées (Sentry) ET notifiées in-app aux admins
  * (dédupliquées tant que la notification précédente n'est pas lue), sans
@@ -126,6 +127,28 @@ export async function GET(request: Request) {
           ],
         });
       }
+    }
+
+    // f) Clients avec clé API Eduvia active sans sync depuis plus de 24h
+    // (clé en échec permanent, rotation bloquée, ou budget temps toujours
+    // épuisé avant ce client). last_synced_at = dernière TENTATIVE de sync
+    // (curseur de rotation, avancé même sur échec) ; pour une clé jamais
+    // tentée (NULL), on retombe sur created_at.
+    const staleCutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+    const { data: activeKeys } = await supabase
+      .from('client_api_keys')
+      .select('client_id, label, last_synced_at, created_at')
+      .eq('is_active', true);
+    const staleKeys = (activeKeys ?? []).filter((k) => {
+      const lastAttempt = new Date(k.last_synced_at ?? k.created_at).getTime();
+      return Number.isFinite(lastAttempt) && lastAttempt < staleCutoffMs;
+    });
+    if (staleKeys.length > 0) {
+      anomalies.push({
+        type: 'client_sans_sync_24h',
+        count: staleKeys.length,
+        sample: staleKeys.slice(0, 5).map((k) => k.label ?? k.client_id),
+      });
     }
 
     let notified = 0;

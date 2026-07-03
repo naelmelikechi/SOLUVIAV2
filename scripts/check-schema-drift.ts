@@ -32,7 +32,26 @@ import { resolve } from 'node:path';
 
 // Exceptions documentées : paires "table.colonne" tolérées en prod sans
 // migration (à n'utiliser qu'en dernier recours, avec un commentaire).
-const ALLOWED_PROD_ONLY: string[] = [];
+const ALLOWED_PROD_ONLY: string[] = [
+  // Table morte droppée par la migration 20260702120000 (appliquée auto au
+  // merge sur main) : la prod l'a encore tant que la migration n'est pas
+  // passée. TODO retirer ce bloc après application en prod.
+  'production_mensuelle.created_at',
+  'production_mensuelle.en_retard',
+  'production_mensuelle.encaisse_opco',
+  'production_mensuelle.encaisse_soluvia',
+  'production_mensuelle.facture_opco',
+  'production_mensuelle.facture_soluvia',
+  'production_mensuelle.id',
+  'production_mensuelle.last_synced_at',
+  'production_mensuelle.mois',
+  'production_mensuelle.production_opco',
+  'production_mensuelle.production_soluvia',
+  'production_mensuelle.projet_id',
+  'production_mensuelle.reste_a_encaisser',
+  'production_mensuelle.reste_a_facturer',
+  'production_mensuelle.updated_at',
+];
 
 // Même requête des deux côtés : colonnes des tables et vues du schéma public.
 const COLUMNS_SQL = `

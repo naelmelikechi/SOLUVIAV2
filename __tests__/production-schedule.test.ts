@@ -64,4 +64,77 @@ describe('computeContractSchedule', () => {
       soluvia: [],
     });
   });
+
+  it('fin de mois : demarrage un 31 ne deborde pas sur le mois suivant (pas de rollover setMonth)', () => {
+    // 31 janvier + 1 mois via setMonth donnerait "31 fevrier" = 3 mars :
+    // versement OPCO 40% en mars au lieu de fevrier, et des mois SOLUVIA
+    // a 0 EUR suivis de mois a double mensualite.
+    const s31 = computeContractSchedule('2026-01-31', 12, 10000, 40);
+    expect(s31.opco.map((e) => e.month)).toEqual([
+      '2026-02',
+      '2026-08',
+      '2026-11',
+      '2027-02',
+    ]);
+    // Mensualites SOLUVIA : 12 mois consecutifs sans trou ni doublon
+    expect(s31.soluvia.map((e) => e.month)).toEqual([
+      '2026-01',
+      '2026-02',
+      '2026-03',
+      '2026-04',
+      '2026-05',
+      '2026-06',
+      '2026-07',
+      '2026-08',
+      '2026-09',
+      '2026-10',
+      '2026-11',
+      '2026-12',
+    ]);
+  });
+
+  it('fin de mois : demarrage un 30 avec traversee de fevrier', () => {
+    const s30 = computeContractSchedule('2025-12-30', 6, 6000, 40);
+    expect(s30.soluvia.map((e) => e.month)).toEqual([
+      '2025-12',
+      '2026-01',
+      '2026-02',
+      '2026-03',
+      '2026-04',
+      '2026-05',
+    ]);
+    expect(s30.opco[0]!.month).toBe('2026-01'); // M+1
+  });
+
+  it('duree 1 mois : une seule mensualite SOLUVIA, solde OPCO a M+2', () => {
+    const s1 = computeContractSchedule('2026-03-15', 1, 1200, 40);
+    expect(s1.soluvia).toHaveLength(1);
+    expect(s1.soluvia[0]!.month).toBe('2026-03');
+    // TTC = 480 ; HT = 400
+    expect(s1.soluvia[0]!.amount).toBeCloseTo(400, 2);
+    // Solde 10% a M+duree+1 = M+2
+    expect(s1.opco[3]).toEqual({ month: '2026-05', amount: 120 });
+  });
+
+  it('chevauchement d annee : les cles passent correctement d annee en annee', () => {
+    const sNov = computeContractSchedule('2026-11-15', 4, 4000, 40);
+    expect(sNov.soluvia.map((e) => e.month)).toEqual([
+      '2026-11',
+      '2026-12',
+      '2027-01',
+      '2027-02',
+    ]);
+    expect(sNov.opco.map((e) => e.month)).toEqual([
+      '2026-12', // M+1
+      '2027-06', // M+7
+      '2027-09', // M+10
+      '2027-04', // M+duree+1 = M+5
+    ]);
+  });
+
+  it('taux commission 0 : production SOLUVIA nulle mais OPCO intact', () => {
+    const s0 = computeContractSchedule('2026-01-15', 12, 10000, 0);
+    expect(s0.opco.reduce((acc, e) => acc + e.amount, 0)).toBe(10000);
+    expect(s0.soluvia.reduce((acc, e) => acc + e.amount, 0)).toBe(0);
+  });
 });

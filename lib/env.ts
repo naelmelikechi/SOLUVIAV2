@@ -44,6 +44,29 @@ const serverSchema = z
       .min(32, 'ENCRYPTION_KEY must be at least 32 chars')
       .optional(),
 
+    // Odoo JSON-RPC - push factures + sync paiements. Optionnel en dev/test
+    // (fallback stub, cf. lib/odoo/client.ts), requis en prod : le stub
+    // persisterait de faux odoo_id comptables.
+    ODOO_URL: z
+      .string()
+      .url({ message: 'ODOO_URL must be a valid URL' })
+      .optional(),
+    ODOO_DB: z.string().min(1, 'ODOO_DB is required').optional(),
+    ODOO_USERNAME: z.string().min(1, 'ODOO_USERNAME is required').optional(),
+    ODOO_API_KEY: z.string().min(1, 'ODOO_API_KEY is required').optional(),
+
+    // Webhook Odoo move-cancelled - optionnel, la route repond 503 si absent
+    // (le cron horaire sert de filet).
+    ODOO_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+    // URL publique du site - redirectTo Supabase Auth, metadataBase,
+    // robots/sitemap. Optionnel hors prod (fallback getAppUrl()), requis
+    // en prod pour ne jamais rediriger vers localhost.
+    NEXT_PUBLIC_SITE_URL: z
+      .string()
+      .url({ message: 'NEXT_PUBLIC_SITE_URL must be a valid URL' })
+      .optional(),
+
     // Resend - email sending, optional (emails skipped if missing)
     RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required').optional(),
 
@@ -113,6 +136,11 @@ const serverSchema = z
       'SUPABASE_SERVICE_ROLE_KEY',
       'CRON_SECRET',
       'ENCRYPTION_KEY',
+      'ODOO_URL',
+      'ODOO_DB',
+      'ODOO_USERNAME',
+      'ODOO_API_KEY',
+      'NEXT_PUBLIC_SITE_URL',
     ];
     for (const key of required) {
       if (!data[key]) {
@@ -129,6 +157,7 @@ const clientSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+  NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
 });
 
 /**
@@ -148,6 +177,12 @@ function parseEnv(): Env {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
     CRON_SECRET: process.env.CRON_SECRET?.trim(),
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY?.trim(),
+    ODOO_URL: process.env.ODOO_URL?.trim(),
+    ODOO_DB: process.env.ODOO_DB?.trim(),
+    ODOO_USERNAME: process.env.ODOO_USERNAME?.trim(),
+    ODOO_API_KEY: process.env.ODOO_API_KEY?.trim(),
+    ODOO_WEBHOOK_SECRET: process.env.ODOO_WEBHOOK_SECRET?.trim(),
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL?.trim(),
     RESEND_API_KEY: process.env.RESEND_API_KEY?.trim(),
     EMAIL_OVERRIDE: process.env.EMAIL_OVERRIDE?.trim(),
     OPENAI_API_KEY: process.env.OPENAI_API_KEY?.trim(),

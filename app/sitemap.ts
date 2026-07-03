@@ -1,7 +1,8 @@
 import type { MetadataRoute } from 'next';
+import { env } from '@/lib/env';
+import { getAppUrl } from '@/lib/utils/app-url';
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://soluvia.vercel.app';
+const siteUrl = (env.NEXT_PUBLIC_SITE_URL ?? getAppUrl()).replace(/\/$/, '');
 
 /**
  * Sitemap minimal : seulement les pages publiques. Toutes les autres

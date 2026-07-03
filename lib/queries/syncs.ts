@@ -169,12 +169,52 @@ export async function getEduviaSyncHealth(): Promise<EduviaClientHealth[]> {
   }
 
   const now = new Date();
-  const health = await Promise.all(
-    [...clientsById.entries()].map(
-      async ([clientId, info]): Promise<EduviaClientHealth> => {
+  const clientIds = [...clientsById.keys()];
+
+  // Dernier run par client en UNE requete (au lieu d'une requete par client) :
+  // PostgREST n'expose pas de DISTINCT ON, on lit donc une fenetre de logs
+  // recents tous clients confondus et on garde le premier (le plus recent) de
+  // chaque client. La fenetre (~50 runs/client, soit plusieurs jours de cron)
+  // couvre largement le dernier run de chaque client dans le cas nominal.
+  const windowSize = Math.min(1000, Math.max(200, clientIds.length * 50));
+  const { data: recentLogs, error: logsError } = await supabase
+    .from('eduvia_sync_logs')
+    .select('id, client_id, statut, created_at, duration_ms, erreur, stats')
+    .in('client_id', clientIds)
+    .order('created_at', { ascending: false })
+    .limit(windowSize);
+
+  if (logsError) {
+    logger.error('queries.syncs', 'getEduviaSyncHealth: derniers runs KO', {
+      error: logsError,
+    });
+    throw new AppError(
+      'SYNCS_FETCH_FAILED',
+      'Impossible de charger les journaux de sync Eduvia',
+      { cause: logsError },
+    );
+  }
+
+  type LastRunRow = Omit<EduviaLastRun, 'stats'> & { stats: unknown };
+  const lastRunByClient = new Map<string, LastRunRow>();
+  for (const log of recentLogs ?? []) {
+    if (!log.client_id || lastRunByClient.has(log.client_id)) continue;
+    lastRunByClient.set(log.client_id, log);
+  }
+
+  // Fenetre saturee ET client absent : son dernier run peut exister au-dela
+  // de la fenetre (client tres en retard vs clients bavards). Requete ciblee
+  // par client manquant - cas rare, la semantique "never vs stale" est ainsi
+  // strictement preservee.
+  if ((recentLogs?.length ?? 0) >= windowSize) {
+    const missing = clientIds.filter((id) => !lastRunByClient.has(id));
+    await Promise.all(
+      missing.map(async (clientId) => {
         const { data: lastRun, error: lastRunError } = await supabase
           .from('eduvia_sync_logs')
-          .select('id, statut, created_at, duration_ms, erreur, stats')
+          .select(
+            'id, client_id, statut, created_at, duration_ms, erreur, stats',
+          )
           .eq('client_id', clientId)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -191,18 +231,31 @@ export async function getEduviaSyncHealth(): Promise<EduviaClientHealth[]> {
             { cause: lastRunError },
           );
         }
+        if (lastRun) lastRunByClient.set(clientId, lastRun);
+      }),
+    );
+  }
 
-        return {
-          clientId,
-          clientNom: info.nom,
-          trigramme: info.trigramme,
-          state: deriveSyncState(lastRun, now),
-          lastRun: lastRun
-            ? { ...lastRun, stats: lastRun.stats as EduviaSyncStats | null }
-            : null,
-        };
-      },
-    ),
+  const health = [...clientsById.entries()].map(
+    ([clientId, info]): EduviaClientHealth => {
+      const lastRun = lastRunByClient.get(clientId) ?? null;
+      return {
+        clientId,
+        clientNom: info.nom,
+        trigramme: info.trigramme,
+        state: deriveSyncState(lastRun, now),
+        lastRun: lastRun
+          ? {
+              id: lastRun.id,
+              statut: lastRun.statut,
+              created_at: lastRun.created_at,
+              duration_ms: lastRun.duration_ms,
+              erreur: lastRun.erreur,
+              stats: lastRun.stats as EduviaSyncStats | null,
+            }
+          : null,
+      };
+    },
   );
 
   return health.sort(

@@ -8,6 +8,7 @@ import { sendRapportMensuelEmail } from '@/lib/email/notifications';
 import { withEmailLock } from '@/lib/email/send-log';
 import { encaisseHt } from '@/lib/utils/montant-ht';
 import { computeContractSchedule } from '@/lib/queries/production';
+import { getContratsActifs } from '@/lib/queries/production-aggregates';
 
 export const maxDuration = 120;
 
@@ -23,6 +24,7 @@ export async function GET(request: Request) {
   const prevEnd = endOfMonth(prevStart);
   const prevStartStr = format(prevStart, 'yyyy-MM-dd');
   const prevEndStr = format(prevEnd, 'yyyy-MM-dd');
+  const monthKey = format(prevStart, 'yyyy-MM');
   const moisLabel = format(prevStart, 'MMMM yyyy', { locale: fr });
 
   try {
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
       'email-rapport-mensuel',
       format(prevStart, 'yyyy-MM'),
       async () => {
-        const [facturesRes, paiementsRes, productionRes, adminsRes] =
+        const [facturesRes, paiementsRes, contratsProd, adminsRes] =
           await Promise.all([
             supabase
               .from('factures')
@@ -46,16 +48,10 @@ export async function GET(request: Request) {
               .gte('date_reception', prevStartStr)
               .lte('date_reception', prevEndStr),
             // Production live depuis les contrats (même définition que le
-            // dashboard : commission prorata durée). L'ancienne table
-            // production_mensuelle n'est alimentée par rien -> production 0.
-            supabase
-              .from('contrats')
-              .select(
-                'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(taux_commission, client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-              )
-              .eq('archive', false)
-              .eq('projet.client.is_demo', false)
-              .eq('projet.client.archive', false),
+            // dashboard : commission prorata durée), via le module partage
+            // production-aggregates (RPC SQL fenetre = mois precedent,
+            // fallback fetchAllRows) : memes filtres demo/archive.
+            getContratsActifs(supabase, monthKey, monthKey),
             supabase
               .from('users')
               .select('email, prenom')
@@ -65,7 +61,6 @@ export async function GET(request: Request) {
 
         const factures = facturesRes.data ?? [];
         const paiements = paiementsRes.data ?? [];
-        const contratsProd = productionRes.data ?? [];
         const admins = adminsRes.data;
 
         const factureHt =
@@ -96,17 +91,15 @@ export async function GET(request: Request) {
         // Production du mois précédent = commission SOLUVIA (NPEC × taux, HT)
         // prorata sur la durée du contrat. Même définition que le dashboard,
         // indépendante de la facturation.
-        const monthKey = format(prevStart, 'yyyy-MM');
         let productionHt = 0;
         for (const c of contratsProd) {
           if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
           if (!c.npec_amount || c.npec_amount <= 0) continue;
-          const projet = c.projet as { taux_commission: number | null } | null;
           const schedule = computeContractSchedule(
             c.date_debut,
             c.duree_mois,
             c.npec_amount,
-            projet?.taux_commission ?? 0,
+            c.taux_commission ?? 0,
           );
           for (const e of schedule.soluvia) {
             if (e.month === monthKey) productionHt += e.amount;

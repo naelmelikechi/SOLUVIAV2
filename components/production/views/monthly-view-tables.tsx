@@ -54,6 +54,7 @@ export function ExpandableMonthRows({
   onToggleMois,
   onToggleClient,
 }: ExpandableMonthRowsProps) {
+  const isOpco = !isSoluvia;
   return (
     <>
       <TableRow
@@ -83,15 +84,19 @@ export function ExpandableMonthRows({
             <TableCell className="border-l-2 border-l-emerald-500 text-right tabular-nums">
               {formatCurrency(row.production)}
             </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {row.isFuture ? '-' : formatCurrency(row.facture)}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {row.isFuture ? '-' : formatCurrency(row.encaisse)}
-            </TableCell>
+            {!isOpco && (
+              <>
+                <TableCell className="text-right tabular-nums">
+                  {row.isFuture ? '-' : formatCurrency(row.facture)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {row.isFuture ? '-' : formatCurrency(row.encaisse)}
+                </TableCell>
+              </>
+            )}
           </>
         )}
-        {showGroups.soldes && (
+        {showGroups.soldes && !isOpco && (
           <>
             <TableCell
               className={cn(
@@ -169,35 +174,23 @@ interface ClientBreakdownTableProps {
 }
 
 function pickClient(c: ProductionByClientRow, isSoluvia: boolean) {
-  return isSoluvia
-    ? {
-        production: c.productionSoluvia,
-        facture: c.factureSoluvia,
-        encaisse: c.encaisseSoluvia,
-        enRetard: c.enRetardSoluvia,
-      }
-    : {
-        production: c.production,
-        facture: c.facture,
-        encaisse: c.encaisse,
-        enRetard: c.enRetard,
-      };
+  // facture/encaisse/enRetard = montants réels SOLUVIA, communs aux deux
+  // perspectives ; seule la production change (NPEC brut OPCO vs commission HT).
+  return {
+    production: isSoluvia ? c.productionSoluvia : c.production,
+    facture: c.facture,
+    encaisse: c.encaisse,
+    enRetard: c.enRetard,
+  };
 }
 
 function pickProjet(p: ProductionByProjetRow, isSoluvia: boolean) {
-  return isSoluvia
-    ? {
-        production: p.productionSoluvia,
-        facture: p.factureSoluvia,
-        encaisse: p.encaisseSoluvia,
-        enRetard: p.enRetardSoluvia,
-      }
-    : {
-        production: p.production,
-        facture: p.facture,
-        encaisse: p.encaisse,
-        enRetard: p.enRetard,
-      };
+  return {
+    production: isSoluvia ? p.productionSoluvia : p.production,
+    facture: p.facture,
+    encaisse: p.encaisse,
+    enRetard: p.enRetard,
+  };
 }
 
 function ClientBreakdownTable({
@@ -210,6 +203,7 @@ function ClientBreakdownTable({
   mois,
   onToggleClient,
 }: ClientBreakdownTableProps) {
+  const isOpco = !isSoluvia;
   return (
     <div className="border-border bg-background overflow-hidden rounded-md border">
       <Table>
@@ -218,9 +212,13 @@ function ClientBreakdownTable({
             <TableHead className="text-xs">Client</TableHead>
             <TableHead className="text-right text-xs">Projets</TableHead>
             <TableHead className="text-right text-xs">Production</TableHead>
-            <TableHead className="text-right text-xs">Facturé</TableHead>
-            <TableHead className="text-right text-xs">Encaissé</TableHead>
-            <TableHead className="text-right text-xs">En retard</TableHead>
+            {!isOpco && (
+              <>
+                <TableHead className="text-right text-xs">Facturé</TableHead>
+                <TableHead className="text-right text-xs">Encaissé</TableHead>
+                <TableHead className="text-right text-xs">En retard</TableHead>
+              </>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -257,44 +255,48 @@ function ClientBreakdownTable({
                 ),
               )}
             </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatCurrency(
-                Math.round(
-                  clients.reduce(
-                    (s, r) => s + pickClient(r, isSoluvia).facture,
-                    0,
-                  ),
-                ),
-              )}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatCurrency(
-                Math.round(
-                  clients.reduce(
-                    (s, r) => s + pickClient(r, isSoluvia).encaisse,
-                    0,
-                  ),
-                ),
-              )}
-            </TableCell>
-            <TableCell
-              className={cn(
-                'text-right tabular-nums',
-                clients.reduce(
-                  (s, r) => s + pickClient(r, isSoluvia).enRetard,
-                  0,
-                ) > 0 && 'text-red-600',
-              )}
-            >
-              {formatCurrency(
-                Math.round(
-                  clients.reduce(
-                    (s, r) => s + pickClient(r, isSoluvia).enRetard,
-                    0,
-                  ),
-                ),
-              )}
-            </TableCell>
+            {!isOpco && (
+              <>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(
+                    Math.round(
+                      clients.reduce(
+                        (s, r) => s + pickClient(r, isSoluvia).facture,
+                        0,
+                      ),
+                    ),
+                  )}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(
+                    Math.round(
+                      clients.reduce(
+                        (s, r) => s + pickClient(r, isSoluvia).encaisse,
+                        0,
+                      ),
+                    ),
+                  )}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    'text-right tabular-nums',
+                    clients.reduce(
+                      (s, r) => s + pickClient(r, isSoluvia).enRetard,
+                      0,
+                    ) > 0 && 'text-red-600',
+                  )}
+                >
+                  {formatCurrency(
+                    Math.round(
+                      clients.reduce(
+                        (s, r) => s + pickClient(r, isSoluvia).enRetard,
+                        0,
+                      ),
+                    ),
+                  )}
+                </TableCell>
+              </>
+            )}
           </TableRow>
         </TableBody>
       </Table>
@@ -321,6 +323,7 @@ function ExpandableClientRows({
   filterProjets,
   onToggle,
 }: ExpandableClientRowsProps) {
+  const isOpco = !isSoluvia;
   const view = pickClient(client, isSoluvia);
   return (
     <>
@@ -344,24 +347,28 @@ function ExpandableClientRows({
         <TableCell className="text-right tabular-nums">
           {formatCurrency(Math.round(view.production))}
         </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {formatCurrency(Math.round(view.facture))}
-        </TableCell>
-        <TableCell className="text-right tabular-nums">
-          {formatCurrency(Math.round(view.encaisse))}
-        </TableCell>
-        <TableCell
-          className={cn(
-            'text-right tabular-nums',
-            view.enRetard > 0 && 'font-semibold text-red-600',
-          )}
-        >
-          {formatCurrency(Math.round(view.enRetard))}
-        </TableCell>
+        {!isOpco && (
+          <>
+            <TableCell className="text-right tabular-nums">
+              {formatCurrency(Math.round(view.facture))}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {formatCurrency(Math.round(view.encaisse))}
+            </TableCell>
+            <TableCell
+              className={cn(
+                'text-right tabular-nums',
+                view.enRetard > 0 && 'font-semibold text-red-600',
+              )}
+            >
+              {formatCurrency(Math.round(view.enRetard))}
+            </TableCell>
+          </>
+        )}
       </TableRow>
       {isExpanded && (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={6} className="bg-muted/20 p-0">
+          <TableCell colSpan={isOpco ? 3 : 6} className="bg-muted/20 p-0">
             <div className="px-4 py-3">
               {isLoading && (
                 <div className="text-muted-foreground flex items-center gap-2 text-xs">
@@ -401,6 +408,7 @@ function ProjetBreakdownTable({
   projets: ProductionByProjetRow[];
   isSoluvia: boolean;
 }) {
+  const isOpco = !isSoluvia;
   return (
     <div className="border-border bg-background overflow-hidden rounded-md border">
       <Table>
@@ -410,9 +418,13 @@ function ProjetBreakdownTable({
             <TableHead className="text-right text-xs">Commission</TableHead>
             <TableHead className="text-right text-xs">Contrats</TableHead>
             <TableHead className="text-right text-xs">Production</TableHead>
-            <TableHead className="text-right text-xs">Facturé</TableHead>
-            <TableHead className="text-right text-xs">Encaissé</TableHead>
-            <TableHead className="text-right text-xs">En retard</TableHead>
+            {!isOpco && (
+              <>
+                <TableHead className="text-right text-xs">Facturé</TableHead>
+                <TableHead className="text-right text-xs">Encaissé</TableHead>
+                <TableHead className="text-right text-xs">En retard</TableHead>
+              </>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -430,20 +442,24 @@ function ProjetBreakdownTable({
                 <TableCell className="text-right tabular-nums">
                   {formatCurrency(Math.round(view.production))}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatCurrency(Math.round(view.facture))}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatCurrency(Math.round(view.encaisse))}
-                </TableCell>
-                <TableCell
-                  className={cn(
-                    'text-right tabular-nums',
-                    view.enRetard > 0 && 'font-semibold text-red-600',
-                  )}
-                >
-                  {formatCurrency(Math.round(view.enRetard))}
-                </TableCell>
+                {!isOpco && (
+                  <>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(Math.round(view.facture))}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(Math.round(view.encaisse))}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right tabular-nums',
+                        view.enRetard > 0 && 'font-semibold text-red-600',
+                      )}
+                    >
+                      {formatCurrency(Math.round(view.enRetard))}
+                    </TableCell>
+                  </>
+                )}
               </TableRow>
             );
           })}
@@ -463,44 +479,48 @@ function ProjetBreakdownTable({
                 ),
               )}
             </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatCurrency(
-                Math.round(
-                  projets.reduce(
-                    (s, r) => s + pickProjet(r, isSoluvia).facture,
-                    0,
-                  ),
-                ),
-              )}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatCurrency(
-                Math.round(
-                  projets.reduce(
-                    (s, r) => s + pickProjet(r, isSoluvia).encaisse,
-                    0,
-                  ),
-                ),
-              )}
-            </TableCell>
-            <TableCell
-              className={cn(
-                'text-right tabular-nums',
-                projets.reduce(
-                  (s, r) => s + pickProjet(r, isSoluvia).enRetard,
-                  0,
-                ) > 0 && 'text-red-600',
-              )}
-            >
-              {formatCurrency(
-                Math.round(
-                  projets.reduce(
-                    (s, r) => s + pickProjet(r, isSoluvia).enRetard,
-                    0,
-                  ),
-                ),
-              )}
-            </TableCell>
+            {!isOpco && (
+              <>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(
+                    Math.round(
+                      projets.reduce(
+                        (s, r) => s + pickProjet(r, isSoluvia).facture,
+                        0,
+                      ),
+                    ),
+                  )}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatCurrency(
+                    Math.round(
+                      projets.reduce(
+                        (s, r) => s + pickProjet(r, isSoluvia).encaisse,
+                        0,
+                      ),
+                    ),
+                  )}
+                </TableCell>
+                <TableCell
+                  className={cn(
+                    'text-right tabular-nums',
+                    projets.reduce(
+                      (s, r) => s + pickProjet(r, isSoluvia).enRetard,
+                      0,
+                    ) > 0 && 'text-red-600',
+                  )}
+                >
+                  {formatCurrency(
+                    Math.round(
+                      projets.reduce(
+                        (s, r) => s + pickProjet(r, isSoluvia).enRetard,
+                        0,
+                      ),
+                    ),
+                  )}
+                </TableCell>
+              </>
+            )}
           </TableRow>
         </TableBody>
       </Table>

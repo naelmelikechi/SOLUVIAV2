@@ -3,11 +3,29 @@ import { createClient } from '@/lib/supabase/server';
 import { renderDevisPdfBuffer } from '@/lib/utils/render-devis-pdf';
 import { mapDevisPdfPublic } from '@/lib/queries/devis';
 import { logger } from '@/lib/utils/logger';
+import { checkRateLimit } from '@/lib/utils/rate-limit';
+import { clientIpFromHeaders } from '@/lib/utils/request-id';
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
+  // Endpoint public anonyme : rate limit par IP (fail-open si Upstash absent)
+  const ip = clientIpFromHeaders(req.headers);
+  const rl = await checkRateLimit('devis-public-read', ip, {
+    limit: 30,
+    windowSeconds: 60,
+  });
+  if (rl.limited) {
+    return NextResponse.json(
+      { error: 'Trop de requêtes. Réessayez dans quelques instants.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(rl.retryAfter ?? 60) },
+      },
+    );
+  }
+
   const [{ token }, supabase] = await Promise.all([params, createClient()]);
 
   // RPC SECURITY DEFINER : token + expiration + statut verifies cote SQL,

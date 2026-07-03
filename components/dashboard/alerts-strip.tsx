@@ -2,13 +2,10 @@
 import Link from 'next/link';
 import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { Alert } from '@/lib/utils/build-dashboard-data';
 
-export type Alert = {
-  count: number;
-  title: string;
-  href: string;
-  color: 'red' | 'orange' | 'blue';
-};
+// Re-export pour les consommateurs existants du type via ce module.
+export type { Alert };
 
 const dotColor: Record<Alert['color'], string> = {
   red: 'bg-red-500',

@@ -119,6 +119,11 @@ function buildSupabase(
       order() {
         return chain;
       },
+      // fetchAllRows pagine via .range() : le mock renvoie une page unique
+      // (data.length < pageSize) donc une seule requete par table.
+      range() {
+        return chain;
+      },
       single() {
         return resolve();
       },
@@ -164,14 +169,11 @@ describe('getDashboardData', () => {
   it('returns aggregated KPIs in the expected shape', async () => {
     const mock = buildSupabase({
       projets: { data: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }] },
-      factures: {
-        data: [
-          { id: 'f1', statut: 'emise' },
-          { id: 'f2', statut: 'en_retard' },
-          { id: 'f3', statut: 'en_retard' },
-          { id: 'f4', statut: 'payee' },
-        ],
-      },
+      factures: [
+        // head-counts : premier appel = en_retard, second = emise
+        { count: 2 },
+        { count: 1 },
+      ],
       echeances: { data: [{ id: 'e1' }, { id: 'e2' }] },
       contrats: [
         // first call : contratsRes (active count)

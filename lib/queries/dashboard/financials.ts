@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { logger } from '@/lib/utils/logger';
 import { ACTIVE_CONTRACT_STATES } from '@/lib/utils/contrat-states';
 import { computeContractSchedule } from '@/lib/queries/production';
+import { getContratsActifs } from '@/lib/queries/production-aggregates';
 import type { Periode } from '@/lib/utils/dashboard-periode';
 import { encaisseHt } from '@/lib/utils/montant-ht';
 import {
@@ -71,7 +73,7 @@ export async function getDashboardFinancials(
     facturesRes,
     paiementsRes,
     facturesRetardRes,
-    contratsProdRes,
+    contratsProd,
     contratsRes,
     tempsRes,
     tempsMonthRes,
@@ -94,23 +96,22 @@ export async function getDashboardFinancials(
       .eq('statut', 'en_retard')
       .eq('projet.client.is_demo', false)
       .eq('projet.client.archive', false),
-    // Contrats pour calcul Production du mois (commission prorata durée)
-    supabase
-      .from('contrats')
-      .select(
-        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(taux_commission, client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-      )
-      .eq('archive', false)
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
+    // Contrats pour calcul Production du mois (commission prorata durée),
+    // via le module partage production-aggregates (RPC SQL fenetre = le mois
+    // demande, fallback fetchAllRows) : memes filtres demo/archive.
+    getContratsActifs(supabase, monthKey, monthKey),
     // Distinct learners (eduvia_employee_id) actually in formation. We dedup
     // in JS rather than via SQL DISTINCT - works consistently across the
     // mix of internal `actif` and Eduvia-driven states.
-    supabase
-      .from('contrats')
-      .select('eduvia_employee_id')
-      .eq('archive', false)
-      .in('contract_state', ACTIVE_STATES_ARRAY),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('contrats')
+        .select('eduvia_employee_id')
+        .eq('archive', false)
+        .in('contract_state', ACTIVE_STATES_ARRAY)
+        .order('id')
+        .range(from, to),
+    ),
     supabase
       .from('saisies_temps')
       .select('date')
@@ -148,12 +149,17 @@ export async function getDashboardFinancials(
     // Separate query : KPIs operationnels (formations, abandons, pedagogie).
     // On charge tous les contrats Eduvia non archives une fois et on derive.
     // join apprenants pour le KPI Qualiopi handicap (RQTH).
-    supabase
-      .from('contrats')
-      .select(
-        'eduvia_formation_id, contract_state, eduvia_employee_id, source_client_id, contrats_progressions(progression_percentage)',
-      )
-      .eq('archive', false),
+    // fetchAllRows : requete non bornee, sujette au plafond max_rows=1000.
+    fetchAllRows((from, to) =>
+      supabase
+        .from('contrats')
+        .select(
+          'eduvia_formation_id, contract_state, eduvia_employee_id, source_client_id, contrats_progressions(progression_percentage)',
+        )
+        .eq('archive', false)
+        .order('id')
+        .range(from, to),
+    ),
   ]);
 
   if (operationalRes.error) {
@@ -291,15 +297,14 @@ export async function getDashboardFinancials(
   // totalProduction = commission SOLUVIA (NPEC × taux, HT) prorata sur la durée
   // du contrat, part qui tombe sur le mois courant. Indépendant de la facturation.
   let totalProduction = 0;
-  for (const c of contratsProdRes.data ?? []) {
+  for (const c of contratsProd) {
     if (!c.date_debut || !c.duree_mois || c.duree_mois <= 0) continue;
     if (!c.npec_amount || c.npec_amount <= 0) continue;
-    const projet = c.projet as { taux_commission: number | null } | null;
     const schedule = computeContractSchedule(
       c.date_debut,
       c.duree_mois,
       c.npec_amount,
-      projet?.taux_commission ?? 0,
+      c.taux_commission ?? 0,
     );
     for (const e of schedule.soluvia) {
       if (e.month === monthKey) totalProduction += e.amount;

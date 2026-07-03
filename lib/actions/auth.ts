@@ -6,6 +6,8 @@ import { checkRateLimit } from '@/lib/utils/rate-limit';
 import { logger } from '@/lib/utils/logger';
 import { getRequestId, clientIpFromHeaders } from '@/lib/utils/request-id';
 import { getSession } from '@/lib/auth/session-shim';
+import { env } from '@/lib/env';
+import { getAppUrl } from '@/lib/utils/app-url';
 
 // Auth actions server-side. Le login etait fait client-side, ce qui rendait
 // impossible le rate limit (l'appel sortait directement vers Supabase). On
@@ -99,10 +101,12 @@ export async function loginAction(
  * domaine qu'il controle). Voir audit I3.
  */
 function getSiteUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL;
+  const fromEnv = env.NEXT_PUBLIC_SITE_URL;
   if (fromEnv) return fromEnv.replace(/\/$/, '');
-  // Fallback local dev. En prod NEXT_PUBLIC_SITE_URL doit etre defini.
-  return 'http://localhost:3000';
+  // Fallback : getAppUrl() gere VERCEL_PROJECT_PRODUCTION_URL / prod Vercel,
+  // et ne retombe sur localhost qu'en dev. NEXT_PUBLIC_SITE_URL est requis
+  // en prod par le schema lib/env.ts.
+  return getAppUrl();
 }
 
 export async function requestPasswordResetAction(

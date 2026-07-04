@@ -29,11 +29,14 @@ type SnapshotRow = {
 // Calcule taux_qualiopi via l'API Eduvia (deliverables conform / total).
 // La donnee Qualiopi vit cote Eduvia, pas dans une table SOLUVIA.
 // Agrege par CFA (client) du scope, puis sum(conform) / sum(total).
+// Retourne null quand Eduvia n'a AUCUN livrable (total=0) ou en erreur :
+// snapshotter 0 rendait "pas de donnees" indistinguable d'un vrai 0% de
+// conformite (la card affichait 0,0% au lieu de --).
 async function computeTauxQualiopi(
   supabase: SupabaseClient,
   scope: Scope,
   scopeId: string | null,
-): Promise<number> {
+): Promise<number | null> {
   try {
     // Recupere les client_ids du scope
     let clientIds: string[] = [];
@@ -81,7 +84,7 @@ async function computeTauxQualiopi(
       realise += c.realise;
       total += c.total;
     }
-    if (total === 0) return 0;
+    if (total === 0) return null;
     return Math.round((realise / total) * 10000) / 100;
   } catch (err) {
     logger.error('cron.snapshot', err, {
@@ -89,7 +92,7 @@ async function computeTauxQualiopi(
       scope,
       scopeId,
     });
-    return 0;
+    return null;
   }
 }
 
@@ -303,13 +306,19 @@ async function computeKpisForScope(
       scope,
       scope_id: scopeId,
     },
-    {
-      mois,
-      type_kpi: 'taux_qualiopi',
-      valeur: tauxQualiopi,
-      scope,
-      scope_id: scopeId,
-    },
+    // taux_qualiopi omis quand null (pas de donnees Eduvia) : la card
+    // sparkline affiche alors -- au lieu d'un 0,0% trompeur.
+    ...(tauxQualiopi === null
+      ? []
+      : [
+          {
+            mois,
+            type_kpi: 'taux_qualiopi',
+            valeur: tauxQualiopi,
+            scope,
+            scope_id: scopeId,
+          },
+        ]),
     {
       mois,
       type_kpi: 'pedagogie_avancement',

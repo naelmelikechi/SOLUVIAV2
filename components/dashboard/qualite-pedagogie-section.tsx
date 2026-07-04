@@ -119,7 +119,8 @@ export async function QualitePedagogieSection({
                     <span className="text-foreground font-medium">
                       Abandons
                     </span>{' '}
-                    : contrats resilies ou annules / total contrats (12 mois).
+                    : contrats resilies ou annules / total contrats, toutes
+                    periodes.
                   </li>
                 </ul>
               </div>
@@ -156,7 +157,7 @@ export async function QualitePedagogieSection({
         />
         <KpiCard
           title="Abandons"
-          subtitle="Contrats resilies/annules sur 12 mois"
+          subtitle="Contrats resilies ou annules, toutes periodes"
           color="red"
           series={series.get('taux_abandon') ?? []}
         />

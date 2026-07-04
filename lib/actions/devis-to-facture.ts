@@ -160,6 +160,9 @@ export async function createFactureFromDevis(
       conditions_reglement: devis.conditions_reglement,
       date_emission: dateEmissionStr,
       date_echeance: dateEcheanceStr,
+      // Format court 'YYYY-MM' (meme convention que brouillon-libre) :
+      // /production filtre sur mois_concerne (NULL = facture invisible).
+      mois_concerne: dateEmissionStr.slice(0, 7),
     })
     .select('id')
     .single();

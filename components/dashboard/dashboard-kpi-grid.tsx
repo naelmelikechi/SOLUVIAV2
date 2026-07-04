@@ -31,9 +31,6 @@ import { handleExportExcel } from '@/lib/utils/build-dashboard-data';
 export interface DashboardSparklines {
   projetsActifs?: React.ReactNode;
   contratsActifs?: React.ReactNode;
-  facturesEmises?: React.ReactNode;
-  facturesEnRetard?: React.ReactNode;
-  totalEncaisse?: React.ReactNode;
 }
 
 interface DashboardKpiGridProps {

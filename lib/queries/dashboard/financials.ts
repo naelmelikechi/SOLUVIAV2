@@ -106,7 +106,7 @@ export async function getDashboardFinancials(
     fetchAllRows((from, to) =>
       supabase
         .from('contrats')
-        .select('eduvia_employee_id')
+        .select('eduvia_employee_id, source_client_id')
         .eq('archive', false)
         .in('contract_state', ACTIVE_STATES_ARRAY)
         .order('id')
@@ -326,13 +326,15 @@ export async function getDashboardFinancials(
   }
   totalEnRetard = Math.round(totalEnRetard * 100) / 100;
 
-  // Dedup by eduvia_employee_id : un apprenant avec N contrats compte 1.
+  // Dedup par cle composite source_client_id:eduvia_employee_id (meme cle que
+  // le KPI RQTH ci-dessus) : les employee_id Eduvia ne sont uniques que par
+  // CFA, une cle simple fusionnerait des apprenants de CFA differents.
   // Les contrats hors Eduvia (employee_id null) sont comptes 1 chacun.
   const apprenantKeys = new Set<string>();
   let sansEmployeeId = 0;
   for (const c of contratsRes.data ?? []) {
     if (c.eduvia_employee_id != null) {
-      apprenantKeys.add(String(c.eduvia_employee_id));
+      apprenantKeys.add(`${c.source_client_id}:${c.eduvia_employee_id}`);
     } else {
       sansEmployeeId += 1;
     }

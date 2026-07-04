@@ -77,10 +77,12 @@ export async function getProjetPerformance(
         .select(
           'total_amount, paid_amount, contrat:contrats!eduvia_invoice_steps_contrat_id_fkey(projet_id)',
         ),
+      // Brouillons (a_emettre) exclus : ils ne sont pas des recettes.
       admin
         .from('factures')
         .select('montant_ht, est_avoir')
-        .eq('projet_id', projetId),
+        .eq('projet_id', projetId)
+        .neq('statut', 'a_emettre'),
       admin
         .from('saisies_temps')
         .select('heures, user_id')
@@ -264,10 +266,9 @@ export async function getProjetPerformance(
   const factures = (facturesRes.data ?? []) as FactureRow[];
   const saisies = (saisiesRes.data ?? []) as SaisieRow[];
 
-  const recettes = factures.reduce(
-    (s, f) => s + (f.est_avoir ? -f.montant_ht : f.montant_ht),
-    0,
-  );
+  // montant_ht d'un avoir est deja stocke en negatif (cf. avoirs.ts:
+  // -Math.abs) : on somme tel quel, sans re-negation.
+  const recettes = factures.reduce((s, f) => s + f.montant_ht, 0);
 
   // Charge cost data des users qui ont saisi des heures sur ce projet
   const hoursPerUser = new Map<string, number>();

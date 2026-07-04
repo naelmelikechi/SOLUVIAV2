@@ -68,13 +68,7 @@ export default async function DashboardPage({
     getInvoiceStatusBreakdown(),
     getUserWeekHours(),
     getKpiSeriesBatch({
-      kpiTypes: [
-        'projets_actifs',
-        'contrats_actifs',
-        'factures_emises',
-        'factures_en_retard',
-        'total_encaisse',
-      ],
+      kpiTypes: ['projets_actifs', 'contrats_actifs'],
       scope,
       scopeId,
     }),
@@ -83,7 +77,7 @@ export default async function DashboardPage({
 
   // Sparklines sont des Server Components async : on les instancie ici (Server Component)
   // et on les passe comme ReactNode au client via la prop sparklines.
-  // Seuls les type_kpi reels (ecrits par le CRON) sont utilises.
+  // Seules les cles reellement rendues par DashboardKpiGrid sont construites.
   const sparklines = {
     projetsActifs: (
       <Sparkline
@@ -101,33 +95,6 @@ export default async function DashboardPage({
         scopeId={scopeId}
         color="blue"
         points={pageKpiSeries.get('contrats_actifs') ?? []}
-      />
-    ),
-    facturesEmises: (
-      <Sparkline
-        kpiType="factures_emises"
-        scope={scope}
-        scopeId={scopeId}
-        color="blue"
-        points={pageKpiSeries.get('factures_emises') ?? []}
-      />
-    ),
-    facturesEnRetard: (
-      <Sparkline
-        kpiType="factures_en_retard"
-        scope={scope}
-        scopeId={scopeId}
-        color="red"
-        points={pageKpiSeries.get('factures_en_retard') ?? []}
-      />
-    ),
-    totalEncaisse: (
-      <Sparkline
-        kpiType="total_encaisse"
-        scope={scope}
-        scopeId={scopeId}
-        color="green"
-        points={pageKpiSeries.get('total_encaisse') ?? []}
       />
     ),
   };

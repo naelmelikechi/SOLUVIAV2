@@ -1,20 +1,22 @@
 -- ===========================================================================
 -- Test : count_factures_by_statut() (RPC de comptage du pie chart dashboard)
 -- ===========================================================================
--- Migration : 20260630150100_count_factures_by_statut_rpc.sql
+-- Migrations : 20260630150100_count_factures_by_statut_rpc.sql
+--              20260704100000_count_factures_by_statut_demo_filter.sql
 -- Verifie : SECURITY INVOKER (prosecdef=false), search_path epingle, grants
 -- (authenticated oui / anon non), scoping RLS admin (global) vs cdp (ses
--- projets), exclusion de 'a_emettre'.
+-- projets), exclusion de 'a_emettre', exclusion clients demo/archives.
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(8);
+SELECT plan(9);
 
 CREATE TEMP TABLE _ctx (
   admin_id UUID, cdp_id UUID, client_id UUID, projet_cdp_id UUID, libre_id UUID,
-  base_emise BIGINT, base_avoir BIGINT
+  demo_client_id UUID, arch_client_id UUID, demo_libre_id UUID, arch_libre_id UUID,
+  base_emise BIGINT, base_avoir BIGINT, base_payee BIGINT
 );
 INSERT INTO _ctx (admin_id, cdp_id, client_id)
 VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid());
@@ -42,12 +44,27 @@ FROM _ctx;
 UPDATE _ctx SET libre_id = get_or_create_projet_libre((SELECT client_id FROM _ctx));
 
 
--- Baseline : le seed de demo peut deja contenir des factures (emise/avoir).
--- On capture le total global AVANT nos fixtures pour asserter en DELTA (test
--- seed-independant ; l'admin voit le global via is_admin).
+-- Clients demo et archive : leurs factures ne doivent PAS etre comptees.
+UPDATE _ctx SET demo_client_id = gen_random_uuid(), arch_client_id = gen_random_uuid();
+INSERT INTO clients (id, raison_sociale, trigramme, is_demo, archive)
+SELECT demo_client_id, 'Test Count Demo', 'TCD', true, false FROM _ctx
+UNION ALL
+SELECT arch_client_id, 'Test Count Archive', 'TCA', false, true FROM _ctx;
 UPDATE _ctx SET
-  base_emise = (SELECT count(*) FROM factures WHERE statut = 'emise'),
-  base_avoir = (SELECT count(*) FROM factures WHERE statut = 'avoir');
+  demo_libre_id = get_or_create_projet_libre((SELECT demo_client_id FROM _ctx)),
+  arch_libre_id = get_or_create_projet_libre((SELECT arch_client_id FROM _ctx));
+
+-- Baseline : le seed de demo peut deja contenir des factures (emise/avoir).
+-- On capture le total AVANT nos fixtures pour asserter en DELTA (test
+-- seed-independant ; l'admin voit le global via is_admin). Meme filtre
+-- demo/archive que la RPC.
+UPDATE _ctx SET
+  base_emise = (SELECT count(*) FROM factures f JOIN clients c ON c.id = f.client_id
+                WHERE f.statut = 'emise' AND c.is_demo = false AND c.archive = false),
+  base_avoir = (SELECT count(*) FROM factures f JOIN clients c ON c.id = f.client_id
+                WHERE f.statut = 'avoir' AND c.is_demo = false AND c.archive = false),
+  base_payee = (SELECT count(*) FROM factures f JOIN clients c ON c.id = f.client_id
+                WHERE f.statut = 'payee' AND c.is_demo = false AND c.archive = false);
 -- Seed factures. Sur le projet DU CDP : 1 emise + 1 payee.
 INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_concerne,
                       montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
@@ -87,6 +104,21 @@ INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_c
                       societe_emettrice_id)
 SELECT libre_id, client_id, '2026-05-03', '2026-06-30', '2026-05',
        50, 20, 10, 60, 'a_emettre', false,
+       (SELECT id FROM societes_emettrices WHERE code = 'SOL') FROM _ctx;
+
+-- Factures payee sur client demo et client archive : exclues du comptage.
+INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_concerne,
+                      montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
+                      ref, numero_seq, societe_emettrice_id)
+SELECT demo_libre_id, demo_client_id, '2026-05-01', '2026-06-30', '2026-05',
+       400, 20, 80, 480, 'payee', false, 'FAC-TCD-9005', 990005,
+       (SELECT id FROM societes_emettrices WHERE code = 'SOL') FROM _ctx;
+
+INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_concerne,
+                      montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
+                      ref, numero_seq, societe_emettrice_id)
+SELECT arch_libre_id, arch_client_id, '2026-05-01', '2026-06-30', '2026-05',
+       500, 20, 100, 600, 'payee', false, 'FAC-TCA-9006', 990006,
        (SELECT id FROM societes_emettrices WHERE code = 'SOL') FROM _ctx;
 
 -- ----- 1. SECURITY INVOKER (prosecdef = false) -----
@@ -137,6 +169,11 @@ SELECT is( pg_temp.count_as((SELECT cdp_id FROM _ctx), 'emise'::statut_facture),
 -- ----- 8. Exclusion 'a_emettre' : jamais compte, meme pour l'admin -----
 SELECT is( pg_temp.count_as((SELECT admin_id FROM _ctx), 'a_emettre'::statut_facture), 0::bigint,
   'a_emettre exclu du comptage (jamais dans le breakdown)');
+
+-- ----- 9. Exclusion clients demo/archives : les 2 payee TCD/TCA ne comptent pas -----
+SELECT is( pg_temp.count_as((SELECT admin_id FROM _ctx), 'payee'::statut_facture),
+  (SELECT base_payee FROM _ctx) + 1,
+  'Clients demo/archives exclus : seule la payee du client actif est comptee');
 
 SELECT * FROM finish();
 ROLLBACK;

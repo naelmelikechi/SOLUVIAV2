@@ -2,6 +2,7 @@ import { logger } from '@/lib/utils/logger';
 import { buildClientReconcileModelVals } from '@/lib/odoo/reconcile-model-vals';
 import { buildOdooNarration } from '@/lib/utils/e-invoicing-mentions';
 import { resolveInvoiceEdiFormat } from '@/lib/odoo/invoice-edi-format';
+import { normalizePeppolMoveState } from '@/lib/odoo/peppol-state';
 
 // ---------------------------------------------------------------------------
 // Odoo client interface
@@ -57,6 +58,12 @@ export interface OdooInvoicePayment {
   amount_residual: number;
   /** Reglements en numeraire reconcilies (avoirs exclus). */
   payments: { odoo_id: string; amount: number; date: string }[];
+  /**
+   * Statut de transmission Peppol (account.move.peppol_move_state) : 'ready',
+   * 'to_send', 'processing', 'done', 'error', etc. null = jamais transmis
+   * (false/vide cote Odoo) ou module Peppol non installe.
+   */
+  peppol_move_state: string | null;
 }
 
 export interface OdooCancelledMove {
@@ -274,6 +281,9 @@ class OdooJsonRpcClient implements OdooClient {
   private uid: number | null = null;
   private taxId20: number | null = null;
   private countryIdByCode = new Map<string, number | null>();
+  // Memoise l'absence du champ peppol_move_state (module Peppol non installe)
+  // pour ne pas re-tenter/re-warner a chaque pull.
+  private peppolFieldUnavailable = false;
 
   constructor(private readonly config: OdooConfig) {}
 
@@ -872,21 +882,44 @@ class OdooJsonRpcClient implements OdooClient {
       amount_total: number;
       amount_residual: number;
       invoice_payments_widget: Widget;
+      peppol_move_state?: string | false;
     };
 
-    const moves = await this.executeKw<MoveRow[]>(
-      'account.move',
-      'read',
-      [ids],
-      {
-        fields: [
-          'payment_state',
-          'amount_total',
-          'amount_residual',
-          'invoice_payments_widget',
-        ],
-      },
-    );
+    const baseFields = [
+      'payment_state',
+      'amount_total',
+      'amount_residual',
+      'invoice_payments_widget',
+    ];
+
+    // peppol_move_state n'existe que si le module Peppol est installe cote
+    // Odoo : un read avec un champ inconnu echoue. On tente avec, et si l'erreur
+    // designe ce champ on retombe (definitivement) sur la lecture sans lui.
+    // Toute autre erreur (transitoire, droits...) est propagee inchangee.
+    let moves: MoveRow[];
+    if (this.peppolFieldUnavailable) {
+      moves = await this.executeKw<MoveRow[]>('account.move', 'read', [ids], {
+        fields: baseFields,
+      });
+    } else {
+      try {
+        moves = await this.executeKw<MoveRow[]>('account.move', 'read', [ids], {
+          fields: [...baseFields, 'peppol_move_state'],
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes('peppol_move_state')) throw err;
+        this.peppolFieldUnavailable = true;
+        logger.warn(
+          SCOPE,
+          'peppol_move_state indisponible sur account.move (module Peppol non installe ?), lecture sans le champ',
+          { error: msg },
+        );
+        moves = await this.executeKw<MoveRow[]>('account.move', 'read', [ids], {
+          fields: baseFields,
+        });
+      }
+    }
 
     return moves.map((m) => {
       const widget = m.invoice_payments_widget;
@@ -912,6 +945,7 @@ class OdooJsonRpcClient implements OdooClient {
         amount_total: Number(m.amount_total),
         amount_residual: Number(m.amount_residual),
         payments,
+        peppol_move_state: normalizePeppolMoveState(m.peppol_move_state),
       };
     });
   }

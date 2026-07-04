@@ -1953,6 +1953,7 @@ export type Database = {
           objet: string | null;
           odoo_id: string | null;
           pdf_url: string | null;
+          peppol_state: string | null;
           projet_id: string;
           ref: string | null;
           societe_emettrice_id: string;
@@ -1984,6 +1985,7 @@ export type Database = {
           objet?: string | null;
           odoo_id?: string | null;
           pdf_url?: string | null;
+          peppol_state?: string | null;
           projet_id: string;
           ref?: string | null;
           societe_emettrice_id: string;
@@ -2015,6 +2017,7 @@ export type Database = {
           objet?: string | null;
           odoo_id?: string | null;
           pdf_url?: string | null;
+          peppol_state?: string | null;
           projet_id?: string;
           ref?: string | null;
           societe_emettrice_id?: string;

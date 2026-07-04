@@ -9,6 +9,7 @@ import {
   STATUT_FACTURE_LABELS,
   STATUT_FACTURE_COLORS,
 } from '@/lib/utils/constants';
+import { getPeppolStateBadge } from '@/lib/odoo/peppol-state';
 import { formatDate, formatMoisConcerne } from '@/lib/utils/formatters';
 
 interface FactureDetailHeaderProps {
@@ -21,6 +22,9 @@ export function FactureDetailHeader({
   avoirRef,
 }: FactureDetailHeaderProps) {
   const moisCapitalized = formatMoisConcerne(facture.mois_concerne);
+  // Badge Peppol discret : uniquement quand la facture a un statut de
+  // transmission e-invoicing connu (peppol_state non null).
+  const peppolBadge = getPeppolStateBadge(facture.peppol_state);
 
   return (
     <div className="mb-6 space-y-2">
@@ -62,6 +66,9 @@ export function FactureDetailHeader({
           label={STATUT_FACTURE_LABELS[facture.statut] ?? facture.statut}
           color={STATUT_FACTURE_COLORS[facture.statut] ?? 'gray'}
         />
+        {peppolBadge && (
+          <StatusBadge label={peppolBadge.label} color={peppolBadge.color} />
+        )}
       </div>
 
       {/* Client + Projet + Mois */}

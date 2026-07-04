@@ -17,6 +17,7 @@ import {
   STATUT_FACTURE_LABELS,
   STATUT_FACTURE_COLORS,
 } from '@/lib/utils/constants';
+import { getPeppolStateBadge } from '@/lib/odoo/peppol-state';
 import { textFilterFn } from '@/lib/utils/table-filters';
 
 export function createFactureListColumns(
@@ -201,11 +202,19 @@ export function createFactureListColumns(
       ),
       cell: ({ row }) => {
         const statut = row.original.statut;
+        // Badge Peppol discret : uniquement quand la facture a un statut de
+        // transmission e-invoicing connu (peppol_state non null).
+        const peppol = getPeppolStateBadge(row.original.peppol_state);
         return (
-          <StatusBadge
-            label={STATUT_FACTURE_LABELS[statut] || statut}
-            color={STATUT_FACTURE_COLORS[statut] || 'gray'}
-          />
+          <div className="flex flex-col items-start gap-1">
+            <StatusBadge
+              label={STATUT_FACTURE_LABELS[statut] || statut}
+              color={STATUT_FACTURE_COLORS[statut] || 'gray'}
+            />
+            {peppol && (
+              <StatusBadge label={peppol.label} color={peppol.color} />
+            )}
+          </div>
         );
       },
       filterFn: textFilterFn,

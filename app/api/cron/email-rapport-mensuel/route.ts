@@ -35,18 +35,27 @@ export async function GET(request: Request) {
       async () => {
         const [facturesRes, paiementsRes, contratsProd, adminsRes] =
           await Promise.all([
+            // Exclut les clients demo/archives (memes filtres que le dashboard)
+            // et les brouillons (a_emettre) : "factures emises" = reellement emises.
             supabase
               .from('factures')
-              .select('montant_ht, statut, est_avoir, date_emission')
+              .select(
+                'montant_ht, statut, est_avoir, date_emission, client:clients!factures_client_id_fkey!inner(is_demo, archive)',
+              )
               .gte('date_emission', prevStartStr)
-              .lte('date_emission', prevEndStr),
+              .lte('date_emission', prevEndStr)
+              .neq('statut', 'a_emettre')
+              .eq('client.is_demo', false)
+              .eq('client.archive', false),
             supabase
               .from('paiements')
               .select(
-                'montant, date_reception, facture:factures!paiements_facture_id_fkey(montant_ht, montant_ttc)',
+                'montant, date_reception, facture:factures!paiements_facture_id_fkey!inner(montant_ht, montant_ttc, client:clients!factures_client_id_fkey!inner(is_demo, archive))',
               )
               .gte('date_reception', prevStartStr)
-              .lte('date_reception', prevEndStr),
+              .lte('date_reception', prevEndStr)
+              .eq('facture.client.is_demo', false)
+              .eq('facture.client.archive', false),
             // Production live depuis les contrats (même définition que le
             // dashboard : commission prorata durée), via le module partage
             // production-aggregates (RPC SQL fenetre = mois precedent,

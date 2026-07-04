@@ -51,6 +51,8 @@ export async function getDashboardData() {
       .eq('statut', 'emise')
       .eq('projet.client.is_demo', false)
       .eq('projet.client.archive', false),
+    // Echeances "pretes" = deja arrivees a date (<= aujourd'hui), aligne sur
+    // le montant "A facturer" du chip (financials.ts) : pas d'echeances futures.
     supabase
       .from('echeances')
       .select(
@@ -58,6 +60,7 @@ export async function getDashboardData() {
       )
       .is('facture_id', null)
       .eq('validee', false)
+      .lte('date_emission_prevue', format(new Date(), 'yyyy-MM-dd'))
       .eq('projet.client.is_demo', false)
       .eq('projet.client.archive', false),
     // fetchAllRows : PostgREST plafonne a max_rows=1000, un select non borne

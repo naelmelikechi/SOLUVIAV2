@@ -8,6 +8,7 @@ import { pushFacturePdfToOdoo } from '@/lib/odoo/attach-pdf';
 import { logSync } from '@/lib/odoo/sync-log';
 import { logger } from '@/lib/utils/logger';
 import { matchUnreconciledBankLine } from '@/lib/odoo/bank-line-match';
+import { resolvePeppolStateUpdate } from '@/lib/odoo/peppol-state';
 import { parseFrAddress } from '@/lib/utils/fr-address';
 import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 
@@ -448,7 +449,7 @@ async function pullPayments(
   //    reconciliee dans le passe (chaque run reconsidere l'ensemble non paye).
   const { data: factures, error: facturesErr } = await supabase
     .from('factures')
-    .select('id, ref, odoo_id, montant_ttc, statut')
+    .select('id, ref, odoo_id, montant_ttc, statut, peppol_state')
     .in('statut', ['emise', 'en_retard'])
     .not('odoo_id', 'is', null)
     .eq('est_avoir', false);
@@ -544,6 +545,25 @@ async function pullPayments(
           .eq('id', f.id);
         if (updErr) {
           errors.push(`Update statut ${f.ref}: ${updErr.message}`);
+        }
+      }
+
+      // Statut de transmission Peppol (e-invoicing Phase 3) : reflete la
+      // verite Odoo (account.move.peppol_move_state). false/vide cote Odoo
+      // -> null en DB (jamais transmis). Ecriture uniquement quand la valeur
+      // change (le pull re-verifie tout le set non paye a chaque run).
+      const peppol = resolvePeppolStateUpdate(
+        f.peppol_state,
+        info.peppol_move_state,
+      );
+      if (peppol.changed) {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
+        const { error: peppolErr } = await supabase
+          .from('factures')
+          .update({ peppol_state: peppol.next })
+          .eq('id', f.id);
+        if (peppolErr) {
+          errors.push(`Update peppol_state ${f.ref}: ${peppolErr.message}`);
         }
       }
 

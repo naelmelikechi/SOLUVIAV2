@@ -94,8 +94,24 @@ export function assembleProjetBillableEvents(input: {
 
   // IDCC (convention collective) de l'employeur par company Eduvia : seul
   // determinant legal de l'OPCO (l'API Eduvia n'expose pas l'OPCO directement).
+  // IMPORTANT : eduvia_id est un identifiant PAR INSTANCE Eduvia (donc par
+  // client) et repart a 1 pour chaque client. En mode batch multi-projets, la
+  // liste companiesIdcc couvre plusieurs clients : on DOIT filtrer sur le
+  // client du projet, sinon deux employeurs partageant le meme eduvia_id se
+  // collisionnent (le dernier ecrase le premier) et l'OPCO resolu est faux.
+  const projetClientId = projet.client?.id ?? null;
   const idccByCompanyId = new Map<number, string | null>();
   for (const co of companiesIdcc) {
+    // Ne garder que les employeurs du client du projet. On ignore un row
+    // seulement si son client_id est renseigne ET different (en prod
+    // eduvia_companies.client_id est toujours present ; un row sans client_id
+    // est traite comme deja scope au projet, cf. chemin single-projet).
+    if (
+      projetClientId &&
+      co.client_id != null &&
+      co.client_id !== projetClientId
+    )
+      continue;
     idccByCompanyId.set(co.eduvia_id, co.idcc_code);
   }
 

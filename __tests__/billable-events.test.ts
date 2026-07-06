@@ -771,6 +771,63 @@ describe('getBillableEvents - IDCC manquant', () => {
     expect(ev.lock_reason).toBeUndefined();
   });
 
+  it("collision eduvia_id inter-clients : n'utilise que l'IDCC du client du projet", async () => {
+    // Regression : eduvia_id repart a 1 par instance Eduvia (par client). En
+    // mode batch multi-projets, companiesIdcc couvre plusieurs clients. Deux
+    // employeurs distincts peuvent partager le meme eduvia_id (ici 1). Le
+    // contrat du projet (client cli-1, IDCC 1979 -> AKTO) ne doit PAS heriter
+    // de l'IDCC "20" (non mappe) d'un employeur d'un AUTRE client. La ligne du
+    // mauvais client est placee EN DERNIER pour pieger un Map keye par
+    // eduvia_id seul.
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat()] },
+      eduvia_companies: {
+        data: [
+          { eduvia_id: 1, idcc_code: '1979', client_id: 'cli-1' },
+          { eduvia_id: 1, idcc_code: '20', client_id: 'cli-autre' },
+        ],
+      },
+      opcos: { data: [{ code: 'AKTO', nom: 'AKTO', idcc_codes: ['1979'] }] },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 701,
+            contrat_id: 'ctr-1',
+            amount: 3000,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-uuid-701',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 701,
+            including_pedagogie_amount: 3000,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'REGLE',
+          },
+        ],
+      },
+      facture_lignes: { data: [] },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    const ev = result!.events[0]!;
+    expect(ev.opco_code).toBe('AKTO');
+    expect(ev.status).toBe('available');
+    expect(ev.lock_reason).toBeUndefined();
+  });
+
   it('missing_idcc prevaut sur opposite_billed (verrou prioritaire)', async () => {
     // Employeur sans IDCC ET engagement deja facture : l opco_step serait
     // lockedByEngagement, mais missing_idcc arrive en premier dans le ternaire.

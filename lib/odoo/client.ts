@@ -148,6 +148,9 @@ export interface OdooClient {
    *
    * Retourne {analytic_line_odoo_id: null, skipped: true} si le code analytique
    * n'existe pas côté Odoo (l'appelant log et continue, pas d'erreur fatale).
+   * Avec `autoCreateAccount: true` (projets libres), le compte analytique
+   * manquant est créé automatiquement (partagé multi-company, plan par défaut) ;
+   * skip seulement si aucun account.analytic.plan n'existe côté Odoo.
    */
   pushAnalyticLineForMove(params: OdooAnalyticLineInput): Promise<{
     analytic_line_odoo_id: number | null;
@@ -190,6 +193,10 @@ export interface OdooAnalyticLineInput {
   name: string; // libellé visible Odoo, ex "[SOLUVIA-AUTO] FAC-SOL-0042 - ligne 1"
   company_id?: number | null;
   partner_id?: number | null;
+  // true (projets libres) : crée le compte analytique manquant au lieu de
+  // skipper. false/absent : comportement historique (skip + remplissage
+  // manuel du compte côté Odoo).
+  autoCreateAccount?: boolean;
 }
 
 export interface OdooPaymentInput {
@@ -284,6 +291,9 @@ class OdooJsonRpcClient implements OdooClient {
   // Memoise l'absence du champ peppol_move_state (module Peppol non installe)
   // pour ne pas re-tenter/re-warner a chaque pull.
   private peppolFieldUnavailable = false;
+  // Plan analytique par defaut (obligatoire pour creer un compte analytique en
+  // Odoo 17+). undefined = pas encore cherche ; null = aucun plan cote Odoo.
+  private defaultAnalyticPlanId: number | null | undefined = undefined;
 
   constructor(private readonly config: OdooConfig) {}
 
@@ -781,14 +791,32 @@ class OdooJsonRpcClient implements OdooClient {
 
   // -------- Push analytic line --------
 
+  // Plan analytique par defaut (le premier par id) : plan_id est OBLIGATOIRE
+  // pour creer un account.analytic.account en Odoo 17+. Memoise sur l'instance
+  // (y compris l'absence de plan : deterministe pour la duree du sync).
+  private async getDefaultAnalyticPlanId(): Promise<number | null> {
+    if (this.defaultAnalyticPlanId !== undefined) {
+      return this.defaultAnalyticPlanId;
+    }
+    const planIds = await this.executeKw<number[]>(
+      'account.analytic.plan',
+      'search',
+      [[]],
+      { limit: 1, order: 'id asc' },
+    );
+    this.defaultAnalyticPlanId = planIds[0] ?? null;
+    return this.defaultAnalyticPlanId;
+  }
+
   async pushAnalyticLineForMove(params: OdooAnalyticLineInput): Promise<{
     analytic_line_odoo_id: number | null;
     skipped: boolean;
     reason?: string;
   }> {
-    // Lookup compte analytique par code. Si absent, skip non-bloquant : le
-    // user doit créer le compte côté Odoo (ou FINANCES-WISEMANH) puis le
-    // sync suivant repassera.
+    // Lookup compte analytique par code. Si absent : skip non-bloquant par
+    // defaut (le user cree le compte cote Odoo, le sync suivant repassera),
+    // ou auto-creation quand autoCreateAccount=true (projets libres, dont le
+    // code_analytique = ref est pose automatiquement en DB).
     const accountDomain: unknown[] = [['code', '=', params.code_analytique]];
     if (params.company_id) {
       // Compte de la company OU global (company_id=false : compte partagé)
@@ -802,13 +830,65 @@ class OdooJsonRpcClient implements OdooClient {
       [accountDomain],
       { limit: 1 },
     );
-    const accountId = accountIds[0];
+    let accountId = accountIds[0];
     if (!accountId) {
-      return {
-        analytic_line_odoo_id: null,
-        skipped: true,
-        reason: `account.analytic.account code=${params.code_analytique} introuvable`,
-      };
+      if (params.autoCreateAccount !== true) {
+        return {
+          analytic_line_odoo_id: null,
+          skipped: true,
+          reason: `account.analytic.account code=${params.code_analytique} introuvable`,
+        };
+      }
+
+      const planId = await this.getDefaultAnalyticPlanId();
+      if (planId === null) {
+        // On ne cree JAMAIS de plan (structure comptable = ressort compta).
+        return {
+          analytic_line_odoo_id: null,
+          skipped: true,
+          reason: `aucun account.analytic.plan cote Odoo : creation du compte analytique ${params.code_analytique} impossible (plan_id obligatoire)`,
+        };
+      }
+
+      try {
+        accountId = await this.executeKw<number>(
+          'account.analytic.account',
+          'create',
+          [
+            {
+              name: params.code_analytique,
+              code: params.code_analytique,
+              plan_id: planId,
+              company_id: false, // compte partagé multi-company
+            },
+          ],
+        );
+        logger.info(SCOPE, 'Created analytic account', {
+          account_id: accountId,
+          code: params.code_analytique,
+          plan_id: planId,
+        });
+      } catch (err) {
+        // Course concurrente possible (2 syncs) : un autre create a pu gagner
+        // entre le search et le notre. Re-search avant de propager l'erreur.
+        const retryIds = await this.executeKw<number[]>(
+          'account.analytic.account',
+          'search',
+          [accountDomain],
+          { limit: 1 },
+        );
+        accountId = retryIds[0];
+        if (!accountId) throw err;
+        logger.warn(
+          SCOPE,
+          'Analytic account create failed, found via re-search (course concurrente)',
+          {
+            account_id: accountId,
+            code: params.code_analytique,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        );
+      }
     }
 
     // Idempotence cote Odoo : reutilise une ligne analytique deja poussee pour

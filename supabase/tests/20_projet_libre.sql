@@ -1,14 +1,15 @@
 -- ===========================================================================
 -- Test : get_or_create_projet_libre + invariants du projet libre
 -- ===========================================================================
--- Migration : 20260630120000_projets_libre.sql
+-- Migrations : 20260630120000_projets_libre.sql
+--              20260706090000_projet_libre_code_analytique.sql
 -- Spec : docs/superpowers/specs/2026-06-29-projet-libre-design.md (sections 1-2)
 
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(9);
+SELECT plan(12);
 
 CREATE TEMP TABLE _ctx (client_id UUID);
 INSERT INTO _ctx (client_id) VALUES (gen_random_uuid());
@@ -42,10 +43,32 @@ SELECT matches(
   (SELECT ref FROM projets WHERE id = (SELECT id1 FROM _r)),
   '^[0-9]{4}-TLB-LIB$', 'ref auto-genere NNNN-TLB-LIB');
 
--- Deuxieme appel : reutilise (idempotent)
+-- code_analytique = ref des la creation (compte analytique Odoo auto)
+SELECT is(
+  (SELECT code_analytique FROM projets WHERE id = (SELECT id1 FROM _r)),
+  (SELECT ref FROM projets WHERE id = (SELECT id1 FROM _r)),
+  'code_analytique = ref a la creation');
+
+-- Deuxieme appel : reutilise (idempotent) et n'ecrase pas un code_analytique
+-- pose manuellement (semantique : pose UNIQUEMENT si NULL)
+UPDATE projets SET code_analytique = 'CUSTOM-MANUEL'
+WHERE id = (SELECT id1 FROM _r);
 UPDATE _r SET id2 = get_or_create_projet_libre((SELECT client_id FROM _ctx));
 SELECT is((SELECT id1 FROM _r), (SELECT id2 FROM _r),
   'Deuxieme appel reutilise le meme projet (idempotent)');
+
+SELECT is(
+  (SELECT code_analytique FROM projets WHERE id = (SELECT id1 FROM _r)),
+  'CUSTOM-MANUEL',
+  'Deuxieme appel n''ecrase pas un code_analytique pose manuellement');
+
+-- Self-heal : un projet libre avec code_analytique NULL le recupere a l'appel
+UPDATE projets SET code_analytique = NULL WHERE id = (SELECT id1 FROM _r);
+UPDATE _r SET id2 = get_or_create_projet_libre((SELECT client_id FROM _ctx));
+SELECT is(
+  (SELECT code_analytique FROM projets WHERE id = (SELECT id1 FROM _r)),
+  (SELECT ref FROM projets WHERE id = (SELECT id1 FROM _r)),
+  'Appel suivant repare un code_analytique NULL (self-heal = ref)');
 
 -- Un seul projet libre par client (index unique partiel)
 SELECT throws_ok($$

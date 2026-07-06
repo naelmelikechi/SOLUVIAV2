@@ -181,3 +181,229 @@ describe('pushAnalyticLineForMove — idempotence', () => {
     expect(domain).toContain('100');
   });
 });
+
+/**
+ * Auto-creation du compte analytique (projets libres) : quand
+ * autoCreateAccount=true et que le search par code ne trouve rien, le compte
+ * est cree (plan_id obligatoire Odoo 17+, company_id=false = partage
+ * multi-company) puis le flux normal continue. Sans le flag : comportement
+ * historique verrouille (skip). Plan absent : skip avec raison explicite,
+ * jamais de creation de plan. Course concurrente : re-search apres echec de
+ * create avant de propager.
+ */
+describe('pushAnalyticLineForMove — auto-creation compte (projets libres)', () => {
+  const saved: Record<string, string | undefined> = {};
+  const kwCalls: KwCall[] = [];
+
+  // Etat simule cote Odoo, configurable par test. accountSearchResults est
+  // consomme dans l'ordre (1er search, puis re-search post-echec de create).
+  let accountSearchResults: number[][] = [[]];
+  let planSearchResult: number[] = [5];
+  let accountCreateResult: number | Error = 42;
+  let lineCreateResult = 77;
+
+  beforeEach(() => {
+    for (const k of KEYS) saved[k] = process.env[k];
+    process.env.ODOO_URL = 'https://odoo.test';
+    process.env.ODOO_DB = 'testdb';
+    process.env.ODOO_USERNAME = 'tech@test';
+    process.env.ODOO_API_KEY = 'test-key';
+    kwCalls.length = 0;
+    accountSearchResults = [[]];
+    planSearchResult = [5];
+    accountCreateResult = 42;
+    lineCreateResult = 77;
+
+    const fetchMock = vi.fn(async (_url: string, init: { body: string }) => {
+      const parsed = JSON.parse(init.body) as {
+        params: { service: string };
+      };
+      let result: unknown = [];
+      let error: { code: number; message: string } | undefined;
+      if (parsed.params.service === 'common') {
+        result = 7; // authenticate -> uid
+      } else {
+        const call = decodeKw(init.body)!;
+        kwCalls.push(call);
+        if (
+          call.model === 'account.analytic.account' &&
+          call.method === 'search'
+        ) {
+          result =
+            accountSearchResults.length > 1
+              ? accountSearchResults.shift()!
+              : accountSearchResults[0]!;
+        } else if (
+          call.model === 'account.analytic.account' &&
+          call.method === 'create'
+        ) {
+          if (accountCreateResult instanceof Error) {
+            error = { code: 200, message: accountCreateResult.message };
+          } else {
+            result = accountCreateResult;
+          }
+        } else if (
+          call.model === 'account.analytic.plan' &&
+          call.method === 'search'
+        ) {
+          result = planSearchResult;
+        } else if (
+          call.model === 'account.analytic.line' &&
+          call.method === 'search_read'
+        ) {
+          result = []; // aucune ligne existante
+        } else if (
+          call.model === 'account.analytic.line' &&
+          call.method === 'create'
+        ) {
+          result = lineCreateResult;
+        }
+      }
+      const payload = error
+        ? { jsonrpc: '2.0', id: 1, error }
+        : { jsonrpc: '2.0', id: 1, result };
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        headers: { get: () => 'application/json' },
+        json: async () => payload,
+        text: async () => JSON.stringify(payload),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    for (const k of KEYS) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const input = {
+    code_analytique: '0019-ICA-LIB',
+    amount: 500,
+    date: '2026-07-01',
+    name: '[SOLUVIA-AUTO] FAC-ICA-0007 - Prestation libre',
+    company_id: 1,
+  };
+
+  const callsFor = (model: string, method: string) =>
+    kwCalls.filter((c) => c.model === model && c.method === method);
+
+  it('auto_create : compte absent + autoCreate=true -> compte cree (plan_id, company_id false) puis ligne', async () => {
+    accountSearchResults = [[]];
+    planSearchResult = [5];
+    accountCreateResult = 42;
+    lineCreateResult = 77;
+
+    const odoo = createOdooClient();
+    const res = await odoo.pushAnalyticLineForMove({
+      ...input,
+      autoCreateAccount: true,
+    });
+
+    expect(res).toEqual({ analytic_line_odoo_id: 77, skipped: false });
+
+    // Le plan par defaut est recherche puis le compte cree avec ses valeurs.
+    expect(callsFor('account.analytic.plan', 'search')).toHaveLength(1);
+    const accountCreates = callsFor('account.analytic.account', 'create');
+    expect(accountCreates).toHaveLength(1);
+    const vals = accountCreates[0]!.args[0] as Record<string, unknown>;
+    expect(vals).toEqual({
+      name: '0019-ICA-LIB',
+      code: '0019-ICA-LIB',
+      plan_id: 5,
+      company_id: false,
+    });
+
+    // Le flux normal continue : la ligne analytique est creee sur le compte.
+    const lineCreates = callsFor('account.analytic.line', 'create');
+    expect(lineCreates).toHaveLength(1);
+    const lineVals = lineCreates[0]!.args[0] as Record<string, unknown>;
+    expect(lineVals.account_id).toBe(42);
+  });
+
+  it('historique_verrouille : compte absent + autoCreate absent -> skip, aucun create', async () => {
+    accountSearchResults = [[]];
+
+    const odoo = createOdooClient();
+    const res = await odoo.pushAnalyticLineForMove(input);
+
+    expect(res.skipped).toBe(true);
+    expect(res.analytic_line_odoo_id).toBeNull();
+    expect(res.reason).toContain('introuvable');
+    expect(callsFor('account.analytic.plan', 'search')).toHaveLength(0);
+    expect(callsFor('account.analytic.account', 'create')).toHaveLength(0);
+    expect(callsFor('account.analytic.line', 'create')).toHaveLength(0);
+  });
+
+  it('historique_verrouille : compte absent + autoCreate=false -> skip, aucun create', async () => {
+    accountSearchResults = [[]];
+
+    const odoo = createOdooClient();
+    const res = await odoo.pushAnalyticLineForMove({
+      ...input,
+      autoCreateAccount: false,
+    });
+
+    expect(res.skipped).toBe(true);
+    expect(callsFor('account.analytic.account', 'create')).toHaveLength(0);
+    expect(callsFor('account.analytic.line', 'create')).toHaveLength(0);
+  });
+
+  it('plan_absent : aucun account.analytic.plan -> skip raison explicite, pas de create', async () => {
+    accountSearchResults = [[]];
+    planSearchResult = [];
+
+    const odoo = createOdooClient();
+    const res = await odoo.pushAnalyticLineForMove({
+      ...input,
+      autoCreateAccount: true,
+    });
+
+    expect(res.skipped).toBe(true);
+    expect(res.analytic_line_odoo_id).toBeNull();
+    expect(res.reason).toContain('account.analytic.plan');
+    expect(callsFor('account.analytic.account', 'create')).toHaveLength(0);
+    expect(callsFor('account.analytic.line', 'create')).toHaveLength(0);
+  });
+
+  it('course_concurrente : create echoue -> re-search trouve le compte, ligne creee', async () => {
+    // 1er search : rien ; create echoue (l'autre sync a gagne) ; re-search : 12.
+    accountSearchResults = [[], [12]];
+    accountCreateResult = new Error('duplicate analytic account');
+    lineCreateResult = 88;
+
+    const odoo = createOdooClient();
+    const res = await odoo.pushAnalyticLineForMove({
+      ...input,
+      autoCreateAccount: true,
+    });
+
+    expect(res).toEqual({ analytic_line_odoo_id: 88, skipped: false });
+    expect(callsFor('account.analytic.account', 'search')).toHaveLength(2);
+    const lineCreates = callsFor('account.analytic.line', 'create');
+    expect(lineCreates).toHaveLength(1);
+    const lineVals = lineCreates[0]!.args[0] as Record<string, unknown>;
+    expect(lineVals.account_id).toBe(12);
+  });
+
+  it('plan_memoise : deux pushes sur la meme instance -> un seul search de plan', async () => {
+    accountSearchResults = [[]];
+    planSearchResult = [5];
+
+    const odoo = createOdooClient();
+    await odoo.pushAnalyticLineForMove({ ...input, autoCreateAccount: true });
+    await odoo.pushAnalyticLineForMove({
+      ...input,
+      name: '[SOLUVIA-AUTO] FAC-ICA-0008 - Autre',
+      autoCreateAccount: true,
+    });
+
+    expect(callsFor('account.analytic.plan', 'search')).toHaveLength(1);
+  });
+});

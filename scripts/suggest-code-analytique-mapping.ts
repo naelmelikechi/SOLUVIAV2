@@ -1,4 +1,10 @@
 /**
+ * OBSOLETE (2026-07-06) : convention analytique "ref seule" desormais en
+ * vigueur (code_analytique = projets.ref, pose par trigger DB + backfill,
+ * cf. migration 20260706100000_projets_code_analytique_ref.sql). Le mapping
+ * typologique 11.x ci-dessous ne doit plus etre applique. Conserve pour
+ * reference historique uniquement - ne pas lancer avec --apply.
+ *
  * Propose un mapping projets.code_analytique <-> comptes Odoo
  * en se basant sur la typologie du projet.
  *

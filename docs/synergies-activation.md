@@ -8,7 +8,7 @@
 
 | #   | Synergie                     | Code livré | Activation prod                                                                        |
 | --- | ---------------------------- | ---------- | -------------------------------------------------------------------------------------- |
-| 1   | Push analytique auto         | ✅         | Remplir `projets.code_analytique` + créer les comptes analytiques côté Odoo            |
+| 1   | Push analytique auto         | ✅         | Aucune action (convention "ref seule" 2026-07 : `code_analytique = ref` auto)          |
 | 2   | Bank lines mirror            | ✅         | Vars env `SOLUVIA_BANK_MIRROR_URL/TOKEN` + `BANK_LINES_MIRROR_TOKEN`                   |
 | 3   | Registry sociétés            | ✅         | Vars env `REGISTRY_TOKEN` (SOLUVIA) + `SOLUVIA_REGISTRY_URL/TOKEN` (FINANCES)          |
 | 4   | Webhook cancellations        | ✅         | Vars env + automation rule Odoo                                                        |
@@ -19,15 +19,18 @@
 
 ## Synergie #1 — Push analytique auto
 
+> Mise à jour 2026-07-06 : convention "ref seule". `code_analytique = projets.ref`
+> (ex `0016-HEO-APP`) pour TOUS les projets, posé par trigger DB à la création
+> (backfill inclus, migration `20260706100000_projets_code_analytique_ref.sql`).
+> Le compte analytique Odoo est auto-créé au push (`autoCreateAccount: true`).
+> Le suffixe typologie de la ref (`-APP`/`-POE`/`-PDC`/`-LIB`) sert de rollup
+> par nature côté Odoo. Les étapes manuelles historiques sont obsolètes.
+
 ### Étapes
 
-1. **Côté Odoo (humain)** : créer les comptes analytiques pour chaque projet
-   facturé (Comptabilité → Configuration → Comptes analytiques). Noter le `code`
-   (ex `41.01`).
-2. **Côté SOLUVIA** :
-   - Ouvrir `/admin/projets/<id>` pour chaque projet actif.
-   - Remplir le champ `code_analytique` (à exposer dans l'UI si pas déjà fait).
-3. Au prochain push facture, une `account.analytic.line` sera créée par ligne.
+1. Aucune action : au prochain push facture, une `account.analytic.line` est
+   créée par ligne sur le compte analytique `= ref` du projet (compte créé à
+   la volée côté Odoo s'il manque).
 
 ### Vérif
 
@@ -218,6 +221,6 @@ doit contenir `FAC-XXX.pdf`.
 2. **#3** : configurer les env vars + remplir `odoo_company_id` dans
    `/admin/parametres/societes-emettrices`. Foundation pour #1 et #5.
 3. **#5** : run le script en dry-run, puis `--apply`.
-4. **#1** : remplir `projets.code_analytique` après création des comptes analytiques Odoo.
+4. **#1** : aucune action depuis 2026-07 (convention "ref seule", `code_analytique = ref` auto).
 5. **#2** : env vars (UI déjà branchée sur `FacturePaiements`).
 6. **#4** : env vars + automation rule Odoo (action la plus délicate).

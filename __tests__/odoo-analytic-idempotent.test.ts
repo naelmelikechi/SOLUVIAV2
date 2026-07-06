@@ -183,15 +183,16 @@ describe('pushAnalyticLineForMove — idempotence', () => {
 });
 
 /**
- * Auto-creation du compte analytique (projets libres) : quand
- * autoCreateAccount=true et que le search par code ne trouve rien, le compte
- * est cree (plan_id obligatoire Odoo 17+, company_id=false = partage
+ * Auto-creation du compte analytique (convention ref : code_analytique = ref
+ * du projet, sync.ts passe autoCreateAccount=true pour tous les projets) :
+ * quand autoCreateAccount=true et que le search par code ne trouve rien, le
+ * compte est cree (plan_id obligatoire Odoo 17+, company_id=false = partage
  * multi-company) puis le flux normal continue. Sans le flag : comportement
  * historique verrouille (skip). Plan absent : skip avec raison explicite,
  * jamais de creation de plan. Course concurrente : re-search apres echec de
  * create avant de propager.
  */
-describe('pushAnalyticLineForMove — auto-creation compte (projets libres)', () => {
+describe('pushAnalyticLineForMove — auto-creation compte (convention ref)', () => {
   const saved: Record<string, string | undefined> = {};
   const kwCalls: KwCall[] = [];
 

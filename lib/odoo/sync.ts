@@ -40,7 +40,7 @@ async function pushFactures(
       montant_ht, montant_ttc, taux_tva,
       client:clients!factures_client_id_fkey(siret, raison_sociale, tva_intracommunautaire, is_demo, adresse, localisation),
       societe:societes_emettrices!factures_societe_emettrice_id_fkey(odoo_company_id, odoo_journal_id, tva_sur_debits),
-      projet:projets!factures_projet_id_fkey(code_analytique, est_libre),
+      projet:projets!factures_projet_id_fkey(code_analytique),
       lignes:facture_lignes(id, description, montant_ht, analytic_line_odoo_id)
     `,
     )
@@ -77,7 +77,6 @@ async function pushFactures(
 
       const projet = f.projet as unknown as {
         code_analytique: string | null;
-        est_libre: boolean | null;
       } | null;
 
       const rawLignes =
@@ -205,6 +204,10 @@ async function pushFactures(
       // Synergie #1 : push analytic line par ligne facture si le projet a un
       // code_analytique configure. Best-effort, non bloquant. Idempotence via
       // facture_lignes.analytic_line_odoo_id (skip si deja pousse).
+      // Convention "ref seule" : code_analytique = projets.ref pour TOUS les
+      // projets (trigger DB a l'insert + backfill, cf. migration
+      // 20260706100000). Le suffixe typologie (-APP/-POE/-PDC/-LIB) sert de
+      // rollup par nature cote Odoo.
       const codeAna = projet?.code_analytique;
       if (codeAna) {
         for (const l of rawLignes) {
@@ -217,10 +220,9 @@ async function pushFactures(
               date: f.date_emission ?? '',
               name: `[SOLUVIA-AUTO] ${f.ref} - ${l.description.slice(0, 60)}`,
               company_id: societe?.odoo_company_id ?? null,
-              // Projets libres : code_analytique = ref pose automatiquement en
-              // DB, le compte Odoo est cree a la volee s'il manque. Projets
-              // metier : comportement historique (skip + remplissage manuel).
-              autoCreateAccount: projet?.est_libre === true,
+              // Convention ref : tous les codes sont des refs auto-gerees,
+              // le compte Odoo est cree a la volee s'il manque.
+              autoCreateAccount: true,
             });
             if (r.skipped) {
               logger.warn(SCOPE, 'Analytic line skipped', {

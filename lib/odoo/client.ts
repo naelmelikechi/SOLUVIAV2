@@ -148,9 +148,10 @@ export interface OdooClient {
    *
    * Retourne {analytic_line_odoo_id: null, skipped: true} si le code analytique
    * n'existe pas côté Odoo (l'appelant log et continue, pas d'erreur fatale).
-   * Avec `autoCreateAccount: true` (projets libres), le compte analytique
-   * manquant est créé automatiquement (partagé multi-company, plan par défaut) ;
-   * skip seulement si aucun account.analytic.plan n'existe côté Odoo.
+   * Avec `autoCreateAccount: true` (convention ref : code_analytique = ref du
+   * projet pour tous les projets), le compte analytique manquant est créé
+   * automatiquement (partagé multi-company, plan par défaut) ; skip seulement
+   * si aucun account.analytic.plan n'existe côté Odoo.
    */
   pushAnalyticLineForMove(params: OdooAnalyticLineInput): Promise<{
     analytic_line_odoo_id: number | null;
@@ -187,15 +188,15 @@ export interface OdooAttachmentInput {
 }
 
 export interface OdooAnalyticLineInput {
-  code_analytique: string; // ex. "41.01"
+  code_analytique: string; // convention ref : projets.ref, ex. "0016-HEO-APP"
   amount: number; // signé : positif = recette (out_invoice), négatif = dépense
   date: string; // YYYY-MM-DD
   name: string; // libellé visible Odoo, ex "[SOLUVIA-AUTO] FAC-SOL-0042 - ligne 1"
   company_id?: number | null;
   partner_id?: number | null;
-  // true (projets libres) : crée le compte analytique manquant au lieu de
-  // skipper. false/absent : comportement historique (skip + remplissage
-  // manuel du compte côté Odoo).
+  // true (convention ref, tous les projets) : crée le compte analytique
+  // manquant au lieu de skipper. false/absent : comportement historique
+  // (skip + remplissage manuel du compte côté Odoo).
   autoCreateAccount?: boolean;
 }
 
@@ -815,8 +816,8 @@ class OdooJsonRpcClient implements OdooClient {
   }> {
     // Lookup compte analytique par code. Si absent : skip non-bloquant par
     // defaut (le user cree le compte cote Odoo, le sync suivant repassera),
-    // ou auto-creation quand autoCreateAccount=true (projets libres, dont le
-    // code_analytique = ref est pose automatiquement en DB).
+    // ou auto-creation quand autoCreateAccount=true (convention ref : le
+    // code_analytique = ref est pose automatiquement en DB, tous projets).
     const accountDomain: unknown[] = [['code', '=', params.code_analytique]];
     if (params.company_id) {
       // Compte de la company OU global (company_id=false : compte partagé)

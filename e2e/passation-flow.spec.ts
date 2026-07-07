@@ -62,9 +62,12 @@ test.describe('Passation - generation -> saisies -> soumission', () => {
     await expect(vigilance).toBeVisible({ timeout: 15_000 });
 
     // Rejouabilité : si un précédent run a déjà soumis, le champ est verrouillé
-    // et le badge déjà en attente d'arbitrage - on s'arrête là.
+    // et le badge déjà en attente d'arbitrage - on s'arrête là. (.first() :
+    // le libellé apparaît aussi dans le texte d'aide sous les boutons.)
     if (await vigilance.isDisabled()) {
-      await expect(page.getByText(/en attente d'arbitrage/i)).toBeVisible();
+      await expect(
+        page.getByText(/en attente d'arbitrage/i).first(),
+      ).toBeVisible();
       return;
     }
 
@@ -94,7 +97,9 @@ test.describe('Passation - generation -> saisies -> soumission', () => {
     });
 
     // ----- 5. Statut + PDFs disponibles -----
-    await expect(page.getByText(/en attente d'arbitrage/i)).toBeVisible();
+    await expect(
+      page.getByText(/en attente d'arbitrage/i).first(),
+    ).toBeVisible();
     await expect(
       page.getByRole('button', { name: /pdf complet/i }),
     ).toBeVisible();

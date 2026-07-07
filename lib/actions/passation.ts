@@ -157,6 +157,9 @@ export async function diffuserVague1(
     .eq('id', syntheseId)
     .single();
   if (!synthese) return { success: false, error: 'Synthèse inconnue' };
+  if (!synthese.prospect_id) {
+    return { success: false, error: 'Synthèse détachée de son prospect' };
+  }
   if (!synthese.pdf_path_complet) {
     return {
       success: false,
@@ -240,6 +243,9 @@ export async function diffuserVague2(
     .eq('id', syntheseId)
     .single();
   if (!synthese) return { success: false, error: 'Synthèse inconnue' };
+  if (!synthese.prospect_id) {
+    return { success: false, error: 'Synthèse détachée de son prospect' };
+  }
   if (!synthese.pdf_path_cdp) {
     return {
       success: false,

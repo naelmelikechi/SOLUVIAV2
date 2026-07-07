@@ -43,7 +43,11 @@ const profileOf = (users: UserMap, id: string | null | undefined): ProfilRow =>
   id ? (users.get(id) ?? null) : null;
 
 /** Opportunités ouvertes enrichies (activités/relances/rdv) + RDV passés sans compte-rendu. Réutilisé dashboard + récap. */
-export async function fetchRisks(sb: DB, nowIso: string): Promise<RiskData> {
+export async function fetchRisks(
+  sb: DB,
+  nowIso: string,
+  opts: { admin?: boolean } = {},
+): Promise<RiskData> {
   const [opps, rdv] = await Promise.all([
     sb
       .from('opportunites')
@@ -71,11 +75,13 @@ export async function fetchRisks(sb: DB, nowIso: string): Promise<RiskData> {
     DormanteInput,
     'owner'
   > & { owner_id: string | null })[];
-  // Service-role (le récap tourne aussi sans session côté cron) ; l'anonymisation
-  // fantôme reste appliquée via visibleProfile.
+  // Lookup users pour recoller `owner`. Côté récap (cron) : pas de session →
+  // service-role (opts.admin). Côté dashboard : client session (users.select
+  // RLS = USING(true), donc lisible sans bypass). Anonymisation fantôme via
+  // visibleProfile dans les deux cas.
   const owners = await fetchCrmUsers(
     oppRows.map((o) => o.owner_id),
-    { admin: true },
+    { admin: opts.admin },
   );
   const dormanteInputs = oppRows.map(({ owner_id, ...o }) => ({
     ...o,
@@ -206,7 +212,7 @@ export async function fetchRecapData(
       .gte('debut', endIso)
       .lt('debut', nextIso)
       .order('debut'),
-    fetchRisks(sb, endIso),
+    fetchRisks(sb, endIso, { admin: true }),
     sb
       .from('opportunites')
       .select('id', { count: 'exact', head: true })

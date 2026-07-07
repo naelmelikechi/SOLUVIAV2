@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu } from 'lucide-react';
+import { Menu, ArrowLeft } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -46,6 +46,16 @@ export function MobileNav({ isAdmin }: { isAdmin: boolean }) {
           </SheetDescription>
         </SheetHeader>
         <nav className="mt-2 space-y-0.5">
+          <Link
+            href="/accueil"
+            onClick={() => setOpen(false)}
+            className={cn(
+              'mb-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm',
+              'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+            )}
+          >
+            <ArrowLeft className="h-4 w-4" /> Retour à Soluvia
+          </Link>
           {items.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (

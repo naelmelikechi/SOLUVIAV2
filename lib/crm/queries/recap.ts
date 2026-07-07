@@ -4,6 +4,7 @@ import { todayInParis } from '@/lib/crm/format';
 import { isHiddenEmail } from '@/lib/crm/auth/hidden';
 import { listEtapes } from '@/lib/crm/queries/opportunites';
 import type { RecapPeriod, DormanteInput } from '@/lib/crm/domain/recap';
+import { fetchCrmUsers, type CrmUserLite } from '@/lib/crm/queries/_users';
 
 type DB = SupabaseClient<Database, 'crm'>;
 
@@ -35,13 +36,23 @@ function visibleProfile(p: ProfilRow): { nom_complet: string | null } | null {
   return { nom_complet: nomComplet || null };
 }
 
+type UserMap = Map<string, CrmUserLite>;
+/** Recolle un ProfilRow depuis la map users (embed cross-schéma impossible :
+ *  on récupère les FK brutes puis on résout prenom/nom/email en JS). */
+const profileOf = (users: UserMap, id: string | null | undefined): ProfilRow =>
+  id ? (users.get(id) ?? null) : null;
+
 /** Opportunités ouvertes enrichies (activités/relances/rdv) + RDV passés sans compte-rendu. Réutilisé dashboard + récap. */
-export async function fetchRisks(sb: DB, nowIso: string): Promise<RiskData> {
+export async function fetchRisks(
+  sb: DB,
+  nowIso: string,
+  opts: { admin?: boolean } = {},
+): Promise<RiskData> {
   const [opps, rdv] = await Promise.all([
     sb
       .from('opportunites')
       .select(
-        `id, intitule, statut, owner:users!opportunites_owner_id_fkey(prenom, nom, email), compte:comptes(nom),
+        `id, intitule, statut, owner_id, compte:comptes(nom),
         activites(created_at), relances(date_echeance, fait, archived_at), rdv(debut)`,
       )
       .eq('statut', 'ouverte')
@@ -60,9 +71,22 @@ export async function fetchRisks(sb: DB, nowIso: string): Promise<RiskData> {
       .order('debut', { ascending: false })
       .limit(80),
   ]);
-  const dormanteInputs = (
-    (opps.data ?? []) as unknown as (DormanteInput & { owner: ProfilRow })[]
-  ).map((o) => ({ ...o, owner: visibleProfile(o.owner) }));
+  const oppRows = (opps.data ?? []) as unknown as (Omit<
+    DormanteInput,
+    'owner'
+  > & { owner_id: string | null })[];
+  // Lookup users pour recoller `owner`. Côté récap (cron) : pas de session →
+  // service-role (opts.admin). Côté dashboard : client session (users.select
+  // RLS = USING(true), donc lisible sans bypass). Anonymisation fantôme via
+  // visibleProfile dans les deux cas.
+  const owners = await fetchCrmUsers(
+    oppRows.map((o) => o.owner_id),
+    { admin: opts.admin },
+  );
+  const dormanteInputs = oppRows.map(({ owner_id, ...o }) => ({
+    ...o,
+    owner: visibleProfile(profileOf(owners, owner_id)),
+  }));
   const rdvADebriefer = (rdv.data ?? [])
     .filter((r) => !r.compte_rendu || r.compte_rendu.trim() === '')
     .map((r) => ({
@@ -121,19 +145,23 @@ type RdvRow = {
   commerciaux: { profile: { nom_complet: string | null } | null }[];
 };
 
-const REL_SEL = `id, titre, date_echeance, priorite, compte:comptes(nom), assignee:users!relances_assignee_id_fkey(prenom, nom, email)`;
-const RDV_SEL = `id, titre, debut, statut, compte:comptes(nom), commerciaux:rdv_commerciaux(profile:users!rdv_commerciaux_user_id_fkey(prenom, nom, email))`;
+const REL_SEL = `id, titre, date_echeance, priorite, compte:comptes(nom), assignee_id`;
+const RDV_SEL = `id, titre, debut, statut, compte:comptes(nom), commerciaux:rdv_commerciaux(user_id)`;
 
-const scrubRelance = (r: RelanceRow & { assignee: ProfilRow }): RelanceRow => ({
-  ...r,
-  assignee: visibleProfile(r.assignee),
-});
+const scrubRelance = (
+  r: Omit<RelanceRow, 'assignee'> & { assignee_id: string | null },
+  users: UserMap,
+): RelanceRow => {
+  const { assignee_id, ...rest } = r;
+  return { ...rest, assignee: visibleProfile(profileOf(users, assignee_id)) };
+};
 const scrubRdv = (
-  r: Omit<RdvRow, 'commerciaux'> & { commerciaux: { profile: ProfilRow }[] },
+  r: Omit<RdvRow, 'commerciaux'> & { commerciaux: { user_id: string }[] },
+  users: UserMap,
 ): RdvRow => ({
   ...r,
   commerciaux: (r.commerciaux ?? [])
-    .map((c) => ({ profile: visibleProfile(c.profile) }))
+    .map((c) => ({ profile: visibleProfile(profileOf(users, c.user_id)) }))
     .filter((c) => c.profile),
 });
 
@@ -162,9 +190,7 @@ export async function fetchRecapData(
   ] = await Promise.all([
     sb
       .from('opportunites')
-      .select(
-        'statut, etape_id, probabilite, nb_alternants, owner:users!opportunites_owner_id_fkey(prenom, nom, email)',
-      ),
+      .select('statut, etape_id, probabilite, nb_alternants, owner_id'),
     listEtapes(), // cache inter-requêtes (config quasi immuable)
     sb
       .from('relances')
@@ -186,7 +212,7 @@ export async function fetchRecapData(
       .gte('debut', endIso)
       .lt('debut', nextIso)
       .order('debut'),
-    fetchRisks(sb, endIso),
+    fetchRisks(sb, endIso, { admin: true }),
     sb
       .from('opportunites')
       .select('id', { count: 'exact', head: true })
@@ -218,29 +244,46 @@ export async function fetchRecapData(
       .gte('date_fait', startIso),
   ]);
 
+  // Recollage des users (public.users) : PostgREST ne résout pas les embeds
+  // cross-schéma. Un seul fetch service-role (cron, pas de session) couvre owner
+  // (opps) + assignee (relances) + commerciaux (rdv) ; l'anonymisation fantôme
+  // (visibleProfile) est ensuite appliquée à l'identique.
+  const oppRows = (opps.data ?? []) as unknown as (Omit<
+    RecapRaw['opps'][number],
+    'owner'
+  > & { owner_id: string | null })[];
+  const relRetardRows = (relEnRetard.data ?? []) as unknown as (Omit<
+    RelanceRow,
+    'assignee'
+  > & { assignee_id: string | null })[];
+  const relAujRows = (relAujourdhui.data ?? []) as unknown as (Omit<
+    RelanceRow,
+    'assignee'
+  > & { assignee_id: string | null })[];
+  const rdvRows = (rdvAvenir.data ?? []) as unknown as (Omit<
+    RdvRow,
+    'commerciaux'
+  > & { commerciaux: { user_id: string }[] })[];
+  const users = await fetchCrmUsers(
+    [
+      ...oppRows.map((o) => o.owner_id),
+      ...relRetardRows.map((r) => r.assignee_id),
+      ...relAujRows.map((r) => r.assignee_id),
+      ...rdvRows.flatMap((r) => (r.commerciaux ?? []).map((c) => c.user_id)),
+    ],
+    { admin: true },
+  );
+
   return {
     // Anonymisation fantômes (stats par commercial du mail : « Non attribué »).
-    opps: (
-      (opps.data ?? []) as unknown as (RecapRaw['opps'][number] & {
-        owner: ProfilRow;
-      })[]
-    ).map((o) => ({ ...o, owner: visibleProfile(o.owner) })),
+    opps: oppRows.map(({ owner_id, ...o }) => ({
+      ...o,
+      owner: visibleProfile(profileOf(users, owner_id)),
+    })),
     etapes: etapes as RecapRaw['etapes'],
-    relEnRetard: (
-      (relEnRetard.data ?? []) as unknown as (RelanceRow & {
-        assignee: ProfilRow;
-      })[]
-    ).map(scrubRelance),
-    relAujourdhui: (
-      (relAujourdhui.data ?? []) as unknown as (RelanceRow & {
-        assignee: ProfilRow;
-      })[]
-    ).map(scrubRelance),
-    rdvAvenir: (
-      (rdvAvenir.data ?? []) as unknown as (Omit<RdvRow, 'commerciaux'> & {
-        commerciaux: { profile: ProfilRow }[];
-      })[]
-    ).map(scrubRdv),
+    relEnRetard: relRetardRows.map((r) => scrubRelance(r, users)),
+    relAujourdhui: relAujRows.map((r) => scrubRelance(r, users)),
+    rdvAvenir: rdvRows.map((r) => scrubRdv(r, users)),
     risks,
     nouvelles: nouvelles.count ?? 0,
     gagnees: (gagnees.data ?? []) as unknown as RecapRaw['gagnees'],

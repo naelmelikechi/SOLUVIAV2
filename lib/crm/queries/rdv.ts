@@ -1,6 +1,7 @@
 import { createCrmClient } from '@/lib/crm/supabase/server';
 import { createClient } from '@/lib/supabase/server';
 import { isHiddenEmail } from '@/lib/crm/auth/hidden';
+import { fetchCrmUsers } from '@/lib/crm/queries/_users';
 import type { RdvStatut } from '@/lib/crm/domain/enums';
 
 const RDV_BASE = `id, titre, debut, fin, lieu, statut, notes_prep, compte_rendu,
@@ -27,18 +28,31 @@ export async function listRdv(): Promise<RdvListItem[]> {
   // Borne : tous les RDV futurs + 12 mois d'historique. La table ne fait que
   // grossir ; sans borne, calendrier + listes rapatriaient TOUT à chaque rendu.
   // L'historique plus ancien reste en base (récap/drawer le requêtent en ciblé).
-  // Les commerciaux assignés vivent dans `public.users` (embed cross-schema via
-  // la FK rdv_commerciaux.user_id → users).
+  // Les commerciaux assignés vivent dans `public.users` : PostgREST ne résout pas
+  // les embeds cross-schéma, on récupère l'id brut (rdv_commerciaux.user_id) puis
+  // on recolle id/prenom/nom en JS via un fetch groupé.
   const unAnAvant = new Date(Date.now() - 365 * 86_400_000).toISOString();
   const { data, error } = await supabase
     .from('rdv')
-    .select(
-      `${RDV_BASE}, commerciaux:rdv_commerciaux(user:users!rdv_commerciaux_user_id_fkey(id, prenom, nom))`,
-    )
+    .select(`${RDV_BASE}, commerciaux:rdv_commerciaux(user_id)`)
     .gte('debut', unAnAvant)
     .order('debut');
   if (error) throw error;
-  return (data ?? []) as unknown as RdvListItem[];
+  const rows = (data ?? []) as unknown as (Omit<RdvListItem, 'commerciaux'> & {
+    commerciaux: { user_id: string }[];
+  })[];
+  const users = await fetchCrmUsers(
+    rows.flatMap((r) => (r.commerciaux ?? []).map((c) => c.user_id)),
+  );
+  return rows.map((r) => ({
+    ...r,
+    commerciaux: (r.commerciaux ?? []).map((c) => {
+      const u = users.get(c.user_id);
+      return {
+        user: u ? { id: c.user_id, prenom: u.prenom, nom: u.nom } : null,
+      };
+    }),
+  }));
 }
 
 export type CommercialOption = { value: string; label: string };

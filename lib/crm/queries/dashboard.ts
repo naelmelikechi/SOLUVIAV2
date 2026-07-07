@@ -3,6 +3,7 @@ import { todayInParis } from '@/lib/crm/format';
 import { type OppRegions } from '@/lib/crm/domain/geo-stats';
 import { fetchRisks } from '@/lib/crm/queries/recap';
 import { listEtapes } from '@/lib/crm/queries/opportunites';
+import { fetchCrmUsers } from '@/lib/crm/queries/_users';
 import { computeDormantes, type Dormante } from '@/lib/crm/domain/recap';
 import type { OppStatut } from '@/lib/crm/domain/enums';
 import type { Database, Etape, ActiviteType } from '@/lib/crm/database.types';
@@ -77,18 +78,29 @@ export async function dashboardData(): Promise<DashboardData> {
       .limit(5),
     supabase
       .from('activites')
-      .select(
-        'id, type, contenu, created_at, auteur:users!activites_auteur_id_fkey(prenom, nom)',
-      )
+      .select('id, type, contenu, created_at, auteur_id')
       .order('created_at', { ascending: false })
       .limit(8),
   ]);
+  // Auteurs des activités = public.users : embed cross-schéma impossible, on
+  // recolle en JS via un fetch groupé.
+  const activiteRows = (activites.data ?? []) as unknown as (Omit<
+    DashboardActivite,
+    'auteur'
+  > & { auteur_id: string | null })[];
+  const activiteUsers = await fetchCrmUsers(
+    activiteRows.map((a) => a.auteur_id),
+  );
+  const activitesRecentes = activiteRows.map(({ auteur_id, ...a }) => {
+    const u = auteur_id ? activiteUsers.get(auteur_id) : undefined;
+    return { ...a, auteur: u ? { prenom: u.prenom, nom: u.nom } : null };
+  });
   return {
     opps,
     etapes,
     relancesDues: relances.data ?? [],
     prochainRdv: rdv.data ?? [],
-    activitesRecentes: (activites.data ?? []) as unknown as DashboardActivite[],
+    activitesRecentes,
     // Carte de densité : mêmes lignes, filtrées ouvertes (agrégation côté client
     // pour le toggle métrique/rentrée sans round-trip).
     densiteOpps: opps.filter(
@@ -114,14 +126,12 @@ export async function dashboardRisks(): Promise<DashboardRisks> {
   const risks = await fetchRisks(supabase, now.toISOString());
   return {
     dormantes: computeDormantes(risks.dormanteInputs, now).slice(0, 6),
-    rdvADebriefer: risks.rdvADebriefer
-      .slice(0, 6)
-      .map((r) => ({
-        id: r.id,
-        titre: r.titre,
-        debut: r.debut,
-        compte: r.compte?.nom ?? null,
-      })),
+    rdvADebriefer: risks.rdvADebriefer.slice(0, 6).map((r) => ({
+      id: r.id,
+      titre: r.titre,
+      debut: r.debut,
+      compte: r.compte?.nom ?? null,
+    })),
   };
 }
 
@@ -132,11 +142,16 @@ export async function listAllActivites(
   const supabase = await createCrmClient();
   const { data, error } = await supabase
     .from('activites')
-    .select(
-      'id, type, contenu, created_at, auteur:users!activites_auteur_id_fkey(prenom, nom)',
-    )
+    .select('id, type, contenu, created_at, auteur_id')
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []) as unknown as DashboardActivite[];
+  const rows = (data ?? []) as unknown as (Omit<DashboardActivite, 'auteur'> & {
+    auteur_id: string | null;
+  })[];
+  const users = await fetchCrmUsers(rows.map((a) => a.auteur_id));
+  return rows.map(({ auteur_id, ...a }) => {
+    const u = auteur_id ? users.get(auteur_id) : undefined;
+    return { ...a, auteur: u ? { prenom: u.prenom, nom: u.nom } : null };
+  });
 }

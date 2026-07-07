@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { createCrmClient } from '@/lib/crm/supabase/server';
 import { createCrmAdminClient } from '@/lib/crm/supabase/admin';
+import { fetchCrmUsers } from '@/lib/crm/queries/_users';
 import type { ActiviteType } from '@/lib/crm/database.types';
 import type { OppStatut, RdvStatut, Priorite } from '@/lib/crm/domain/enums';
 
@@ -27,11 +28,11 @@ export const listEtapes = unstable_cache(
   { tags: ['etapes'], revalidate: 3600 },
 );
 
-// L'identité commerciale (owner) vit dans `public.users` (SOLUVIA), pas dans un
-// `profiles.nom_complet` : embed cross-schema via la FK explicite, colonnes
-// prenom/nom (le nom affichable est recomposé côté consommateur).
+// L'identité commerciale (owner) vit dans `public.users` (SOLUVIA) : PostgREST
+// ne résout pas les embeds cross-schéma, on sélectionne la FK brute (owner_id)
+// et on recolle prenom/nom en JS (nom affichable recomposé côté consommateur).
 const OPP_LIST_BASE = `id, intitule, probabilite, statut, etape_id, date_cloture_prevue, nb_alternants,
-  owner:users!opportunites_owner_id_fkey(prenom, nom)`;
+  owner_id`;
 
 export type OppListItem = {
   id: string;
@@ -59,7 +60,14 @@ export async function listOpportunites(): Promise<OppListItem[]> {
     )
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []) as unknown as OppListItem[];
+  const rows = (data ?? []) as unknown as (Omit<OppListItem, 'owner'> & {
+    owner_id: string | null;
+  })[];
+  const users = await fetchCrmUsers(rows.map((r) => r.owner_id));
+  return rows.map(({ owner_id, ...r }) => {
+    const u = owner_id ? users.get(owner_id) : undefined;
+    return { ...r, owner: u ? { prenom: u.prenom, nom: u.nom } : null };
+  });
 }
 
 export type OppDetailContact = {
@@ -130,7 +138,7 @@ export async function getOpportunite(id: string): Promise<OppDetail | null> {
   const withAdresses = `id, intitule, statut, etape_id, probabilite, formation_visee, nb_alternants,
       source, date_cloture_prevue, cfa, date_cible_prochain_rdv,
       compte:comptes(id, nom, nombre_collaborateurs, contacts(id, prenom, nom, email, telephone, principal), adresses(id, libelle, ville, departement, region, principal)),
-      activites(id, type, contenu, created_at, auteur:users!activites_auteur_id_fkey(prenom, nom)),
+      activites(id, type, contenu, created_at, auteur_id),
       relances(id, titre, date_echeance, fait, priorite),
       rdv(id, titre, debut, statut)`;
   const { data, error } = await supabase
@@ -142,5 +150,22 @@ export async function getOpportunite(id: string): Promise<OppDetail | null> {
     .limit(30, { referencedTable: 'activites' })
     .maybeSingle();
   if (error) throw error;
-  return (data as unknown as OppDetail | null) ?? null;
+  const raw = data as unknown as
+    | (Omit<OppDetail, 'activites'> & {
+        activites: (Omit<OppDetailActivite, 'auteur'> & {
+          auteur_id: string | null;
+        })[];
+      })
+    | null;
+  if (!raw) return null;
+  // Auteurs des activités = public.users (embed cross-schéma impossible) : un
+  // seul fetch groupé puis recollage en JS.
+  const users = await fetchCrmUsers(raw.activites.map((a) => a.auteur_id));
+  return {
+    ...raw,
+    activites: raw.activites.map(({ auteur_id, ...a }) => {
+      const u = auteur_id ? users.get(auteur_id) : undefined;
+      return { ...a, auteur: u ? { prenom: u.prenom, nom: u.nom } : null };
+    }),
+  };
 }

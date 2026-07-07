@@ -1,5 +1,6 @@
 import { createCrmClient } from '@/lib/crm/supabase/server';
 import { cachedGetUser } from '@/lib/crm/auth/roles';
+import { fetchCrmUsers } from '@/lib/crm/queries/_users';
 
 export type NotificationItem = {
   id: string;
@@ -18,17 +19,24 @@ export async function listMyNotifications(
   const user = await cachedGetUser();
   if (!user) return [];
   const supabase = await createCrmClient();
-  // L'acteur de la notif vit dans `public.users` (embed cross-schema via notifications.actor_id → users).
+  // L'acteur de la notif vit dans `public.users` : PostgREST ne résout pas les
+  // embeds cross-schéma, on récupère l'id brut (actor_id) puis on recolle l'info
+  // en JS via un fetch groupé sur public.users.
   const { data, error } = await supabase
     .from('notifications')
-    .select(
-      'id, type, contenu, link, lu, created_at, actor:users!notifications_actor_id_fkey(prenom, nom)',
-    )
+    .select('id, type, contenu, link, lu, created_at, actor_id')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) return []; // dégradation gracieuse (table absente, etc.)
-  return (data ?? []) as unknown as NotificationItem[];
+  const rows = (data ?? []) as unknown as (Omit<NotificationItem, 'actor'> & {
+    actor_id: string | null;
+  })[];
+  const users = await fetchCrmUsers(rows.map((r) => r.actor_id));
+  return rows.map(({ actor_id, ...r }) => {
+    const u = actor_id ? users.get(actor_id) : undefined;
+    return { ...r, actor: u ? { prenom: u.prenom, nom: u.nom } : null };
+  });
 }
 
 /** Nombre de notifications non lues de l'utilisateur courant (badge cloche). */

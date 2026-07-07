@@ -405,6 +405,15 @@ grant all on all tables in schema crm to service_role;
 grant execute on all routines in schema crm to authenticated, service_role;
 
 -- ============================================================================
+-- UNICITÉ (perf 0014 DB-1/DB-4) : au plus un contact/adresse « principal » par
+-- compte, et libellé d'étape unique. Schéma neuf → aucun dédoublonnage requis.
+-- Placé avant le SEED pour que le `on conflict (libelle)` ci-dessous s'applique.
+-- ============================================================================
+create unique index if not exists etapes_libelle_uniq on crm.etapes(libelle);
+create unique index if not exists contacts_principal_uniq on crm.contacts(compte_id) where principal;
+create unique index if not exists adresses_principal_uniq on crm.adresses(compte_id) where principal;
+
+-- ============================================================================
 -- SEED : 7 étapes standard (perf seed.sql).
 -- ============================================================================
 insert into crm.etapes (libelle, ordre, couleur, type) values
@@ -414,4 +423,5 @@ insert into crm.etapes (libelle, ordre, couleur, type) values
   ('Proposition',        4, '#8b5cf6', 'ouverte'),
   ('Négociation',        5, '#f59e0b', 'ouverte'),
   ('Gagné',              6, '#22c55e', 'gagnee'),
-  ('Perdu',              7, '#ef4444', 'perdue');
+  ('Perdu',              7, '#ef4444', 'perdue')
+on conflict (libelle) do nothing;

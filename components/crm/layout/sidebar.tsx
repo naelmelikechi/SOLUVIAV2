@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/crm/utils';
 import { BrandLogo } from '@/components/crm/layout/brand-logo';
 import { navItems } from '@/components/crm/layout/nav';
@@ -13,6 +14,15 @@ export function Sidebar({ isAdmin }: { isAdmin: boolean }) {
       <div className="mb-6 px-2 pt-1">
         <BrandLogo height={24} themed />
       </div>
+      <Link
+        href="/accueil"
+        className={cn(
+          'mb-2 flex items-center gap-2 rounded-md px-3 py-2 text-sm',
+          'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+        )}
+      >
+        <ArrowLeft className="h-4 w-4" /> Retour à Soluvia
+      </Link>
       <nav className="space-y-0.5">
         {items.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);

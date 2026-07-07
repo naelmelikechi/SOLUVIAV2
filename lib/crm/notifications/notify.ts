@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/lib/crm/database.types';
 import { isHiddenEmail } from '@/lib/crm/auth/hidden';
 
 export type NotifType = 'mention' | 'rdv_assigned' | 'relance_assigned';
@@ -17,7 +18,7 @@ export type NotifInput = {
  * déclenchée (note, relance, RDV). Les doublons destinataires sont dédupliqués.
  */
 export async function createNotifications(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database, 'crm'>,
   notifs: NotifInput[],
 ): Promise<void> {
   const clean = notifs.filter((n) => n.user_id);
@@ -42,14 +43,15 @@ export async function createNotifications(
  * pas filtrable par la RLS après coup).
  */
 export async function actorName(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient<Database, 'crm'>,
   user: { id: string; email?: string | null } | null,
 ): Promise<string> {
   if (!user?.id) return "Quelqu'un";
   if (isHiddenEmail(user.email)) return 'Un collègue';
   // SOLUVIA : l'identité utilisateur vit dans `public.users` (prenom + nom), pas
-  // dans un `profiles.nom_complet`. Le client est scopé `crm` → `.schema("public")`.
-  const { data } = await supabase
+  // dans un `profiles.nom_complet`. Le client est scopé `crm` : l'accès cross-schema
+  // à `public.users` échappe au typage → cast local non scopé pour ce seul SELECT.
+  const { data } = await (supabase as unknown as SupabaseClient)
     .schema('public')
     .from('users')
     .select('prenom, nom')

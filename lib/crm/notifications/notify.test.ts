@@ -1,18 +1,22 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/lib/crm/database.types';
 import { actorName, excerpt } from './notify';
 
 // Stub minimal : supabase.schema(...).from(...).select(...).eq(...).maybeSingle() -> { data }
 // SOLUVIA : l'identité vit dans public.users (prenom + nom), pas dans profiles.nom_complet.
 function stubSupabase(
   userRow: { prenom: string | null; nom: string | null } | null,
-): SupabaseClient {
+): SupabaseClient<Database, 'crm'> {
   const chain = {
     select: () => chain,
     eq: () => chain,
     maybeSingle: async () => ({ data: userRow }),
   };
-  return { schema: () => ({ from: () => chain }) } as unknown as SupabaseClient;
+  return { schema: () => ({ from: () => chain }) } as unknown as SupabaseClient<
+    Database,
+    'crm'
+  >;
 }
 
 describe('actorName', () => {

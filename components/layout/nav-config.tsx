@@ -19,6 +19,7 @@ import {
   Bug,
   Landmark,
   Activity,
+  KanbanSquare,
 } from 'lucide-react';
 import { isAdmin, canAccessPipeline, isReferentCdp } from '@/lib/utils/roles';
 
@@ -79,6 +80,12 @@ export const navSections: NavSection[] = [
   {
     title: 'Commercial',
     items: [
+      {
+        href: '/crm/dashboard',
+        label: 'CRM',
+        icon: KanbanSquare,
+        requiresPipelineAccess: true,
+      },
       {
         href: '/commercial/prospects',
         label: 'Prospects',

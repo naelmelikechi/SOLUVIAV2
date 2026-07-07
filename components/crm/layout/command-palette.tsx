@@ -24,9 +24,15 @@ export function CommandPalette({ isAdmin }: { isAdmin: boolean }) {
   const items = React.useMemo<NavItem[]>(
     () => [
       ...NAV,
-      { href: '/compte', label: 'Mon compte', icon: UserCircle },
+      { href: '/parametres-compte', label: 'Mon compte', icon: UserCircle },
       ...(isAdmin
-        ? [{ href: '/utilisateurs', label: 'Utilisateurs', icon: ShieldCheck }]
+        ? [
+            {
+              href: '/admin/utilisateurs',
+              label: 'Utilisateurs',
+              icon: ShieldCheck,
+            },
+          ]
         : []),
     ],
     [isAdmin],

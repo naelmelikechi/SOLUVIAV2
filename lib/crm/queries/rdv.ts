@@ -10,7 +10,7 @@ export type RdvListItem = {
   id: string;
   titre: string;
   debut: string;
-  fin: string | null;
+  fin: string;
   lieu: string | null;
   statut: RdvStatut;
   notes_prep: string | null;

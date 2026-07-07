@@ -33,11 +33,11 @@ export function UserMenu({
           </p>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link href="/compte" />}>
+        <DropdownMenuItem render={<Link href="/parametres-compte" />}>
           Mon compte
         </DropdownMenuItem>
         {isAdmin && (
-          <DropdownMenuItem render={<Link href="/utilisateurs" />}>
+          <DropdownMenuItem render={<Link href="/admin/utilisateurs" />}>
             Utilisateurs
           </DropdownMenuItem>
         )}

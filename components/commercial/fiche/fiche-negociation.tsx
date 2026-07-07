@@ -10,10 +10,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { updateProspectNegotiation } from '@/lib/actions/prospects';
-import { TAUX_NPEC_PLANCHER } from '@/lib/utils/constants';
+import {
+  TAUX_NPEC_PLANCHER,
+  TYPE_FORMATION_LABELS,
+  INITIATEUR_LABELS,
+  JALONS_CALENDRIER,
+  type TypeFormation,
+  type InitiateurContact,
+} from '@/lib/utils/constants';
 import type { ProspectDetail } from '@/lib/queries/prospects';
+import {
+  CalendrierPrevisionnelForm,
+  type CalendrierPrevisionnel,
+} from './calendrier-previsionnel-form';
 
 // Leviers de négociation proposés (cases à cocher). La colonne stocke un
 // string[] libre : tout levier déjà présent et hors liste est conservé.
@@ -26,6 +44,16 @@ const LEVIER_OPTIONS = [
   'Mise en avant / communication',
 ];
 
+const TYPE_FORMATION_ENTRIES = Object.entries(TYPE_FORMATION_LABELS) as [
+  TypeFormation,
+  string,
+][];
+
+const INITIATEUR_ENTRIES = Object.entries(INITIATEUR_LABELS) as [
+  InitiateurContact,
+  string,
+][];
+
 interface Props {
   prospect: ProspectDetail;
   locked: boolean;
@@ -33,6 +61,23 @@ interface Props {
 
 function numToStr(n: number | null): string {
   return n != null ? String(n) : '';
+}
+
+function jsonToStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((v): v is string => typeof v === 'string')
+    : [];
+}
+
+function jsonToCalendrier(value: unknown): CalendrierPrevisionnel {
+  const result: CalendrierPrevisionnel = {};
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    for (const { key } of JALONS_CALENDRIER) {
+      const mois = (value as Record<string, unknown>)[key];
+      if (typeof mois === 'string') result[key] = mois;
+    }
+  }
+  return result;
 }
 
 export function FicheNegociation({ prospect, locked }: Props) {
@@ -58,6 +103,27 @@ export function FicheNegociation({ prospect, locked }: Props) {
   );
   const [leviers, setLeviers] = useState<string[]>(initialLeviers);
   const [perimetre, setPerimetre] = useState(prospect.perimetre_missions ?? '');
+  const [numeroContrat, setNumeroContrat] = useState(
+    prospect.numero_contrat ?? '',
+  );
+  const [typeFormation, setTypeFormation] = useState<string>(
+    prospect.type_formation ?? '',
+  );
+  const [formationsRncp, setFormationsRncp] = useState(
+    jsonToStringArray(prospect.formations_rncp).join(', '),
+  );
+  const [datePremierContact, setDatePremierContact] = useState(
+    prospect.date_premier_contact ?? '',
+  );
+  const [initiateur, setInitiateur] = useState<string>(
+    prospect.initiateur ?? '',
+  );
+  const [historiqueSynthese, setHistoriqueSynthese] = useState(
+    prospect.historique_synthese ?? '',
+  );
+  const [calendrier, setCalendrier] = useState<CalendrierPrevisionnel>(() =>
+    jsonToCalendrier(prospect.calendrier_previsionnel),
+  );
   const [isPending, startTransition] = useTransition();
 
   const leviersOptions = useMemo(() => {
@@ -99,6 +165,19 @@ export function FicheNegociation({ prospect, locked }: Props) {
       return;
     }
 
+    const rncp = formationsRncp
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (rncp.length > 20) {
+      toast.error('Maximum 20 formations RNCP');
+      return;
+    }
+    if (rncp.some((s) => s.length > 100)) {
+      toast.error('Formation RNCP trop longue (100 caractères max)');
+      return;
+    }
+
     startTransition(async () => {
       const r = await updateProspectNegotiation({
         id: prospect.id,
@@ -111,6 +190,14 @@ export function FicheNegociation({ prospect, locked }: Props) {
         volumeGarantiSeuil: vg as number | null,
         leviers,
         perimetreMissions: perimetre.trim() || null,
+        numeroContrat: numeroContrat.trim() || null,
+        typeFormation: (typeFormation || null) as TypeFormation | null,
+        formationsRncp: rncp.length > 0 ? rncp : null,
+        datePremierContact: datePremierContact || null,
+        initiateur: (initiateur || null) as InitiateurContact | null,
+        historiqueSynthese: historiqueSynthese.trim() || null,
+        calendrierPrevisionnel:
+          Object.keys(calendrier).length > 0 ? calendrier : null,
       });
       if (r.success) {
         toast.success('Négociation enregistrée');
@@ -130,6 +217,13 @@ export function FicheNegociation({ prospect, locked }: Props) {
     volumeGaranti,
     leviers,
     perimetre,
+    numeroContrat,
+    typeFormation,
+    formationsRncp,
+    datePremierContact,
+    initiateur,
+    historiqueSynthese,
+    calendrier,
     router,
   ]);
 
@@ -267,6 +361,126 @@ export function FicheNegociation({ prospect, locked }: Props) {
           value={perimetre}
           disabled={locked}
           onChange={(e) => setPerimetre(e.target.value)}
+        />
+      </div>
+
+      {/* Engagements */}
+      <div className="mt-6 border-t pt-5">
+        <h3 className="mb-4 text-sm font-semibold">Engagements</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="nego-num-contrat">Numéro de contrat</Label>
+            <Input
+              id="nego-num-contrat"
+              value={numeroContrat}
+              disabled={locked}
+              onChange={(e) => setNumeroContrat(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nego-type-formation">Type de formation</Label>
+            <Select
+              value={typeFormation}
+              onValueChange={(v) => setTypeFormation(v ?? '')}
+              disabled={locked}
+            >
+              <SelectTrigger className="w-full" id="nego-type-formation">
+                <SelectValue placeholder="Non renseigné">
+                  {(v) =>
+                    v
+                      ? TYPE_FORMATION_LABELS[v as TypeFormation]
+                      : 'Non renseigné'
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Non renseigné</SelectItem>
+                {TYPE_FORMATION_ENTRIES.map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="nego-rncp">Formations visées (codes RNCP)</Label>
+            <Input
+              id="nego-rncp"
+              value={formationsRncp}
+              disabled={locked}
+              placeholder="RNCP 34567, RNCP 12345"
+              onChange={(e) => setFormationsRncp(e.target.value)}
+            />
+            <p className="text-muted-foreground text-xs">
+              Codes séparés par des virgules (20 maximum).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Historique commercial */}
+      <div className="mt-6 border-t pt-5">
+        <h3 className="mb-4 text-sm font-semibold">Historique commercial</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="nego-premier-contact">
+              Date du premier contact
+            </Label>
+            <Input
+              id="nego-premier-contact"
+              type="date"
+              value={datePremierContact}
+              disabled={locked}
+              onChange={(e) => setDatePremierContact(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="nego-initiateur">Initiateur du contact</Label>
+            <Select
+              value={initiateur}
+              onValueChange={(v) => setInitiateur(v ?? '')}
+              disabled={locked}
+            >
+              <SelectTrigger className="w-full" id="nego-initiateur">
+                <SelectValue placeholder="Non renseigné">
+                  {(v) =>
+                    v
+                      ? INITIATEUR_LABELS[v as InitiateurContact]
+                      : 'Non renseigné'
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Non renseigné</SelectItem>
+                {INITIATEUR_ENTRIES.map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="nego-historique">Évolution du dossier</Label>
+            <Textarea
+              id="nego-historique"
+              rows={4}
+              value={historiqueSynthese}
+              disabled={locked}
+              onChange={(e) => setHistoriqueSynthese(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Calendrier prévisionnel */}
+      <div className="mt-6 border-t pt-5">
+        <h3 className="mb-4 text-sm font-semibold">Calendrier prévisionnel</h3>
+        <CalendrierPrevisionnelForm
+          value={calendrier}
+          onChange={setCalendrier}
+          disabled={locked}
         />
       </div>
 

@@ -10,6 +10,12 @@ import {
   type EntrepriseInsee,
 } from '@/lib/insee/recherche-entreprises';
 import {
+  JALONS_CALENDRIER,
+  type JalonCalendrierKey,
+  type TypeFormation,
+  type InitiateurContact,
+} from '@/lib/utils/constants';
+import {
   getAuth,
   CANAL_VALUES,
   type CanalOrigine,
@@ -19,6 +25,17 @@ import {
 // ---------------------------------------------------------------------------
 // Onglet négociation
 // ---------------------------------------------------------------------------
+
+const JALON_KEYS = JALONS_CALENDRIER.map((j) => j.key) as [
+  JalonCalendrierKey,
+  ...JalonCalendrierKey[],
+];
+
+// Calendrier prévisionnel : record partiel jalon -> mois 'YYYY-MM'
+const CalendrierSchema = z.partialRecord(
+  z.enum(JALON_KEYS),
+  z.string().regex(/^\d{4}-\d{2}$/, 'Mois invalide (format AAAA-MM attendu)'),
+);
 
 const NegotiationSchema = z.object({
   id: z.string().uuid(),
@@ -31,6 +48,24 @@ const NegotiationSchema = z.object({
   volumeGarantiSeuil: z.number().int().min(0).nullable().optional(),
   leviers: z.array(z.string().max(100)).max(50).nullable().optional(),
   perimetreMissions: z.string().max(4000).nullable().optional(),
+  numeroContrat: z.string().trim().max(100).nullable().optional(),
+  typeFormation: z
+    .enum(['presentiel', 'distanciel', 'hybride'])
+    .nullable()
+    .optional(),
+  formationsRncp: z
+    .array(z.string().trim().max(100))
+    .max(20)
+    .nullable()
+    .optional(),
+  datePremierContact: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide (format AAAA-MM-JJ attendu)')
+    .nullable()
+    .optional(),
+  initiateur: z.enum(['soluvia', 'prospect']).nullable().optional(),
+  historiqueSynthese: z.string().max(4000).nullable().optional(),
+  calendrierPrevisionnel: CalendrierSchema.nullable().optional(),
 });
 
 export async function updateProspectNegotiation(input: {
@@ -44,6 +79,13 @@ export async function updateProspectNegotiation(input: {
   volumeGarantiSeuil?: number | null;
   leviers?: string[] | null;
   perimetreMissions?: string | null;
+  numeroContrat?: string | null;
+  typeFormation?: TypeFormation | null;
+  formationsRncp?: string[] | null;
+  datePremierContact?: string | null;
+  initiateur?: InitiateurContact | null;
+  historiqueSynthese?: string | null;
+  calendrierPrevisionnel?: Partial<Record<JalonCalendrierKey, string>> | null;
 }): Promise<{ success: boolean; error?: string }> {
   const parsed = NegotiationSchema.safeParse(input);
   if (!parsed.success) {
@@ -72,6 +114,13 @@ export async function updateProspectNegotiation(input: {
       volume_garanti_seuil: d.volumeGarantiSeuil ?? null,
       leviers: d.leviers ?? null,
       perimetre_missions: d.perimetreMissions ?? null,
+      numero_contrat: d.numeroContrat ?? null,
+      type_formation: d.typeFormation ?? null,
+      formations_rncp: d.formationsRncp ?? null,
+      date_premier_contact: d.datePremierContact ?? null,
+      initiateur: d.initiateur ?? null,
+      historique_synthese: d.historiqueSynthese ?? null,
+      calendrier_previsionnel: d.calendrierPrevisionnel ?? null,
       derniere_action_at: new Date().toISOString(),
     })
     .eq('id', d.id);
@@ -104,6 +153,8 @@ const IdentiteSchema = z.object({
   dirigeantPoste: z.string().trim().max(160).nullable().optional(),
   canalOrigine: z.enum(CANAL_VALUES).nullable().optional(),
   volumeApprenants: z.number().int().min(0).nullable().optional(),
+  nbImplantations: z.number().int().min(0).nullable().optional(),
+  caDernierExercice: z.number().min(0).nullable().optional(),
   pointsVigilance: z.string().max(8000).nullable().optional(),
   notesInterEquipe: z.string().max(8000).nullable().optional(),
 });
@@ -119,6 +170,8 @@ export async function updateProspectIdentite(input: {
   dirigeantPoste?: string | null;
   canalOrigine?: CanalOrigine | null;
   volumeApprenants?: number | null;
+  nbImplantations?: number | null;
+  caDernierExercice?: number | null;
   pointsVigilance?: string | null;
   notesInterEquipe?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
@@ -149,6 +202,8 @@ export async function updateProspectIdentite(input: {
       dirigeant_poste: d.dirigeantPoste ?? null,
       canal_origine: d.canalOrigine ?? null,
       volume_apprenants: d.volumeApprenants ?? null,
+      nb_implantations: d.nbImplantations ?? null,
+      ca_dernier_exercice: d.caDernierExercice ?? null,
       points_vigilance: d.pointsVigilance ?? null,
       notes_inter_equipe: d.notesInterEquipe ?? null,
       derniere_action_at: new Date().toISOString(),

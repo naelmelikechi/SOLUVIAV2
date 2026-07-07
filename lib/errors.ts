@@ -88,7 +88,9 @@ export type AppErrorCode =
   | 'SOCIETE_EMETTRICE_DEFAULT_MISSING'
   | 'SOCIETES_EMETTRICES_FETCH_FAILED'
   // Devis
-  | 'DEVIS_FETCH_FAILED';
+  | 'DEVIS_FETCH_FAILED'
+  // Syntheses de passation
+  | 'SYNTHESES_FETCH_FAILED';
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

@@ -3,7 +3,7 @@ import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { computeCdpScore, type CdpScore } from '@/lib/utils/cdp-scoring';
-import type { DispoCdp } from '@/lib/utils/constants';
+import type { DispoCdp, StatutSynthese } from '@/lib/utils/constants';
 
 /**
  * Plan de charge — une ligne par CDP (users role='cdp' ou referent_cdp=true)
@@ -242,6 +242,77 @@ export async function getCdpPipeline(
     trigramme: c.trigramme,
     cdp_affecte_at: c.cdp_affecte_at,
     nbProjetsActifs: nbProjetsByClient.get(c.id) ?? 0,
+  }));
+}
+
+/**
+ * Synthèse de passation visible par le CDP affecté (variante CDP, section 8
+ * masquée). Colonnes volontairement restreintes : ne jamais élargir vers
+ * document_synthese_reco (invisible au CDP par RLS).
+ */
+export interface CdpPortefeuilleSynthese {
+  id: string;
+  client_id: string;
+  statut: StatutSynthese;
+  diffuse_vague2_at: string | null;
+  pdf_path_cdp: string | null;
+}
+
+/** Client du portefeuille avec sa synthèse de passation éventuelle. */
+export interface CdpPortefeuilleClient extends CdpPipelineClient {
+  synthese: CdpPortefeuilleSynthese | null;
+}
+
+/**
+ * Vue "Mon portefeuille" d'un CDP : ses clients (via getCdpPipeline) enrichis
+ * de la synthèse de passation au statut 'cdp_affecte' quand elle existe.
+ * La RLS (policy document_synthese_select) garantit que le CDP ne voit que
+ * les synthèses de SES clients à ce statut.
+ */
+export async function getCdpPortefeuille(
+  cdpId: string,
+): Promise<CdpPortefeuilleClient[]> {
+  const clients = await getCdpPipeline(cdpId);
+  if (clients.length === 0) return [];
+
+  const supabase = await createClient();
+  const { data: syntheses, error } = await supabase
+    .from('document_synthese')
+    .select('id, client_id, statut, diffuse_vague2_at, pdf_path_cdp')
+    .in(
+      'client_id',
+      clients.map((c) => c.id),
+    )
+    .eq('statut', 'cdp_affecte');
+
+  if (error) {
+    logger.error('queries.cdp', 'getCdpPortefeuille syntheses failed', {
+      cdpId,
+      error,
+    });
+    throw new AppError(
+      'SYNTHESES_FETCH_FAILED',
+      'Impossible de charger les synthèses de passation',
+      { cause: error },
+    );
+  }
+
+  const syntheseByClient = new Map<string, CdpPortefeuilleSynthese>();
+  for (const s of syntheses ?? []) {
+    if (s.client_id) {
+      syntheseByClient.set(s.client_id, {
+        id: s.id,
+        client_id: s.client_id,
+        statut: s.statut as StatutSynthese,
+        diffuse_vague2_at: s.diffuse_vague2_at,
+        pdf_path_cdp: s.pdf_path_cdp,
+      });
+    }
+  }
+
+  return clients.map((c) => ({
+    ...c,
+    synthese: syntheseByClient.get(c.id) ?? null,
   }));
 }
 

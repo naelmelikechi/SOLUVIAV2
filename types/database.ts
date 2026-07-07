@@ -1146,11 +1146,6 @@ export type Database = {
       };
       document_synthese: {
         Row: {
-          cdp_a_eviter: string | null;
-          cdp_ideal: string | null;
-          charge_previsionnelle:
-            | Database['public']['Enums']['niveau_charge']
-            | null;
           client_id: string | null;
           contenu: Json | null;
           created_at: string;
@@ -1160,7 +1155,6 @@ export type Database = {
           escalade_direction_at: string | null;
           genere_par: string | null;
           id: string;
-          notes_inter_equipe: string | null;
           pdf_path_cdp: string | null;
           pdf_path_complet: string | null;
           points_vigilance: string | null;
@@ -1169,23 +1163,14 @@ export type Database = {
           rappel_dev_at: string | null;
           rappel_referent_at: string | null;
           reference_dossier: string | null;
-          risque_churn: Database['public']['Enums']['niveau_risque'] | null;
           signature_id: string | null;
           signature_signee_at: string | null;
           soumise_at: string | null;
           soumise_par: string | null;
           statut: Database['public']['Enums']['statut_synthese'];
-          typologie_client:
-            | Database['public']['Enums']['typologie_client']
-            | null;
           updated_at: string;
         };
         Insert: {
-          cdp_a_eviter?: string | null;
-          cdp_ideal?: string | null;
-          charge_previsionnelle?:
-            | Database['public']['Enums']['niveau_charge']
-            | null;
           client_id?: string | null;
           contenu?: Json | null;
           created_at?: string;
@@ -1195,7 +1180,6 @@ export type Database = {
           escalade_direction_at?: string | null;
           genere_par?: string | null;
           id?: string;
-          notes_inter_equipe?: string | null;
           pdf_path_cdp?: string | null;
           pdf_path_complet?: string | null;
           points_vigilance?: string | null;
@@ -1204,23 +1188,14 @@ export type Database = {
           rappel_dev_at?: string | null;
           rappel_referent_at?: string | null;
           reference_dossier?: string | null;
-          risque_churn?: Database['public']['Enums']['niveau_risque'] | null;
           signature_id?: string | null;
           signature_signee_at?: string | null;
           soumise_at?: string | null;
           soumise_par?: string | null;
           statut?: Database['public']['Enums']['statut_synthese'];
-          typologie_client?:
-            | Database['public']['Enums']['typologie_client']
-            | null;
           updated_at?: string;
         };
         Update: {
-          cdp_a_eviter?: string | null;
-          cdp_ideal?: string | null;
-          charge_previsionnelle?:
-            | Database['public']['Enums']['niveau_charge']
-            | null;
           client_id?: string | null;
           contenu?: Json | null;
           created_at?: string;
@@ -1230,7 +1205,6 @@ export type Database = {
           escalade_direction_at?: string | null;
           genere_par?: string | null;
           id?: string;
-          notes_inter_equipe?: string | null;
           pdf_path_cdp?: string | null;
           pdf_path_complet?: string | null;
           points_vigilance?: string | null;
@@ -1239,15 +1213,11 @@ export type Database = {
           rappel_dev_at?: string | null;
           rappel_referent_at?: string | null;
           reference_dossier?: string | null;
-          risque_churn?: Database['public']['Enums']['niveau_risque'] | null;
           signature_id?: string | null;
           signature_signee_at?: string | null;
           soumise_at?: string | null;
           soumise_par?: string | null;
           statut?: Database['public']['Enums']['statut_synthese'];
-          typologie_client?:
-            | Database['public']['Enums']['typologie_client']
-            | null;
           updated_at?: string;
         };
         Relationships: [
@@ -1284,6 +1254,62 @@ export type Database = {
             columns: ['soumise_par'];
             isOneToOne: false;
             referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      document_synthese_reco: {
+        Row: {
+          cdp_a_eviter: string | null;
+          cdp_ideal: string | null;
+          charge_previsionnelle:
+            | Database['public']['Enums']['niveau_charge']
+            | null;
+          created_at: string;
+          notes_inter_equipe: string | null;
+          risque_churn: Database['public']['Enums']['niveau_risque'] | null;
+          synthese_id: string;
+          typologie_client:
+            | Database['public']['Enums']['typologie_client']
+            | null;
+          updated_at: string;
+        };
+        Insert: {
+          cdp_a_eviter?: string | null;
+          cdp_ideal?: string | null;
+          charge_previsionnelle?:
+            | Database['public']['Enums']['niveau_charge']
+            | null;
+          created_at?: string;
+          notes_inter_equipe?: string | null;
+          risque_churn?: Database['public']['Enums']['niveau_risque'] | null;
+          synthese_id: string;
+          typologie_client?:
+            | Database['public']['Enums']['typologie_client']
+            | null;
+          updated_at?: string;
+        };
+        Update: {
+          cdp_a_eviter?: string | null;
+          cdp_ideal?: string | null;
+          charge_previsionnelle?:
+            | Database['public']['Enums']['niveau_charge']
+            | null;
+          created_at?: string;
+          notes_inter_equipe?: string | null;
+          risque_churn?: Database['public']['Enums']['niveau_risque'] | null;
+          synthese_id?: string;
+          typologie_client?:
+            | Database['public']['Enums']['typologie_client']
+            | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'document_synthese_reco_synthese_id_fkey';
+            columns: ['synthese_id'];
+            isOneToOne: true;
+            referencedRelation: 'document_synthese';
             referencedColumns: ['id'];
           },
         ];

@@ -400,6 +400,22 @@ export async function convertProspectToClient(
     );
   }
 
+  // Ancre la synthèse de passation sur le client : elle survit ainsi au
+  // modèle prospects (supprimé en Phase 2 CRM) et devient consultable par le
+  // CDP affecté une fois la vague 2 déclenchée.
+  const { error: syntheseError } = await supabase
+    .from('document_synthese')
+    .update({ client_id: client.id, updated_at: new Date().toISOString() })
+    .eq('prospect_id', parsed.data.id)
+    .is('client_id', null);
+  if (syntheseError) {
+    logger.warn(
+      'actions.prospects',
+      'convertProspectToClient synthese link failed',
+      { prospectId: parsed.data.id, clientId: client.id, error: syntheseError },
+    );
+  }
+
   logAudit(
     'prospect_converted',
     'prospect',

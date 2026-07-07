@@ -133,6 +133,29 @@ async function applyAffectation(
     });
   }
 
+  // Vague 2 automatique (Feature 6) : l'affectation transmet la synthèse de
+  // passation au CDP (variante sans section 8, consultable depuis son
+  // portefeuille).
+  const { data: syntheses } = await admin
+    .from('document_synthese')
+    .update({
+      statut: 'cdp_affecte',
+      diffuse_vague2_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('client_id', clientId)
+    .in('statut', ['generee', 'en_cours_completion', 'en_attente_arbitrage'])
+    .select('id');
+  if (syntheses && syntheses.length > 0 && cdpId !== userId) {
+    await admin.from('notifications').insert({
+      user_id: cdpId,
+      type: 'passation_diffusee',
+      titre: 'Synthèse de passation reçue',
+      message: `La synthèse de passation de ${client.raison_sociale} vous a été transmise.`,
+      lien: '/commercial/cdp',
+    });
+  }
+
   logAudit(
     fromCdpId ? 'cdp_reaffecte' : 'cdp_affecte',
     'client',

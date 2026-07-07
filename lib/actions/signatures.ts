@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getAuthWithPipeline } from '@/lib/auth/guards';
+import { genererSyntheseCore } from '@/lib/passation/core';
 import { isAdmin, canAccessPipeline } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -173,15 +174,31 @@ export async function uploadSignedDocument(
   const up = await uploadToBucket(supabase, req.prospect_id, file, 'signe');
   if (up.error) return { success: false, error: up.error };
 
+  const signedAt = new Date().toISOString();
   const { error } = await supabase
     .from('signature_requests')
     .update({
       signed_document_path: up.path,
       statut: 'signee',
-      signed_at: new Date().toISOString(),
+      signed_at: signedAt,
     })
     .eq('id', id);
   if (error) return { success: false, error: error.message };
+
+  // Génération automatique de la synthèse de passation (Feature 6). L'échec ne
+  // bloque pas le dépôt : le bouton "Générer" de la fiche reste disponible.
+  try {
+    await genererSyntheseCore(supabase, req.prospect_id, {
+      generePar: userId,
+      signatureId: id,
+      signatureSigneeAt: signedAt,
+    });
+  } catch (err) {
+    logger.error('actions.signatures', 'generation synthese auto failed', {
+      prospectId: req.prospect_id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   // Déclencheur passation : prévenir le commercial du prospect + la Direction.
   const { data: prospect } = await supabase

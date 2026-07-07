@@ -5,6 +5,7 @@ import {
   getClientsAAffecter,
   getCdpCandidates,
   getCdpPipeline,
+  getCdpPortefeuille,
 } from '@/lib/queries/cdp';
 import { createClient } from '@/lib/supabase/server';
 import { isReferentCdp } from '@/lib/utils/roles';
@@ -14,6 +15,7 @@ import { PlanDeChargeTable } from '@/components/commercial/cdp/plan-de-charge-ta
 import { ArbitragePanel } from '@/components/commercial/cdp/arbitrage-panel';
 import { DispoSelector } from '@/components/commercial/cdp/dispo-selector';
 import { CdpPipelineList } from '@/components/commercial/cdp/cdp-pipeline-list';
+import { CdpPortefeuilleList } from '@/components/commercial/cdp/cdp-portefeuille-list';
 
 export const metadata: Metadata = {
   title: 'Plan de charge CDP - SOLUVIA',
@@ -38,6 +40,24 @@ export default async function CdpPage({
     .single();
 
   if (!isReferentCdp(currentUser?.role, currentUser?.referent_cdp)) {
+    // Vue "Mon portefeuille" pour un CDP simple (non référent) : ses clients
+    // sous gestion et les synthèses de passation qui lui sont destinées.
+    if (currentUser?.role === 'cdp') {
+      const portefeuille = await getCdpPortefeuille(user.id);
+      return (
+        <div className="space-y-6">
+          <PageHeader
+            title="Mon portefeuille"
+            description="Vos clients sous gestion et leurs synthèses de passation"
+          >
+            <DispoSelector
+              value={(currentUser.cdp_disponibilite as DispoCdp | null) ?? null}
+            />
+          </PageHeader>
+          <CdpPortefeuilleList clients={portefeuille} />
+        </div>
+      );
+    }
     redirect('/accueil');
   }
 

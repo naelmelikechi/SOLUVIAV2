@@ -3,24 +3,30 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getAuthWithPipeline } from '@/lib/auth/guards';
-import { isAdmin, canAccessPipeline } from '@/lib/utils/roles';
-import { logger } from '@/lib/utils/logger';
-import { logAudit } from '@/lib/utils/audit';
-import { renderSynthesePdf } from '@/lib/utils/synthese-pdf';
+import { sendSyntheseVague1Email } from '@/lib/email/passation-templates';
+import { genererSyntheseCore, regenerer } from '@/lib/passation/core';
 import {
-  getSyntheseData,
+  getRecoBySynthese,
   getSyntheseByProspect,
+  normalizeSnapshot,
+  saisiesOf,
 } from '@/lib/queries/passation';
-import type { PassationSynthese } from '@/lib/queries/passation';
-import type { Json } from '@/types/database';
+import type { PassationReco, PassationSynthese } from '@/lib/queries/passation';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getAppUrl } from '@/lib/utils/app-url';
+import { logAudit } from '@/lib/utils/audit';
+import { logger } from '@/lib/utils/logger';
+import { isAdmin, canAccessPipeline } from '@/lib/utils/roles';
+import { renderSynthesePdf } from '@/lib/utils/synthese-pdf';
 
 const BUCKET = 'passation-documents';
 const uuidSchema = z.string().uuid();
 
 /**
- * Génère la synthèse de passation : un PDF complet (sections 1 à 8, pour
- * Référent CDP + Direction) et un PDF CDP (section 8 masquée). Snapshot figé
- * stocké dans `document_synthese.contenu`.
+ * Génère la synthèse de passation (bouton fiche prospect). Idempotent : si
+ * elle existe déjà, régénère le snapshot (saisies 6/8 conservées, PDFs
+ * invalidés).
  */
 export async function genererSynthese(
   prospectId: string,
@@ -34,112 +40,130 @@ export async function genererSynthese(
     return { success: false, error: 'Accès refusé' };
   }
 
-  const data = await getSyntheseData(prospectId);
-  if (!data) return { success: false, error: 'Prospect introuvable' };
-
+  const { data: prospect } = await supabase
+    .from('prospects')
+    .select('stage, client_id')
+    .eq('id', prospectId)
+    .single();
+  if (!prospect) return { success: false, error: 'Prospect introuvable' };
   // La synthèse de passation n'a de sens qu'après la signature du contrat.
-  const signe =
-    data.prospect.stage === 'signe' || data.prospect.client_id != null;
-  if (!signe) {
+  if (!(prospect.stage === 'signe' || prospect.client_id != null)) {
     return {
       success: false,
       error: 'Le prospect doit être signé pour générer la synthèse',
     };
   }
 
-  let complet: Buffer;
-  let cdp: Buffer;
-  try {
-    [complet, cdp] = await Promise.all([
-      renderSynthesePdf(data, true),
-      renderSynthesePdf(data, false),
-    ]);
-  } catch (err) {
-    logger.error('actions.passation', 'render synthese failed', {
-      prospectId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return { success: false, error: 'Échec de la génération du PDF' };
-  }
-
-  const ts = Date.now();
-  const pathComplet = `${prospectId}/synthese-complet-${ts}.pdf`;
-  const pathCdp = `${prospectId}/synthese-cdp-${ts}.pdf`;
-
-  const upComplet = await supabase.storage
-    .from(BUCKET)
-    .upload(pathComplet, complet, {
-      contentType: 'application/pdf',
-      upsert: false,
-    });
-  if (upComplet.error) {
-    logger.error('actions.passation', 'upload complet failed', {
-      error: upComplet.error,
-    });
-    return { success: false, error: "Échec de l'upload du document complet" };
-  }
-  const upCdp = await supabase.storage.from(BUCKET).upload(pathCdp, cdp, {
-    contentType: 'application/pdf',
-    upsert: false,
-  });
-  if (upCdp.error) {
-    logger.error('actions.passation', 'upload cdp failed', {
-      error: upCdp.error,
-    });
-    return { success: false, error: "Échec de l'upload du document CDP" };
-  }
-
-  const snapshot = data as unknown as Json;
   const existing = await getSyntheseByProspect(prospectId);
-
-  let id: string;
-  if (existing) {
-    const { error } = await supabase
-      .from('document_synthese')
-      .update({
-        statut: 'generee',
-        contenu: snapshot,
-        pdf_path_complet: pathComplet,
-        pdf_path_cdp: pathCdp,
-        signature_id: data.signature?.id ?? null,
-        genere_par: userId,
-        diffuse_vague1_at: null,
-        diffuse_vague2_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', existing.id);
-    if (error) return { success: false, error: error.message };
-    id = existing.id;
-  } else {
-    const { data: created, error } = await supabase
-      .from('document_synthese')
-      .insert({
-        prospect_id: prospectId,
-        statut: 'generee',
-        contenu: snapshot,
-        pdf_path_complet: pathComplet,
-        pdf_path_cdp: pathCdp,
-        signature_id: data.signature?.id ?? null,
-        genere_par: userId,
-      })
-      .select('id')
-      .single();
-    if (error || !created) {
-      return { success: false, error: error?.message ?? 'Création impossible' };
-    }
-    id = created.id;
+  const result = existing?.id
+    ? await regenerer(supabase, prospectId, { generePar: userId }, existing.id)
+    : await genererSyntheseCore(supabase, prospectId, { generePar: userId });
+  if (result.error || !result.id) {
+    return {
+      success: false,
+      error: result.error ?? 'Échec de la génération',
+    };
   }
 
-  logAudit('synthese_generee', 'document_synthese', id, { prospectId }, userId);
   revalidatePath(`/commercial/prospects/${prospectId}`);
-  return { success: true, id };
+  return { success: true, id: result.id };
+}
+
+const SaisiesSchema = z.object({
+  points_vigilance: z.string().trim().max(4000).nullable(),
+  promesses_orales: z.string().trim().max(4000).nullable(),
+  typologie_client: z
+    .enum(['exigeant', 'collaboratif', 'autonome', 'accompagnement_fort'])
+    .nullable(),
+  charge_previsionnelle: z.enum(['faible', 'moyenne', 'forte']).nullable(),
+  risque_churn: z.enum(['faible', 'moyen', 'fort']).nullable(),
+  cdp_ideal: z.string().trim().max(4000).nullable(),
+  cdp_a_eviter: z.string().trim().max(4000).nullable(),
+  notes_inter_equipe: z.string().trim().max(4000).nullable(),
+});
+
+export type SaisiesSynthese = z.infer<typeof SaisiesSchema>;
+
+/**
+ * Enregistre les saisies du Développeur : section 6 sur document_synthese,
+ * section 8 sur document_synthese_reco (jamais lisible par le CDP affecté).
+ */
+export async function enregistrerSaisiesSynthese(
+  syntheseId: string,
+  saisies: SaisiesSynthese,
+): Promise<{ success: boolean; error?: string }> {
+  if (!uuidSchema.safeParse(syntheseId).success) {
+    return { success: false, error: 'Synthèse invalide' };
+  }
+  const parsed = SaisiesSchema.safeParse(saisies);
+  if (!parsed.success) {
+    return { success: false, error: 'Saisies invalides' };
+  }
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
+  if (!userId) return { success: false, error: 'Non authentifié' };
+  if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
+    return { success: false, error: 'Accès refusé' };
+  }
+
+  const { data: synthese } = await supabase
+    .from('document_synthese')
+    .select('id, prospect_id, statut')
+    .eq('id', syntheseId)
+    .single();
+  if (!synthese) return { success: false, error: 'Synthèse inconnue' };
+
+  const d = parsed.data;
+  const vide = (s: string | null) => (s === '' ? null : s);
+  const { error } = await supabase
+    .from('document_synthese')
+    .update({
+      points_vigilance: vide(d.points_vigilance),
+      promesses_orales: vide(d.promesses_orales),
+      // Le Dev a ouvert et travaillé le document.
+      ...(synthese.statut === 'generee'
+        ? { statut: 'en_cours_completion' as const }
+        : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', syntheseId);
+  if (error) return { success: false, error: error.message };
+
+  const { error: recoError } = await supabase
+    .from('document_synthese_reco')
+    .upsert(
+      {
+        synthese_id: syntheseId,
+        typologie_client: d.typologie_client,
+        charge_previsionnelle: d.charge_previsionnelle,
+        risque_churn: d.risque_churn,
+        cdp_ideal: vide(d.cdp_ideal),
+        cdp_a_eviter: vide(d.cdp_a_eviter),
+        notes_inter_equipe: vide(d.notes_inter_equipe),
+      },
+      { onConflict: 'synthese_id' },
+    );
+  if (recoError) return { success: false, error: recoError.message };
+
+  logAudit(
+    'synthese_saisies',
+    'document_synthese',
+    syntheseId,
+    undefined,
+    userId,
+  );
+  if (synthese.prospect_id) {
+    revalidatePath(`/commercial/prospects/${synthese.prospect_id}`);
+  }
+  return { success: true };
 }
 
 /**
- * Vague 1 : diffuse la version complète aux Référents CDP + Direction
- * (déclencheur de l'affectation d'un Chef de Projet).
+ * Soumet la synthèse au Référent CDP (Vague 1) : rend les 2 PDFs depuis le
+ * snapshot figé + saisies, les dépose dans le bucket, passe le statut à
+ * 'en_attente_arbitrage' et envoie le mail (PDF complet en pièce jointe) aux
+ * Référents CDP + Direction, avec notification in-app.
  */
-export async function diffuserVague1(
+export async function soumettreSynthese(
   syntheseId: string,
 ): Promise<{ success: boolean; error?: string }> {
   if (!uuidSchema.safeParse(syntheseId).success) {
@@ -153,74 +177,134 @@ export async function diffuserVague1(
 
   const { data: synthese } = await supabase
     .from('document_synthese')
-    .select('id, prospect_id, pdf_path_complet')
+    .select('*')
     .eq('id', syntheseId)
-    .single();
+    .single<PassationSynthese>();
   if (!synthese) return { success: false, error: 'Synthèse inconnue' };
-  if (!synthese.pdf_path_complet) {
+  if (!synthese.contenu) {
     return {
       success: false,
-      error: 'Document complet indisponible, régénérez la synthèse',
+      error: 'Snapshot manquant, régénérez la synthèse',
     };
   }
+  if (synthese.statut === 'en_attente_arbitrage') {
+    return { success: false, error: 'Synthèse déjà soumise' };
+  }
 
-  const { data: prospect } = await supabase
-    .from('prospects')
-    .select('nom')
-    .eq('id', synthese.prospect_id)
-    .single();
+  const reco = await getRecoBySynthese(syntheseId);
+  const snapshot = normalizeSnapshot(synthese.contenu);
+  const saisies = saisiesOf(synthese, reco);
 
-  const recipients = new Set<string>();
-  const { data: referents } = await supabase
-    .from('users')
-    .select('id')
-    .eq('referent_cdp', true)
-    .eq('actif', true);
-  for (const r of referents ?? []) recipients.add(r.id);
-  const { data: admins } = await supabase
-    .from('users')
-    .select('id')
-    .in('role', ['admin', 'superadmin'])
-    .eq('actif', true);
-  for (const a of admins ?? []) recipients.add(a.id);
-  recipients.delete(userId);
+  let complet: Buffer;
+  let cdp: Buffer;
+  try {
+    [complet, cdp] = await Promise.all([
+      renderSynthesePdf(snapshot, saisies, 'complet'),
+      renderSynthesePdf(snapshot, saisies, 'cdp'),
+    ]);
+  } catch (err) {
+    logger.error('actions.passation', 'render synthese failed', {
+      syntheseId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { success: false, error: 'Échec de la génération du PDF' };
+  }
 
-  if (recipients.size > 0) {
-    await supabase.from('notifications').insert(
-      [...recipients].map((uid) => ({
-        user_id: uid,
-        type: 'passation_diffusee' as const,
-        titre: 'Synthèse de passation à traiter',
-        message: `La synthèse de passation de ${prospect?.nom ?? 'ce prospect'} est disponible (version complète). Affectez un Chef de Projet.`,
-        lien: `/commercial/prospects/${synthese.prospect_id}`,
-      })),
-    );
+  const dossier = synthese.prospect_id ?? synthese.id;
+  const ts = Date.now();
+  const pathComplet = `${dossier}/synthese-complet-${ts}.pdf`;
+  const pathCdp = `${dossier}/synthese-cdp-${ts}.pdf`;
+  for (const [path, buffer] of [
+    [pathComplet, complet],
+    [pathCdp, cdp],
+  ] as const) {
+    const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
+      contentType: 'application/pdf',
+      upsert: false,
+    });
+    if (error) {
+      logger.error('actions.passation', 'upload synthese failed', {
+        path,
+        error,
+      });
+      return { success: false, error: "Échec de l'upload du document" };
+    }
   }
 
   const { error } = await supabase
     .from('document_synthese')
     .update({
-      statut: 'diffusee_vague1',
-      diffuse_vague1_at: new Date().toISOString(),
+      statut: 'en_attente_arbitrage',
+      pdf_path_complet: pathComplet,
+      pdf_path_cdp: pathCdp,
+      soumise_at: new Date().toISOString(),
+      soumise_par: userId,
       updated_at: new Date().toISOString(),
     })
     .eq('id', syntheseId);
   if (error) return { success: false, error: error.message };
 
+  // Destinataires vague 1 : Référents CDP + Direction (admins actifs).
+  const destinataires = new Map<string, string | null>();
+  const { data: referents } = await supabase
+    .from('users')
+    .select('id, email')
+    .eq('referent_cdp', true)
+    .eq('actif', true);
+  for (const r of referents ?? []) destinataires.set(r.id, r.email);
+  const { data: admins } = await supabase
+    .from('users')
+    .select('id, email')
+    .in('role', ['admin', 'superadmin'])
+    .eq('actif', true);
+  for (const a of admins ?? []) destinataires.set(a.id, a.email);
+  destinataires.delete(userId);
+
+  const lienApp = synthese.prospect_id
+    ? `/commercial/prospects/${synthese.prospect_id}`
+    : '/commercial/cdp';
+  if (destinataires.size > 0) {
+    await supabase.from('notifications').insert(
+      [...destinataires.keys()].map((uid) => ({
+        user_id: uid,
+        type: 'passation_diffusee' as const,
+        titre: 'Synthèse de passation à traiter',
+        message: `La synthèse de ${snapshot.identite.raisonSociale} est soumise. Affectez un Chef de Projet (délai cible 24h).`,
+        lien: lienApp,
+      })),
+    );
+    const emails = [...destinataires.values()].filter((e): e is string =>
+      Boolean(e),
+    );
+    if (emails.length > 0) {
+      await sendSyntheseVague1Email({
+        to: emails,
+        raisonSociale: snapshot.identite.raisonSociale,
+        referenceDossier: snapshot.meta.referenceDossier,
+        developpeur: snapshot.meta.developpeur,
+        lienFiche: `${getAppUrl()}${lienApp}`,
+        pdfComplet: complet,
+      });
+    }
+  }
+
   logAudit(
-    'synthese_diffusee_vague1',
+    'synthese_soumise',
     'document_synthese',
     syntheseId,
     undefined,
     userId,
   );
-  revalidatePath(`/commercial/prospects/${synthese.prospect_id}`);
+  if (synthese.prospect_id) {
+    revalidatePath(`/commercial/prospects/${synthese.prospect_id}`);
+  }
   return { success: true };
 }
 
 /**
- * Vague 2 : transmet la version CDP (sans section 8) au Chef de Projet affecté
- * au client lié. Échoue si aucun CDP référent n'est défini sur le client.
+ * Vague 2 manuelle (fallback admin) : marque la synthèse transmise au CDP
+ * affecté du client lié et le notifie. Le chemin nominal est automatique via
+ * l'affectation CDP (lib/actions/cdp.ts).
  */
 export async function diffuserVague2(
   syntheseId: string,
@@ -236,54 +320,48 @@ export async function diffuserVague2(
 
   const { data: synthese } = await supabase
     .from('document_synthese')
-    .select('id, prospect_id, pdf_path_cdp')
+    .select('id, client_id, pdf_path_cdp, reference_dossier')
     .eq('id', syntheseId)
     .single();
   if (!synthese) return { success: false, error: 'Synthèse inconnue' };
+  if (!synthese.client_id) {
+    return { success: false, error: 'Aucun client lié à cette synthèse' };
+  }
   if (!synthese.pdf_path_cdp) {
     return {
       success: false,
-      error: 'Document CDP indisponible, régénérez la synthèse',
+      error: 'Document CDP indisponible, soumettez la synthèse',
     };
-  }
-
-  const { data: prospect } = await supabase
-    .from('prospects')
-    .select('nom, client_id')
-    .eq('id', synthese.prospect_id)
-    .single();
-  if (!prospect?.client_id) {
-    return { success: false, error: 'Aucun client lié à ce prospect' };
   }
 
   const { data: client } = await supabase
     .from('clients')
-    .select('cdp_referent_id')
-    .eq('id', prospect.client_id)
+    .select('raison_sociale, cdp_referent_id')
+    .eq('id', synthese.client_id)
     .single();
   if (!client?.cdp_referent_id) {
     return { success: false, error: 'Aucun CDP affecté au client' };
   }
+
+  const { error } = await supabase
+    .from('document_synthese')
+    .update({
+      statut: 'cdp_affecte',
+      diffuse_vague2_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', syntheseId);
+  if (error) return { success: false, error: error.message };
 
   if (client.cdp_referent_id !== userId) {
     await supabase.from('notifications').insert({
       user_id: client.cdp_referent_id,
       type: 'passation_diffusee' as const,
       titre: 'Synthèse de passation reçue',
-      message: `La synthèse de passation de ${prospect.nom} vous a été transmise.`,
-      lien: `/commercial/prospects/${synthese.prospect_id}`,
+      message: `La synthèse de passation de ${client.raison_sociale} vous a été transmise.`,
+      lien: '/commercial/cdp',
     });
   }
-
-  const { error } = await supabase
-    .from('document_synthese')
-    .update({
-      statut: 'diffusee_vague2',
-      diffuse_vague2_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', syntheseId);
-  if (error) return { success: false, error: error.message };
 
   logAudit(
     'synthese_diffusee_vague2',
@@ -292,11 +370,11 @@ export async function diffuserVague2(
     undefined,
     userId,
   );
-  revalidatePath(`/commercial/prospects/${synthese.prospect_id}`);
+  revalidatePath('/commercial/cdp');
   return { success: true };
 }
 
-/** Lien signé (5 min) vers l'une des deux variantes du PDF de synthèse. */
+/** Lien signé (5 min) vers l'une des deux variantes — pipeline/admin. */
 export async function getSyntheseDownloadUrl(
   syntheseId: string,
   variante: 'complet' | 'cdp',
@@ -328,43 +406,82 @@ export async function getSyntheseDownloadUrl(
 }
 
 /**
- * État courant de la passation pour la fiche prospect : synthèse existante (si
- * déjà générée) et présence d'un CDP référent sur le client lié (pré-requis de
- * la vague 2). Lecture utilisée par le composant client de la fiche.
+ * Lien signé vers la variante CDP pour le Chef de Projet affecté. Le guard est
+ * la RLS : la ligne n'est lisible par le CDP que si statut='cdp_affecte' ET
+ * qu'il est le cdp_referent_id du client. La policy storage ne couvrant que le
+ * pipeline, l'URL signée est générée via le client service-role APRÈS cette
+ * lecture RLS.
+ */
+export async function getSyntheseCdpDownloadUrl(
+  syntheseId: string,
+): Promise<{ url?: string; error?: string }> {
+  if (!uuidSchema.safeParse(syntheseId).success) {
+    return { error: 'Synthèse invalide' };
+  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: 'Non authentifié' };
+
+  // Lecture via RLS : ne renvoie la ligne que si l'utilisateur y a droit
+  // (pipeline/admin, ou CDP affecté du client une fois la vague 2 déclenchée).
+  const { data: synthese } = await supabase
+    .from('document_synthese')
+    .select('id, pdf_path_cdp')
+    .eq('id', syntheseId)
+    .maybeSingle();
+  if (!synthese) return { error: 'Accès refusé' };
+  if (!synthese.pdf_path_cdp) return { error: 'Document indisponible' };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.storage
+    .from(BUCKET)
+    .createSignedUrl(synthese.pdf_path_cdp, 300);
+  if (error || !data) return { error: 'Lien indisponible' };
+  return { url: data.signedUrl };
+}
+
+/**
+ * État courant de la passation pour la fiche prospect : synthèse + saisies
+ * (reco) + présence d'un CDP référent sur le client lié.
  */
 export async function getPassationState(prospectId: string): Promise<{
   synthese: PassationSynthese | null;
+  reco: PassationReco | null;
   hasCdpReferent: boolean;
   error?: string;
 }> {
   if (!uuidSchema.safeParse(prospectId).success) {
     return {
       synthese: null,
+      reco: null,
       hasCdpReferent: false,
       error: 'Prospect invalide',
     };
   }
   const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId || !(isAdmin(role) || canAccessPipeline(role, pipeline))) {
-    return { synthese: null, hasCdpReferent: false, error: 'Accès refusé' };
+    return {
+      synthese: null,
+      reco: null,
+      hasCdpReferent: false,
+      error: 'Accès refusé',
+    };
   }
 
   const synthese = await getSyntheseByProspect(prospectId);
+  const reco = synthese ? await getRecoBySynthese(synthese.id) : null;
 
   let hasCdpReferent = false;
-  const { data: prospect } = await supabase
-    .from('prospects')
-    .select('client_id')
-    .eq('id', prospectId)
-    .single();
-  if (prospect?.client_id) {
+  if (synthese?.client_id) {
     const { data: client } = await supabase
       .from('clients')
       .select('cdp_referent_id')
-      .eq('id', prospect.client_id)
+      .eq('id', synthese.client_id)
       .maybeSingle();
     hasCdpReferent = Boolean(client?.cdp_referent_id);
   }
 
-  return { synthese, hasCdpReferent };
+  return { synthese, reco, hasCdpReferent };
 }

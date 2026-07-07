@@ -173,12 +173,14 @@ export type RoleDecisionContact =
   | 'signataire'
   | 'sponsor'
   | 'operationnel'
+  | 'drh'
   | 'soutien';
 
 export const ROLE_DECISION_LABELS: Record<RoleDecisionContact, string> = {
   signataire: 'Signataire',
   sponsor: 'Sponsor',
   operationnel: 'Opérationnel',
+  drh: 'Référent DRH',
   soutien: 'Soutien',
 };
 
@@ -275,23 +277,105 @@ export const DISPO_CDP_COLORS: Record<DispoCdp, BadgeColor> = {
 export const CDP_SATURATION_CLIENTS = 5;
 export const CDP_SATURATION_ALTERNANTS = 300;
 
-// Statut d'une synthèse de passation (Feature 6)
+// Statut d'une synthèse de passation (Feature 6). Machine à états spec :
+// generee -> en_cours_completion -> en_attente_arbitrage -> cdp_affecte ->
+// archivee. Les valeurs diffusee_vague1/diffusee_vague2 sont legacy (mappées
+// au backfill) mais restent dans l'enum Postgres.
 export type StatutSynthese =
   | 'generee'
+  | 'en_cours_completion'
+  | 'en_attente_arbitrage'
+  | 'cdp_affecte'
   | 'diffusee_vague1'
   | 'diffusee_vague2'
   | 'archivee';
 
 export const STATUT_SYNTHESE_LABELS: Record<StatutSynthese, string> = {
   generee: 'Générée',
-  diffusee_vague1: 'Diffusée (Référent + Direction)',
-  diffusee_vague2: 'Diffusée (CDP affecté)',
+  en_cours_completion: 'En cours de complétion',
+  en_attente_arbitrage: "En attente d'arbitrage",
+  cdp_affecte: 'CDP affecté',
+  diffusee_vague1: "En attente d'arbitrage",
+  diffusee_vague2: 'CDP affecté',
   archivee: 'Archivée',
 };
 
 export const STATUT_SYNTHESE_COLORS: Record<StatutSynthese, BadgeColor> = {
   generee: 'blue',
+  en_cours_completion: 'orange',
+  en_attente_arbitrage: 'purple',
+  cdp_affecte: 'green',
   diffusee_vague1: 'purple',
   diffusee_vague2: 'green',
   archivee: 'gray',
 };
+
+// Tunnel d'acquisition (maquette synthèse) : mapping de type_prospect.
+export const TUNNEL_LABELS: Record<TypeProspect, string> = {
+  entreprise: 'Tunnel A - création complète',
+  cfa: 'Tunnel B - CFA existant',
+};
+
+// Modalité de formation (section 4 de la synthèse)
+export type TypeFormation = 'presentiel' | 'distanciel' | 'hybride';
+
+export const TYPE_FORMATION_LABELS: Record<TypeFormation, string> = {
+  presentiel: 'Présentiel',
+  distanciel: 'Distanciel',
+  hybride: 'Hybride (présentiel + e-learning)',
+};
+
+// Initiateur du premier contact (section 3)
+export type InitiateurContact = 'soluvia' | 'prospect';
+
+export const INITIATEUR_LABELS: Record<InitiateurContact, string> = {
+  soluvia: 'Soluvia',
+  prospect: 'Le prospect',
+};
+
+// Section 8 structurée : recommandation d'affectation du Développeur
+export type TypologieClient =
+  | 'exigeant'
+  | 'collaboratif'
+  | 'autonome'
+  | 'accompagnement_fort';
+
+export const TYPOLOGIE_CLIENT_LABELS: Record<TypologieClient, string> = {
+  exigeant: 'Exigeant',
+  collaboratif: 'Collaboratif',
+  autonome: 'Autonome',
+  accompagnement_fort: "Besoin d'accompagnement fort",
+};
+
+export type NiveauCharge = 'faible' | 'moyenne' | 'forte';
+
+export const NIVEAU_CHARGE_LABELS: Record<NiveauCharge, string> = {
+  faible: 'Faible',
+  moyenne: 'Moyenne',
+  forte: 'Forte',
+};
+
+export type NiveauRisque = 'faible' | 'moyen' | 'fort';
+
+export const NIVEAU_RISQUE_LABELS: Record<NiveauRisque, string> = {
+  faible: 'Faible',
+  moyen: 'Moyen',
+  fort: 'Fort',
+};
+
+// Calendrier prévisionnel (section 5) : 10 jalons ordonnés, clés du JSONB
+// prospects.calendrier_previsionnel (valeurs 'YYYY-MM').
+export const JALONS_CALENDRIER = [
+  { key: 'demarrage', label: 'Démarrage Mission A' },
+  { key: 'recrut_directeur', label: 'Recrutement Directeur de centre' },
+  { key: 'nda', label: 'Obtention du NDA' },
+  { key: 'qualiopi', label: 'Obtention Qualiopi' },
+  { key: 'uai', label: "Obtention de l'UAI" },
+  { key: 'agrements', label: "Demande d'agréments (DREETS)" },
+  { key: 'opco', label: 'Inscription aux OPCO' },
+  { key: 'recrut_formateurs', label: 'Recrutement des formateurs' },
+  { key: 'premiere_cohorte', label: '1ère inscription des cohortes' },
+  { key: 'premiere_facture', label: '1ères facturations Soluvia' },
+] as const;
+
+export type JalonCalendrierKey = (typeof JALONS_CALENDRIER)[number]['key'];

@@ -73,6 +73,14 @@ export function FicheIdentiteForm({ prospect, locked }: Props) {
       ? String(prospect.volume_apprenants)
       : '',
   );
+  const [implantations, setImplantations] = useState(
+    prospect.nb_implantations != null ? String(prospect.nb_implantations) : '',
+  );
+  const [caDernierExercice, setCaDernierExercice] = useState(
+    prospect.ca_dernier_exercice != null
+      ? String(prospect.ca_dernier_exercice)
+      : '',
+  );
   const [pointsVigilance, setPointsVigilance] = useState(
     prospect.points_vigilance ?? '',
   );
@@ -94,6 +102,26 @@ export function FicheIdentiteForm({ prospect, locked }: Props) {
       volumeApprenants = n;
     }
 
+    let nbImplantations: number | null = null;
+    if (implantations.trim() !== '') {
+      const n = parseInt(implantations, 10);
+      if (Number.isNaN(n) || n < 0) {
+        toast.error("Nombre d'implantations invalide");
+        return;
+      }
+      nbImplantations = n;
+    }
+
+    let caDernier: number | null = null;
+    if (caDernierExercice.trim() !== '') {
+      const n = parseFloat(caDernierExercice);
+      if (Number.isNaN(n) || n < 0) {
+        toast.error('CA dernier exercice invalide');
+        return;
+      }
+      caDernier = n;
+    }
+
     startTransition(async () => {
       const r = await updateProspectIdentite({
         id: prospect.id,
@@ -106,6 +134,8 @@ export function FicheIdentiteForm({ prospect, locked }: Props) {
         dirigeantTelephone: dirigeantTelephone.trim() || null,
         canalOrigine: (canalOrigine || null) as CanalOrigine | null,
         volumeApprenants,
+        nbImplantations,
+        caDernierExercice: caDernier,
         pointsVigilance: pointsVigilance.trim() || null,
         notesInterEquipe: notesInterEquipe.trim() || null,
       });
@@ -127,6 +157,8 @@ export function FicheIdentiteForm({ prospect, locked }: Props) {
     dirigeantTelephone,
     canalOrigine,
     volume,
+    implantations,
+    caDernierExercice,
     pointsVigilance,
     notesInterEquipe,
     router,
@@ -239,6 +271,29 @@ export function FicheIdentiteForm({ prospect, locked }: Props) {
             value={volume}
             disabled={locked}
             onChange={(e) => setVolume(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ident-implantations">Implantations</Label>
+          <Input
+            id="ident-implantations"
+            type="number"
+            min="0"
+            value={implantations}
+            disabled={locked}
+            onChange={(e) => setImplantations(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ident-ca">CA dernier exercice (€)</Label>
+          <Input
+            id="ident-ca"
+            type="number"
+            min="0"
+            step="0.01"
+            value={caDernierExercice}
+            disabled={locked}
+            onChange={(e) => setCaDernierExercice(e.target.value)}
           />
         </div>
         <div className="space-y-2 sm:col-span-2">

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createHmac } from 'node:crypto';
+import { genererSyntheseCore } from '@/lib/passation/core';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { timingSafeStrEqual } from '@/lib/utils/secure-compare';
 import { logger } from '@/lib/utils/logger';
@@ -137,6 +138,23 @@ export async function POST(request: Request) {
       id: demande.id,
     });
     return NextResponse.json({ error: 'Mise à jour échouée' }, { status: 500 });
+  }
+
+  // Génération automatique de la synthèse de passation (Feature 6). Idempotent
+  // (no-op si elle existe déjà) et non bloquant : le webhook doit répondre 2xx.
+  if (statut === 'signee') {
+    try {
+      await genererSyntheseCore(supabase, demande.prospect_id, {
+        generePar: null,
+        signatureId: demande.id,
+        signatureSigneeAt: update.signed_at ?? null,
+      });
+    } catch (err) {
+      logger.error(SCOPE, 'Génération synthèse de passation échouée', {
+        prospectId: demande.prospect_id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   return NextResponse.json({ success: true, statut });

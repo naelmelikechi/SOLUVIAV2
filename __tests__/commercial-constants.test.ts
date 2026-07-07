@@ -47,7 +47,7 @@ const VALEURS = {
     'apporteur',
     'autre',
   ],
-  roleDecision: ['signataire', 'sponsor', 'operationnel', 'soutien'],
+  roleDecision: ['signataire', 'sponsor', 'operationnel', 'drh', 'soutien'],
   sante: ['vert', 'orange', 'rouge'],
   statutSignature: [
     'brouillon',

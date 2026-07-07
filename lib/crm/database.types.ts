@@ -1,6 +1,6 @@
 // Types du schéma Postgres `crm` (CRM commercial "perf" monté dans SOLUVIA).
 //
-// HAND-AUTHORED — dérivé à la main de outilcommercialPerf/lib/database.types.ts.
+// HAND-AUTHORED — dérivé à la main des types du CRM Perf de référence.
 // NE PAS régénérer via `supabase gen types` : le schéma `crm` est isolé et
 // rebranché sur `public.users` (SOLUVIA), et ces types n'importent RIEN du
 // repo perf. Le schéma est exposé sous la clé `crm` afin que

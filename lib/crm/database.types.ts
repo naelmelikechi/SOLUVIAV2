@@ -19,6 +19,11 @@ export type Json =
 export type OppStatut = 'ouverte' | 'gagnee' | 'perdue';
 export type RdvStatut = 'planifie' | 'realise' | 'annule';
 export type Priorite = 'basse' | 'normale' | 'haute';
+export type EtapeType = 'ouverte' | 'gagnee' | 'perdue';
+export type CompteStatut = 'prospect' | 'client' | 'perdu';
+export type ActiviteType = 'note' | 'appel' | 'email' | 'systeme';
+export type NotificationType = 'mention' | 'rdv_assigned' | 'relance_assigned';
+export type RecapTrigger = 'cron' | 'manuel';
 
 export interface Database {
   crm: {
@@ -29,7 +34,7 @@ export interface Database {
           libelle: string;
           ordre: number;
           couleur: string;
-          type: string;
+          type: EtapeType;
           actif: boolean;
           created_at: string;
         };
@@ -38,7 +43,7 @@ export interface Database {
           libelle: string;
           ordre?: number;
           couleur?: string;
-          type?: string;
+          type?: EtapeType;
           actif?: boolean;
           created_at?: string;
         };
@@ -47,7 +52,7 @@ export interface Database {
           libelle?: string;
           ordre?: number;
           couleur?: string;
-          type?: string;
+          type?: EtapeType;
           actif?: boolean;
           created_at?: string;
         };
@@ -63,7 +68,7 @@ export interface Database {
           site_web: string | null;
           telephone: string | null;
           siret: string | null;
-          statut: string;
+          statut: CompteStatut;
           source: string | null;
           responsable_id: string | null;
           notes: string | null;
@@ -80,7 +85,7 @@ export interface Database {
           site_web?: string | null;
           telephone?: string | null;
           siret?: string | null;
-          statut?: string;
+          statut?: CompteStatut;
           source?: string | null;
           responsable_id?: string | null;
           notes?: string | null;
@@ -97,7 +102,7 @@ export interface Database {
           site_web?: string | null;
           telephone?: string | null;
           siret?: string | null;
-          statut?: string;
+          statut?: CompteStatut;
           source?: string | null;
           responsable_id?: string | null;
           notes?: string | null;
@@ -301,7 +306,7 @@ export interface Database {
       activites: {
         Row: {
           id: string;
-          type: string;
+          type: ActiviteType;
           opportunite_id: string | null;
           compte_id: string | null;
           auteur_id: string | null;
@@ -310,7 +315,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          type?: string;
+          type?: ActiviteType;
           opportunite_id?: string | null;
           compte_id?: string | null;
           auteur_id?: string | null;
@@ -319,7 +324,7 @@ export interface Database {
         };
         Update: {
           id?: string;
-          type?: string;
+          type?: ActiviteType;
           opportunite_id?: string | null;
           compte_id?: string | null;
           auteur_id?: string | null;
@@ -529,7 +534,7 @@ export interface Database {
           id: string;
           user_id: string;
           actor_id: string | null;
-          type: string;
+          type: NotificationType;
           contenu: string;
           link: string | null;
           lu: boolean;
@@ -539,7 +544,7 @@ export interface Database {
           id?: string;
           user_id: string;
           actor_id?: string | null;
-          type: string;
+          type: NotificationType;
           contenu: string;
           link?: string | null;
           lu?: boolean;
@@ -549,7 +554,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           actor_id?: string | null;
-          type?: string;
+          type?: NotificationType;
           contenu?: string;
           link?: string | null;
           lu?: boolean;
@@ -576,7 +581,7 @@ export interface Database {
         Row: {
           id: string;
           recap_date: string;
-          trigger: string;
+          trigger: RecapTrigger;
           destinataires: string;
           sujet: string;
           meta: Json | null;
@@ -586,7 +591,7 @@ export interface Database {
         Insert: {
           id?: string;
           recap_date: string;
-          trigger?: string;
+          trigger?: RecapTrigger;
           destinataires: string;
           sujet: string;
           meta?: Json | null;
@@ -596,7 +601,7 @@ export interface Database {
         Update: {
           id?: string;
           recap_date?: string;
-          trigger?: string;
+          trigger?: RecapTrigger;
           destinataires?: string;
           sujet?: string;
           meta?: Json | null;

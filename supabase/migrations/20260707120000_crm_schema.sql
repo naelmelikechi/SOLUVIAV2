@@ -20,7 +20,6 @@
 -- ============================================================================
 
 create schema if not exists crm;
-create extension if not exists pgcrypto;
 
 -- updated_at auto (copie du body perf, namespacé crm)
 create or replace function crm.set_updated_at() returns trigger language plpgsql as $$
@@ -115,6 +114,7 @@ create table crm.opportunites (
 create trigger opportunites_updated before update on crm.opportunites for each row execute function crm.set_updated_at();
 create index opportunites_compte_idx on crm.opportunites(compte_id);
 create index opportunites_etape_idx on crm.opportunites(etape_id);
+create index opportunites_owner_idx on crm.opportunites(owner_id);
 
 -- ACTIVITES (timeline) --------------------------------------------------------
 create table crm.activites (
@@ -148,6 +148,9 @@ create table crm.relances (
 );
 create index relances_echeance_idx on crm.relances(date_echeance) where fait = false;
 create index relances_actives_idx on crm.relances(date_echeance) where archived_at is null;
+create index relances_opportunite_idx on crm.relances(opportunite_id);
+create index relances_compte_idx on crm.relances(compte_id);
+create index relances_assignee_idx on crm.relances(assignee_id);
 
 -- RDV -------------------------------------------------------------------------
 create table crm.rdv (
@@ -166,6 +169,8 @@ create table crm.rdv (
   constraint rdv_fin_apres_debut check (fin >= debut)
 );
 create index rdv_debut_idx on crm.rdv(debut);
+create index rdv_opportunite_idx on crm.rdv(opportunite_id);
+create index rdv_compte_idx on crm.rdv(compte_id);
 
 -- RDV_COMMERCIAUX (M2M : plusieurs commerciaux par RDV) -----------------------
 -- perf : (rdv_id, profile_id) ; ici profile_id -> user_id -> public.users.
@@ -269,22 +274,19 @@ begin
     end if;
   end loop;
 
-  -- 2 bis. Adresses / établissements (déjà normalisées). Sautées si la table
-  -- n'est pas présente (dégradation gracieuse, comme l'ancien code).
-  if to_regclass('crm.adresses') is not null then
-    for a in select value from jsonb_array_elements(coalesce(p->'adresses', '[]'::jsonb)) t(value)
-    loop
-      insert into crm.adresses (compte_id, libelle, ville, departement, region, principal)
-      values (
-        v_compte,
-        nullif(a->>'libelle', ''),
-        nullif(a->>'ville', ''),
-        nullif(a->>'departement', ''),
-        nullif(a->>'region', ''),
-        coalesce((a->>'principal')::boolean, false)
-      );
-    end loop;
-  end if;
+  -- 2 bis. Adresses / établissements (déjà normalisées).
+  for a in select value from jsonb_array_elements(coalesce(p->'adresses', '[]'::jsonb)) t(value)
+  loop
+    insert into crm.adresses (compte_id, libelle, ville, departement, region, principal)
+    values (
+      v_compte,
+      nullif(a->>'libelle', ''),
+      nullif(a->>'ville', ''),
+      nullif(a->>'departement', ''),
+      nullif(a->>'region', ''),
+      coalesce((a->>'principal')::boolean, false)
+    );
+  end loop;
 
   -- 3. Opportunité (intitulé = nom de la société).
   insert into crm.opportunites (intitule, compte_id, contact_principal_id, etape_id, nb_alternants, cfa, date_cible_prochain_rdv, owner_id)
@@ -300,7 +302,7 @@ begin
   )
   returning id into v_opp;
 
-  -- 4. 1er RDV (si fourni) + liaison commercial (si table présente).
+  -- 4. 1er RDV (si fourni) + liaison commercial.
   if coalesce(p->>'date_premier_rdv', '') <> '' then
     v_debut := (p->>'date_premier_rdv')::timestamptz;
     insert into crm.rdv (titre, debut, fin, opportunite_id, compte_id, created_by)
@@ -314,9 +316,7 @@ begin
     )
     returning id into v_rdv;
 
-    if to_regclass('crm.rdv_commerciaux') is not null then
-      insert into crm.rdv_commerciaux (rdv_id, user_id) values (v_rdv, v_owner);
-    end if;
+    insert into crm.rdv_commerciaux (rdv_id, user_id) values (v_rdv, v_owner);
   end if;
 
   -- 5. Commentaire (si fourni) -> activité de type note.
@@ -393,6 +393,16 @@ create policy crm_recaps_select on crm.recaps
   for select using (public.is_admin());
 create policy crm_recaps_insert on crm.recaps
   for insert with check (trigger = 'manuel' and actor_id = auth.uid());
+
+-- ============================================================================
+-- GRANTS : privilèges de schéma / tables / routines.
+-- La RLS reste la garde principale ; ces grants ouvrent l'accès aux seuls
+-- rôles applicatifs (jamais `anon`).
+-- ============================================================================
+grant usage on schema crm to authenticated, service_role;
+grant select, insert, update, delete on all tables in schema crm to authenticated;
+grant all on all tables in schema crm to service_role;
+grant execute on all routines in schema crm to authenticated, service_role;
 
 -- ============================================================================
 -- SEED : 7 étapes standard (perf seed.sql).

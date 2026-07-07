@@ -124,7 +124,7 @@ create policy crm_comptes_all on crm.comptes for all
 
 - [ ] **Step 5 — Seed 7 étapes** (depuis `seed.sql`) : `insert into crm.etapes (libelle, ordre, couleur, type) values …`.
 - [ ] **Step 6 — Exposer le schéma `crm`.** Dans `supabase/config.toml` (local) : `schemas = ["public", "graphql_public", "crm"]`. **Prod** : ajouter `crm` dans Dashboard → Settings → API → Exposed schemas (noter dans le runbook — non versionné).
-- [ ] **Step 7 — Appliquer** la migration (procédure repo : SQL Editor Studio / `db:migrate`) sur la base de dev, puis **régénérer les types** : `supabase gen types typescript --schema crm > lib/crm/database.types.ts`.
+- [ ] **Step 7 — Appliquer** la migration (procédure repo : SQL Editor Studio / `db:migrate`) sur la base de dev. **NE PAS régénérer** les types via `supabase gen types` : `lib/crm/database.types.ts` est **écrit à la main** (rebranché sur `public.users` + unions littérales locales) et serait écrasé par la génération. À toute évolution du schéma `crm`, éditer ce fichier à la main pour qu'il corresponde.
 - [ ] **Step 8 — Vérifier** : `select * from crm.etapes;` renvoie 7 lignes ; `\d crm.opportunites` montre `owner_id → public.users`.
 - [ ] **Step 9 — Commit** : `feat(crm): crm schema (tables/rpc/rls) mapped onto public.users`.
 

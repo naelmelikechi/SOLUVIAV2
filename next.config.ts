@@ -15,7 +15,7 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://api.dicebear.com https://*.giphy.com https://*.supabase.co",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://geo.api.gouv.fr https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://*.ingest.us.sentry.io https://va.vercel-scripts.com https://vitals.vercel-insights.com",
   "frame-src 'self' https://*.eduvia.app",
   // 'self' (et non 'none') : la sheet d apercu de brouillon de facture
   // utilise un <iframe> meme-origine pour rendre le PDF, ce que 'none'

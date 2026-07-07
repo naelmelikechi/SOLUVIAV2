@@ -4,9 +4,10 @@ import type { RecapModel } from '@/lib/crm/domain/recap';
 import { env } from '@/lib/env';
 
 const RESEND_API_KEY = env.RESEND_API_KEY;
-const RESEND_FROM = process.env.RESEND_FROM || 'Perf <noreply@mysoluvia.com>';
+const RESEND_FROM =
+  process.env.RESEND_FROM || 'Soluvia <noreply@mysoluvia.com>';
 // Base absolue pour les images de l'email (les clients mail exigent des URLs absolues).
-const SITE = (env.NEXT_PUBLIC_SITE_URL || 'https://perf.mysoluvia.com').replace(
+const SITE = (env.NEXT_PUBLIC_SITE_URL || 'https://app.mysoluvia.com').replace(
   /\/$/,
   '',
 );
@@ -64,7 +65,7 @@ function brandedShell(opts: {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7f8;padding:32px 12px"><tr><td align="center">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #e2e8ea;border-radius:14px;overflow:hidden">
       <tr><td style="background:#0B1220;padding:22px 32px;text-align:center">
-        <img src="${SITE}/brand/perf-mark.png" width="34" height="34" alt="Perf" style="display:inline-block;vertical-align:middle;border:0" />
+        <img src="${SITE}/logo.png" width="34" height="34" alt="Soluvia" style="display:inline-block;vertical-align:middle;border:0" />
       </td></tr>
       <tr><td style="padding:32px">
         <h1 style="margin:0 0 20px;font-size:18px;font-weight:700;color:#102D3A">${escapeHtml(opts.title)}</h1>
@@ -85,7 +86,7 @@ export function credentialsEmail(opts: {
   const loginUrl = `${SITE}/login`;
   const isInvite = opts.kind === 'invite';
   const intro = isInvite
-    ? 'Votre compte sur le CRM Perf est prêt. Connectez-vous avec les identifiants ci-dessous.'
+    ? 'Votre compte sur le CRM Soluvia est prêt. Connectez-vous avec les identifiants ci-dessous.'
     : 'Votre mot de passe a été réinitialisé. Connectez-vous avec le mot de passe temporaire ci-dessous.';
   const bodyHtml = `
     <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#5A7A85">${intro}</p>
@@ -230,7 +231,7 @@ export function recapEmail(m: RecapModel): { subject: string; html: string } {
     ${recapSection('Répartition du pipeline', funnelInner)}
     ${recapSection('Par commercial', commInner)}
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:26px"><tr><td style="border-radius:10px;background:#4F46E5">
-      <a href="${SITE}/dashboard" style="display:inline-block;padding:11px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none">Ouvrir le CRM</a>
+      <a href="${SITE}/crm/dashboard" style="display:inline-block;padding:11px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none">Ouvrir le CRM</a>
     </td></tr></table>
     <p style="margin:20px 0 0;font-size:11px;line-height:1.6;color:#8AA0A8">Récap automatique · lundi, mercredi & vendredi.</p>`;
 

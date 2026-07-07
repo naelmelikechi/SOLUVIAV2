@@ -4,7 +4,12 @@ import { resolve } from 'path';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['__tests__/**/*.test.ts', '__tests__/**/*.test.tsx'],
+    include: [
+      '__tests__/**/*.test.ts',
+      '__tests__/**/*.test.tsx',
+      'lib/crm/**/*.test.ts',
+      'lib/crm/**/*.test.tsx',
+    ],
     exclude: ['node_modules', '.next', 'dist'],
     // Dummy NEXT_PUBLIC_* pour que @/lib/env (zod, evalue a l'import) ne jette
     // pas en CI ou aucun .env.local n'existe. Les tests ne doivent pas dependre

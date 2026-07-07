@@ -77,7 +77,7 @@ export function qCompaniesIdcc(
 ) {
   return supabase
     .from('eduvia_companies')
-    .select('eduvia_id, idcc_code')
+    .select('eduvia_id, idcc_code, client_id')
     .in('client_id', clientIds);
 }
 

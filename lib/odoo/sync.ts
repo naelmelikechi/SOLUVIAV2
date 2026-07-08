@@ -187,7 +187,10 @@ async function pushFactures(
             company_id: societe?.odoo_company_id ?? null,
           });
           if (r.action === 'skipped' && r.reason && r.reason !== 'stub') {
-            logger.warn(SCOPE, 'Auto-reconcile model skipped', {
+            // Skip attendu (ex. modele fait main deja en place pour ce client) :
+            // niveau info, pas warn, pour ne pas polluer Sentry a chaque sync
+            // (cf. SOLUVIA-1Z). Le log JSON local reste pour forensics.
+            logger.info(SCOPE, 'Auto-reconcile model skipped', {
               facture_id: f.id,
               client: client.raison_sociale,
               reason: r.reason,

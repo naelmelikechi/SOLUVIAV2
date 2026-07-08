@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
+import { resolveTauxCommission } from '@/lib/utils/commission';
 import type { Database } from '@/types/database';
 
 type FactureRow = Database['public']['Tables']['factures']['Row'];
@@ -293,7 +294,7 @@ export async function getProjetActiveContratsForFacturation(projetId: string) {
     projetRef: projet.ref ?? '',
     clientId: projet.client_id,
     clientRaisonSociale: projet.client?.raison_sociale ?? '',
-    tauxCommission: Number(projet.taux_commission ?? 10),
+    tauxCommission: resolveTauxCommission(projet.taux_commission),
     contrats: contrats ?? [],
   };
 }
@@ -327,7 +328,7 @@ export async function listProjetsForFacturation() {
   return (data ?? []).map((p) => ({
     id: p.id,
     ref: p.ref ?? '',
-    taux_commission: Number(p.taux_commission ?? 10),
+    taux_commission: resolveTauxCommission(p.taux_commission),
     client_id: p.client?.id ?? '',
     client_raison_sociale: p.client?.raison_sociale ?? '',
     is_demo: p.client?.is_demo ?? false,

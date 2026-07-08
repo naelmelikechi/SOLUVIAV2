@@ -3494,11 +3494,12 @@ export type Database = {
       };
       signature_requests: {
         Row: {
+          client_id: string | null;
           created_at: string;
           document_path: string | null;
           id: string;
           initiated_by: string | null;
-          prospect_id: string;
+          prospect_id: string | null;
           provider: string;
           provider_request_id: string | null;
           sent_at: string | null;
@@ -3509,11 +3510,12 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          client_id?: string | null;
           created_at?: string;
           document_path?: string | null;
           id?: string;
           initiated_by?: string | null;
-          prospect_id: string;
+          prospect_id?: string | null;
           provider?: string;
           provider_request_id?: string | null;
           sent_at?: string | null;
@@ -3524,11 +3526,12 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          client_id?: string | null;
           created_at?: string;
           document_path?: string | null;
           id?: string;
           initiated_by?: string | null;
-          prospect_id?: string;
+          prospect_id?: string | null;
           provider?: string;
           provider_request_id?: string | null;
           sent_at?: string | null;
@@ -3539,6 +3542,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'signature_requests_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'signature_requests_initiated_by_fkey';
             columns: ['initiated_by'];

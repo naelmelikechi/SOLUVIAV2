@@ -10,7 +10,8 @@ export interface AuditAnomaly {
     | 'npec_zero_actif'
     | 'rupture_sans_date_fin'
     | 'orphan_resync_warning'
-    | 'client_sans_sync_24h';
+    | 'client_sans_sync_24h'
+    | 'projets_taux_defaut';
   count: number;
   sample?: string[];
 }
@@ -27,6 +28,8 @@ const ANOMALY_LABELS: Record<AuditAnomaly['type'], string> = {
     'contrat(s) orphelin(s) archivé(s) en masse (API instable ?)',
   client_sans_sync_24h:
     'client(s) avec clé API active sans synchronisation Eduvia depuis plus de 24h',
+  projets_taux_defaut:
+    'projet(s) facturant encore au taux de commission par défaut (10%) - à vérifier',
 };
 
 export function formatAnomaliesMessage(anomalies: AuditAnomaly[]): string {

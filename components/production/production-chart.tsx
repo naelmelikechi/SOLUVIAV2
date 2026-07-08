@@ -70,6 +70,17 @@ export const ProductionChart = memo(function ProductionChart({
             ? 'Production (montants bruts OPCO)'
             : 'Production vs Facturé vs Encaissé'}
         </CardTitle>
+        {!productionOnly && (
+          <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+            Trois vues du même euro de commission, qui ne se superposent pas
+            mois par mois (c&apos;est normal) :{' '}
+            <span className="font-medium">Production</span> = commission lissée
+            sur toute la durée du contrat (pilotage) ;{' '}
+            <span className="font-medium">Facturé</span> = factures réellement
+            émises ce mois ; <span className="font-medium">Encaissé</span> =
+            règlements OPCO reçus (ramenés en HT).
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         <RechartsLine

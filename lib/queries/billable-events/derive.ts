@@ -1,4 +1,5 @@
 import { classifyLineType } from '@/lib/eduvia/line-types';
+import { resolveTauxCommission } from '@/lib/utils/commission';
 import { resolveOpcoFromIdcc, normalizeIdcc } from '@/lib/opco/resolve';
 import type { getActiveOpcoMapping } from '@/lib/queries/opcos';
 import type {
@@ -72,7 +73,7 @@ export function assembleProjetBillableEvents(input: {
     existingLignes,
   } = input;
 
-  const taux = Number(projet.taux_commission ?? 10);
+  const taux = resolveTauxCommission(projet.taux_commission);
   const base = {
     projetId: projet.id,
     projetRef: projet.ref ?? '',

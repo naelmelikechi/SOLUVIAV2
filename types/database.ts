@@ -4031,7 +4031,8 @@ export type Database = {
         | 'linkedin_prospect_cree'
         | 'linkedin_erreur'
         | 'passation_a_completer'
-        | 'passation_rappel';
+        | 'passation_rappel'
+        | 'taux_derogatoire';
       type_prospect: 'cfa' | 'entreprise';
       type_rdv:
         | 'presentation'
@@ -4278,6 +4279,7 @@ export const Constants = {
         'linkedin_erreur',
         'passation_a_completer',
         'passation_rappel',
+        'taux_derogatoire',
       ],
       type_prospect: ['cfa', 'entreprise'],
       type_rdv: [

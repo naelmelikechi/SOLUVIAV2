@@ -15,6 +15,8 @@ import {
 } from '@/lib/crm/validators/negociation';
 import { toAdresseRow, isAdresseVide } from '@/lib/crm/validators/adresse';
 import { onOpportuniteGagnee } from '@/lib/crm/actions/pont';
+import { notifierTauxDerogatoire } from '@/lib/crm/alertes/taux-derogatoire';
+import { doitAlerterTaux } from '@/lib/crm/domain/taux';
 import type { OppStatut } from '@/lib/crm/domain/enums';
 
 /**
@@ -167,14 +169,35 @@ export async function updateOpportuniteNegociation(
   id: string,
   input: NegociationInput,
 ): Promise<void> {
-  await requireCrmUser();
+  const user = await requireCrmUser();
   const parsed = negociationSchema.parse(input);
   const supabase = await createCrmClient();
+  // Ancien taux AVANT l'update : l'alerte Direction ne part qu'au FRANCHISSEMENT
+  // du seuil (null ou >= 35 -> < 35), pas à chaque re-sauvegarde sous le seuil.
+  const { data: avant } = await supabase
+    .from('opportunites')
+    .select('taux_npec')
+    .eq('id', id)
+    .maybeSingle();
   const { error } = await supabase
     .from('opportunites')
     .update(parsed)
     .eq('id', id);
   if (error) dbFail(error, 'Mise à jour de la négociation impossible');
+  // Garde-fou taux dérogatoire < 35 % (Direction 2026-06-09). Best-effort,
+  // jamais levé : un échec de notification ne casse pas la sauvegarde.
+  // NB : `taux_npec` n'est saisi QUE par ce bloc négociation (la création
+  // unifiée n'a pas de champ taux), c'est donc l'unique point d'ancrage.
+  if (
+    parsed.taux_npec != null &&
+    doitAlerterTaux(avant?.taux_npec ?? null, parsed.taux_npec)
+  ) {
+    await notifierTauxDerogatoire({
+      oppId: id,
+      taux: parsed.taux_npec,
+      saisiPar: { id: user.id, email: user.email },
+    });
+  }
   revalidatePath('/crm/pipeline');
 }
 

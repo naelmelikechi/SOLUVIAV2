@@ -351,7 +351,8 @@ export async function computeCommercialKpis(
     });
   }
   for (const row of signaturesData ?? []) {
-    if (!prospectIds.has(row.prospect_id) || !row.signed_at) continue;
+    if (!row.prospect_id || !prospectIds.has(row.prospect_id) || !row.signed_at)
+      continue;
     const d = new Date(row.signed_at);
     const existing = signeDateByProspect.get(row.prospect_id);
     if (!existing || d < existing) signeDateByProspect.set(row.prospect_id, d);

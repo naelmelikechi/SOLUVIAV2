@@ -22,7 +22,11 @@ export type Priorite = 'basse' | 'normale' | 'haute';
 export type EtapeType = 'ouverte' | 'gagnee' | 'perdue';
 export type CompteStatut = 'prospect' | 'client' | 'perdu';
 export type ActiviteType = 'note' | 'appel' | 'email' | 'systeme';
-export type NotificationType = 'mention' | 'rdv_assigned' | 'relance_assigned';
+export type NotificationType =
+  | 'mention'
+  | 'rdv_assigned'
+  | 'relance_assigned'
+  | 'sante_opportunite';
 export type RecapTrigger = 'cron' | 'manuel';
 // Phase 2 (A2) — enums négociation/passation, alignés sur lib/utils/constants.ts.
 export type CrmRoleDecision =
@@ -292,6 +296,8 @@ export interface Database {
           type_prospect: CrmTypeProspect | null;
           calendrier_previsionnel: Json | null;
           client_id: string | null;
+          alerte_sante_14_at: string | null;
+          alerte_sante_30_at: string | null;
           owner_id: string | null;
           created_at: string;
           updated_at: string;
@@ -332,6 +338,8 @@ export interface Database {
           type_prospect?: CrmTypeProspect | null;
           calendrier_previsionnel?: Json | null;
           client_id?: string | null;
+          alerte_sante_14_at?: string | null;
+          alerte_sante_30_at?: string | null;
           owner_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -372,6 +380,8 @@ export interface Database {
           type_prospect?: CrmTypeProspect | null;
           calendrier_previsionnel?: Json | null;
           client_id?: string | null;
+          alerte_sante_14_at?: string | null;
+          alerte_sante_30_at?: string | null;
           owner_id?: string | null;
           created_at?: string;
           updated_at?: string;

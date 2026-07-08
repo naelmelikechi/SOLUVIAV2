@@ -170,6 +170,9 @@ export async function uploadSignedDocument(
     .eq('id', id)
     .single();
   if (!req) return { success: false, error: 'Demande inconnue' };
+  // Flux prospect-based (les demandes CRM/client-based sont hors de ce chemin).
+  if (!req.prospect_id)
+    return { success: false, error: 'Demande sans prospect associé' };
 
   const up = await uploadToBucket(supabase, req.prospect_id, file, 'signe');
   if (up.error) return { success: false, error: up.error };

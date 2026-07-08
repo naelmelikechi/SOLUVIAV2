@@ -37,6 +37,9 @@ import { RdvForm } from '@/components/crm/rdv/rdv-form';
 import { StageBar } from './stage-bar';
 import { OppQuickEdit } from './opp-quick-edit';
 import { OppAdresses, type OppAdresse } from './opp-adresses';
+import { OppNegociation } from './opp-negociation';
+import { OppInsee } from './opp-insee';
+import { OppContactRole } from './opp-contact-role';
 import { Trash2 } from 'lucide-react';
 import { ConfirmButton } from '@/components/crm/shared/confirm-button';
 import { addNote } from '@/lib/crm/actions/activites';
@@ -56,6 +59,8 @@ export type OppContact = {
   email: string | null;
   telephone: string | null;
   principal: boolean;
+  role_decision: string | null;
+  sensibilites: string | null;
 };
 export type OppDetail = {
   id: string;
@@ -69,10 +74,38 @@ export type OppDetail = {
   date_cloture_prevue: string | null;
   cfa: string | null;
   date_cible_prochain_rdv: string | null;
+  // Négociation / passation (A5)
+  perimetre_missions: string | null;
+  formations_rncp: string[] | null;
+  type_formation: string | null;
+  taux_npec: number | null;
+  duree_contrat_ans: number | null;
+  mois_demarrage: number | null;
+  volume_an1: number | null;
+  volume_an2: number | null;
+  volume_an3: number | null;
+  volume_garanti_seuil: number | null;
+  leviers: string[] | null;
+  canal_origine: string | null;
+  date_premier_contact: string | null;
+  initiateur: string | null;
+  historique_synthese: string | null;
+  numero_contrat: string | null;
+  type_prospect: string | null;
   compte: {
     id: string;
     nom: string;
     nombre_collaborateurs: number | null;
+    // Identité / INSEE (A5)
+    siren: string | null;
+    siret: string | null;
+    forme_juridique: string | null;
+    code_naf: string | null;
+    naf_libelle: string | null;
+    effectif_tranche: string | null;
+    nb_implantations: number | null;
+    ca_dernier_exercice: number | null;
+    insee_verifie: boolean;
     contacts: OppContact[];
     adresses?: OppAdresse[];
   } | null;
@@ -326,43 +359,15 @@ export function OppDrawer({
                   </h3>
                   <div className="divide-border border-border divide-y overflow-hidden rounded-lg border">
                     {opp.compte.contacts.map((c) => (
-                      <div key={c.id} className="px-3 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">
-                            {`${c.prenom ?? ''} ${c.nom ?? ''}`.trim() || '-'}
-                          </span>
-                          {c.principal && (
-                            <Badge variant="secondary" className="text-[10px]">
-                              Principal
-                            </Badge>
-                          )}
-                        </div>
-                        {(c.email || c.telephone) && (
-                          <div className="text-muted-foreground mt-0.5 text-xs">
-                            {c.email && (
-                              <a
-                                href={`mailto:${c.email}`}
-                                className="text-primary hover:underline"
-                              >
-                                {c.email}
-                              </a>
-                            )}
-                            {c.email && c.telephone && ' · '}
-                            {c.telephone && (
-                              <a
-                                href={`tel:${c.telephone}`}
-                                className="text-primary hover:underline"
-                              >
-                                {c.telephone}
-                              </a>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <OppContactRole key={c.id} contact={c} />
                     ))}
                   </div>
                 </section>
               ) : null}
+
+              {opp.compte && <OppInsee compte={opp.compte} />}
+
+              <OppNegociation opp={opp} />
 
               <OppAdresses
                 compteId={opp.compte?.id ?? null}

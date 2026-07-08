@@ -140,6 +140,27 @@ function strArray(v: unknown): string[] {
   return v.filter((x): x is string => typeof x === 'string');
 }
 
+/** Synthèse de passation par id — lecture RLS (pipeline/admin). */
+export async function getSyntheseById(
+  syntheseId: string,
+): Promise<PassationSynthese | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('document_synthese')
+    .select('*')
+    .eq('id', syntheseId)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('queries.passation', 'getSyntheseById failed', {
+      syntheseId,
+      error,
+    });
+    return null;
+  }
+  return data;
+}
+
 /** Dernière synthèse de passation produite pour un prospect (ou null). */
 export async function getSyntheseByProspect(
   prospectId: string,

@@ -19,7 +19,6 @@ import type {
 import type { RdvCommercialWithRefs } from '@/lib/queries/rdv';
 import type { SignatureRequestWithInitiator } from '@/lib/queries/signatures';
 import { SignatureSection } from './signature-section';
-import { PassationSection } from './passation-section';
 import type { FicheCommercial } from './types';
 
 const TAB_VALUES = [
@@ -139,11 +138,6 @@ function FicheTabsInner({
           prospectId={prospect.id}
           signatures={signatures}
           locked={locked}
-        />
-        <PassationSection
-          prospectId={prospect.id}
-          clientId={prospect.client_id}
-          stage={prospect.stage}
         />
       </TabsContent>
 

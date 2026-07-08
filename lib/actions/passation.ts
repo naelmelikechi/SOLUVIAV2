@@ -4,35 +4,46 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getAuthWithPipeline } from '@/lib/auth/guards';
 import { sendSyntheseVague1Email } from '@/lib/email/passation-templates';
-import { genererSyntheseCore, regenerer } from '@/lib/passation/core';
 import {
+  buildSyntheseSnapshotFromOpportunite,
   getRecoBySynthese,
-  getSyntheseByProspect,
   normalizeSnapshot,
   saisiesOf,
 } from '@/lib/queries/passation';
 import type { PassationReco, PassationSynthese } from '@/lib/queries/passation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createCrmAdminClient } from '@/lib/crm/supabase/admin';
 import { getAppUrl } from '@/lib/utils/app-url';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
 import { isAdmin, canAccessPipeline } from '@/lib/utils/roles';
 import { renderSynthesePdf } from '@/lib/utils/synthese-pdf';
+import type { Json } from '@/types/database';
 
 const BUCKET = 'passation-documents';
 const uuidSchema = z.string().uuid();
 
+// Statuts où le snapshot peut encore être régénéré (avant la vague 2 : les
+// PDFs déjà transmis au CDP ne doivent plus bouger).
+const STATUTS_REGENERABLES = new Set([
+  'generee',
+  'en_cours_completion',
+  'en_attente_arbitrage',
+]);
+
 /**
- * Génère la synthèse de passation (bouton fiche prospect). Idempotent : si
- * elle existe déjà, régénère le snapshot (saisies 6/8 conservées, PDFs
- * invalidés).
+ * Régénère le snapshot de la synthèse depuis l'opportunité CRM source
+ * (celle liée au même client). Les saisies 6/8 et les colonnes d'échéances
+ * sont conservées ; les PDFs déjà rendus sont invalidés. La génération
+ * initiale est 100 % automatique via le pont opportunité gagnée
+ * (lib/crm/actions/pont.ts) - il n'existe plus de génération manuelle.
  */
-export async function genererSynthese(
-  prospectId: string,
-): Promise<{ success: boolean; id?: string; error?: string }> {
-  if (!uuidSchema.safeParse(prospectId).success) {
-    return { success: false, error: 'Prospect invalide' };
+export async function regenererSynthese(
+  syntheseId: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!uuidSchema.safeParse(syntheseId).success) {
+    return { success: false, error: 'Synthèse invalide' };
   }
   const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
   if (!userId) return { success: false, error: 'Non authentifié' };
@@ -40,33 +51,63 @@ export async function genererSynthese(
     return { success: false, error: 'Accès refusé' };
   }
 
-  const { data: prospect } = await supabase
-    .from('prospects')
-    .select('stage, client_id')
-    .eq('id', prospectId)
-    .single();
-  if (!prospect) return { success: false, error: 'Prospect introuvable' };
-  // La synthèse de passation n'a de sens qu'après la signature du contrat.
-  if (!(prospect.stage === 'signe' || prospect.client_id != null)) {
+  const { data: synthese } = await supabase
+    .from('document_synthese')
+    .select('id, statut, client_id')
+    .eq('id', syntheseId)
+    .maybeSingle();
+  if (!synthese) return { success: false, error: 'Synthèse inconnue' };
+  if (!STATUTS_REGENERABLES.has(synthese.statut)) {
     return {
       success: false,
-      error: 'Le prospect doit être signé pour générer la synthèse',
+      error: 'Synthèse déjà transmise : régénération impossible',
     };
   }
 
-  const existing = await getSyntheseByProspect(prospectId);
-  const result = existing?.id
-    ? await regenerer(supabase, prospectId, { generePar: userId }, existing.id)
-    : await genererSyntheseCore(supabase, prospectId, { generePar: userId });
-  if (result.error || !result.id) {
-    return {
-      success: false,
-      error: result.error ?? 'Échec de la génération',
-    };
+  const indisponible =
+    'Régénération indisponible pour cette synthèse (source commerciale supprimée)';
+  if (!synthese.client_id) {
+    return { success: false, error: indisponible };
   }
 
-  revalidatePath(`/commercial/prospects/${prospectId}`);
-  return { success: true, id: result.id };
+  // Retrouve l'opportunité CRM source via le back-link client_id posé par le
+  // pont (schéma crm : lecture service-role, non couvert par la RLS public).
+  const crm = createCrmAdminClient();
+  const { data: opp } = await crm
+    .from('opportunites')
+    .select('id')
+    .eq('client_id', synthese.client_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!opp) return { success: false, error: indisponible };
+
+  const built = await buildSyntheseSnapshotFromOpportunite(opp.id);
+  if (!built) return { success: false, error: indisponible };
+
+  const { error } = await supabase
+    .from('document_synthese')
+    .update({
+      contenu: built.snapshot as unknown as Json,
+      reference_dossier: built.snapshot.meta.referenceDossier,
+      // Les PDFs déjà rendus ne correspondent plus au snapshot.
+      pdf_path_complet: null,
+      pdf_path_cdp: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', syntheseId);
+  if (error) return { success: false, error: error.message };
+
+  logAudit(
+    'synthese_regeneree',
+    'document_synthese',
+    syntheseId,
+    { oppId: opp.id },
+    userId,
+  );
+  revalidatePath('/commercial/passations');
+  revalidatePath(`/commercial/passations/${syntheseId}`);
+  return { success: true };
 }
 
 const SaisiesSchema = z.object({
@@ -107,7 +148,7 @@ export async function enregistrerSaisiesSynthese(
 
   const { data: synthese } = await supabase
     .from('document_synthese')
-    .select('id, prospect_id, statut')
+    .select('id, statut')
     .eq('id', syntheseId)
     .single();
   if (!synthese) return { success: false, error: 'Synthèse inconnue' };
@@ -151,9 +192,8 @@ export async function enregistrerSaisiesSynthese(
     undefined,
     userId,
   );
-  if (synthese.prospect_id) {
-    revalidatePath(`/commercial/prospects/${synthese.prospect_id}`);
-  }
+  revalidatePath('/commercial/passations');
+  revalidatePath(`/commercial/passations/${syntheseId}`);
   return { success: true };
 }
 
@@ -210,7 +250,7 @@ export async function soumettreSynthese(
     return { success: false, error: 'Échec de la génération du PDF' };
   }
 
-  const dossier = synthese.prospect_id ?? synthese.id;
+  const dossier = synthese.id;
   const ts = Date.now();
   const pathComplet = `${dossier}/synthese-complet-${ts}.pdf`;
   const pathCdp = `${dossier}/synthese-cdp-${ts}.pdf`;
@@ -260,9 +300,7 @@ export async function soumettreSynthese(
   for (const a of admins ?? []) destinataires.set(a.id, a.email);
   destinataires.delete(userId);
 
-  const lienApp = synthese.prospect_id
-    ? `/commercial/prospects/${synthese.prospect_id}`
-    : '/commercial/cdp';
+  const lienApp = `/commercial/passations/${synthese.id}`;
   if (destinataires.size > 0) {
     await supabase.from('notifications').insert(
       [...destinataires.keys()].map((uid) => ({
@@ -295,9 +333,8 @@ export async function soumettreSynthese(
     undefined,
     userId,
   );
-  if (synthese.prospect_id) {
-    revalidatePath(`/commercial/prospects/${synthese.prospect_id}`);
-  }
+  revalidatePath('/commercial/passations');
+  revalidatePath(`/commercial/passations/${syntheseId}`);
   return { success: true };
 }
 
@@ -392,7 +429,7 @@ export async function archiverSynthese(
 
   const { data: synthese } = await supabase
     .from('document_synthese')
-    .select('id, statut, prospect_id')
+    .select('id, statut')
     .eq('id', syntheseId)
     .single();
   if (!synthese) return { success: false, error: 'Synthèse inconnue' };
@@ -417,9 +454,8 @@ export async function archiverSynthese(
     undefined,
     userId,
   );
-  if (synthese.prospect_id) {
-    revalidatePath(`/commercial/prospects/${synthese.prospect_id}`);
-  }
+  revalidatePath('/commercial/passations');
+  revalidatePath(`/commercial/passations/${syntheseId}`);
   revalidatePath('/commercial/cdp');
   return { success: true };
 }
@@ -493,21 +529,21 @@ export async function getSyntheseCdpDownloadUrl(
 }
 
 /**
- * État courant de la passation pour la fiche prospect : synthèse + saisies
+ * État courant de la passation pour la page de détail : synthèse + saisies
  * (reco) + présence d'un CDP référent sur le client lié.
  */
-export async function getPassationState(prospectId: string): Promise<{
+export async function getPassationStateBySynthese(syntheseId: string): Promise<{
   synthese: PassationSynthese | null;
   reco: PassationReco | null;
   hasCdpReferent: boolean;
   error?: string;
 }> {
-  if (!uuidSchema.safeParse(prospectId).success) {
+  if (!uuidSchema.safeParse(syntheseId).success) {
     return {
       synthese: null,
       reco: null,
       hasCdpReferent: false,
-      error: 'Prospect invalide',
+      error: 'Synthèse invalide',
     };
   }
   const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
@@ -520,11 +556,23 @@ export async function getPassationState(prospectId: string): Promise<{
     };
   }
 
-  const synthese = await getSyntheseByProspect(prospectId);
-  const reco = synthese ? await getRecoBySynthese(synthese.id) : null;
+  const { data: synthese } = await supabase
+    .from('document_synthese')
+    .select('*')
+    .eq('id', syntheseId)
+    .maybeSingle<PassationSynthese>();
+  if (!synthese) {
+    return {
+      synthese: null,
+      reco: null,
+      hasCdpReferent: false,
+      error: 'Synthèse inconnue',
+    };
+  }
+  const reco = await getRecoBySynthese(synthese.id);
 
   let hasCdpReferent = false;
-  if (synthese?.client_id) {
+  if (synthese.client_id) {
     const { data: client } = await supabase
       .from('clients')
       .select('cdp_referent_id')

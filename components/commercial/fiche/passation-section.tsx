@@ -3,7 +3,14 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Download, FileText, Info, RefreshCw, Send } from 'lucide-react';
+import {
+  Archive,
+  Download,
+  FileText,
+  Info,
+  RefreshCw,
+  Send,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
 import {
@@ -13,6 +20,7 @@ import {
 import { formatDate } from '@/lib/utils/formatters';
 import { logger } from '@/lib/utils/logger';
 import {
+  archiverSynthese,
   genererSynthese,
   diffuserVague2,
   getSyntheseDownloadUrl,
@@ -133,6 +141,20 @@ export function PassationSection({
         router.refresh();
       } else {
         toast.error(r.error ?? 'Diffusion impossible');
+      }
+    });
+  };
+
+  const handleArchiver = () => {
+    if (!synthese) return;
+    startTransition(async () => {
+      const r = await archiverSynthese(synthese.id);
+      if (r.success) {
+        toast.success('Synthèse archivée');
+        await reload();
+        router.refresh();
+      } else {
+        toast.error(r.error ?? 'Archivage impossible');
       }
     });
   };
@@ -258,6 +280,17 @@ export function PassationSection({
                 onClick={handleGenerer}
               >
                 <RefreshCw className="size-3.5" /> Régénérer
+              </Button>
+            ) : null}
+            {synthese.statut === 'cdp_affecte' ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={isPending}
+                onClick={handleArchiver}
+                title="À archiver une fois la prise en main effective du CDP"
+              >
+                <Archive className="size-3.5" /> Archiver
               </Button>
             ) : null}
           </div>

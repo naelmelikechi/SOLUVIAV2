@@ -1,8 +1,14 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import {
+  sendAffectationCdpEmail,
+  sendAffectationDevEmail,
+  sendReaffectationEmail,
+} from '@/lib/email/cdp-templates';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getAppUrl } from '@/lib/utils/app-url';
 import { isReferentCdp, isAdmin } from '@/lib/utils/roles';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
@@ -71,7 +77,7 @@ async function applyAffectation(
 
   const { data: client, error: clientError } = await admin
     .from('clients')
-    .select('id, raison_sociale, cdp_referent_id')
+    .select('id, raison_sociale, cdp_referent_id, apporteur_commercial_id')
     .eq('id', clientId)
     .single();
   if (clientError || !client) {
@@ -80,7 +86,7 @@ async function applyAffectation(
 
   const { data: cdp } = await admin
     .from('users')
-    .select('id')
+    .select('id, nom, prenom, email')
     .eq('id', cdpId)
     .single();
   if (!cdp) return { success: false, error: 'CDP introuvable' };
@@ -145,7 +151,7 @@ async function applyAffectation(
     })
     .eq('client_id', clientId)
     .in('statut', ['generee', 'en_cours_completion', 'en_attente_arbitrage'])
-    .select('id');
+    .select('id, soumise_par, genere_par');
   if (syntheses && syntheses.length > 0 && cdpId !== userId) {
     await admin.from('notifications').insert({
       user_id: cdpId,
@@ -153,6 +159,98 @@ async function applyAffectation(
       titre: 'Synthèse de passation reçue',
       message: `La synthèse de passation de ${client.raison_sociale} vous a été transmise.`,
       lien: '/commercial/cdp',
+    });
+  }
+
+  // Notifications spec F6 §11 (affectation -> CDP + Développeur, mail + in-app)
+  // et F7 §6 (réaffectation -> ancien CDP + Direction). Best-effort : un échec
+  // d'envoi ne doit pas annuler une affectation déjà écrite.
+  try {
+    const cdpNom = `${cdp.prenom} ${cdp.nom}`.trim();
+    const lienApp = `${getAppUrl()}/commercial/cdp`;
+
+    if (cdp.email && cdpId !== userId) {
+      await sendAffectationCdpEmail({
+        to: cdp.email,
+        raisonSociale: client.raison_sociale,
+        lienApp,
+      });
+    }
+
+    // Le Développeur en charge : apporteur du client, sinon l'auteur de la
+    // synthèse (soumise_par puis genere_par).
+    const devId =
+      client.apporteur_commercial_id ??
+      syntheses?.find((s) => s.soumise_par)?.soumise_par ??
+      syntheses?.find((s) => s.genere_par)?.genere_par ??
+      null;
+    if (devId && devId !== cdpId && devId !== userId) {
+      await admin.from('notifications').insert({
+        user_id: devId,
+        type: 'cdp_affecte',
+        titre: 'Passation terminée',
+        message: `${client.raison_sociale} a été affecté à ${cdpNom}.`,
+        lien: '/commercial/cdp',
+      });
+      const { data: dev } = await admin
+        .from('users')
+        .select('email')
+        .eq('id', devId)
+        .maybeSingle();
+      if (dev?.email) {
+        await sendAffectationDevEmail({
+          to: dev.email,
+          raisonSociale: client.raison_sociale,
+          cdpNom,
+          lienApp,
+        });
+      }
+    }
+
+    if (fromCdpId) {
+      const [{ data: ancien }, { data: admins }] = await Promise.all([
+        admin
+          .from('users')
+          .select('nom, prenom, email')
+          .eq('id', fromCdpId)
+          .maybeSingle(),
+        admin
+          .from('users')
+          .select('email')
+          .in('role', ['admin', 'superadmin'])
+          .eq('actif', true),
+      ]);
+      if (fromCdpId !== userId) {
+        await admin.from('notifications').insert({
+          user_id: fromCdpId,
+          type: 'cdp_affecte',
+          titre: 'Client réaffecté',
+          message: `Le client ${client.raison_sociale} a été réaffecté à ${cdpNom}.`,
+          lien: '/commercial/cdp',
+        });
+      }
+      const destinataires = new Set(
+        (admins ?? [])
+          .map((a) => a.email)
+          .filter((e): e is string => Boolean(e)),
+      );
+      if (ancien?.email) destinataires.add(ancien.email);
+      if (destinataires.size > 0) {
+        await sendReaffectationEmail({
+          to: [...destinataires],
+          raisonSociale: client.raison_sociale,
+          ancienCdpNom: ancien ? `${ancien.prenom} ${ancien.nom}`.trim() : '?',
+          nouveauCdpNom: cdpNom,
+          justification: justif ?? null,
+          lienApp,
+        });
+      }
+    }
+  } catch (err) {
+    logger.error('actions.cdp', 'affectation notifications failed', {
+      clientId,
+      cdpId,
+      error: err instanceof Error ? err.message : String(err),
     });
   }
 

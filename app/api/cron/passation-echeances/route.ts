@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server';
 import {
+  sendCdpSaturationEmail,
+  sendTousCdpSaturesEmail,
+} from '@/lib/email/cdp-templates';
+import {
   sendPassationEscaladeDevEmail,
   sendPassationEscaladeDirectionEmail,
   sendPassationRappelReferentEmail,
 } from '@/lib/email/passation-templates';
+import { computeChargeAlertes } from '@/lib/passation/charge-alertes';
 import {
   ECHEANCE_COLONNE,
   echeancesDues,
   type EcheancePassation,
 } from '@/lib/passation/echeances';
+import { getCdpPlanDeCharge } from '@/lib/queries/cdp';
 import { normalizeSnapshot } from '@/lib/queries/passation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAppUrl } from '@/lib/utils/app-url';
@@ -46,9 +52,6 @@ export async function GET(request: Request) {
   const actionnables = (docs ?? [])
     .map((doc) => ({ doc, dues: echeancesDues(doc, now) }))
     .filter((d) => d.dues.length > 0);
-  if (actionnables.length === 0) {
-    return NextResponse.json({ processed: 0 });
-  }
 
   // Destinataires transverses (une seule requête chacun).
   const { data: referents } = await supabase
@@ -174,6 +177,104 @@ export async function GET(request: Request) {
     }
   }
 
-  logger.info(SCOPE, 'echeances traitees', { ...compteurs, failed });
-  return NextResponse.json({ ...compteurs, failed });
+  // --- Alertes de saturation CDP (Feature 7 §4) ---
+  // Franchissements 80 % (in-app CDP + Référents) / 95 % (mail Direction),
+  // idempotence par palier persisté (users.cdp_seuil_alerte), escalade
+  // Direction si TOUS les CDP passent au rouge.
+  const charge = { montees80: 0, montees95: 0, escalade: false };
+  try {
+    const [lines, { data: cdpUsers }] = await Promise.all([
+      getCdpPlanDeCharge(supabase),
+      supabase
+        .from('users')
+        .select(
+          'id, nom, prenom, email, actif, cdp_disponibilite, cdp_seuil_alerte',
+        )
+        .or('role.eq.cdp,referent_cdp.eq.true'),
+    ]);
+    const byId = new Map(
+      (cdpUsers ?? []).filter((u) => u.actif).map((u) => [u.id, u]),
+    );
+    const etats = lines
+      .filter((l) => byId.has(l.cdp.id))
+      .map((l) => {
+        const u = byId.get(l.cdp.id)!;
+        return {
+          cdpId: l.cdp.id,
+          ratio: l.score.ratio,
+          disponibilite: u.cdp_disponibilite,
+          seuilNotifie: u.cdp_seuil_alerte,
+        };
+      });
+    const alertes = computeChargeAlertes(etats);
+    const lienApp = `${getAppUrl()}/commercial/cdp`;
+
+    await Promise.all(
+      alertes.aPersister.map((t) =>
+        supabase
+          .from('users')
+          .update({ cdp_seuil_alerte: t.seuil })
+          .eq('id', t.cdpId),
+      ),
+    );
+
+    for (const t of alertes.montees80) {
+      const u = byId.get(t.cdpId);
+      const nomCdp = u ? `${u.prenom} ${u.nom}`.trim() : '?';
+      const cibles = new Set([t.cdpId, ...referentIds]);
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
+      await supabase.from('notifications').insert(
+        [...cibles].map((uid) => ({
+          user_id: uid,
+          type: 'cdp_saturation' as const,
+          titre: 'Charge CDP au-dessus de 80 %',
+          message:
+            uid === t.cdpId
+              ? 'Votre charge dépasse 80 % de la saturation théorique (5 clients ou 300 alternants).'
+              : `${nomCdp} dépasse 80 % de sa saturation théorique.`,
+          lien: '/commercial/cdp',
+        })),
+      );
+      charge.montees80 += 1;
+    }
+
+    for (const t of alertes.montees95) {
+      const u = byId.get(t.cdpId);
+      const line = lines.find((l) => l.cdp.id === t.cdpId);
+      if (adminEmails.length > 0) {
+        // oxlint-disable-next-line react-doctor/async-await-in-loop
+        await sendCdpSaturationEmail({
+          to: adminEmails,
+          cdpNom: u ? `${u.prenom} ${u.nom}`.trim() : '?',
+          chargePct: Math.round((line?.score.ratio ?? 0) * 100),
+          disponibilite: u?.cdp_disponibilite ?? null,
+          lienApp,
+        });
+      }
+      charge.montees95 += 1;
+    }
+
+    if (alertes.escaladeTousRouges && adminEmails.length > 0) {
+      const { count } = await supabase
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .eq('archive', false)
+        .is('cdp_referent_id', null);
+      await sendTousCdpSaturesEmail({
+        to: adminEmails,
+        nbCdp: etats.length,
+        nbClientsEnAttente: count ?? 0,
+        lienApp,
+      });
+      charge.escalade = true;
+    }
+  } catch (err) {
+    failed += 1;
+    logger.error(SCOPE, 'alertes saturation failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  logger.info(SCOPE, 'echeances traitees', { ...compteurs, ...charge, failed });
+  return NextResponse.json({ ...compteurs, ...charge, failed });
 }

@@ -14,6 +14,7 @@ import {
   type NegociationInput,
 } from '@/lib/crm/validators/negociation';
 import { toAdresseRow, isAdresseVide } from '@/lib/crm/validators/adresse';
+import { onOpportuniteGagnee } from '@/lib/crm/actions/pont';
 import type { OppStatut } from '@/lib/crm/domain/enums';
 
 /**
@@ -218,6 +219,8 @@ export async function moveOpportuniteStage(
     .update(patch)
     .eq('id', id);
   if (error) dbFail(error, "Déplacement de l'opportunité impossible");
+  // Pont Phase 2 : gagnée → client SOLUVIA + synthèse de passation (best-effort).
+  if (type === 'gagnee') await onOpportuniteGagnee(id);
   // Compte fantôme : AUCUNE trace d'activité (exigence d'invisibilité totale).
   if (!isHiddenEmail(user.email)) {
     const { error: actErr } = await supabase.from('activites').insert({
@@ -267,6 +270,8 @@ export async function setOpportuniteStatut(
     .update(patch)
     .eq('id', id);
   if (error) dbFail(error, 'Changement de statut impossible');
+  // Pont Phase 2 : gagnée → client SOLUVIA + synthèse de passation (best-effort).
+  if (statut === 'gagnee') await onOpportuniteGagnee(id);
   // Compte fantôme : AUCUNE trace d'activité (exigence d'invisibilité totale).
   if (!isHiddenEmail(user.email)) {
     const txt =

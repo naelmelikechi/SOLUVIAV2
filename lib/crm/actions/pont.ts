@@ -77,9 +77,9 @@ export async function createClientFromCompte(
 }
 
 /**
- * Génère la synthèse de passation (client-ancrée, prospect_id null) depuis
- * l'opportunité. Idempotent : skip si une synthèse client-ancrée existe déjà.
- * Le rendu PDF et la soumission (vague 1) restent inchangés côté workflow.
+ * Génère la synthèse de passation (client-ancrée) depuis l'opportunité.
+ * Idempotent : skip si une synthèse existe déjà pour ce client. Le rendu PDF
+ * et la soumission (vague 1) restent inchangés côté workflow.
  */
 export async function genererSyntheseFromOpportunite(
   oppId: string,
@@ -94,7 +94,6 @@ export async function genererSyntheseFromOpportunite(
     .from('document_synthese')
     .select('id')
     .eq('client_id', clientId)
-    .is('prospect_id', null)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -103,7 +102,6 @@ export async function genererSyntheseFromOpportunite(
   const { data: created, error } = await pub
     .from('document_synthese')
     .insert({
-      prospect_id: null,
       client_id: clientId,
       statut: 'generee',
       contenu: snapshot as unknown as Json,

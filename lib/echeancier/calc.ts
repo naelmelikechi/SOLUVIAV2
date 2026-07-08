@@ -451,6 +451,12 @@ export function computeDerivance(
 export interface ProrataRuptureResult {
   /** Montant total a "rendre" (avoir) en HT */
   avoir_total_ht: number;
+  /** Fraction de contrat realisee a la date de rupture (0..1) */
+  pct_realise: number;
+  /** Commission HT deja gagnee (= totalCommissionContrat × pct_realise) */
+  gagne_ht: number;
+  /** Commission HT deja facturee (somme des lignes emises) */
+  facture_ht: number;
   /** Detail par facture origine */
   breakdown: Array<{
     facture_id: string;
@@ -462,19 +468,29 @@ export interface ProrataRuptureResult {
 }
 
 /**
- * Calcule l'avoir pro-rata pour rupture anticipee.
- * Pour chaque facture emise sur ce contrat, on rend la portion non realisee
- * (= duree_realisee / duree_totale × montant_facture).
+ * Calcule l'avoir pour rupture anticipee, "jalon-aware" au niveau du contrat.
  *
- * Note : le pro-rata est calcule au niveau du contrat global (linear) et
- * applique uniformement aux factures emises. Les jalons peuvent etre non-
- * lineaires (ex: 3/12 au M+3) mais le pro-rata reste lineaire pour rester
- * coherent avec le pattern actuel. Si tu veux du jalon-aware, c'est une V2.
+ * Principe (plus juste que l'ancien pro-rata lineaire par ligne) : on compare
+ * ce qui a ete DEJA FACTURE a ce qui est reellement GAGNE a la date de rupture.
+ *   gagne     = totalCommissionContrat × (duree_realisee / duree_totale)
+ *   avoir     = max(0, facture − gagne)   (borne a [0, facture])
+ *
+ * `totalCommissionContrat` = commission HT que produirait l'echeancier complet
+ * du contrat (base × Σ quote_part des jalons ≤ duree). Le fournir en parametre
+ * garde la fonction pure et testable (la resolution du template est faite par
+ * l'appelant).
+ *
+ * Pourquoi c'est plus juste : l'echeancier est front-load (ex 3/12 au M+3). Sur
+ * une rupture precoce, l'ancien calcul `facture × (1−pct)` sur-remboursait car
+ * il ignorait que le facture pouvait etre < au gagne. Ici on ne rembourse que
+ * l'exces reellement facture au-dela du gagne. L'avoir est reparti sur les
+ * factures emises au prorata de leur montant (reliquat sur la derniere).
  */
 export function computeProrataRupture(
   contrat: { date_debut: string; duree_mois: number },
   dateRupture: string,
   billedLines: BilledLine[],
+  totalCommissionContrat: number,
 ): ProrataRuptureResult {
   const realiseeMois = Math.max(
     0,
@@ -484,22 +500,45 @@ export function computeProrataRupture(
     ),
   );
   const pctRealise =
-    contrat.duree_mois > 0 ? realiseeMois / contrat.duree_mois : 1;
-  const fractionNonRealisee = Math.max(0, Math.min(1, 1 - pctRealise));
+    contrat.duree_mois > 0 ? Math.min(1, realiseeMois / contrat.duree_mois) : 1;
 
-  const breakdown = billedLines.map((line) => {
-    const montantAvoir = round2(line.montant_ht * fractionNonRealisee);
-    return {
-      facture_id: line.facture_id,
-      facture_ref: line.facture_ref,
-      montant_facture: line.montant_ht,
-      pct_realise: pctRealise,
-      montant_avoir: montantAvoir,
-    };
-  });
+  const factureHt = round2(billedLines.reduce((s, l) => s + l.montant_ht, 0));
+  const gagneHt = round2(totalCommissionContrat * pctRealise);
+  // On ne rembourse que l'exces facture au-dela du gagne, borne a [0, facture].
+  const avoirTotal = Math.max(
+    0,
+    Math.min(factureHt, round2(factureHt - gagneHt)),
+  );
+
+  // Repartition de l'avoir sur les factures emises, au prorata du montant.
+  // Reliquat d'arrondi sur la derniere ligne pour que Σ == avoirTotal.
+  const breakdown = billedLines.map((line) => ({
+    facture_id: line.facture_id,
+    facture_ref: line.facture_ref,
+    montant_facture: line.montant_ht,
+    pct_realise: pctRealise,
+    montant_avoir: 0,
+  }));
+  if (avoirTotal > 0 && factureHt > 0 && breakdown.length > 0) {
+    let cumule = 0;
+    for (let i = 0; i < breakdown.length; i++) {
+      if (i === breakdown.length - 1) {
+        breakdown[i]!.montant_avoir = round2(avoirTotal - cumule);
+      } else {
+        const part = round2(
+          (avoirTotal * breakdown[i]!.montant_facture) / factureHt,
+        );
+        breakdown[i]!.montant_avoir = part;
+        cumule = round2(cumule + part);
+      }
+    }
+  }
 
   return {
-    avoir_total_ht: round2(breakdown.reduce((s, b) => s + b.montant_avoir, 0)),
+    avoir_total_ht: avoirTotal,
+    pct_realise: pctRealise,
+    gagne_ht: gagneHt,
+    facture_ht: factureHt,
     breakdown,
   };
 }

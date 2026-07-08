@@ -6,6 +6,7 @@ import { checkAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import { addDaysIso } from '@/lib/utils/dates';
+import { resolveTauxCommission } from '@/lib/utils/commission';
 import { getDelaiEcheanceJours } from '@/lib/queries/parametres';
 import { getDefaultSocieteEmettriceId } from '@/lib/queries/societes-emettrices';
 import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
@@ -217,7 +218,7 @@ export async function createBlankBrouillon(params: {
     };
   }
 
-  const tauxProjet = Number(projet.taux_commission ?? 10);
+  const tauxProjet = resolveTauxCommission(projet.taux_commission);
   const result = await insertBrouillonWithLignes({
     supabase,
     userId: user.id,

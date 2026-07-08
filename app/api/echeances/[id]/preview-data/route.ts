@@ -5,6 +5,7 @@ import {
   getDelaiEcheanceJours,
 } from '@/lib/queries/parametres';
 import { addDaysIso } from '@/lib/utils/dates';
+import { resolveTauxCommission } from '@/lib/utils/commission';
 
 export const maxDuration = 60;
 
@@ -66,7 +67,7 @@ export async function GET(
     .eq('projet_id', projet.id)
     .eq('archive', false);
 
-  const tauxCommission = projet.taux_commission ?? 10;
+  const tauxCommission = resolveTauxCommission(projet.taux_commission);
 
   // Meme math que createFactures dans lib/actions/factures.ts
   const lignes = (contrats ?? []).map((c, idx) => {

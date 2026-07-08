@@ -7,6 +7,7 @@ import {
 import type { FactureDetail } from '@/lib/queries/factures';
 import { renderFacturePdfBuffer } from '@/lib/utils/render-facture-pdf';
 import { addDaysIso } from '@/lib/utils/dates';
+import { resolveTauxCommission } from '@/lib/utils/commission';
 
 /**
  * Draft PDF preview for a pending échéance.
@@ -77,7 +78,7 @@ export async function GET(
     .eq('projet_id', projet.id)
     .eq('archive', false);
 
-  const tauxCommission = projet.taux_commission ?? 10;
+  const tauxCommission = resolveTauxCommission(projet.taux_commission);
 
   // Same math as createFactures in lib/actions/factures.ts
   const lignes = (contrats ?? []).map((c, idx) => {

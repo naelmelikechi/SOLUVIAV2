@@ -490,61 +490,122 @@ describe('computeDerivance', () => {
 });
 
 describe('computeProrataRupture', () => {
-  it('calcule pro-rata 50% pour rupture mi-contrat', () => {
+  const ligne1200 = {
+    facture_id: 'f1',
+    facture_ref: 'FAC-1',
+    mois_relatif: 3,
+    montant_ht: 1200,
+    npec_snapshot: 12000,
+    taux_commission_snapshot: 10,
+    quote_part: 1,
+  };
+
+  it('avoir = facture - gagne pour rupture mi-contrat (100% facture)', () => {
     const r = computeProrataRupture(
       { date_debut: '2026-01-01', duree_mois: 12 },
-      '2026-07-01', // 6 mois realises sur 12
-      [
-        {
-          facture_id: 'f1',
-          facture_ref: 'FAC-1',
-          mois_relatif: 3,
-          montant_ht: 1200,
-          npec_snapshot: 12000,
-          taux_commission_snapshot: 10,
-          quote_part: 1,
-        },
-      ],
+      '2026-07-01', // 6 mois realises sur 12 = 50%
+      [ligne1200],
+      1200, // commission totale du contrat complet
     );
-    // 6 mois / 12 = 50% realise → 50% non realise → avoir = 1200 × 0.5 = 600
+    // gagne = 1200 × 0.5 = 600 ; facture = 1200 ; avoir = 1200 - 600 = 600
     expect(r.avoir_total_ht).toBeCloseTo(600, 0);
+    expect(r.gagne_ht).toBeCloseTo(600, 0);
   });
 
   it('avoir = 0 si rupture apres fin contrat', () => {
     const r = computeProrataRupture(
       { date_debut: '2026-01-01', duree_mois: 12 },
       '2027-12-01',
-      [
-        {
-          facture_id: 'f1',
-          facture_ref: 'FAC-1',
-          mois_relatif: 3,
-          montant_ht: 1200,
-          npec_snapshot: 12000,
-          taux_commission_snapshot: 10,
-          quote_part: 1,
-        },
-      ],
+      [ligne1200],
+      1200,
     );
     expect(r.avoir_total_ht).toBe(0);
   });
 
-  it('avoir = montant total si rupture des le debut', () => {
+  it('avoir = montant total si rupture des le debut (rien gagne)', () => {
     const r = computeProrataRupture(
       { date_debut: '2026-01-01', duree_mois: 12 },
       '2026-01-01',
-      [
-        {
-          facture_id: 'f1',
-          facture_ref: 'FAC-1',
-          mois_relatif: 3,
-          montant_ht: 1200,
-          npec_snapshot: 12000,
-          taux_commission_snapshot: 10,
-          quote_part: 1,
-        },
-      ],
+      [ligne1200],
+      1200,
     );
     expect(r.avoir_total_ht).toBe(1200);
   });
+
+  it('jalon-aware : ne rembourse RIEN si le facture est <= au gagne', () => {
+    // Contrat front-load : seule l'echeance M+3 (rattrapage 25% = 300) est
+    // facturee. Rupture a 50% : gagne = 1200×0.5 = 600 > facture 300.
+    // Ancien calcul lineaire aurait rendu 300×0.5 = 150 A TORT.
+    const r = computeProrataRupture(
+      { date_debut: '2026-01-01', duree_mois: 12 },
+      '2026-07-01',
+      [{ ...ligne1200, montant_ht: 300, quote_part: 0.25 }],
+      1200,
+    );
+    expect(r.avoir_total_ht).toBe(0);
+    expect(r.facture_ht).toBe(300);
+    expect(r.gagne_ht).toBeCloseTo(600, 0);
+  });
+
+  it('repartit l avoir sur plusieurs factures (somme == total)', () => {
+    const r = computeProrataRupture(
+      { date_debut: '2026-01-01', duree_mois: 12 },
+      '2026-01-01', // 0% realise -> avoir = tout le facture
+      [
+        { ...ligne1200, facture_id: 'a', montant_ht: 700 },
+        { ...ligne1200, facture_id: 'b', montant_ht: 500 },
+      ],
+      1200,
+    );
+    expect(r.avoir_total_ht).toBe(1200);
+    const somme = r.breakdown.reduce((s, b) => s + b.montant_avoir, 0);
+    expect(somme).toBeCloseTo(1200, 2);
+  });
+});
+
+// Point #3 : garde-fou anti-derive d'arrondi. Le template par defaut est
+// calibre (dernier jalon 0.0836) pour que la somme des echeances d'un contrat
+// complet reste au centime de round2(NPEC × taux / 100). On verrouille cet
+// invariant : un futur template mal calibre le ferait echouer.
+describe('invariant arrondi echeancier (point #3)', () => {
+  const DEFAULT_JALONS: Jalon[] = [
+    { mois_relatif: 3, quote_part: 0.25 },
+    { mois_relatif: 4, quote_part: 0.0833 },
+    { mois_relatif: 5, quote_part: 0.0833 },
+    { mois_relatif: 6, quote_part: 0.0833 },
+    { mois_relatif: 7, quote_part: 0.0833 },
+    { mois_relatif: 8, quote_part: 0.0833 },
+    { mois_relatif: 9, quote_part: 0.0833 },
+    { mois_relatif: 10, quote_part: 0.0833 },
+    { mois_relatif: 11, quote_part: 0.0833 },
+    { mois_relatif: 12, quote_part: 0.0836 },
+  ];
+
+  for (const npec of [12000, 10000, 8500, 7333, 15999]) {
+    it(`somme echeances ~= round2(NPEC×taux) pour NPEC=${npec}`, () => {
+      const taux = 10;
+      const contrat: ContratEcheancierContext = {
+        contrat_id: 'c',
+        npec_amount: npec,
+        date_debut: '2026-01-01',
+        duree_mois: 12,
+        archive: false,
+      };
+      const agg = aggregateProjetEcheances(
+        'p',
+        [contrat],
+        DEFAULT_JALONS,
+        taux,
+      );
+      const total = agg.reduce((s, e) => s + e.montant_prevu_ht, 0);
+      const attendu = Math.round(((npec * taux) / 100) * 100) / 100;
+      // La derive PUREMENT d'arrondi par jalon est bornee par 0.005 × nb_jalons
+      // (chaque round2 ecarte au plus un demi-centime). Si un template dont les
+      // quote_parts NE somment PAS a 1.0 etait introduit, la derive depasserait
+      // cette borne et ce test le detecterait. Le template par defaut respecte
+      // la borne (derive observee 0 a 4 centimes selon le NPEC).
+      const borne = 0.005 * DEFAULT_JALONS.length;
+      expect(Math.abs(total - attendu)).toBeLessThanOrEqual(borne);
+    });
+  }
 });

@@ -24,6 +24,23 @@ export type CompteStatut = 'prospect' | 'client' | 'perdu';
 export type ActiviteType = 'note' | 'appel' | 'email' | 'systeme';
 export type NotificationType = 'mention' | 'rdv_assigned' | 'relance_assigned';
 export type RecapTrigger = 'cron' | 'manuel';
+// Phase 2 (A2) — enums négociation/passation, alignés sur lib/utils/constants.ts.
+export type CrmRoleDecision =
+  | 'signataire'
+  | 'sponsor'
+  | 'operationnel'
+  | 'drh'
+  | 'soutien';
+export type CrmTypeFormation = 'presentiel' | 'distanciel' | 'hybride';
+export type CrmCanalOrigine =
+  | 'reseau_developpeur'
+  | 'reseau_direction'
+  | 'linkedin_auto'
+  | 'salon'
+  | 'apporteur'
+  | 'autre';
+export type CrmInitiateur = 'soluvia' | 'prospect';
+export type CrmTypeProspect = 'cfa' | 'entreprise';
 
 export interface Database {
   crm: {
@@ -73,6 +90,14 @@ export interface Database {
           responsable_id: string | null;
           notes: string | null;
           nombre_collaborateurs: number | null;
+          forme_juridique: string | null;
+          siren: string | null;
+          code_naf: string | null;
+          naf_libelle: string | null;
+          effectif_tranche: string | null;
+          nb_implantations: number | null;
+          ca_dernier_exercice: number | null;
+          insee_verifie: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -90,6 +115,14 @@ export interface Database {
           responsable_id?: string | null;
           notes?: string | null;
           nombre_collaborateurs?: number | null;
+          forme_juridique?: string | null;
+          siren?: string | null;
+          code_naf?: string | null;
+          naf_libelle?: string | null;
+          effectif_tranche?: string | null;
+          nb_implantations?: number | null;
+          ca_dernier_exercice?: number | null;
+          insee_verifie?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -107,6 +140,14 @@ export interface Database {
           responsable_id?: string | null;
           notes?: string | null;
           nombre_collaborateurs?: number | null;
+          forme_juridique?: string | null;
+          siren?: string | null;
+          code_naf?: string | null;
+          naf_libelle?: string | null;
+          effectif_tranche?: string | null;
+          nb_implantations?: number | null;
+          ca_dernier_exercice?: number | null;
+          insee_verifie?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -131,6 +172,8 @@ export interface Database {
           telephone: string | null;
           principal: boolean;
           notes: string | null;
+          role_decision: CrmRoleDecision | null;
+          sensibilites: string | null;
           created_at: string;
         };
         Insert: {
@@ -143,6 +186,8 @@ export interface Database {
           telephone?: string | null;
           principal?: boolean;
           notes?: string | null;
+          role_decision?: CrmRoleDecision | null;
+          sensibilites?: string | null;
           created_at?: string;
         };
         Update: {
@@ -155,6 +200,8 @@ export interface Database {
           telephone?: string | null;
           principal?: boolean;
           notes?: string | null;
+          role_decision?: CrmRoleDecision | null;
+          sensibilites?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -226,6 +273,24 @@ export interface Database {
           source: string | null;
           cfa: string | null;
           date_cible_prochain_rdv: string | null;
+          perimetre_missions: string | null;
+          formations_rncp: string[];
+          type_formation: CrmTypeFormation | null;
+          taux_npec: number | null;
+          duree_contrat_ans: number | null;
+          mois_demarrage: number | null;
+          volume_an1: number | null;
+          volume_an2: number | null;
+          volume_an3: number | null;
+          volume_garanti_seuil: number | null;
+          leviers: string[];
+          canal_origine: CrmCanalOrigine | null;
+          date_premier_contact: string | null;
+          initiateur: CrmInitiateur | null;
+          historique_synthese: string | null;
+          numero_contrat: string | null;
+          type_prospect: CrmTypeProspect | null;
+          calendrier_previsionnel: Json | null;
           owner_id: string | null;
           created_at: string;
           updated_at: string;
@@ -247,6 +312,24 @@ export interface Database {
           source?: string | null;
           cfa?: string | null;
           date_cible_prochain_rdv?: string | null;
+          perimetre_missions?: string | null;
+          formations_rncp?: string[];
+          type_formation?: CrmTypeFormation | null;
+          taux_npec?: number | null;
+          duree_contrat_ans?: number | null;
+          mois_demarrage?: number | null;
+          volume_an1?: number | null;
+          volume_an2?: number | null;
+          volume_an3?: number | null;
+          volume_garanti_seuil?: number | null;
+          leviers?: string[];
+          canal_origine?: CrmCanalOrigine | null;
+          date_premier_contact?: string | null;
+          initiateur?: CrmInitiateur | null;
+          historique_synthese?: string | null;
+          numero_contrat?: string | null;
+          type_prospect?: CrmTypeProspect | null;
+          calendrier_previsionnel?: Json | null;
           owner_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -268,6 +351,24 @@ export interface Database {
           source?: string | null;
           cfa?: string | null;
           date_cible_prochain_rdv?: string | null;
+          perimetre_missions?: string | null;
+          formations_rncp?: string[];
+          type_formation?: CrmTypeFormation | null;
+          taux_npec?: number | null;
+          duree_contrat_ans?: number | null;
+          mois_demarrage?: number | null;
+          volume_an1?: number | null;
+          volume_an2?: number | null;
+          volume_an3?: number | null;
+          volume_garanti_seuil?: number | null;
+          leviers?: string[];
+          canal_origine?: CrmCanalOrigine | null;
+          date_premier_contact?: string | null;
+          initiateur?: CrmInitiateur | null;
+          historique_synthese?: string | null;
+          numero_contrat?: string | null;
+          type_prospect?: CrmTypeProspect | null;
+          calendrier_previsionnel?: Json | null;
           owner_id?: string | null;
           created_at?: string;
           updated_at?: string;

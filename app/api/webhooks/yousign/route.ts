@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createHmac } from 'node:crypto';
-import { genererSyntheseCore } from '@/lib/passation/core';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { timingSafeStrEqual } from '@/lib/utils/secure-compare';
 import { logger } from '@/lib/utils/logger';
@@ -41,8 +40,8 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
 
   const secret = process.env.YOUSIGN_WEBHOOK_SECRET;
-  // Fail-closed : sans secret configure, on refuse (comme linkedin/bank-lines/
-  // odoo). Auparavant un secret absent => webhook traite sans authentification.
+  // Fail-closed : sans secret configure, on refuse (comme bank-lines/odoo).
+  // Auparavant un secret absent => webhook traite sans authentification.
   if (!secret) {
     logger.error(SCOPE, 'YOUSIGN_WEBHOOK_SECRET absent : webhook refuse');
     return NextResponse.json(
@@ -79,7 +78,7 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
   const { data: demande } = await supabase
     .from('signature_requests')
-    .select('id, prospect_id, statut')
+    .select('id, statut')
     .eq('provider', 'yousign')
     .eq('provider_request_id', providerRequestId)
     .maybeSingle();
@@ -109,7 +108,7 @@ export async function POST(request: Request) {
     update.signed_at = new Date().toISOString();
     try {
       const blob = await downloadSignedDocument(providerRequestId);
-      const path = `${demande.prospect_id}/signe-${Date.now()}-yousign.pdf`;
+      const path = `${demande.id}/signe-${Date.now()}-yousign.pdf`;
       const buffer = Buffer.from(await blob.arrayBuffer());
       const { error: upError } = await supabase.storage
         .from(BUCKET)
@@ -140,22 +139,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Mise à jour échouée' }, { status: 500 });
   }
 
-  // Génération automatique de la synthèse de passation (Feature 6). Idempotent
-  // (no-op si elle existe déjà) et non bloquant : le webhook doit répondre 2xx.
-  if (statut === 'signee' && demande.prospect_id) {
-    try {
-      await genererSyntheseCore(supabase, demande.prospect_id, {
-        generePar: null,
-        signatureId: demande.id,
-        signatureSigneeAt: update.signed_at ?? null,
-      });
-    } catch (err) {
-      logger.error(SCOPE, 'Génération synthèse de passation échouée', {
-        prospectId: demande.prospect_id,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+  // La synthèse de passation n'est plus générée ici : depuis la Phase 2 CRM,
+  // elle est produite par le pont opportunité gagnée (lib/crm/actions/pont.ts).
 
   return NextResponse.json({ success: true, statut });
 }

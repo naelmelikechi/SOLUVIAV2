@@ -12,19 +12,72 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.clients WHERE trigramme = 'ZZE'
 );
 
--- Prospect signé pour le flux passation (generation -> saisies 6/8 ->
--- soumission). Stage 'signe' suffit au guard de genererSynthese.
-INSERT INTO public.prospects (
-  type_prospect, nom, stage, siren, forme_juridique, adresse,
-  code_naf, naf_libelle, effectif_tranche, site_web,
-  taux_npec, duree_contrat_ans, mois_demarrage,
-  volume_an1, volume_an2, volume_an3, perimetre_missions
-)
-SELECT
-  'entreprise', 'E2E PASSATION TEST', 'signe', '900000001', 'SAS',
-  '1 rue du Test, 75001 Paris', '4120B', 'Construction de bâtiments',
-  '100-249', 'e2e-passation.test',
-  35, 3, 3, 15, 40, 70, 'Missions A à K incluses'
+-- Client + synthese de passation client-ancree pour le flux passation
+-- (saisies 6/8 -> soumission). Depuis la Phase 2 CRM, la synthese est generee
+-- automatiquement par le pont opportunite gagnee ; la fixture seed directement
+-- une ligne document_synthese en statut 'generee' avec un snapshot V2 minimal
+-- autoporteur (le rendu PDF ne relit aucune table commerciale).
+INSERT INTO public.clients (trigramme, raison_sociale, siret, adresse, localisation)
+SELECT 'ZZP', 'E2E PASSATION TEST', '90000000100010', '1 rue du Test', '75001 Paris'
 WHERE NOT EXISTS (
-  SELECT 1 FROM public.prospects WHERE nom = 'E2E PASSATION TEST'
+  SELECT 1 FROM public.clients WHERE trigramme = 'ZZP'
 );
+
+INSERT INTO public.document_synthese (client_id, statut, reference_dossier, contenu)
+SELECT
+  c.id,
+  'generee',
+  'SLV-2026-E2ETEST',
+  jsonb_build_object(
+    'version', 2,
+    'meta', jsonb_build_object(
+      'referenceDossier', 'SLV-2026-E2ETEST',
+      'numeroContrat', NULL,
+      'dateSignature', NULL,
+      'dateProduction', now()::text,
+      'developpeur', NULL,
+      'tunnel', 'entreprise'
+    ),
+    'identite', jsonb_build_object(
+      'raisonSociale', 'E2E PASSATION TEST',
+      'formeJuridique', 'SAS',
+      'siren', '900000001',
+      'siret', '90000000100010',
+      'siege', '1 rue du Test, 75001 Paris',
+      'codeNaf', '4120B',
+      'nafLibelle', 'Construction de bâtiments',
+      'region', NULL,
+      'siteWeb', 'e2e-passation.test',
+      'effectif', '100-249',
+      'nbImplantations', NULL,
+      'caDernierExercice', NULL
+    ),
+    'contacts', '[]'::jsonb,
+    'historique', jsonb_build_object(
+      'canal', NULL,
+      'datePremierContact', NULL,
+      'initiateur', NULL,
+      'evolution', NULL,
+      'rdvs', '[]'::jsonb
+    ),
+    'engagements', jsonb_build_object(
+      'perimetre', 'Missions A à K incluses',
+      'formationsRncp', '[]'::jsonb,
+      'typeFormation', NULL,
+      'tauxNpec', 35,
+      'dureeAns', 3,
+      'moisDemarrage', 3,
+      'volumeAn1', 15,
+      'volumeAn2', 40,
+      'volumeAn3', 70,
+      'volumeGarantiSeuil', NULL,
+      'leviers', '[]'::jsonb
+    ),
+    'calendrier', '{}'::jsonb,
+    'documents', '[]'::jsonb
+  )
+FROM public.clients c
+WHERE c.trigramme = 'ZZP'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.document_synthese ds WHERE ds.client_id = c.id
+  );

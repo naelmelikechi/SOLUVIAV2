@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createCrmAdminClient } from '@/lib/crm/supabase/admin';
@@ -22,8 +21,6 @@ export type PassationSynthese =
  */
 export type PassationReco =
   Database['public']['Tables']['document_synthese_reco']['Row'];
-
-type Supabase = SupabaseClient<Database>;
 
 /**
  * Snapshot versionné du document de synthèse de passation, figé dans
@@ -161,198 +158,12 @@ export async function getSyntheseById(
   return data;
 }
 
-/** Dernière synthèse de passation produite pour un prospect (ou null). */
-export async function getSyntheseByProspect(
-  prospectId: string,
-): Promise<PassationSynthese | null> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('document_synthese')
-    .select('*')
-    .eq('prospect_id', prospectId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    logger.error('queries.passation', 'getSyntheseByProspect failed', {
-      prospectId,
-      error,
-    });
-    return null;
-  }
-  return data;
-}
-
 /**
- * Construit le snapshot V2 depuis la fiche prospect. SEULE fonction de ce
- * module couplée aux tables commerciales : en Phase 2 CRM, une
- * `buildSyntheseSnapshotFromOpportunite` la remplacera sans toucher au rendu
- * ni au workflow. Renvoie null si le prospect est introuvable.
- */
-export async function buildSyntheseSnapshotFromProspect(
-  supabase: Supabase,
-  prospectId: string,
-): Promise<{
-  snapshot: SyntheseSnapshotV2;
-  clientId: string | null;
-  commercialId: string | null;
-  signature: { id: string; signedAt: string | null } | null;
-} | null> {
-  const { data: prospect, error } = await supabase
-    .from('prospects')
-    .select('*')
-    .eq('id', prospectId)
-    .single();
-
-  if (error || !prospect) {
-    logger.error('queries.passation', 'buildSyntheseSnapshot prospect failed', {
-      prospectId,
-      error,
-    });
-    return null;
-  }
-
-  const [contactsRes, rdvsRes, signatureRes] = await Promise.all([
-    supabase
-      .from('prospect_contacts')
-      .select('*')
-      .eq('prospect_id', prospectId)
-      .order('created_at', { ascending: true }),
-    supabase
-      .from('rdv_commerciaux')
-      .select('*')
-      .eq('prospect_id', prospectId)
-      .order('date_prevue', { ascending: true }),
-    supabase
-      .from('signature_requests')
-      .select('id, signed_at, signed_document_path')
-      .eq('prospect_id', prospectId)
-      .eq('statut', 'signee')
-      .order('signed_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
-
-  let developpeur: string | null = null;
-  if (prospect.commercial_id) {
-    const { data } = await supabase
-      .from('users')
-      .select('nom, prenom')
-      .eq('id', prospect.commercial_id)
-      .maybeSingle();
-    if (data) developpeur = `${data.prenom} ${data.nom}`;
-  }
-
-  let raisonSociale = prospect.nom;
-  if (prospect.client_id) {
-    const { data } = await supabase
-      .from('clients')
-      .select('raison_sociale')
-      .eq('id', prospect.client_id)
-      .maybeSingle();
-    if (data?.raison_sociale) raisonSociale = data.raison_sociale;
-  }
-
-  const signature = signatureRes.data;
-  const referenceYear = new Date(
-    signature?.signed_at ?? prospect.created_at,
-  ).getFullYear();
-
-  const calendrierRaw =
-    prospect.calendrier_previsionnel &&
-    typeof prospect.calendrier_previsionnel === 'object' &&
-    !Array.isArray(prospect.calendrier_previsionnel)
-      ? (prospect.calendrier_previsionnel as Record<string, unknown>)
-      : {};
-  const calendrier: Partial<Record<JalonCalendrierKey, string>> = {};
-  for (const [k, v] of Object.entries(calendrierRaw)) {
-    const s = str(v);
-    if (s) calendrier[k as JalonCalendrierKey] = s;
-  }
-
-  const snapshot: SyntheseSnapshotV2 = {
-    version: 2,
-    meta: {
-      referenceDossier: `SLV-${referenceYear}-${prospect.id.slice(0, 8).toUpperCase()}`,
-      numeroContrat: str(prospect.numero_contrat),
-      dateSignature: signature?.signed_at ?? null,
-      dateProduction: new Date().toISOString(),
-      developpeur,
-      tunnel: prospect.type_prospect,
-    },
-    identite: {
-      raisonSociale,
-      formeJuridique: str(prospect.forme_juridique),
-      siren: str(prospect.siren),
-      siret: str(prospect.siret),
-      siege: str(prospect.adresse),
-      codeNaf: str(prospect.code_naf),
-      nafLibelle: str(prospect.naf_libelle),
-      region: str(prospect.region),
-      siteWeb: str(prospect.site_web),
-      effectif: str(prospect.effectif_tranche),
-      nbImplantations: num(prospect.nb_implantations),
-      caDernierExercice: num(prospect.ca_dernier_exercice),
-    },
-    contacts: (contactsRes.data ?? []).map((c) => ({
-      nom: c.nom,
-      poste: str(c.poste),
-      email: str(c.email),
-      telephone: str(c.telephone),
-      role: (c.role_decision as RoleDecisionContact | null) ?? null,
-      sensibilites: str(c.sensibilites),
-    })),
-    historique: {
-      canal: (prospect.canal_origine as CanalOrigine | null) ?? null,
-      datePremierContact: str(prospect.date_premier_contact),
-      initiateur: (prospect.initiateur as InitiateurContact | null) ?? null,
-      evolution: str(prospect.historique_synthese),
-      rdvs: (rdvsRes.data ?? []).map((r) => ({
-        date: r.date_realisee ?? r.date_prevue,
-        type: r.type_rdv,
-        statut: r.statut,
-        objet: str(r.objet),
-      })),
-    },
-    engagements: {
-      perimetre: str(prospect.perimetre_missions),
-      formationsRncp: strArray(prospect.formations_rncp),
-      typeFormation: (prospect.type_formation as TypeFormation | null) ?? null,
-      tauxNpec: num(prospect.taux_npec),
-      dureeAns: num(prospect.duree_contrat_ans),
-      moisDemarrage: num(prospect.mois_demarrage),
-      volumeAn1: num(prospect.volume_an1),
-      volumeAn2: num(prospect.volume_an2),
-      volumeAn3: num(prospect.volume_an3),
-      volumeGarantiSeuil: num(prospect.volume_garanti_seuil),
-      leviers: strArray(prospect.leviers),
-    },
-    calendrier,
-    documents: DOCUMENTS_JOINTS_LABELS.map((label, i) => ({
-      label,
-      present: i === 0 ? Boolean(signature?.signed_document_path) : false,
-    })),
-  };
-
-  return {
-    snapshot,
-    clientId: prospect.client_id,
-    commercialId: prospect.commercial_id,
-    signature: signature
-      ? { id: signature.id, signedAt: signature.signed_at }
-      : null,
-  };
-}
-
-/**
- * Jumeau de `buildSyntheseSnapshotFromProspect` côté CRM (Phase 2, pont A2).
  * Construit le snapshot V2 depuis une opportunité `crm.*` (compte enrichi INSEE,
- * contacts, RDV, champs négociation) au lieu d'un prospect. Lit `crm` via un
- * client admin service-role (le schéma `crm` n'est pas couvert par la RLS
- * `public`), et `public.users`/`public.clients` via l'admin public. Renvoie null
- * si l'opportunité est introuvable. La signature reste null en Lot B (elle
- * deviendra client-based en Lot C).
+ * contacts, RDV, champs négociation). Lit `crm` via un client admin
+ * service-role (le schéma `crm` n'est pas couvert par la RLS `public`), et
+ * `public.users`/`public.clients` via l'admin public. Renvoie null si
+ * l'opportunité est introuvable.
  */
 export async function buildSyntheseSnapshotFromOpportunite(
   oppId: string,

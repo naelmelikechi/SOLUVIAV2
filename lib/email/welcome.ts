@@ -198,29 +198,29 @@ export function buildWelcomeCommercial(p: BuilderParams): BuiltEmail {
     html: shell({
       greeting: `Bonjour ${prenom},`,
       intro:
-        "Bienvenue sur Soluvia. Ton accès commercial est prêt et te donne une vue claire sur tes prospects et sur l'activité commerciale de l'organisme.",
+        "Bienvenue sur Soluvia. Ton accès commercial est prêt et te donne une vue claire sur ton pipeline CRM et sur l'activité commerciale de l'organisme.",
       pitch:
-        "Soluvia te permet de suivre tes prospects du premier contact jusqu'à la signature, avec les indicateurs qui comptent et un lien direct avec les chefs de projet quand le deal est gagné.",
+        "Soluvia te permet de suivre tes opportunités du premier contact jusqu'à la signature, avec les indicateurs qui comptent et un lien direct avec les chefs de projet quand le deal est gagné.",
       sections: [
         {
-          title: 'Ton pipeline de prospects',
-          body: 'Création des prospects, qualification, relances et rendez-vous. Quand le deal est signé, tu convertis le prospect en projet de formation en un clic.',
+          title: 'Ton pipeline CRM',
+          body: "Comptes, contacts, opportunités, relances et rendez-vous. Quand le deal est gagné, le client et la synthèse de passation sont créés automatiquement pour l'équipe projet.",
         },
         {
           title: 'Suivi des projets que tu as gagnés',
-          body: 'Une fois converti, tu gardes accès au projet en lecture : tu vois où il en est (sessions, facturation, satisfaction) sans avoir à demander.',
+          body: 'Une fois le deal gagné, tu gardes accès au projet en lecture : tu vois où il en est (sessions, facturation, satisfaction) sans avoir à demander.',
         },
         {
           title: 'Tes indicateurs commerciaux',
-          body: "Taux de conversion, durée moyenne d'un deal, valeur du pipeline, performance par source. Tout se met à jour au fur et à mesure que tu travailles tes prospects.",
+          body: "Taux de conversion, durée moyenne d'un deal, valeur du pipeline, performance par source. Tout se met à jour au fur et à mesure que tu travailles tes opportunités.",
         },
         {
           title: "Lien avec l'équipe",
-          body: 'Tu peux laisser des notes sur un prospect, partager des infos client avec les chefs de projet et recevoir les retours sur les projets que tu as gagnés.',
+          body: 'Tu peux laisser des notes sur une opportunité, partager des infos client avec les chefs de projet et recevoir les retours sur les projets que tu as gagnés.',
         },
       ],
       closing:
-        "L'idée est de te faire gagner du temps : ce que tu remplis côté prospect remonte tout seul quand le deal devient un vrai projet, pas besoin de tout ressaisir.",
+        "L'idée est de te faire gagner du temps : ce que tu remplis côté CRM remonte tout seul quand le deal devient un vrai projet, pas besoin de tout ressaisir.",
     }),
   };
 }

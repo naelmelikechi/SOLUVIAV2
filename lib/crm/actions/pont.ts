@@ -18,7 +18,6 @@ const SCOPE = 'crm.pont';
  * Crée le client SOLUVIA depuis le compte de l'opportunité et pose le back-link
  * `crm.opportunites.client_id`. Idempotent : si l'opp est déjà liée, renvoie ce
  * client sans rien recréer. Renvoie null si opp/compte introuvable ou échec.
- * Gabarit : `convertProspectToClient` (lib/actions/prospects/pipeline.ts).
  */
 export async function createClientFromCompte(
   oppId: string,

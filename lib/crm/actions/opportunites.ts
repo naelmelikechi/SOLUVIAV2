@@ -9,6 +9,10 @@ import {
   opportuniteCompleteSchema,
   type OpportuniteCompleteInput,
 } from '@/lib/crm/validators/opportunite-complete';
+import {
+  negociationSchema,
+  type NegociationInput,
+} from '@/lib/crm/validators/negociation';
 import { toAdresseRow, isAdresseVide } from '@/lib/crm/validators/adresse';
 import type { OppStatut } from '@/lib/crm/domain/enums';
 
@@ -152,6 +156,27 @@ export async function updateOpportuniteFields(
   revalidatePath('/crm/pipeline');
 }
 
+/**
+ * Édition des champs de négociation / passation (A4/A5). Update PARTIEL, distinct
+ * de `updateOpportuniteFields` : ce bloc envoie TOUJOURS l'intégralité des champs
+ * négociation (dont les tableaux `formations_rncp`/`leviers`), on ne peut donc pas
+ * le fusionner avec l'édition rapide sans risquer d'écraser les text[] par [].
+ */
+export async function updateOpportuniteNegociation(
+  id: string,
+  input: NegociationInput,
+): Promise<void> {
+  await requireCrmUser();
+  const parsed = negociationSchema.parse(input);
+  const supabase = await createCrmClient();
+  const { error } = await supabase
+    .from('opportunites')
+    .update(parsed)
+    .eq('id', id);
+  if (error) dbFail(error, 'Mise à jour de la négociation impossible');
+  revalidatePath('/crm/pipeline');
+}
+
 export async function deleteOpportunite(id: string): Promise<void> {
   await requireCrmUser();
   const supabase = await createCrmClient();
@@ -195,14 +220,12 @@ export async function moveOpportuniteStage(
   if (error) dbFail(error, "Déplacement de l'opportunité impossible");
   // Compte fantôme : AUCUNE trace d'activité (exigence d'invisibilité totale).
   if (!isHiddenEmail(user.email)) {
-    const { error: actErr } = await supabase
-      .from('activites')
-      .insert({
-        type: 'systeme',
-        opportunite_id: id,
-        auteur_id: auteur,
-        contenu: `Étape → ${etapeLibelle}`,
-      });
+    const { error: actErr } = await supabase.from('activites').insert({
+      type: 'systeme',
+      opportunite_id: id,
+      auteur_id: auteur,
+      contenu: `Étape → ${etapeLibelle}`,
+    });
     if (actErr)
       console.error('activite (move) non enregistrée:', actErr.message);
   }
@@ -252,14 +275,12 @@ export async function setOpportuniteStatut(
         : statut === 'perdue'
           ? `Opportunité perdue${motif ? ' - ' + motif : ''}`
           : 'Opportunité rouverte';
-    const { error: actErr } = await supabase
-      .from('activites')
-      .insert({
-        type: 'systeme',
-        opportunite_id: id,
-        auteur_id: auteur,
-        contenu: txt,
-      });
+    const { error: actErr } = await supabase.from('activites').insert({
+      type: 'systeme',
+      opportunite_id: id,
+      auteur_id: auteur,
+      contenu: txt,
+    });
     if (actErr)
       console.error('activite (statut) non enregistrée:', actErr.message);
   }

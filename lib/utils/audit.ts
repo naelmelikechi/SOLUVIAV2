@@ -39,7 +39,7 @@ async function doInsert(
 
     // audit_logs INSERT est restreint en RLS aux admin/superadmin, mais des
     // actions auditées sont exécutées par des non-admins (CDP/commercial :
-    // mot de passe, absences, idées, prospects...). Écrire via le client
+    // mot de passe, absences, idées...). Écrire via le client
     // service-role garantit qu'aucune trace n'est perdue silencieusement, sans
     // ouvrir audit_logs en écriture aux rôles non-admin (concern système).
     const admin = createAdminClient();

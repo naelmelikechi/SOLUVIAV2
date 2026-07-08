@@ -21,32 +21,6 @@ function bouton(lien: string, libelle: string): string {
   return `<p><a href="${lien}" style="display: inline-block; background: #ed6572; color: white; padding: 12px 20px; border-radius: 6px; text-decoration: none;">${libelle}</a></p>`;
 }
 
-/** Génération de la synthèse : prévient le Développeur qu'il a 48h. */
-export async function sendSyntheseGenereeEmail(p: {
-  to: string;
-  prospectNom: string;
-  referenceDossier: string;
-  lienFiche: string;
-}): Promise<SendResult> {
-  const nom = escapeHtml(p.prospectNom);
-  const ref = escapeHtml(p.referenceDossier);
-  return sendEmail({
-    from: FROM,
-    to: p.to,
-    subject: `Passation ${ref} - synthese a completer sous 48h`,
-    html: wrap(`
-      <p>Bonjour,</p>
-      <p>Le contrat de <strong>${nom}</strong> est signé : la synthèse de passation
-      <strong>${ref}</strong> a été générée automatiquement (sections 1 à 5 et 7
-      pré-remplies depuis la fiche prospect).</p>
-      <p>Merci de compléter les sections <strong>6 (points de vigilance)</strong> et
-      <strong>8 (recommandation d'affectation)</strong> puis de soumettre la synthèse
-      au Référent CDP <strong>sous 48h</strong>.</p>
-      ${bouton(p.lienFiche, 'Compléter la synthèse')}
-    `),
-  });
-}
-
 /** Vague 1 : PDF complet en pièce jointe aux Référents CDP + Direction. */
 export async function sendSyntheseVague1Email(p: {
   to: string[];

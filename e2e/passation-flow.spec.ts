@@ -2,23 +2,24 @@ import { test, expect } from '@playwright/test';
 import { existsSync } from 'node:fs';
 
 /**
- * Flux passation (Feature 6) : sur un prospect signé (fixture E2E PASSATION
- * TEST), générer la synthèse, saisir les sections 6 (points de vigilance) et
- * 8 (recommandation), soumettre au Référent CDP -> statut "En attente
- * d'arbitrage" + PDFs téléchargeables.
+ * Flux passation (Feature 6, post-Phase 2 CRM) : sur la synthese seedee
+ * (fixture E2E PASSATION TEST, client-ancree, statut generee), ouvrir la
+ * liste /commercial/passations, entrer dans le detail, saisir les sections 6
+ * (points de vigilance) et 8 (recommandation), soumettre au Referent CDP
+ * -> statut "En attente d'arbitrage" + PDFs telechargeables.
  *
  * Necessite :
  *  - storageState admin (e2e/auth.setup.ts)
- *  - fixtures e2e/fixtures.sql (prospect E2E PASSATION TEST, stage signe)
+ *  - fixtures e2e/fixtures.sql (client ZZP + document_synthese 'generee')
  *
  * Sans RESEND_API_KEY, le mail vague 1 est non-bloquant (sendEmail skippe) :
  * le test valide le workflow et la production des PDFs, pas la delivrabilite.
  */
 
 const STORAGE = 'e2e/.auth/admin.json';
-const PROSPECT_NAME = 'E2E PASSATION TEST';
+const CLIENT_NAME = 'E2E PASSATION TEST';
 
-test.describe('Passation - generation -> saisies -> soumission', () => {
+test.describe('Passation - liste -> saisies -> soumission', () => {
   test.beforeAll(() => {
     if (!existsSync(STORAGE)) {
       test.skip(
@@ -30,40 +31,33 @@ test.describe('Passation - generation -> saisies -> soumission', () => {
 
   test.use({ storageState: STORAGE });
 
-  test('generer -> completer 6+8 -> soumettre -> en attente d arbitrage', async ({
+  test('lister -> completer 6+8 -> soumettre -> en attente d arbitrage', async ({
     page,
   }) => {
     // Rendu de 2 PDFs + upload storage : parcours long en dev.
     test.setTimeout(120_000);
 
-    // ----- 1. Ouvrir la fiche du prospect signé (clic ligne du tableau) -----
-    await page.goto('/commercial/prospects');
-    await page.getByText(PROSPECT_NAME, { exact: true }).first().click();
-    await expect(
-      page.getByRole('heading', { name: PROSPECT_NAME }),
-    ).toBeVisible({ timeout: 15_000 });
+    // ----- 1. La liste des passations affiche la synthese seedee -----
+    await page.goto('/commercial/passations');
+    const lien = page.getByRole('link', { name: CLIENT_NAME }).first();
+    await expect(lien).toBeVisible({ timeout: 15_000 });
 
-    // La section passation vit dans l'onglet Négociation.
-    await page.getByRole('tab', { name: /négociation/i }).click();
-
-    // ----- 2. Générer la synthèse si première exécution (spec rejouable) -----
-    const genererBtn = page.getByRole('button', {
-      name: /générer la synthèse de passation/i,
+    // ----- 2. Ouvrir le detail de la synthese -----
+    await lien.click();
+    await expect(page.getByRole('heading', { name: CLIENT_NAME })).toBeVisible({
+      timeout: 15_000,
     });
-    if (await genererBtn.isVisible().catch(() => false)) {
-      await genererBtn.click();
-      await expect(
-        page.getByText(/synthèse de passation générée/i),
-      ).toBeVisible({ timeout: 15_000 });
-    }
+    await expect(
+      page.getByText(/synthèse de passation/i).first(),
+    ).toBeVisible();
 
-    // Le formulaire des saisies apparaît avec la synthèse.
+    // Le formulaire des saisies apparait avec la synthese.
     const vigilance = page.locator('#passation-vigilance');
     await expect(vigilance).toBeVisible({ timeout: 15_000 });
 
-    // Rejouabilité : si un précédent run a déjà soumis, le champ est verrouillé
-    // et le badge déjà en attente d'arbitrage - on s'arrête là. (.first() :
-    // le libellé apparaît aussi dans le texte d'aide sous les boutons.)
+    // Rejouabilite : si un precedent run a deja soumis, le champ est verrouille
+    // et le badge deja en attente d'arbitrage - on s'arrete la. (.first() :
+    // le libelle apparait aussi dans le texte d'aide sous les boutons.)
     if (await vigilance.isDisabled()) {
       await expect(
         page.getByText(/en attente d'arbitrage/i).first(),
@@ -88,7 +82,7 @@ test.describe('Passation - generation -> saisies -> soumission', () => {
       timeout: 10_000,
     });
 
-    // ----- 4. Soumettre au Référent CDP (vague 1 : PDFs + mail) -----
+    // ----- 4. Soumettre au Referent CDP (vague 1 : PDFs + mail) -----
     await page
       .getByRole('button', { name: /soumettre au référent cdp/i })
       .click();

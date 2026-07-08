@@ -10,7 +10,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(7);
+SELECT plan(6);
 
 SELECT ok((SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexname='idx_projets_statut') = 1,
   'idx_projets_statut present (projets.statut)');
@@ -18,8 +18,6 @@ SELECT ok((SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexna
   'idx_factures_client_id present (factures.client_id)');
 SELECT ok((SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexname='idx_echeances_facture_id') = 1,
   'idx_echeances_facture_id present (echeances.facture_id)');
-SELECT ok((SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexname='idx_prospects_commercial') = 1,
-  'idx_prospects_commercial present (prospects.commercial_id)');
 SELECT ok((SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexname='idx_apprenants_contrat_id') = 1,
   'idx_apprenants_contrat_id present (apprenants.contrat_id)');
 SELECT ok((SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexname='idx_notifications_subject_user') = 1,

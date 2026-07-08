@@ -18,7 +18,7 @@ export const revalidate = 0;
 // Landing universelle, rôle-adaptative :
 //   - admin/superadmin -> supervision globale (contrats non facturés Eduvia)
 //   - CDP (>=1 projet)  -> worklist « À faire »
-//   - commercial pur    -> redirect /commercial/prospects
+//   - commercial pur    -> redirect /crm/dashboard
 //   - sinon             -> onboarding collaborateur (inchangé)
 export default async function AccueilPage() {
   const user = await getUser();
@@ -51,7 +51,7 @@ export default async function AccueilPage() {
   }
 
   if (view === 'commercial') {
-    redirect('/commercial/prospects');
+    redirect('/crm/dashboard');
   }
 
   return (

@@ -9,7 +9,6 @@ import {
   sendPassationEscaladeDevEmail,
   sendPassationEscaladeDirectionEmail,
   sendPassationRappelReferentEmail,
-  sendSyntheseGenereeEmail,
   sendSyntheseVague1Email,
 } from '@/lib/email/passation-templates';
 
@@ -25,7 +24,7 @@ describe('passation-templates', () => {
       raisonSociale: 'Groupe Test',
       referenceDossier: 'SLV-2026-XYZ',
       developpeur: 'Iladj Toure',
-      lienFiche: 'https://app.mysoluvia.com/commercial/prospects/1',
+      lienFiche: 'https://app.mysoluvia.com/commercial/passations/1',
       pdfComplet: pdf,
     });
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
@@ -47,8 +46,8 @@ describe('passation-templates', () => {
   });
 
   it('echappe le HTML dans les champs libres', async () => {
-    await sendSyntheseGenereeEmail({
-      to: 'dev@mysoluvia.com',
+    await sendPassationEscaladeDevEmail({
+      to: ['dev@mysoluvia.com'],
       prospectNom: '<script>alert(1)</script>',
       referenceDossier: 'SLV-2026-XYZ',
       lienFiche: 'https://app.mysoluvia.com/x',
@@ -64,12 +63,6 @@ describe('passation-templates', () => {
       referenceDossier: 'SLV-2026-XYZ',
       lienFiche: 'https://app.mysoluvia.com/x',
     };
-    await sendSyntheseGenereeEmail({
-      to: 'a@b.fr',
-      prospectNom: 'Groupe Test',
-      referenceDossier: common.referenceDossier,
-      lienFiche: common.lienFiche,
-    });
     await sendSyntheseVague1Email({
       ...common,
       to: ['a@b.fr'],

@@ -90,7 +90,7 @@ describe('buildWelcomeCommercial', () => {
   it('a le bon subject et le contenu commercial', () => {
     const { subject, html } = buildWelcomeCommercial({ prenom: 'Léa' });
     expect(subject).toBe('Bienvenue sur Soluvia - votre pipeline commercial');
-    expect(html).toMatch(/prospects/i);
+    expect(html).toMatch(/pipeline CRM/i);
     expect(html).toMatch(/taux de conversion/i);
     expect(html).toMatch(/chefs de projet/i);
   });

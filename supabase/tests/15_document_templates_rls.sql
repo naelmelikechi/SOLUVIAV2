@@ -7,7 +7,7 @@
 --   SELECT : is_admin() OU has_pipeline_access()
 --   INSERT/UPDATE/DELETE : is_admin() SEUL (la Direction publie les modèles)
 --
--- Invariant clé vs prospect_contacts : l'écriture est réservée aux admins.
+-- Invariant clé : l'écriture est réservée aux admins.
 
 BEGIN;
 

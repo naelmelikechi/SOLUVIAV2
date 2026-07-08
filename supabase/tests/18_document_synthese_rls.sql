@@ -21,9 +21,9 @@ SELECT plan(6);
 
 -- ----- Setup (superuser -> bypass RLS) -------------------------------------
 CREATE TEMP TABLE _ctx (
-  admin_id UUID, pipe_id UUID, noacc_id UUID, prospect_id UUID, synth_id UUID
+  admin_id UUID, pipe_id UUID, noacc_id UUID, client_id UUID, synth_id UUID
 );
-INSERT INTO _ctx (admin_id, pipe_id, noacc_id, prospect_id)
+INSERT INTO _ctx (admin_id, pipe_id, noacc_id, client_id)
 VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), gen_random_uuid());
 
 INSERT INTO auth.users (id, email)
@@ -38,15 +38,15 @@ SELECT pipe_id,  'pipe-syn@test.local',  'Pipe',  'Syn', 'cdp'::role_utilisateur
 UNION ALL
 SELECT noacc_id, 'noacc-syn@test.local', 'Noacc', 'Syn', 'cdp'::role_utilisateur, false FROM _ctx;
 
--- Prospect de référence (FK prospect_id) + une synthèse à lire.
-INSERT INTO prospects (id, type_prospect, nom)
-SELECT prospect_id, 'entreprise'::type_prospect, 'Prospect RLS Synthese' FROM _ctx;
+-- Client de référence (FK client_id, ancrage post-Phase 2 CRM) + une synthèse.
+INSERT INTO clients (id, trigramme, raison_sociale)
+SELECT client_id, 'ZSY', 'Client RLS Synthese' FROM _ctx;
 
 DO $$
 DECLARE v_synth UUID;
 BEGIN
-  INSERT INTO document_synthese (prospect_id)
-    VALUES ((SELECT prospect_id FROM _ctx))
+  INSERT INTO document_synthese (client_id)
+    VALUES ((SELECT client_id FROM _ctx))
     RETURNING id INTO v_synth;
   UPDATE _ctx SET synth_id = v_synth;
 END $$;
@@ -65,7 +65,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION pg_temp.insert_as(p_user_id UUID, p_prospect_id UUID)
+CREATE OR REPLACE FUNCTION pg_temp.insert_as(p_user_id UUID, p_client_id UUID)
 RETURNS INTEGER LANGUAGE plpgsql AS $$
 DECLARE v_count INTEGER := 0;
 BEGIN
@@ -73,7 +73,7 @@ BEGIN
     json_build_object('sub', p_user_id, 'role', 'authenticated')::text, true);
   SET LOCAL role authenticated;
   BEGIN
-    INSERT INTO public.document_synthese (prospect_id) VALUES (p_prospect_id);
+    INSERT INTO public.document_synthese (client_id) VALUES (p_client_id);
     GET DIAGNOSTICS v_count = ROW_COUNT;
   EXCEPTION WHEN insufficient_privilege THEN
     v_count := -1;
@@ -106,12 +106,12 @@ SELECT is(
 );
 
 SELECT is(
-  pg_temp.insert_as((SELECT pipe_id FROM _ctx), (SELECT prospect_id FROM _ctx)),
+  pg_temp.insert_as((SELECT pipe_id FROM _ctx), (SELECT client_id FROM _ctx)),
   1, 'User avec pipeline_access peut INSERT une synthèse'
 );
 
 SELECT is(
-  pg_temp.insert_as((SELECT noacc_id FROM _ctx), (SELECT prospect_id FROM _ctx)),
+  pg_temp.insert_as((SELECT noacc_id FROM _ctx), (SELECT client_id FROM _ctx)),
   -1, 'User sans pipeline_access ne peut PAS INSERT (WITH CHECK refuse)'
 );
 

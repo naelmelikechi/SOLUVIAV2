@@ -29,8 +29,8 @@ const SCOPE = 'cron.passation-echeances';
 
 // CRON : rappels 18h / escalades 48h du workflow de passation (Feature 6).
 // Un seul job Vercel gère les 4 échéances ; idempotence par colonne timestamp.
-// Volontairement séparé de prospect-alertes (supprimé avec les prospects en
-// Phase 2 CRM alors que la passation survit).
+// La passation a survécu à la suppression des prospects (Phase 2 CRM) : les
+// synthèses sont client-ancrées et l'UI vit sous /commercial/passations.
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   const { data: docs, error } = await supabase
     .from('document_synthese')
     .select(
-      'id, prospect_id, client_id, statut, contenu, reference_dossier, genere_par, created_at, signature_signee_at, soumise_at, rappel_dev_at, escalade_dev_at, rappel_referent_at, escalade_direction_at',
+      'id, client_id, statut, contenu, reference_dossier, genere_par, created_at, signature_signee_at, soumise_at, rappel_dev_at, escalade_dev_at, rappel_referent_at, escalade_direction_at',
     )
     .in('statut', ['generee', 'en_cours_completion', 'en_attente_arbitrage']);
   if (error) {
@@ -84,20 +84,19 @@ export async function GET(request: Request) {
     const snapshot = normalizeSnapshot(doc.contenu);
     const nom = snapshot.identite.raisonSociale;
     const ref = doc.reference_dossier ?? snapshot.meta.referenceDossier;
-    const lienApp = doc.prospect_id
-      ? `/commercial/prospects/${doc.prospect_id}`
-      : '/commercial/cdp';
+    const lienApp = `/commercial/passations/${doc.id}`;
     const lienFiche = `${getAppUrl()}${lienApp}`;
 
-    // Le Développeur en charge : genere_par, sinon le commercial du prospect.
+    // Le Développeur en charge : genere_par, sinon l'apporteur commercial du
+    // client lié (les synthèses du pont CRM sont générées avec genere_par null).
     let devId = doc.genere_par;
-    if (!devId && doc.prospect_id) {
-      const { data: prospect } = await supabase
-        .from('prospects')
-        .select('commercial_id')
-        .eq('id', doc.prospect_id)
+    if (!devId && doc.client_id) {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('apporteur_commercial_id')
+        .eq('id', doc.client_id)
         .maybeSingle();
-      devId = prospect?.commercial_id ?? null;
+      devId = client?.apporteur_commercial_id ?? null;
     }
 
     for (const due of dues) {

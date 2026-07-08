@@ -113,9 +113,9 @@ const COMMERCIAL_TOUR: TourStep[] = [
     },
   },
   {
-    element: '[data-tour="/commercial/prospects"]',
+    element: '[data-tour="/crm/dashboard"]',
     popover: {
-      title: 'Prospects',
+      title: 'CRM',
       description:
         'Tes opportunités commerciales regroupées par étape. Suis chaque affaire jusqu’à la signature.',
       side: 'right',
@@ -123,12 +123,12 @@ const COMMERCIAL_TOUR: TourStep[] = [
     },
   },
   {
-    route: '/commercial/prospects',
-    element: '[data-tour="/commercial/prospects"]',
+    route: '/crm/dashboard',
+    element: '[data-tour="/crm/dashboard"]',
     popover: {
-      title: 'Page Prospects',
+      title: 'Dashboard CRM',
       description:
-        'Vue façon Notion de toutes les affaires en cours, regroupées par stage (Non contacté, R1 validé, R2 validé, Signé). Clique sur une ligne pour ouvrir le détail.',
+        'Comptes, contacts, opportunités et relances : toute ton activité commerciale en un seul endroit. Le pipeline kanban suit chaque affaire jusqu’à la signature.',
       side: 'right',
       align: 'start',
     },

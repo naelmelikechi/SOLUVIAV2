@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
+import { resolveTauxCommission } from '@/lib/utils/commission';
 import { getActiveOpcoMapping } from '@/lib/queries/opcos';
 import {
   qProjetOne,
@@ -38,7 +39,7 @@ export async function getBillableEvents(
       projetId,
       projetRef: projet.ref ?? '',
       clientRaisonSociale: projet.client?.raison_sociale ?? '',
-      tauxCommission: Number(projet.taux_commission ?? 10),
+      tauxCommission: resolveTauxCommission(projet.taux_commission),
       events: [],
       auditInvoiceIdsBySource: new Map(),
       clientTvaIntracom: projet.client?.tva_intracommunautaire ?? null,

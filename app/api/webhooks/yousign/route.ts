@@ -142,7 +142,7 @@ export async function POST(request: Request) {
 
   // Génération automatique de la synthèse de passation (Feature 6). Idempotent
   // (no-op si elle existe déjà) et non bloquant : le webhook doit répondre 2xx.
-  if (statut === 'signee') {
+  if (statut === 'signee' && demande.prospect_id) {
     try {
       await genererSyntheseCore(supabase, demande.prospect_id, {
         generePar: null,

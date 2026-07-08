@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { checkAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
+import { TAUX_COMMISSION_DEFAUT } from '@/lib/utils/commission';
 
 // ---------------------------------------------------------------------------
 // Schemas Zod (validation cote serveur, defense en profondeur)
@@ -93,7 +94,7 @@ export async function createProjet(data: {
       typologie_id: parsed.data.typologieId,
       cdp_id: parsed.data.cdpId,
       backup_cdp_id: parsed.data.backupCdpId || null,
-      taux_commission: parsed.data.tauxCommission ?? 10,
+      taux_commission: parsed.data.tauxCommission ?? TAUX_COMMISSION_DEFAUT,
       date_debut: parsed.data.dateDebut || null,
     })
     .select('id, ref')
@@ -105,6 +106,17 @@ export async function createProjet(data: {
       success: false,
       error: error.message || 'Erreur lors de la création du projet',
     };
+  }
+
+  if (parsed.data.tauxCommission == null) {
+    // Taux non renseigne a la creation : on applique le defaut mais on le
+    // trace, car un client dont le vrai taux est 40/55 % facturerait sinon a
+    // 10 % sans signal. Repere aussi par l'audit nocturne `projets_taux_defaut`.
+    logger.warn('actions.projets', 'projet cree sans taux explicite', {
+      projetId: projet.id,
+      ref: projet.ref,
+      tauxApplique: TAUX_COMMISSION_DEFAUT,
+    });
   }
 
   logAudit('projet_created', 'projet', projet.id, undefined, user.id);

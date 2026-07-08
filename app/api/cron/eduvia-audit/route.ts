@@ -8,6 +8,7 @@ import {
   type AuditAnomaly,
 } from '@/lib/eduvia/audit-notify';
 import { logger } from '@/lib/utils/logger';
+import { TAUX_COMMISSION_DEFAUT } from '@/lib/utils/commission';
 
 export const maxDuration = 300;
 
@@ -148,6 +149,35 @@ export async function GET(request: Request) {
         type: 'client_sans_sync_24h',
         count: staleKeys.length,
         sample: staleKeys.slice(0, 5).map((k) => k.label ?? k.client_id),
+      });
+    }
+
+    // g) Projets facturant reellement (contrat actif NPEC>0) mais restes au
+    //    taux de commission par defaut : signal d'une config oubliee (un client
+    //    a 40/55 % facture a 10 % sans alerte). Non bloquant, simple rappel.
+    const { data: projetsTauxDefaut } = await supabase
+      .from('projets')
+      .select('ref, contrats!inner(id)')
+      .eq('archive', false)
+      .eq('est_libre', false)
+      .eq('est_interne', false)
+      .eq('est_absence', false)
+      .eq('taux_commission', TAUX_COMMISSION_DEFAUT)
+      .eq('contrats.archive', false)
+      .gt('contrats.npec_amount', 0)
+      .limit(200);
+    const refsTauxDefaut = Array.from(
+      new Set(
+        (projetsTauxDefaut ?? [])
+          .map((p) => p.ref)
+          .filter((r): r is string => r != null),
+      ),
+    );
+    if (refsTauxDefaut.length > 0) {
+      anomalies.push({
+        type: 'projets_taux_defaut',
+        count: refsTauxDefaut.length,
+        sample: refsTauxDefaut.slice(0, 5),
       });
     }
 

@@ -1,6 +1,7 @@
 import { computeContractSchedule } from '@/lib/queries/production';
 import { encaisseHt } from '@/lib/utils/montant-ht';
 import { round2 } from '@/lib/utils/number';
+import { resolveTauxCommission } from '@/lib/utils/commission';
 
 // -----------------------------------------------------------------------------
 // Agregation pure du drill-down production (mois -> clients -> projets).
@@ -129,7 +130,7 @@ export function aggregateMonthByProjet(
     if (!c.npec_amount || c.npec_amount <= 0) continue;
     if (!c.projet) continue;
 
-    const tauxCommission = c.projet.taux_commission ?? 10;
+    const tauxCommission = resolveTauxCommission(c.projet.taux_commission);
     const schedule = computeContractSchedule(
       c.date_debut,
       c.duree_mois,

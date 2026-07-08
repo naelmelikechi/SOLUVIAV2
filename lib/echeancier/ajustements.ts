@@ -3,6 +3,9 @@ import type { Database, Json } from '@/types/database';
 import {
   computeDerivance,
   computeProrataRupture,
+  computeCommissionContratComplet,
+  resolveProjetEcheancier,
+  parseJalons,
   type BilledLine,
 } from './calc';
 import { logger } from '@/lib/utils/logger';
@@ -221,9 +224,9 @@ export async function detectNpecChangeAjustement(
 }
 
 /**
- * Detecte une rupture anticipee : calcule l'avoir pro-rata + insere un
- * ajustement pending. Supprime aussi les echeances futures non facturees
- * du contrat.
+ * Detecte une rupture anticipee : calcule l'avoir + insere un ajustement
+ * pending. Les echeances futures non facturees se recomputent naturellement
+ * (le contrat resilie/archive ne contribue plus a aggregateProjetEcheances).
  */
 export async function detectRuptureAjustement(
   supabase: Client,
@@ -234,7 +237,9 @@ export async function detectRuptureAjustement(
   const [contratRes, billedLines, creditsExisting] = await Promise.all([
     supabase
       .from('contrats')
-      .select('id, projet_id, date_debut, duree_mois')
+      .select(
+        'id, projet_id, date_debut, duree_mois, projets!inner(echeancier_template_id, echeancier_override)',
+      )
       .eq('id', contratId)
       .maybeSingle(),
     loadBilledLines(supabase, contratId),
@@ -245,14 +250,50 @@ export async function detectRuptureAjustement(
   if (contratErr || !contrat) return 0;
   if (!contrat.date_debut || !contrat.duree_mois) return 0;
 
-  // 1. Calcule l'avoir pro-rata sur factures emises
+  // 1. Calcule l'avoir : compare le facture au gagne (jalon-aware au niveau
+  //    contrat). On a besoin de la commission totale de l'echeancier complet.
   let deltaHt = 0;
   let detail: Json = {};
   if (billedLines.length > 0) {
+    // Commission de l'echeancier complet = reference "gagne a 100 %". Base au
+    // SNAPSHOT des lignes facturees (npec/taux figes a l'emission) pour rester
+    // coherent avec le facture et ne pas se melanger a un changement de NPEC
+    // (traite par detectNpecChangeAjustement). Snapshot canonique = plus gros NPEC.
+    const canon = billedLines.reduce(
+      (best, l) => (l.npec_snapshot > best.npec_snapshot ? l : best),
+      billedLines[0]!,
+    );
+    const base = (canon.npec_snapshot * canon.taux_commission_snapshot) / 100;
+    const projetConfig = contrat.projets as {
+      echeancier_template_id: string | null;
+      echeancier_override: unknown;
+    } | null;
+    const { data: templates } = await supabase
+      .from('echeanciers_templates')
+      .select('id, nom, jalons, is_default')
+      .eq('archive', false);
+    const resolved = resolveProjetEcheancier(
+      {
+        echeancier_template_id: projetConfig?.echeancier_template_id ?? null,
+        echeancier_override: projetConfig?.echeancier_override ?? null,
+      },
+      (templates ?? []).map((t) => ({
+        id: t.id,
+        nom: t.nom,
+        jalons: t.jalons,
+        is_default: t.is_default,
+      })),
+    );
+    const totalCommissionContrat = computeCommissionContratComplet(
+      base,
+      parseJalons(resolved.jalons),
+      contrat.duree_mois,
+    );
     const result = computeProrataRupture(
       { date_debut: contrat.date_debut, duree_mois: contrat.duree_mois },
       dateRupture,
       billedLines,
+      totalCommissionContrat,
     );
     // Avoir BRUT : delta_ht negatif (SOLUVIA doit rendre)
     const avoirBrut = -result.avoir_total_ht;

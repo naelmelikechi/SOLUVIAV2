@@ -20,6 +20,13 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
+      // Scope la couverture aux deux zones à seuils : force TOUS leurs fichiers
+      // dans le rapport à chaque run (dénominateur déterministe). Sans ça, la
+      // couverture v8 sous workers parallèles peut omettre un fichier du rapport
+      // en CI (ex. echeancier/ajustements.ts mesuré 81% en local mais ~28% en
+      // CI selon le sharding), faisant chuter la zone sous son seuil de façon
+      // non déterministe.
+      include: ['lib/echeancier/**', 'lib/queries/billable-events/**'],
       // Filets anti-regression sur les deux zones critiques de calcul
       // (echeanciers contractuels + evenements facturables). Valeurs fixees
       // ~5 points SOUS la couverture mesuree le 2026-07-02 (agregat par zone :

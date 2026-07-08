@@ -1,7 +1,9 @@
 -- ===========================================================================
 -- Test : RLS sur signature_requests (Feature 5 — signature de contrat)
 -- ===========================================================================
--- Migration : 20260615160800_signature_requests.sql
+-- Migrations : 20260615160800_signature_requests.sql (RLS),
+--   20260708150000_signature_requests_client_based.sql (ancrage client,
+--   prospect_id supprime par 20260708180000_drop_prospects.sql)
 --   SELECT/INSERT/UPDATE : is_admin() OU has_pipeline_access()
 --   DELETE : is_admin()
 
@@ -13,9 +15,9 @@ SET search_path = public, extensions;
 SELECT plan(5);
 
 CREATE TEMP TABLE _ctx (
-  admin_id UUID, pipe_id UUID, noacc_id UUID, prospect_id UUID, req_id UUID
+  admin_id UUID, pipe_id UUID, noacc_id UUID, client_id UUID, req_id UUID
 );
-INSERT INTO _ctx (admin_id, pipe_id, noacc_id, prospect_id)
+INSERT INTO _ctx (admin_id, pipe_id, noacc_id, client_id)
 VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), gen_random_uuid());
 
 INSERT INTO auth.users (id, email)
@@ -30,14 +32,14 @@ SELECT pipe_id,  'pipe-sig@test.local',  'Pipe',  'Sig', 'cdp'::role_utilisateur
 UNION ALL
 SELECT noacc_id, 'noacc-sig@test.local', 'Noacc', 'Sig', 'cdp'::role_utilisateur, false FROM _ctx;
 
-INSERT INTO prospects (id, type_prospect, nom)
-SELECT prospect_id, 'entreprise'::type_prospect, 'Prospect RLS Sig' FROM _ctx;
+INSERT INTO clients (id, trigramme, raison_sociale)
+SELECT client_id, 'ZSG', 'Client RLS Sig' FROM _ctx;
 
 DO $$
 DECLARE v_req UUID;
 BEGIN
-  INSERT INTO signature_requests (prospect_id, titre)
-    VALUES ((SELECT prospect_id FROM _ctx), 'Contrat initial')
+  INSERT INTO signature_requests (client_id, titre)
+    VALUES ((SELECT client_id FROM _ctx), 'Contrat initial')
     RETURNING id INTO v_req;
   UPDATE _ctx SET req_id = v_req;
 END $$;
@@ -55,7 +57,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION pg_temp.insert_as(p_user_id UUID, p_prospect_id UUID)
+CREATE OR REPLACE FUNCTION pg_temp.insert_as(p_user_id UUID, p_client_id UUID)
 RETURNS INTEGER LANGUAGE plpgsql AS $$
 DECLARE v_count INTEGER := 0;
 BEGIN
@@ -63,8 +65,8 @@ BEGIN
     json_build_object('sub', p_user_id, 'role', 'authenticated')::text, true);
   SET LOCAL role authenticated;
   BEGIN
-    INSERT INTO public.signature_requests (prospect_id, titre)
-      VALUES (p_prospect_id, 'Tentative');
+    INSERT INTO public.signature_requests (client_id, titre)
+      VALUES (p_client_id, 'Tentative');
     GET DIAGNOSTICS v_count = ROW_COUNT;
   EXCEPTION WHEN insufficient_privilege THEN
     v_count := -1;
@@ -95,7 +97,7 @@ SELECT is(
 );
 
 SELECT is(
-  pg_temp.insert_as((SELECT noacc_id FROM _ctx), (SELECT prospect_id FROM _ctx)),
+  pg_temp.insert_as((SELECT noacc_id FROM _ctx), (SELECT client_id FROM _ctx)),
   -1, 'User sans pipeline_access ne peut PAS INSERT (WITH CHECK refuse)'
 );
 

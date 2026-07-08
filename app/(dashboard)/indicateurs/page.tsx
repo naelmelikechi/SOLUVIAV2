@@ -7,7 +7,6 @@ import {
   type TechPeriod,
 } from '@/lib/queries/indicateurs';
 import { CdpSection } from '@/components/indicateurs/cdp-section';
-import { CommercialSection } from '@/components/indicateurs/commercial-section';
 import { TechSection } from '@/components/indicateurs/tech-section';
 
 export const metadata: Metadata = { title: 'Indicateurs - SOLUVIA' };
@@ -24,7 +23,8 @@ function getDescription(kind: 'admin' | 'cdp' | 'commercial'): string {
     case 'cdp':
       return 'Ratios de vos CFA et suivi des idées produit';
     case 'commercial':
-      return 'Votre activité commerciale et suivi des idées produit';
+      // L'activité commerciale vit désormais dans le dashboard CRM (/crm).
+      return 'Suivi des idées produit';
   }
 }
 
@@ -49,7 +49,6 @@ export default async function IndicateursPage({
   const techPeriod = parseTechPeriod(params.t);
 
   const showCdp = scope.kind === 'admin' || scope.kind === 'cdp';
-  const showCommercial = scope.kind === 'admin' || scope.kind === 'commercial';
   const showTech = true;
 
   return (
@@ -60,7 +59,6 @@ export default async function IndicateursPage({
       />
 
       {showCdp && <CdpSection scope={scope} period={period} />}
-      {showCommercial && <CommercialSection scope={scope} />}
       {showTech && <TechSection period={techPeriod} />}
     </div>
   );

@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { DISPO_CDP_LABELS, type DispoCdp } from '@/lib/utils/constants';
-import { rankCdps, type CdpScore } from '@/lib/utils/cdp-scoring';
+import { estRouge, rankCdps, type CdpScore } from '@/lib/utils/cdp-scoring';
 import { formatDate } from '@/lib/utils/formatters';
 import { affectCdp } from '@/lib/actions/cdp';
 import type { CdpPlanLine, ClientAAffecter } from '@/lib/queries/cdp';
@@ -40,6 +40,8 @@ interface RankedCdp extends CdpScore {
   nom: string;
   prenom: string;
   disponibilite: DispoCdp | null;
+  /** Rouge (>= 95 % ou saturation déclarée) : exclu du Top 3 (spec F7 §4). */
+  rouge: boolean;
 }
 
 interface ArbitragePanelProps {
@@ -65,15 +67,25 @@ export function ArbitragePanel({
         disponibilite: c.disponibilite,
       };
     });
-    return rankCdps(metrics).map((s) => {
+    const ranked = rankCdps(metrics).map((s) => {
       const c = cdps.find((x) => x.id === s.cdpId);
+      const disponibilite = c?.disponibilite ?? null;
       return {
         ...s,
         nom: c?.nom ?? '',
         prenom: c?.prenom ?? '',
-        disponibilite: c?.disponibilite ?? null,
+        disponibilite,
+        rouge: estRouge(s.ratio, disponibilite),
       };
     });
+    // Un CDP rouge n'apparaît pas dans le Top 3 : les candidats sains passent
+    // devant, les rouges restent sélectionnables en fin de liste (cas critique
+    // « tous rouges » : l'ordre par score reprend et l'escalade Direction est
+    // gérée par le cron).
+    return [
+      ...ranked.filter((c) => !c.rouge),
+      ...ranked.filter((c) => c.rouge),
+    ];
   }, [cdps, lines]);
 
   const openClient =
@@ -184,6 +196,13 @@ function ArbitrageDialogBody({
   return (
     <>
       <div className="space-y-4">
+        {rankedCdps.length > 0 && rankedCdps.every((c) => c.rouge) ? (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+            Tous les CDP sont au-dessus du seuil de saturation : la Direction
+            est alertée automatiquement. Affectation possible mais à arbitrer
+            avec précaution.
+          </p>
+        ) : null}
         {rankedCdps.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             Aucun chef de projet disponible.
@@ -209,10 +228,10 @@ function ArbitrageDialogBody({
                       <span className="font-medium">
                         {c.prenom} {c.nom}
                       </span>
-                      {i < 3 && (
+                      {i < 3 && !c.rouge && (
                         <StatusBadge label={`Top ${i + 1}`} color="blue" />
                       )}
-                      {c.sature && <StatusBadge label="Saturé" color="red" />}
+                      {c.rouge && <StatusBadge label="Saturé" color="red" />}
                     </div>
                     <p className="text-muted-foreground text-xs">
                       Capacité {c.charge} %

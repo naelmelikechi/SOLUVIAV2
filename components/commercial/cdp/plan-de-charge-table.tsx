@@ -9,6 +9,7 @@ import {
 } from '@/components/shared/data-table';
 import { textFilterFn } from '@/lib/utils/table-filters';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { seuilCharge } from '@/lib/utils/cdp-scoring';
 import { DISPO_CDP_LABELS, DISPO_CDP_COLORS } from '@/lib/utils/constants';
 import type { CdpPlanLine } from '@/lib/queries/cdp';
 
@@ -94,14 +95,26 @@ export function PlanDeChargeTable({ lines }: PlanDeChargeTableProps) {
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Capacité" />
         ),
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <span className="tabular-nums">{row.original.score.charge} %</span>
-            {row.original.score.sature && (
-              <StatusBadge label="Saturé" color="red" />
-            )}
-          </div>
-        ),
+        cell: ({ row }) => {
+          // Seuils spec F7 §4 : orange >= 80 %, rouge >= 95 % (ou saturation
+          // déclarée par le CDP).
+          const seuil = seuilCharge(
+            row.original.score.ratio,
+            row.original.disponibilite,
+          );
+          return (
+            <div className="flex items-center gap-2">
+              <span className="tabular-nums">
+                {row.original.score.charge} %
+              </span>
+              {seuil === 95 ? (
+                <StatusBadge label="Saturé" color="red" />
+              ) : seuil === 80 ? (
+                <StatusBadge label="Chargé" color="orange" />
+              ) : null}
+            </div>
+          );
+        },
       },
     ],
     [],

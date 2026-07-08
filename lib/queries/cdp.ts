@@ -1,9 +1,11 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { computeCdpScore, type CdpScore } from '@/lib/utils/cdp-scoring';
 import type { DispoCdp, StatutSynthese } from '@/lib/utils/constants';
+import type { Database } from '@/types/database';
 
 /**
  * Plan de charge — une ligne par CDP (users role='cdp' ou referent_cdp=true)
@@ -22,9 +24,14 @@ export interface CdpPlanLine {
  * Charge le plan de charge de tous les CDP en 4 requêtes (users + clients +
  * projets + contrats joints projets), puis agrège les compteurs en mémoire :
  * aucune requête par CDP (pas de N+1).
+ *
+ * `supabaseClient` optionnel : le cron des alertes de saturation injecte le
+ * client service-role (pas de session utilisateur) ; par défaut, client RLS.
  */
-export async function getCdpPlanDeCharge(): Promise<CdpPlanLine[]> {
-  const supabase = await createClient();
+export async function getCdpPlanDeCharge(
+  supabaseClient?: SupabaseClient<Database>,
+): Promise<CdpPlanLine[]> {
+  const supabase = supabaseClient ?? (await createClient());
 
   const { data: cdps, error: cdpsError } = await supabase
     .from('users')

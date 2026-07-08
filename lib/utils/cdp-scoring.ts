@@ -92,3 +92,27 @@ export function rankCdps(metrics: CdpChargeMetrics[]): CdpScore[] {
     .map(computeCdpScore)
     .sort((a, b) => b.score - a.score || a.ratio - b.ratio);
 }
+
+/** Palier d'alerte de saturation (Feature 7 §4) : 0, 80 (orange) ou 95 (rouge). */
+export type SeuilCharge = 0 | 80 | 95;
+
+/**
+ * Palier atteint par un CDP : rouge à >= 95 % de la saturation théorique OU
+ * saturation déclarée par le CDP lui-même ; orange à >= 80 %.
+ */
+export function seuilCharge(
+  ratio: number,
+  disponibilite: DispoCdp | null | undefined,
+): SeuilCharge {
+  if (ratio >= 0.95 || disponibilite === 'sature') return 95;
+  if (ratio >= 0.8) return 80;
+  return 0;
+}
+
+/** Un CDP « rouge » n'apparaît pas dans le Top 3 (sauf si tous le sont). */
+export function estRouge(
+  ratio: number,
+  disponibilite: DispoCdp | null | undefined,
+): boolean {
+  return seuilCharge(ratio, disponibilite) === 95;
+}

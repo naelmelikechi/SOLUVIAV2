@@ -3724,6 +3724,7 @@ export type Database = {
           can_ship_ideas: boolean;
           can_validate_ideas: boolean;
           cdp_disponibilite: Database['public']['Enums']['dispo_cdp'] | null;
+          cdp_seuil_alerte: number;
           created_at: string;
           derniere_connexion: string | null;
           email: string;
@@ -3753,6 +3754,7 @@ export type Database = {
           can_ship_ideas?: boolean;
           can_validate_ideas?: boolean;
           cdp_disponibilite?: Database['public']['Enums']['dispo_cdp'] | null;
+          cdp_seuil_alerte?: number;
           created_at?: string;
           derniere_connexion?: string | null;
           email: string;
@@ -3782,6 +3784,7 @@ export type Database = {
           can_ship_ideas?: boolean;
           can_validate_ideas?: boolean;
           cdp_disponibilite?: Database['public']['Enums']['dispo_cdp'] | null;
+          cdp_seuil_alerte?: number;
           created_at?: string;
           derniere_connexion?: string | null;
           email?: string;

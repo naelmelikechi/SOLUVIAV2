@@ -374,6 +374,56 @@ export async function diffuserVague2(
   return { success: true };
 }
 
+/**
+ * Archive la synthèse une fois la prise en main effective du CDP (statut
+ * terminal de la spec F6). Ne s'applique qu'après la vague 2 (cdp_affecte).
+ */
+export async function archiverSynthese(
+  syntheseId: string,
+): Promise<{ success: boolean; error?: string }> {
+  if (!uuidSchema.safeParse(syntheseId).success) {
+    return { success: false, error: 'Synthèse invalide' };
+  }
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
+  if (!userId) return { success: false, error: 'Non authentifié' };
+  if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
+    return { success: false, error: 'Accès refusé' };
+  }
+
+  const { data: synthese } = await supabase
+    .from('document_synthese')
+    .select('id, statut, prospect_id')
+    .eq('id', syntheseId)
+    .single();
+  if (!synthese) return { success: false, error: 'Synthèse inconnue' };
+  if (synthese.statut !== 'cdp_affecte') {
+    return {
+      success: false,
+      error: 'Seule une synthèse transmise au CDP peut être archivée',
+    };
+  }
+
+  const { error } = await supabase
+    .from('document_synthese')
+    .update({ statut: 'archivee', updated_at: new Date().toISOString() })
+    .eq('id', syntheseId)
+    .eq('statut', 'cdp_affecte');
+  if (error) return { success: false, error: error.message };
+
+  logAudit(
+    'synthese_archivee',
+    'document_synthese',
+    syntheseId,
+    undefined,
+    userId,
+  );
+  if (synthese.prospect_id) {
+    revalidatePath(`/commercial/prospects/${synthese.prospect_id}`);
+  }
+  revalidatePath('/commercial/cdp');
+  return { success: true };
+}
+
 /** Lien signé (5 min) vers l'une des deux variantes — pipeline/admin. */
 export async function getSyntheseDownloadUrl(
   syntheseId: string,

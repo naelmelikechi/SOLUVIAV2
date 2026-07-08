@@ -3,11 +3,11 @@ import type { Database, Json } from '@/types/database';
 import {
   computeDerivance,
   computeProrataRupture,
+  computeCommissionContratComplet,
   resolveProjetEcheancier,
   parseJalons,
   type BilledLine,
 } from './calc';
-import { round2 } from '@/lib/utils/number';
 import { logger } from '@/lib/utils/logger';
 
 const SCOPE = 'echeancier.ajustements';
@@ -224,60 +224,6 @@ export async function detectNpecChangeAjustement(
 }
 
 /**
- * Commission HT que produirait l'echeancier COMPLET du contrat, i.e. la base
- * (NPEC × taux) multipliee par la somme des quote_parts des jalons couverts par
- * la duree. Sert de reference "gagne a 100 %" pour le calcul d'avoir de rupture.
- *
- * On prend la base au SNAPSHOT des lignes deja facturees (npec/taux figes a
- * l'emission), pas les valeurs projet courantes : l'avoir de rupture doit etre
- * coherent avec ce qui a reellement ete facture, et ne pas se melanger a un
- * eventuel changement de NPEC (traite separement par detectNpecChangeAjustement).
- */
-async function computeTotalCommissionContrat(
-  supabase: Client,
-  projetConfig: {
-    echeancier_template_id: string | null;
-    echeancier_override: unknown;
-  } | null,
-  dureeMois: number,
-  billedLines: BilledLine[],
-): Promise<number> {
-  if (billedLines.length === 0) return 0;
-  // Snapshot canonique = ligne au plus gros NPEC. (computeDerivance, lui, prend
-  // le max quote_part PAR jalon ; ici on veut la base contrat, pas un jalon.)
-  const canon = billedLines.reduce(
-    (best, l) => (l.npec_snapshot > best.npec_snapshot ? l : best),
-    billedLines[0]!,
-  );
-  const base = (canon.npec_snapshot * canon.taux_commission_snapshot) / 100;
-  if (base <= 0) return 0;
-
-  const { data: templates } = await supabase
-    .from('echeanciers_templates')
-    .select('id, nom, jalons, is_default')
-    .eq('archive', false);
-
-  const resolved = resolveProjetEcheancier(
-    {
-      echeancier_template_id: projetConfig?.echeancier_template_id ?? null,
-      echeancier_override: projetConfig?.echeancier_override ?? null,
-    },
-    (templates ?? []).map((t) => ({
-      id: t.id,
-      nom: t.nom,
-      jalons: t.jalons,
-      is_default: t.is_default,
-    })),
-  );
-  const jalons = parseJalons(resolved.jalons);
-  const sumQp = jalons
-    .filter((j) => j.mois_relatif <= dureeMois)
-    .reduce((s, j) => s + j.quote_part, 0);
-
-  return round2(base * sumQp);
-}
-
-/**
  * Detecte une rupture anticipee : calcule l'avoir + insere un ajustement
  * pending. Les echeances futures non facturees se recomputent naturellement
  * (le contrat resilie/archive ne contribue plus a aggregateProjetEcheances).
@@ -309,14 +255,39 @@ export async function detectRuptureAjustement(
   let deltaHt = 0;
   let detail: Json = {};
   if (billedLines.length > 0) {
-    const totalCommissionContrat = await computeTotalCommissionContrat(
-      supabase,
-      contrat.projets as {
-        echeancier_template_id: string | null;
-        echeancier_override: unknown;
-      } | null,
+    // Commission de l'echeancier complet = reference "gagne a 100 %". Base au
+    // SNAPSHOT des lignes facturees (npec/taux figes a l'emission) pour rester
+    // coherent avec le facture et ne pas se melanger a un changement de NPEC
+    // (traite par detectNpecChangeAjustement). Snapshot canonique = plus gros NPEC.
+    const canon = billedLines.reduce(
+      (best, l) => (l.npec_snapshot > best.npec_snapshot ? l : best),
+      billedLines[0]!,
+    );
+    const base = (canon.npec_snapshot * canon.taux_commission_snapshot) / 100;
+    const projetConfig = contrat.projets as {
+      echeancier_template_id: string | null;
+      echeancier_override: unknown;
+    } | null;
+    const { data: templates } = await supabase
+      .from('echeanciers_templates')
+      .select('id, nom, jalons, is_default')
+      .eq('archive', false);
+    const resolved = resolveProjetEcheancier(
+      {
+        echeancier_template_id: projetConfig?.echeancier_template_id ?? null,
+        echeancier_override: projetConfig?.echeancier_override ?? null,
+      },
+      (templates ?? []).map((t) => ({
+        id: t.id,
+        nom: t.nom,
+        jalons: t.jalons,
+        is_default: t.is_default,
+      })),
+    );
+    const totalCommissionContrat = computeCommissionContratComplet(
+      base,
+      parseJalons(resolved.jalons),
       contrat.duree_mois,
-      billedLines,
     );
     const result = computeProrataRupture(
       { date_debut: contrat.date_debut, duree_mois: contrat.duree_mois },

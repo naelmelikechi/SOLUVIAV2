@@ -445,6 +445,29 @@ export function computeDerivance(
 }
 
 // ---------------------------------------------------------------------------
+// Commission de l'echeancier complet (reference "gagne a 100%")
+// ---------------------------------------------------------------------------
+
+/**
+ * Commission HT que produirait l'echeancier COMPLET d'un contrat :
+ * base (= NPEC × taux/100) × somme des quote_parts des jalons couverts par la
+ * duree (mois_relatif <= dureeMois). Sert de reference "gagne a 100 %" pour
+ * l'avoir de rupture (cf. computeProrataRupture). Pur & testable ; la resolution
+ * du template est faite par l'appelant.
+ */
+export function computeCommissionContratComplet(
+  base: number,
+  jalons: Jalon[],
+  dureeMois: number,
+): number {
+  if (base <= 0) return 0;
+  const sumQp = jalons
+    .filter((j) => j.mois_relatif <= dureeMois)
+    .reduce((s, j) => s + j.quote_part, 0);
+  return round2(base * sumQp);
+}
+
+// ---------------------------------------------------------------------------
 // Pro-rata sur rupture anticipee
 // ---------------------------------------------------------------------------
 

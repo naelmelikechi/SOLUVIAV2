@@ -4,6 +4,7 @@ import {
   computeDerivance,
   computeJalonContribution,
   computeProrataRupture,
+  computeCommissionContratComplet,
   dateEmissionPrevuePourMois,
   moisAbsoluFromRelatif,
   parseJalons,
@@ -486,6 +487,26 @@ describe('computeDerivance', () => {
       },
     ]);
     expect(r.breakdown[0]?.quote_part).toBeCloseTo(1 / 12, 5);
+  });
+});
+
+describe('computeCommissionContratComplet', () => {
+  it('base × somme des quote_parts (contrat complet 12 mois) = base', () => {
+    expect(computeCommissionContratComplet(1200, STANDARD_JALONS, 12)).toBe(
+      1200,
+    );
+  });
+  it('ne compte que les jalons couverts par la duree', () => {
+    const r = computeCommissionContratComplet(1200, STANDARD_JALONS, 6);
+    expect(r).toBeCloseTo(599.88, 2);
+    expect(r).toBeLessThan(1200);
+  });
+  it('retourne 0 si base <= 0', () => {
+    expect(computeCommissionContratComplet(0, STANDARD_JALONS, 12)).toBe(0);
+    expect(computeCommissionContratComplet(-5, STANDARD_JALONS, 12)).toBe(0);
+  });
+  it('retourne 0 si aucun jalon couvert', () => {
+    expect(computeCommissionContratComplet(1200, STANDARD_JALONS, 1)).toBe(0);
   });
 });
 

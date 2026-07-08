@@ -51,7 +51,7 @@ export async function sendEmail(
   }
 }
 
-/** Coquille de mail brandée (header logo Perf + footer). `bodyHtml` = contenu déjà échappé. */
+/** Coquille de mail brandée (header logo Soluvia + footer). `bodyHtml` = contenu déjà échappé. */
 function brandedShell(opts: {
   title: string;
   preheader?: string;
@@ -65,14 +65,14 @@ function brandedShell(opts: {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7f8;padding:32px 12px"><tr><td align="center">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #e2e8ea;border-radius:14px;overflow:hidden">
       <tr><td style="background:#0B1220;padding:22px 32px;text-align:center">
-        <img src="${SITE}/logo.png" width="34" height="34" alt="Soluvia" style="display:inline-block;vertical-align:middle;border:0" />
+        <img src="${SITE}/logo.png" width="148" height="30" alt="Soluvia" style="display:inline-block;vertical-align:middle;border:0" />
       </td></tr>
       <tr><td style="padding:32px">
         <h1 style="margin:0 0 20px;font-size:18px;font-weight:700;color:#102D3A">${escapeHtml(opts.title)}</h1>
         ${opts.bodyHtml}
       </td></tr>
     </table>
-    <p style="margin:16px 0 0;font-size:11px;color:#8AA0A8">Pipeline commercial &#183; Perf</p>
+    <p style="margin:16px 0 0;font-size:11px;color:#8AA0A8">Pipeline commercial &#183; Soluvia</p>
   </td></tr></table></body></html>`;
 }
 
@@ -102,7 +102,7 @@ export function credentialsEmail(opts: {
     <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#8AA0A8">Pour votre sécurité, changez ce mot de passe temporaire dès votre connexion, dans « Mon compte ».</p>`;
   return {
     subject: isInvite
-      ? 'Votre accès au CRM Perf'
+      ? 'Votre accès au CRM Soluvia'
       : 'Votre mot de passe CRM a été réinitialisé',
     html: brandedShell({
       title: isInvite

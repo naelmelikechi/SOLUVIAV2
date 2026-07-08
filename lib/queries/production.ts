@@ -7,6 +7,7 @@ import {
 } from '@/lib/queries/production-aggregates';
 import { ttcToHt } from '@/lib/utils/montant-ht';
 import { round2 } from '@/lib/utils/number';
+import { resolveTauxCommission } from '@/lib/utils/commission';
 import { capitalize } from '@/lib/utils/strings';
 
 // -----------------------------------------------------------------------------
@@ -153,7 +154,7 @@ export async function getProductionData(): Promise<ProductionRow[]> {
       c.date_debut,
       c.duree_mois,
       c.npec_amount,
-      c.taux_commission ?? 10,
+      resolveTauxCommission(c.taux_commission),
     );
 
     for (const e of schedule.opco) {

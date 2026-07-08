@@ -6,6 +6,7 @@ import { checkAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 import { addDaysIso } from '@/lib/utils/dates';
+import { resolveTauxCommission } from '@/lib/utils/commission';
 import { getDelaiEcheanceJours } from '@/lib/queries/parametres';
 import {
   aggregateProjetEcheances,
@@ -317,7 +318,7 @@ export async function createFactures(
       groups.set(projetId, {
         projetId,
         clientId: projet.client?.id ?? '',
-        tauxCommission: projet.taux_commission ?? 10,
+        tauxCommission: resolveTauxCommission(projet.taux_commission),
         echeancierTemplateId: projet.echeancier_template_id ?? null,
         echeancierOverride: projet.echeancier_override,
         moisConcernes: [ech.mois_concerne],

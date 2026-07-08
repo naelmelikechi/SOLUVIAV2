@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createCrmAdminClient } from '@/lib/crm/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 import type {
   CanalOrigine,
@@ -319,6 +321,170 @@ export async function buildSyntheseSnapshotFromProspect(
     signature: signature
       ? { id: signature.id, signedAt: signature.signed_at }
       : null,
+  };
+}
+
+/**
+ * Jumeau de `buildSyntheseSnapshotFromProspect` côté CRM (Phase 2, pont A2).
+ * Construit le snapshot V2 depuis une opportunité `crm.*` (compte enrichi INSEE,
+ * contacts, RDV, champs négociation) au lieu d'un prospect. Lit `crm` via un
+ * client admin service-role (le schéma `crm` n'est pas couvert par la RLS
+ * `public`), et `public.users`/`public.clients` via l'admin public. Renvoie null
+ * si l'opportunité est introuvable. La signature reste null en Lot B (elle
+ * deviendra client-based en Lot C).
+ */
+export async function buildSyntheseSnapshotFromOpportunite(
+  oppId: string,
+): Promise<{
+  snapshot: SyntheseSnapshotV2;
+  clientId: string | null;
+  commercialId: string | null;
+  signature: { id: string; signedAt: string | null } | null;
+} | null> {
+  const crm = createCrmAdminClient();
+  const pub = createAdminClient();
+
+  const { data: opp, error } = await crm
+    .from('opportunites')
+    .select('*')
+    .eq('id', oppId)
+    .single();
+  if (error || !opp) {
+    logger.error(
+      'queries.passation',
+      'buildSyntheseSnapshot opportunite failed',
+      {
+        oppId,
+        error,
+      },
+    );
+    return null;
+  }
+
+  const [compteRes, contactsRes, rdvsRes, adressesRes] = await Promise.all([
+    crm.from('comptes').select('*').eq('id', opp.compte_id).maybeSingle(),
+    crm
+      .from('contacts')
+      .select('*')
+      .eq('compte_id', opp.compte_id)
+      .order('created_at', { ascending: true }),
+    crm
+      .from('rdv')
+      .select('*')
+      .eq('opportunite_id', oppId)
+      .order('debut', { ascending: true }),
+    crm
+      .from('adresses')
+      .select('*')
+      .eq('compte_id', opp.compte_id)
+      .order('principal', { ascending: false }),
+  ]);
+  const compte = compteRes.data;
+  const adressePrincipale = (adressesRes.data ?? [])[0] ?? null;
+
+  let developpeur: string | null = null;
+  if (opp.owner_id) {
+    const { data } = await pub
+      .from('users')
+      .select('nom, prenom')
+      .eq('id', opp.owner_id)
+      .maybeSingle();
+    if (data) developpeur = `${data.prenom} ${data.nom}`.trim();
+  }
+
+  let raisonSociale = compte?.nom ?? '-';
+  if (opp.client_id) {
+    const { data } = await pub
+      .from('clients')
+      .select('raison_sociale')
+      .eq('id', opp.client_id)
+      .maybeSingle();
+    if (data?.raison_sociale) raisonSociale = data.raison_sociale;
+  }
+
+  const referenceYear = new Date(opp.created_at).getFullYear();
+
+  const calendrierRaw =
+    opp.calendrier_previsionnel &&
+    typeof opp.calendrier_previsionnel === 'object' &&
+    !Array.isArray(opp.calendrier_previsionnel)
+      ? (opp.calendrier_previsionnel as Record<string, unknown>)
+      : {};
+  const calendrier: Partial<Record<JalonCalendrierKey, string>> = {};
+  for (const [k, v] of Object.entries(calendrierRaw)) {
+    const s = str(v);
+    if (s) calendrier[k as JalonCalendrierKey] = s;
+  }
+
+  const snapshot: SyntheseSnapshotV2 = {
+    version: 2,
+    meta: {
+      referenceDossier: `SLV-${referenceYear}-${opp.id.slice(0, 8).toUpperCase()}`,
+      numeroContrat: str(opp.numero_contrat),
+      dateSignature: null,
+      dateProduction: new Date().toISOString(),
+      developpeur,
+      tunnel: (opp.type_prospect as TypeProspect | null) ?? null,
+    },
+    identite: {
+      raisonSociale,
+      formeJuridique: str(compte?.forme_juridique),
+      siren: str(compte?.siren),
+      siret: str(compte?.siret),
+      siege: str(compte?.adresse),
+      codeNaf: str(compte?.code_naf),
+      nafLibelle: str(compte?.naf_libelle),
+      region: str(adressePrincipale?.region),
+      siteWeb: str(compte?.site_web),
+      effectif: str(compte?.effectif_tranche),
+      nbImplantations: num(compte?.nb_implantations),
+      caDernierExercice: num(compte?.ca_dernier_exercice),
+    },
+    contacts: (contactsRes.data ?? []).map((c) => ({
+      nom: `${c.prenom ?? ''} ${c.nom ?? ''}`.trim() || '-',
+      poste: str(c.fonction),
+      email: str(c.email),
+      telephone: str(c.telephone),
+      role: (c.role_decision as RoleDecisionContact | null) ?? null,
+      sensibilites: str(c.sensibilites),
+    })),
+    historique: {
+      canal: (opp.canal_origine as CanalOrigine | null) ?? null,
+      datePremierContact: str(opp.date_premier_contact),
+      initiateur: (opp.initiateur as InitiateurContact | null) ?? null,
+      evolution: str(opp.historique_synthese),
+      rdvs: (rdvsRes.data ?? []).map((r) => ({
+        date: r.debut,
+        type: null,
+        statut: r.statut,
+        objet: str(r.titre),
+      })),
+    },
+    engagements: {
+      perimetre: str(opp.perimetre_missions),
+      formationsRncp: strArray(opp.formations_rncp),
+      typeFormation: (opp.type_formation as TypeFormation | null) ?? null,
+      tauxNpec: num(opp.taux_npec),
+      dureeAns: num(opp.duree_contrat_ans),
+      moisDemarrage: num(opp.mois_demarrage),
+      volumeAn1: num(opp.volume_an1),
+      volumeAn2: num(opp.volume_an2),
+      volumeAn3: num(opp.volume_an3),
+      volumeGarantiSeuil: num(opp.volume_garanti_seuil),
+      leviers: strArray(opp.leviers),
+    },
+    calendrier,
+    documents: DOCUMENTS_JOINTS_LABELS.map((label) => ({
+      label,
+      present: false,
+    })),
+  };
+
+  return {
+    snapshot,
+    clientId: opp.client_id,
+    commercialId: opp.owner_id,
+    signature: null,
   };
 }
 

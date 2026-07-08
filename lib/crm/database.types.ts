@@ -291,6 +291,7 @@ export interface Database {
           numero_contrat: string | null;
           type_prospect: CrmTypeProspect | null;
           calendrier_previsionnel: Json | null;
+          client_id: string | null;
           owner_id: string | null;
           created_at: string;
           updated_at: string;
@@ -330,6 +331,7 @@ export interface Database {
           numero_contrat?: string | null;
           type_prospect?: CrmTypeProspect | null;
           calendrier_previsionnel?: Json | null;
+          client_id?: string | null;
           owner_id?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -369,6 +371,7 @@ export interface Database {
           numero_contrat?: string | null;
           type_prospect?: CrmTypeProspect | null;
           calendrier_previsionnel?: Json | null;
+          client_id?: string | null;
           owner_id?: string | null;
           created_at?: string;
           updated_at?: string;

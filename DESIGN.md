@@ -270,6 +270,18 @@ Right-sliding panel at `min(800px, 95vw)`. Header: 1px bottom border, title on t
 
 Dense variant. `p-3`, `text-sm` title, `text-xs` metadata. Cursor `grab` when draggable, `grabbing` when active. Dragging reduces source opacity to 0.4. Hover reveals a subtle `border-primary-light` ring.
 
+### Disclosure doctrine (page vs sheet vs dialog)
+
+One rule decides how an entity opens:
+
+- **Page** (own URL): any entity with a lifecycle of its own — facture, devis, projet, contrat, passation, opportunité. Deep-linkable, back-button works, breadcrumbs orient.
+- **Side Sheet**: read-mostly quick look at a row without leaving the list (peek at a contrat from the table). A sheet that grows tabs or nested dialogs is a page in disguise — promote it. Tabs inside a sheet are banned.
+- **Dialog**: one action, one validation (create, send, confirm). Use the shared `FormDialog` shell (`components/shared/form-dialog.tsx`); multi-step wizards live in a `lg`/`xl` FormDialog with an explicit stepper.
+
+### Jargon
+
+Domain terms (échéance, avoir, ajustement, NPEC...) get a `<TermeHint>` (dotted underline + tooltip fed by `lib/utils/glossaire.ts`) at their first occurrence on a screen. Empty states explain the flow that fills them via the `hint` prop of `EmptyState`.
+
 ## Rationale
 
 SOLUVIA is used for hours a day by CDPs. Every decision above is calibrated for sustained use:

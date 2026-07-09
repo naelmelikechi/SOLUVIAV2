@@ -18,6 +18,7 @@ export async function generateMetadata({
   return { title: `${ref} - Projets - SOLUVIA` };
 }
 import { Breadcrumbs } from '@/components/shared/breadcrumbs';
+import { SectionNav } from '@/components/shared/section-nav';
 import { ProjetFinanceSection } from '@/components/projets/projet-finance-section';
 import { ProjetTempsSection } from '@/components/projets/projet-temps-section';
 import { ProjetQualiteSection } from '@/components/projets/projet-qualite-section';
@@ -78,12 +79,14 @@ export default async function ProjetDetailPage({
     isContratActif(c.contract_state),
   ).length;
 
+  // 4 zones ancrées + sous-nav sticky scroll-spy : le CDP scanne tout le
+  // projet au scroll, la nav donne l'orientation (pas de tabs qui cachent).
   return (
     <div>
       <Breadcrumbs
         items={[{ label: 'Projets', href: '/projets' }, { label: ref }]}
       />
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <ProjetDetailHeader projet={projet} />
         {userIsAdmin && (
           <ProjetDuplicateButton
@@ -93,46 +96,56 @@ export default async function ProjetDetailPage({
         )}
       </div>
 
-      <ProjetStatCards projet={projet} apprentisActifs={apprentisActifs} />
+      <SectionNav
+        items={[
+          { id: 'synthese', label: 'Synthèse' },
+          { id: 'finance', label: 'Finance' },
+          { id: 'contrats', label: 'Contrats' },
+          { id: 'activite', label: 'Activité' },
+        ]}
+      />
 
-      <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <ProjetFinanceSection
-          finance={finance}
-          projetId={projet.id}
-          canEdit={userIsAdmin}
-        />
-        <div className="space-y-6">
-          <ProjetTempsSection temps={temps} />
-          <ProjetQualiteSection
-            clientTrigramme={projet.client?.trigramme ?? null}
-          />
+      <section id="synthese" className="scroll-mt-16">
+        <ProjetStatCards projet={projet} apprentisActifs={apprentisActifs} />
+        <div className="mt-6">
+          <h3 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
+            Volets de performance
+          </h3>
+          <ProjetPerformanceVolets data={performance} />
         </div>
-      </div>
+      </section>
 
-      <div className="mb-6">
-        <ProjetEcheancierManualPlaceholder />
-      </div>
+      <section id="finance" className="mt-8 scroll-mt-16">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ProjetFinanceSection
+            finance={finance}
+            projetId={projet.id}
+            canEdit={userIsAdmin}
+          />
+          <div className="space-y-6">
+            <ProjetTempsSection temps={temps} />
+            <ProjetQualiteSection
+              clientTrigramme={projet.client?.trigramme ?? null}
+            />
+          </div>
+        </div>
+        <div className="mt-4">
+          <ProjetEcheancierManualPlaceholder />
+        </div>
+      </section>
 
-      <ProjetContratsTable contrats={contrats} />
+      <section id="contrats" className="mt-8 scroll-mt-16">
+        <ProjetContratsTable contrats={contrats} />
+      </section>
 
-      <div className="mt-6">
-        <h3 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
-          Volets de performance
-        </h3>
-        <ProjetPerformanceVolets data={performance} />
-      </div>
-
-      <div className="mt-6">
+      <section id="activite" className="mt-8 scroll-mt-16 space-y-6">
         <ProjetRdvSection projetId={projet.id} rdvs={rdvsFormateurs} />
-      </div>
-
-      <div className="mt-6">
         <ProjetDocumentsSection
           projetId={projet.id}
           projetRef={ref}
           documents={documents}
         />
-      </div>
+      </section>
     </div>
   );
 }

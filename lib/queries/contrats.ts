@@ -6,7 +6,8 @@ export async function getContratDetail(contratId: string) {
 
   const { data: contrat, error: contratErr } = await supabase
     .from('contrats')
-    .select('*')
+    // projet.ref sert au lien "Ouvrir la fiche" (page /projets/[ref]/contrats/[id])
+    .select('*, projet:projets!contrats_projet_id_fkey(ref)')
     .eq('id', contratId)
     .maybeSingle();
 

@@ -1,26 +1,22 @@
 import Link from 'next/link';
-import { MousePointer } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Info } from 'lucide-react';
 
+// Hint compact (plus une pleine Card) : la facturation du projet vit dans
+// l'espace Facturation, cette ligne ne fait que le rappeler.
 export function ProjetEcheancierManualPlaceholder() {
   return (
-    <Card className="p-6">
-      <div className="mb-3 flex items-center gap-2">
-        <MousePointer className="size-4 text-orange-600" />
-        <h3 className="text-sm font-semibold">Échéancier de facturation</h3>
-      </div>
-      <p className="text-muted-foreground text-sm">
-        La facturation de ce projet (commission SOLUVIA) est gérée depuis
-        l&apos;espace Facturation.
-      </p>
-      <div className="mt-3">
+    <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+      <Info className="size-3.5 shrink-0" />
+      <span>
+        La facturation de ce projet (commission SOLUVIA) est gérée depuis{' '}
         <Link
           href="/facturation"
-          className="text-primary text-xs font-medium underline-offset-2 hover:underline"
+          className="text-primary font-medium underline-offset-2 hover:underline"
         >
-          Ouvrir Facturation
+          l&apos;espace Facturation
         </Link>
-      </div>
-    </Card>
+        .
+      </span>
+    </p>
   );
 }

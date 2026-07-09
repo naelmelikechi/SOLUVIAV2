@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { format, parseISO, isToday } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, PieChart, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SaisieTemps } from '@/lib/queries/temps';
 import { saveSaisieTemps } from '@/lib/actions/temps';
@@ -370,6 +370,9 @@ export function TimeGrid({
                             key={`${saisie.projet_id}:${date}:${weekDates[0]}`}
                             initialValue={cellValue}
                             today={today}
+                            hasAxes={
+                              Object.keys(saisie.axes?.[date] ?? {}).length > 0
+                            }
                             onSave={(parsed) =>
                               handleCellSave(saisie.projet_id, date, parsed)
                             }
@@ -496,9 +499,17 @@ interface TimeCellProps {
   today: boolean;
   onSave: (parsed: number) => boolean;
   onClickCell?: () => void;
+  /** La cellule a une ventilation par axes enregistree. */
+  hasAxes?: boolean;
 }
 
-function TimeCell({ initialValue, today, onSave, onClickCell }: TimeCellProps) {
+function TimeCell({
+  initialValue,
+  today,
+  onSave,
+  onClickCell,
+  hasAxes,
+}: TimeCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const display = (v: number) => (v > 0 ? formatHeures(v) : '');
 
@@ -534,7 +545,7 @@ function TimeCell({ initialValue, today, onSave, onClickCell }: TimeCellProps) {
     'border-border bg-white text-muted-foreground hover:text-primary hover:bg-muted/60 flex h-[28px] w-5 items-center justify-center rounded-md border transition-colors disabled:opacity-30';
 
   return (
-    <div className="inline-flex items-center gap-1">
+    <div className="group/cell inline-flex items-center gap-1">
       <button
         type="button"
         tabIndex={-1}
@@ -585,7 +596,6 @@ function TimeCell({ initialValue, today, onSave, onClickCell }: TimeCellProps) {
             e.target.value = display(initialValue);
           }
         }}
-        onClick={onClickCell}
       />
       <button
         type="button"
@@ -599,6 +609,27 @@ function TimeCell({ initialValue, today, onSave, onClickCell }: TimeCellProps) {
       >
         <Plus className="size-3" strokeWidth={2.5} />
       </button>
+      {onClickCell && (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label="Ventiler les heures par axe"
+          title="Ventiler par axe (pédagogie, administratif...)"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClickCell();
+          }}
+          className={cn(
+            btnClass,
+            'transition-opacity',
+            hasAxes
+              ? 'text-primary opacity-100'
+              : 'opacity-0 group-hover/cell:opacity-100 focus-visible:opacity-100',
+          )}
+        >
+          <PieChart className="size-3" strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 }

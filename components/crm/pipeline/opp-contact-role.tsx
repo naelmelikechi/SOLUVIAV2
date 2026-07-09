@@ -2,17 +2,17 @@
 import { useState, useTransition } from 'react';
 import { Pencil } from 'lucide-react';
 import { runWithToast } from '@/components/crm/shared/run-with-toast';
-import { Button } from '@/components/crm/ui/button';
-import { Label } from '@/components/crm/ui/label';
-import { Badge } from '@/components/crm/ui/badge';
-import { Textarea } from '@/components/crm/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/crm/ui/select';
+} from '@/components/ui/select';
 import { ROLE_DECISION_LABELS } from '@/lib/utils/constants';
 import { updateContactRole } from '@/lib/crm/actions/contacts';
 

@@ -10,8 +10,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/crm/ui/dialog';
-import { Button } from '@/components/crm/ui/button';
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 /**
  * Bouton déclenchant une action après confirmation explicite dans un dialog

@@ -12,10 +12,10 @@ import {
   type Option,
 } from '@/components/crm/shared/entity-combobox';
 import { MultiCombobox } from '@/components/crm/shared/multi-combobox';
-import { Button } from '@/components/crm/ui/button';
-import { Input } from '@/components/crm/ui/input';
-import { Label } from '@/components/crm/ui/label';
-import { Textarea } from '@/components/crm/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/crm/ui/dialog';
+} from '@/components/ui/dialog';
 
 export function RdvForm({
   trigger,

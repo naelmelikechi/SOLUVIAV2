@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/crm/utils';
-import { Button } from '@/components/crm/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/crm/ui/popover';
+} from '@/components/ui/popover';
 import {
   Command,
   CommandEmpty,
@@ -15,7 +15,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/crm/ui/command';
+} from '@/components/ui/command';
 
 export type Option = { value: string; label: string };
 

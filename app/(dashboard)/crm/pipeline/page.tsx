@@ -13,7 +13,7 @@ import {
   OppDrawer,
   type OppDetail,
 } from '@/components/crm/pipeline/opp-drawer';
-import { Fab } from '@/components/crm/ui/fab';
+import { Fab } from '@/components/crm/fab';
 import { Plus } from 'lucide-react';
 
 export default async function PipelinePage({

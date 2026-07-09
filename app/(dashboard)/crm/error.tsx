@@ -2,7 +2,7 @@
 // Frontière d'erreur des routes /crm : remplace l'écran d'erreur Next brut par un
 // message FR avec action de réessai (U-C3).
 import { useEffect } from 'react';
-import { Button } from '@/components/crm/ui/button';
+import { Button } from '@/components/ui/button';
 
 export default function Error({
   error,

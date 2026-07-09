@@ -8,7 +8,7 @@ import { RelanceList } from '@/components/crm/relances/relance-list';
 import { RelanceArchive } from '@/components/crm/relances/relance-archive';
 import { RelanceForm } from '@/components/crm/relances/relance-form';
 import { todayInParis } from '@/lib/crm/format';
-import { Fab } from '@/components/crm/ui/fab';
+import { Fab } from '@/components/crm/fab';
 import { Plus } from 'lucide-react';
 
 export default async function RelancesPage() {

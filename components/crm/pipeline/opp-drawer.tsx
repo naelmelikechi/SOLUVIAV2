@@ -8,7 +8,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from '@/components/crm/ui/sheet';
+} from '@/components/ui/sheet';
 import {
   Dialog,
   DialogContent,
@@ -16,16 +16,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/crm/ui/dialog';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/crm/ui/tabs';
-import { Button } from '@/components/crm/ui/button';
-import { Badge } from '@/components/crm/ui/badge';
-import { Textarea } from '@/components/crm/ui/textarea';
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { Pencil } from 'lucide-react';
 import { Timeline, type TimelineItem } from '@/components/crm/shared/timeline';
 import {

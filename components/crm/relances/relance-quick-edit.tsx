@@ -5,16 +5,16 @@ import { toast } from 'sonner';
 import { runWithToast } from '@/components/crm/shared/run-with-toast';
 import { updateRelanceFields } from '@/lib/crm/actions/relances';
 import type { Priorite } from '@/lib/crm/domain/enums';
-import { Input } from '@/components/crm/ui/input';
-import { Label } from '@/components/crm/ui/label';
-import { Button } from '@/components/crm/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/crm/ui/select';
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/crm/ui/dialog';
+} from '@/components/ui/dialog';
 import { prioriteItems } from '@/lib/crm/labels';
 
 type Rel = {

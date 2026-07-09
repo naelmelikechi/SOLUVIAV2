@@ -8,11 +8,11 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from '@/components/crm/ui/sheet';
-import { Button } from '@/components/crm/ui/button';
-import { Badge } from '@/components/crm/ui/badge';
-import { Textarea } from '@/components/crm/ui/textarea';
-import { Label } from '@/components/crm/ui/label';
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { updateRdvCompteRendu } from '@/lib/crm/actions/rdv';
 import { label, statutRdvLabel } from '@/lib/crm/labels';
 

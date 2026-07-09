@@ -2,9 +2,9 @@
 import { useState, useTransition } from 'react';
 import { runWithToast } from '@/components/crm/shared/run-with-toast';
 import { MapPin, Plus, Star, Trash2, X } from 'lucide-react';
-import { Button } from '@/components/crm/ui/button';
-import { Badge } from '@/components/crm/ui/badge';
-import { Input } from '@/components/crm/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   ZoneCombobox,
   EMPTY_ZONE,

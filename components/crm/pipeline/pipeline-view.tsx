@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { KanbanSquare, Table2, MapPin, X } from 'lucide-react';
-import { Button } from '@/components/crm/ui/button';
+import { Button } from '@/components/ui/button';
 import { EntityCombobox } from '@/components/crm/shared/entity-combobox';
 import {
   DEPARTEMENTS,

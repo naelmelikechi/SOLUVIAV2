@@ -2,8 +2,8 @@
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Send } from 'lucide-react';
-import { Button } from '@/components/crm/ui/button';
-import { Card, CardContent } from '@/components/crm/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { sendRecapNow } from '@/lib/crm/actions/recap';
 
 export function RecapPreview({

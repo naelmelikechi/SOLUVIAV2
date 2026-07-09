@@ -2,18 +2,18 @@
 import { useMemo, useState, useTransition } from 'react';
 import { ChevronDown, Plus, X } from 'lucide-react';
 import { runWithToast } from '@/components/crm/shared/run-with-toast';
-import { Button } from '@/components/crm/ui/button';
-import { Input } from '@/components/crm/ui/input';
-import { Label } from '@/components/crm/ui/label';
-import { Badge } from '@/components/crm/ui/badge';
-import { Textarea } from '@/components/crm/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/crm/ui/select';
+} from '@/components/ui/select';
 import {
   TYPE_FORMATION_LABELS,
   CANAL_ORIGINE_LABELS,

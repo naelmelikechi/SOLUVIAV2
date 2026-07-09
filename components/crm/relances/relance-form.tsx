@@ -11,17 +11,17 @@ import {
   EntityCombobox,
   type Option,
 } from '@/components/crm/shared/entity-combobox';
-import { Button } from '@/components/crm/ui/button';
-import { Input } from '@/components/crm/ui/input';
-import { Label } from '@/components/crm/ui/label';
-import { Textarea } from '@/components/crm/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/crm/ui/select';
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/crm/ui/dialog';
+} from '@/components/ui/dialog';
 import { prioriteItems } from '@/lib/crm/labels';
 
 export function RelanceForm({

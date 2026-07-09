@@ -29,6 +29,7 @@ import {
 } from '@/lib/actions/passation';
 import type { PassationReco, PassationSynthese } from '@/lib/queries/passation';
 import { PassationForm } from './passation-form';
+import { PassationProgressRail } from './passation-progress-rail';
 
 interface PassationState {
   synthese: PassationSynthese | null;
@@ -187,6 +188,8 @@ export function PassationSection({
           color={STATUT_SYNTHESE_COLORS[synthese.statut]}
         />
       </div>
+
+      <PassationProgressRail statut={synthese.statut} />
 
       <div className="space-y-4 rounded-md border p-3">
         <p className="text-muted-foreground text-xs">

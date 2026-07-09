@@ -39,9 +39,14 @@ test.describe('Facturation - flux critique brouillon -> emission -> PDF', () => 
       .getByRole('button', { name: /nouvelle facture/i })
       .first()
       .click();
-    const chooser = page.getByRole('dialog');
+    // Scope par contenu : pendant la transition chooser -> dialog libre, deux
+    // dialogs peuvent coexister brievement (strict mode Playwright).
+    const chooser = page
+      .getByRole('dialog')
+      .filter({ hasText: /que voulez-vous facturer/i });
     await expect(chooser).toBeVisible();
     await chooser.getByRole('button', { name: /hors projet/i }).click();
+    await expect(chooser).toBeHidden();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();

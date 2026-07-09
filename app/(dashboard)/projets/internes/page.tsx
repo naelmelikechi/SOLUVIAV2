@@ -71,6 +71,10 @@ export default async function ProjetsInternesPage({
       <PageHeader
         title="Projets internes"
         description="Heures non-billable (formation, intercontrat, support, R&D, etc.)"
+        breadcrumbs={[
+          { label: 'Projets', href: '/projets' },
+          { label: 'Internes' },
+        ]}
       >
         <PeriodScopeControls
           periode={periode}

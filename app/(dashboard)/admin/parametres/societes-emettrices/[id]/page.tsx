@@ -26,6 +26,14 @@ export default async function EditSocietePage({ params }: PageProps) {
       <PageHeader
         title={`${societe.raison_sociale} (${societe.code})`}
         description="Modification des informations société émettrice"
+        breadcrumbs={[
+          { label: 'Paramètres', href: '/admin/parametres' },
+          {
+            label: 'Sociétés émettrices',
+            href: '/admin/parametres/societes-emettrices',
+          },
+          { label: societe.raison_sociale },
+        ]}
       />
       <SocieteEmettriceForm societe={societe} />
     </div>

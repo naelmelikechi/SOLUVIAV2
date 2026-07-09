@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import {
   getClientById,
@@ -10,7 +9,8 @@ import {
 } from '@/lib/queries/clients';
 import { getUser, getActiveUsersMinimal } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
+import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 import { Card } from '@/components/ui/card';
 import { formatDate } from '@/lib/utils/formatters';
 import { ClientDetailActions } from '@/components/admin/client-detail-actions';
@@ -59,13 +59,12 @@ export default async function ClientDetailPage({
 
   return (
     <div>
-      <Link
-        href="/admin/clients"
-        className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
-      >
-        <ArrowLeft className="size-4" />
-        Retour aux clients
-      </Link>
+      <Breadcrumbs
+        items={[
+          { label: 'Clients', href: '/admin/clients' },
+          { label: client.raison_sociale },
+        ]}
+      />
 
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">

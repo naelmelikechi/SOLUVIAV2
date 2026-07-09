@@ -90,6 +90,15 @@ export default async function ParametresPage() {
             Gérer SOLUVIA, DIGIVIA et les autres entités juridiques.
           </p>
         </Link>
+        <Link
+          href="/admin/parametres/opcos"
+          className="hover:bg-muted/40 block rounded-md border p-4"
+        >
+          <h3 className="font-semibold">Référentiel OPCO</h3>
+          <p className="text-muted-foreground text-sm">
+            Mapping IDCC vers OPCO utilisé par la facturation.
+          </p>
+        </Link>
       </div>
     </div>
   );

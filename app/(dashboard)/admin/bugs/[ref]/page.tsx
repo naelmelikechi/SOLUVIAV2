@@ -1,12 +1,10 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { getBugReportByRef } from '@/lib/queries/bug-reports';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { Button } from '@/components/ui/button';
+import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 import { BugDetail } from './bug-detail';
 
 const REPORTED_AT_FORMATTER = new Intl.DateTimeFormat('fr-FR', {
@@ -63,12 +61,13 @@ export default async function BugDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/admin/bugs">
-          <Button variant="ghost" size="icon-sm">
-            <ArrowLeft className="size-4" />
-          </Button>
-        </Link>
+      <div>
+        <Breadcrumbs
+          items={[
+            { label: 'Bugs', href: '/admin/bugs' },
+            { label: bug.ref ?? '' },
+          ]}
+        />
         <div>
           <h1 className="font-mono text-lg">{bug.ref}</h1>
           <p className="text-muted-foreground text-xs">

@@ -16,6 +16,14 @@ export default async function NouvelleSocietePage() {
       <PageHeader
         title="Nouvelle société émettrice"
         description="Entité juridique qui émettra devis et factures"
+        breadcrumbs={[
+          { label: 'Paramètres', href: '/admin/parametres' },
+          {
+            label: 'Sociétés émettrices',
+            href: '/admin/parametres/societes-emettrices',
+          },
+          { label: 'Nouvelle' },
+        ]}
       />
       <SocieteEmettriceForm />
     </div>

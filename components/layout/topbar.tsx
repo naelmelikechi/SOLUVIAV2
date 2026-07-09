@@ -1,46 +1,13 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Bell, ChevronRight, Menu, Search } from 'lucide-react';
+import { Bell, Menu, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { BadgeCounts } from '@/hooks/use-badge-counts';
 
-const routeLabels: Record<string, string> = {
-  accueil: 'Accueil',
-  projets: 'Projets',
-  internes: 'Internes',
-  qualiopi: 'Qualité',
-  temps: 'Temps',
-  production: 'Production',
-  facturation: 'Facturation',
-  dashboard: 'Dashboard',
-  indicateurs: 'Indicateurs',
-  equipe: 'Équipe',
-  idees: 'Idées',
-  commercial: 'Commercial',
-  pipeline: 'Pipeline',
-  devis: 'Devis',
-  opcos: 'Référentiel OPCO',
-  admin: 'Administration',
-  clients: 'Clients',
-  utilisateurs: 'Utilisateurs',
-  intercontrat: 'Intercontrat',
-  bugs: 'Bugs',
-  audit: 'Audit',
-  parametres: 'Paramètres',
-  'parametres-compte': 'Mon compte',
-  notifications: 'Notifications',
-};
-
-// Segments à masquer dans le fil d'Ariane (ids numériques, UUIDs).
-// Permet d'éviter les breadcrumbs du type "Qualité > HED > 1 > 1 > 1".
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function isOpaqueId(segment: string): boolean {
-  return /^\d+$/.test(segment) || UUID_RE.test(segment);
-}
-
+// Le fil d'Ariane a quitté la topbar : chaque page profonde rend ses propres
+// crumbs via <PageHeader breadcrumbs> (components/shared/breadcrumbs.tsx),
+// avec les vrais noms d'entités. La topbar garde hamburger/recherche/cloche.
 export function Topbar({
   onHamburgerClick,
   badgeCounts = {
@@ -52,20 +19,6 @@ export function Topbar({
     contratsAFacturer: 0,
   },
 }: { onHamburgerClick?: () => void; badgeCounts?: BadgeCounts } = {}) {
-  const pathname = usePathname();
-  const segments = pathname.split('/').filter(Boolean);
-
-  const breadcrumbs = segments.flatMap((segment, index) =>
-    isOpaqueId(segment)
-      ? []
-      : [
-          {
-            href: '/' + segments.slice(0, index + 1).join('/'),
-            label: routeLabels[segment] || segment,
-          },
-        ],
-  );
-
   const openCommandPalette = () => {
     document.dispatchEvent(
       new KeyboardEvent('keydown', {
@@ -79,40 +32,19 @@ export function Topbar({
   return (
     <header className="border-border bg-card flex h-14 items-center justify-between border-b px-4 md:px-6">
       {/* Mobile/tablet hamburger (visible jusqu'a lg=1024px) */}
-      {onHamburgerClick && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="mr-2 lg:hidden"
-          onClick={onHamburgerClick}
-          aria-label="Ouvrir le menu"
-        >
-          <Menu className="size-5" />
-        </Button>
-      )}
-      {/* Breadcrumbs */}
-      <nav
-        aria-label="Fil d'Ariane"
-        className="flex items-center gap-1.5 text-sm"
-      >
-        {breadcrumbs.map((crumb, index) => (
-          <span key={crumb.href} className="flex items-center gap-1.5">
-            {index > 0 && (
-              <ChevronRight className="text-muted-foreground size-3.5" />
-            )}
-            {index === breadcrumbs.length - 1 ? (
-              <span className="text-foreground font-medium">{crumb.label}</span>
-            ) : (
-              <Link
-                href={crumb.href}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                {crumb.label}
-              </Link>
-            )}
-          </span>
-        ))}
-      </nav>
+      <div className="flex items-center">
+        {onHamburgerClick && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mr-2 lg:hidden"
+            onClick={onHamburgerClick}
+            aria-label="Ouvrir le menu"
+          >
+            <Menu className="size-5" />
+          </Button>
+        )}
+      </div>
 
       {/* Actions */}
       <div className="flex items-center gap-2">

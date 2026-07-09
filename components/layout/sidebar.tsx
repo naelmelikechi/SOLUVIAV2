@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getAvatarUrl } from '@/components/shared/user-avatar';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronLeft, LogOut, User, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, LogOut, User, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import { isAdmin, getRoleLabel } from '@/lib/utils/roles';
@@ -15,9 +15,10 @@ import type { BadgeCounts } from '@/hooks/use-badge-counts';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import {
   navSections,
-  adminNavItems,
   canAccessNavItem,
+  type NavItem,
 } from '@/components/layout/nav-config';
+import { useAdminSectionOpen } from '@/components/layout/use-admin-section-open';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -70,7 +71,96 @@ const INITIAL_BADGE_COUNTS: BadgeCounts = {
   contratsAFacturer: 0,
 };
 
-// oxlint-disable-next-line react-doctor/no-giant-component
+function isItemActive(item: NavItem, pathname: string): boolean {
+  return item.exactMatch
+    ? pathname === item.href
+    : pathname.startsWith(item.href);
+}
+
+function NavBadge({
+  count,
+  color,
+  collapsed,
+}: {
+  count: number;
+  color: string;
+  collapsed: boolean;
+}) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center justify-center rounded-full font-bold text-white',
+        collapsed
+          ? 'absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 text-[9px]'
+          : 'ml-auto h-5 min-w-5 px-1.5 text-[10px]',
+        color,
+      )}
+    >
+      {count}
+    </span>
+  );
+}
+
+function SidebarNavLink({
+  item,
+  pathname,
+  collapsed,
+  indented,
+  badgeCounts,
+  onNavigate,
+}: {
+  item: NavItem;
+  pathname: string;
+  collapsed: boolean;
+  /** Style secondaire indenté (items de la section Administration). */
+  indented?: boolean;
+  badgeCounts: BadgeCounts;
+  onNavigate?: () => void;
+}) {
+  const isActive = isItemActive(item, pathname);
+  const Icon = item.icon;
+  const badge = badgeConfig[item.href];
+  const count = badge ? badgeCounts[badge.key] : 0;
+
+  return (
+    <Link
+      href={item.href}
+      title={collapsed ? item.label : undefined}
+      onClick={onNavigate}
+      data-tour={item.href}
+      className={cn(
+        'flex items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors',
+        indented ? 'py-2' : 'py-2.5',
+        collapsed && 'justify-center',
+        !collapsed && indented && 'pl-11',
+        isActive
+          ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
+          : indented
+            ? 'text-muted-foreground hover:text-sidebar-foreground'
+            : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
+      )}
+    >
+      {(collapsed || !indented) && (
+        <span className="relative shrink-0">
+          <Icon className="size-[18px]" />
+          {collapsed && badge && (
+            <NavBadge count={count} color={badge.color} collapsed />
+          )}
+        </span>
+      )}
+      {!collapsed && (
+        <>
+          <span>{item.label}</span>
+          {badge && (
+            <NavBadge count={count} color={badge.color} collapsed={false} />
+          )}
+        </>
+      )}
+    </Link>
+  );
+}
+
 export function Sidebar({
   collapsed,
   onToggle,
@@ -83,6 +173,7 @@ export function Sidebar({
   const { push } = useRouter();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [loggingOut, startLogout] = useTransition();
+  const { open: adminOpen, toggle: toggleAdminSection } = useAdminSectionOpen();
 
   const handleLogout = () => {
     startLogout(async () => {
@@ -91,6 +182,16 @@ export function Sidebar({
       push('/login');
     });
   };
+
+  const onNavigate = mobile ? onClose : undefined;
+
+  const visibleSections = navSections.flatMap((section) => {
+    if (section.adminOnly && !isAdmin(user?.role)) return [];
+    const items = section.items.filter((item) =>
+      canAccessNavItem(item, user ?? {}),
+    );
+    return items.length > 0 ? [{ ...section, items }] : [];
+  });
 
   return (
     <aside
@@ -128,7 +229,7 @@ export function Sidebar({
             <Link
               href="/accueil"
               className="flex shrink-0 items-center"
-              onClick={mobile ? onClose : undefined}
+              onClick={onNavigate}
             >
               <Image
                 src="/logo.svg"
@@ -167,150 +268,64 @@ export function Sidebar({
         aria-label="Menu principal"
         className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-3"
       >
-        {(() => {
-          const visibleSections = navSections.flatMap((section) => {
-            const items = section.items.filter((item) =>
-              canAccessNavItem(item, user ?? {}),
-            );
-            return items.length > 0 ? [{ title: section.title, items }] : [];
-          });
+        {visibleSections.map((section, sectionIdx) => {
+          // Section repliable (Administration) : entête cliquable + badge
+          // agrégé quand repliée, pour ne perdre aucun signal temps réel.
+          // En mode icônes (sidebar réduite), le repli ne s'applique pas.
+          const isCollapsibleSection = Boolean(section.collapsible);
+          const sectionOpen = !isCollapsibleSection || adminOpen || collapsed;
+          const hiddenBadgeTotal =
+            isCollapsibleSection && !sectionOpen
+              ? section.items.reduce((sum, item) => {
+                  const badge = badgeConfig[item.href];
+                  return sum + (badge ? badgeCounts[badge.key] : 0);
+                }, 0)
+              : 0;
 
-          return visibleSections.map((section, sectionIdx) => (
-            <div key={section.title}>
+          return (
+            <div key={section.title || 'principal'}>
               {sectionIdx > 0 && <Separator className="my-2" />}
-              {!collapsed && (
-                <div className="text-muted-foreground px-3 py-1 text-[10px] font-semibold tracking-wider uppercase">
-                  {section.title}
-                </div>
-              )}
-              {section.items.map((item) => {
-                const isActive =
-                  item.href === '/projets'
-                    ? pathname === '/projets' ||
-                      (pathname.startsWith('/projets/') &&
-                        !pathname.startsWith('/projets/internes'))
-                    : pathname.startsWith(item.href);
-                const Icon = item.icon;
-                const badge = badgeConfig[item.href];
-                const count = badge ? badgeCounts[badge.key] : 0;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={collapsed ? item.label : undefined}
-                    onClick={mobile ? onClose : undefined}
-                    data-tour={item.href}
-                    className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors',
-                      collapsed && 'justify-center',
-                      isActive
-                        ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
-                        : 'text-sidebar-foreground hover:bg-sidebar-accent/50',
-                    )}
+              {!collapsed &&
+                section.title &&
+                (isCollapsibleSection ? (
+                  <button
+                    type="button"
+                    onClick={toggleAdminSection}
+                    aria-expanded={sectionOpen}
+                    className="text-muted-foreground hover:text-sidebar-foreground flex w-full items-center gap-1.5 px-3 py-1 text-[10px] font-semibold tracking-wider uppercase transition-colors"
                   >
-                    <span className="relative shrink-0">
-                      <Icon className="size-[18px]" />
-                      {collapsed && badge && count > 0 && (
-                        <span
-                          className={cn(
-                            'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
-                            badge.color,
-                          )}
-                        >
-                          {count}
-                        </span>
+                    <span>{section.title}</span>
+                    <ChevronDown
+                      className={cn(
+                        'size-3 transition-transform',
+                        !sectionOpen && '-rotate-90',
                       )}
-                    </span>
-                    {!collapsed && (
-                      <>
-                        <span>{item.label}</span>
-                        {badge && count > 0 && (
-                          <span
-                            className={cn(
-                              'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
-                              badge.color,
-                            )}
-                          >
-                            {count}
-                          </span>
-                        )}
-                      </>
+                    />
+                    {hiddenBadgeTotal > 0 && (
+                      <span className="ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                        {hiddenBadgeTotal}
+                      </span>
                     )}
-                  </Link>
-                );
-              })}
+                  </button>
+                ) : (
+                  <div className="text-muted-foreground px-3 py-1 text-[10px] font-semibold tracking-wider uppercase">
+                    {section.title}
+                  </div>
+                ))}
+              {sectionOpen &&
+                section.items.map((item) => (
+                  <SidebarNavLink
+                    key={item.href}
+                    item={item}
+                    pathname={pathname}
+                    collapsed={collapsed}
+                    indented={isCollapsibleSection}
+                    badgeCounts={badgeCounts}
+                    onNavigate={onNavigate}
+                  />
+                ))}
             </div>
-          ));
-        })()}
-
-        {isAdmin(user?.role) && (
-          <>
-            <Separator className="my-2" />
-
-            {!collapsed && (
-              <div className="text-muted-foreground px-3 py-1 text-[10px] font-semibold tracking-wider uppercase">
-                Administration
-              </div>
-            )}
-          </>
-        )}
-
-        {adminNavItems.flatMap((item) => {
-          if (item.adminOnly && !isAdmin(user?.role)) return [];
-          const isActive = item.exactMatch
-            ? pathname === item.href
-            : pathname.startsWith(item.href);
-          const Icon = item.icon;
-          const badge = badgeConfig[item.href];
-          const count = badge ? badgeCounts[badge.key] : 0;
-
-          return [
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? item.label : undefined}
-              onClick={mobile ? onClose : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
-                collapsed ? 'justify-center' : 'pl-11',
-                isActive
-                  ? 'bg-primary/10 text-primary border-primary border-l-3 font-semibold'
-                  : 'text-muted-foreground hover:text-sidebar-foreground',
-              )}
-            >
-              {collapsed && (
-                <span className="relative shrink-0">
-                  <Icon className="size-[18px]" />
-                  {badge && count > 0 && (
-                    <span
-                      className={cn(
-                        'absolute -top-1.5 -right-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white',
-                        badge.color,
-                      )}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </span>
-              )}
-              {!collapsed && (
-                <>
-                  <span>{item.label}</span>
-                  {badge && count > 0 && (
-                    <span
-                      className={cn(
-                        'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
-                        badge.color,
-                      )}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </>
-              )}
-            </Link>,
-          ];
+          );
         })}
       </nav>
 
@@ -360,7 +375,7 @@ export function Sidebar({
             <div className="flex items-center gap-3">
               <Link
                 href="/parametres-compte"
-                onClick={mobile ? onClose : undefined}
+                onClick={onNavigate}
                 className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full transition-opacity hover:opacity-80"
               >
                 {user ? (
@@ -387,7 +402,7 @@ export function Sidebar({
               <div className="min-w-0 flex-1">
                 <Link
                   href="/parametres-compte"
-                  onClick={mobile ? onClose : undefined}
+                  onClick={onNavigate}
                   className="hover:text-foreground block truncate text-[13px] font-medium transition-colors"
                 >
                   {user ? `${user.prenom} ${user.nom}` : 'Utilisateur'}
@@ -401,7 +416,7 @@ export function Sidebar({
             <div className="flex items-center gap-2">
               <Link
                 href="/parametres-compte"
-                onClick={mobile ? onClose : undefined}
+                onClick={onNavigate}
                 className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-[11px] transition-colors"
               >
                 <User className="size-3" />

@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { Sparkles } from 'lucide-react';
 import { getProjetsListEnriched } from '@/lib/queries/projets';
 import { getClientsList } from '@/lib/queries/clients';
 import { getTypologies } from '@/lib/queries/parametres';
 import { getUsersList, getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { ProjetsDataTable } from '@/components/projets/projets-data-table';
 import { ProjetCreateButton } from '@/components/projets/projet-create-button';
 
@@ -39,6 +42,13 @@ export default async function ProjetsPage() {
         title="Projets"
         description="Liste des projets actifs et archivés"
       >
+        <Link
+          href="/projets/internes"
+          className={buttonVariants({ variant: 'outline' })}
+        >
+          <Sparkles className="size-4" />
+          Projets internes
+        </Link>
         {adminUser && (
           <ProjetCreateButton
             clients={clients.map((c) => ({

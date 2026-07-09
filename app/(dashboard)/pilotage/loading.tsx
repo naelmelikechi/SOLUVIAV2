@@ -1,6 +1,6 @@
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function DashboardPageLoading() {
+export default function PilotagePageLoading() {
   return (
     <div className="space-y-6">
       {/* PageHeader skeleton */}

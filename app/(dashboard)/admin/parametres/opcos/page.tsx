@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { checkAuth } from '@/lib/auth/guards';
 import { listOpcos } from '@/lib/queries/opcos';
 import { OpcosSection } from '@/components/admin/opcos-section';
+import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 
 export const metadata: Metadata = { title: 'Referentiel OPCO - SOLUVIA' };
 
@@ -15,6 +16,12 @@ export default async function OpcosPage() {
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
+        <Breadcrumbs
+          items={[
+            { label: 'Paramètres', href: '/admin/parametres' },
+            { label: 'Référentiel OPCO' },
+          ]}
+        />
         <h1 className="text-2xl font-bold">Referentiel OPCO</h1>
         <p className="text-muted-foreground mt-1">
           Mapping IDCC (conventions collectives) vers OPCO utilisé par la

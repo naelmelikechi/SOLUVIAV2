@@ -26,6 +26,7 @@ import { isAdmin } from '@/lib/utils/roles';
 import {
   allNavItems,
   canAccessNavItem,
+  matchesNavItem,
   type NavGateUser,
 } from '@/components/layout/nav-config';
 
@@ -302,7 +303,12 @@ export function CommandPalette({ user }: { user: NavGateUser }) {
           )}
           <CommandGroup heading="Pages">
             {pages.flatMap((item) => {
-              if (query && !matchesSearch(item.label, query)) return [];
+              // Match sur le label OU les keywords (ex. "dashboard" => Pilotage).
+              if (
+                query &&
+                !matchesNavItem(item, (h) => matchesSearch(h, query))
+              )
+                return [];
               const Icon = item.icon;
               return [
                 <CommandItem

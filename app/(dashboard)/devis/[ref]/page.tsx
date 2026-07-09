@@ -3,6 +3,7 @@ import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { getDevisByRef, getDevisById } from '@/lib/queries/devis';
 import { DevisDetailClient } from '@/components/devis/devis-detail-client';
+import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 
 interface Props {
   params: Promise<{ ref: string }>;
@@ -19,5 +20,15 @@ export default async function DevisDetailPage({ params }: Props) {
 
   if (!devis) notFound();
 
-  return <DevisDetailClient devis={devis} />;
+  return (
+    <div>
+      <Breadcrumbs
+        items={[
+          { label: 'Devis', href: '/devis' },
+          { label: devis.ref ?? 'Brouillon' },
+        ]}
+      />
+      <DevisDetailClient devis={devis} />
+    </div>
+  );
 }

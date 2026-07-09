@@ -4,9 +4,14 @@ import { updateSession } from '@/lib/supabase/middleware';
 // Alias URLs "naturelles" vers leurs routes reelles. Evite un 404 quand un
 // utilisateur ou un lien externe tape l URL intuitive plutot que la route
 // imbriquee. Garde 308 (permanent) pour que les bookmarks soient mis a jour.
+// La cible peut porter sa propre query (ex. ?tab=ratios) ; les searchParams
+// de la requete d origine sont recopies sans ecraser ceux de la cible
+// (ex. /indicateurs?p=month -> /pilotage?tab=ratios&p=month).
 const REDIRECTS: Record<string, string> = {
   '/qualite': '/qualiopi',
   '/pipeline': '/crm/pipeline',
+  '/dashboard': '/pilotage',
+  '/indicateurs': '/pilotage?tab=ratios',
 };
 
 export async function proxy(request: NextRequest) {
@@ -14,7 +19,11 @@ export async function proxy(request: NextRequest) {
 
   const redirectTarget = REDIRECTS[pathname];
   if (redirectTarget) {
-    return NextResponse.redirect(new URL(redirectTarget, request.url), 308);
+    const url = new URL(redirectTarget, request.url);
+    request.nextUrl.searchParams.forEach((value, key) => {
+      if (!url.searchParams.has(key)) url.searchParams.set(key, value);
+    });
+    return NextResponse.redirect(url, 308);
   }
 
   // Portail public de signature de devis : accessible SANS session (clients

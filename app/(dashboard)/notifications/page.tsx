@@ -13,7 +13,7 @@ export default async function NotificationsPage() {
   return (
     <div>
       <Link
-        href="/dashboard"
+        href="/accueil"
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm transition-colors"
       >
         <ArrowLeft className="size-4" />

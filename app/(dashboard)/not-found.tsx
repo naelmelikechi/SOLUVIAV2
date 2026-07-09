@@ -10,8 +10,8 @@ export default function DashboardNotFound() {
       <p className="text-muted-foreground text-sm">
         La page que vous recherchez n&apos;existe pas.
       </p>
-      <Link href="/dashboard">
-        <Button>Retour au tableau de bord</Button>
+      <Link href="/accueil">
+        <Button>Retour à l&apos;accueil</Button>
       </Link>
     </div>
   );

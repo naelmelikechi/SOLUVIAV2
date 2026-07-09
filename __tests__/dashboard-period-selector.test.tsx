@@ -7,7 +7,7 @@ const pushMock = vi.fn();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock }),
-  usePathname: () => '/dashboard',
+  usePathname: () => '/pilotage',
   useSearchParams: () => new URLSearchParams(''),
 }));
 
@@ -32,7 +32,7 @@ describe('PeriodSelector', () => {
     render(<PeriodSelector current="mois_precedent" label="Avril 2026" />);
     fireEvent.click(screen.getByRole('button'));
     fireEvent.click(screen.getByText('Ce mois'));
-    expect(pushMock).toHaveBeenCalledWith('/dashboard');
+    expect(pushMock).toHaveBeenCalledWith('/pilotage');
   });
 
   it('navigue avec ?periode=mois_precedent quand selectionne', () => {
@@ -40,7 +40,7 @@ describe('PeriodSelector', () => {
     render(<PeriodSelector current="ce_mois" label="Mai 2026" />);
     fireEvent.click(screen.getByRole('button'));
     fireEvent.click(screen.getByText('Mois précédent'));
-    expect(pushMock).toHaveBeenCalledWith('/dashboard?periode=mois_precedent');
+    expect(pushMock).toHaveBeenCalledWith('/pilotage?periode=mois_precedent');
   });
 
   it('se ferme quand on clique en dehors', () => {

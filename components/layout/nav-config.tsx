@@ -4,7 +4,6 @@ import {
   BarChart3,
   LineChart,
   ClipboardList,
-  Sparkles,
   Clock,
   ShieldCheck,
   TrendingUp,
@@ -17,7 +16,6 @@ import {
   Building2,
   Settings,
   Bug,
-  Landmark,
   Activity,
   KanbanSquare,
 } from 'lucide-react';
@@ -40,11 +38,22 @@ export interface NavItem {
   requiresCdpOrAdmin?: boolean;
   /** Active state : match exact du pathname (sinon startsWith). */
   exactMatch?: boolean;
+  /**
+   * Termes de recherche additionnels pour la command-palette (⌘K).
+   * Permet de retrouver un item sous ses anciens noms ou ceux de pages
+   * absorbées (ex. "dashboard" => Pilotage).
+   */
+  keywords?: string[];
 }
 
 export interface NavSection {
+  /** Titre affiché en entête de section ('' = section de tête sans titre). */
   title: string;
   items: NavItem[];
+  /** Section visible uniquement pour les admins (en plus du gating par item). */
+  adminOnly?: boolean;
+  /** Section repliable dans la sidebar (repliée par défaut). */
+  collapsible?: boolean;
 }
 
 export interface NavGateUser {
@@ -55,15 +64,46 @@ export interface NavGateUser {
 
 export const navSections: NavSection[] = [
   {
-    title: 'Pilotage',
+    title: '',
     items: [
       { href: '/accueil', label: 'Accueil', icon: Home },
-      { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
       {
-        href: '/indicateurs',
-        label: 'Indicateurs',
+        href: '/pilotage',
+        label: 'Pilotage',
         icon: LineChart,
-        requiresIndicateursAccess: true,
+        keywords: ['dashboard', 'indicateurs', 'kpi', 'statistiques'],
+      },
+    ],
+  },
+  {
+    title: 'Opérations',
+    items: [
+      {
+        href: '/projets',
+        label: 'Projets',
+        icon: ClipboardList,
+        keywords: ['internes'],
+      },
+      { href: '/temps', label: 'Temps', icon: Clock },
+      { href: '/qualiopi', label: 'Qualité', icon: ShieldCheck },
+      {
+        href: '/a-facturer',
+        label: 'À facturer',
+        icon: Send,
+        requiresCdpOrAdmin: true,
+      },
+      { href: '/production', label: 'Production', icon: TrendingUp },
+    ],
+  },
+  {
+    title: 'Commercial',
+    items: [
+      {
+        href: '/crm/dashboard',
+        label: 'CRM',
+        icon: KanbanSquare,
+        requiresPipelineAccess: true,
+        keywords: ['pipeline', 'prospects', 'opportunites'],
       },
       {
         href: '/commercial/passations',
@@ -86,41 +126,15 @@ export const navSections: NavSection[] = [
     ],
   },
   {
-    title: 'Opérations',
-    items: [
-      { href: '/projets', label: 'Projets', icon: ClipboardList },
-      { href: '/projets/internes', label: 'Projets internes', icon: Sparkles },
-      { href: '/temps', label: 'Temps', icon: Clock },
-      { href: '/qualiopi', label: 'Qualité', icon: ShieldCheck },
-      { href: '/production', label: 'Production', icon: TrendingUp },
-    ],
-  },
-  {
-    title: 'Commercial',
-    items: [
-      {
-        href: '/crm/dashboard',
-        label: 'CRM',
-        icon: KanbanSquare,
-        requiresPipelineAccess: true,
-      },
-    ],
-  },
-  {
     title: 'Facturation',
     items: [
       { href: '/devis', label: 'Devis', icon: ScrollText, adminOnly: true },
       {
         href: '/facturation',
-        label: 'Facturation',
+        label: 'Factures',
         icon: FileText,
         adminOnly: true,
-      },
-      {
-        href: '/a-facturer',
-        label: 'À facturer',
-        icon: Send,
-        requiresCdpOrAdmin: true,
+        keywords: ['facturation'],
       },
     ],
   },
@@ -131,41 +145,39 @@ export const navSections: NavSection[] = [
       { href: '/idees', label: 'Idées', icon: Lightbulb },
     ],
   },
-];
-
-export const adminNavItems: NavItem[] = [
   {
-    href: '/admin/clients',
-    label: 'Clients',
-    icon: Building2,
+    title: 'Administration',
     adminOnly: true,
-  },
-  {
-    href: '/admin/utilisateurs',
-    label: 'Utilisateurs',
-    icon: Users,
-    adminOnly: true,
-  },
-  {
-    href: '/admin/intercontrat',
-    label: 'Intercontrat',
-    icon: UsersRound,
-    adminOnly: true,
-  },
-  { href: '/admin/bugs', label: 'Bugs', icon: Bug, adminOnly: true },
-  { href: '/admin/syncs', label: 'Syncs', icon: Activity, adminOnly: true },
-  {
-    href: '/admin/parametres',
-    label: 'Paramètres',
-    icon: Settings,
-    adminOnly: true,
-    exactMatch: true,
-  },
-  {
-    href: '/admin/parametres/opcos',
-    label: 'Référentiel OPCO',
-    icon: Landmark,
-    adminOnly: true,
+    collapsible: true,
+    items: [
+      {
+        href: '/admin/clients',
+        label: 'Clients',
+        icon: Building2,
+        adminOnly: true,
+      },
+      {
+        href: '/admin/utilisateurs',
+        label: 'Utilisateurs',
+        icon: Users,
+        adminOnly: true,
+      },
+      {
+        href: '/admin/intercontrat',
+        label: 'Intercontrat',
+        icon: UsersRound,
+        adminOnly: true,
+      },
+      { href: '/admin/bugs', label: 'Bugs', icon: Bug, adminOnly: true },
+      { href: '/admin/syncs', label: 'Syncs', icon: Activity, adminOnly: true },
+      {
+        href: '/admin/parametres',
+        label: 'Paramètres',
+        icon: Settings,
+        adminOnly: true,
+        keywords: ['opco', 'referentiel', 'societes emettrices'],
+      },
+    ],
   },
 ];
 
@@ -199,8 +211,14 @@ export function canAccessNavItem(item: NavItem, user: NavGateUser): boolean {
   return true;
 }
 
-/** Tous les items de nav à plat (sections + admin) — pour la command-palette. */
-export const allNavItems: NavItem[] = [
-  ...navSections.flatMap((s) => s.items),
-  ...adminNavItems,
-];
+/** Match label OU keywords (command-palette). */
+export function matchesNavItem(
+  item: NavItem,
+  matches: (haystack: string) => boolean,
+): boolean {
+  if (matches(item.label)) return true;
+  return item.keywords?.some((k) => matches(k)) ?? false;
+}
+
+/** Tous les items de nav à plat — pour la command-palette. */
+export const allNavItems: NavItem[] = navSections.flatMap((s) => s.items);

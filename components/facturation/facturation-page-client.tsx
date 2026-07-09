@@ -2,17 +2,26 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
-  Calendar,
+  ArrowRight,
   Download,
   FileText,
-  List,
+  FolderKanban,
   Loader2,
   Plus,
+  ReceiptText,
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { buttonVariants } from '@/components/ui/button-variants';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { NewFactureDialog } from '@/components/facturation/new-facture-dialog';
 import {
   NewFactureLibreDialog,
@@ -27,30 +36,23 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { BillingPeriodBanner } from '@/components/facturation/billing-period-banner';
-import { EcheanceTable } from '@/components/facturation/echeance-table';
-import { EcheanceCalendar } from '@/components/facturation/echeance-calendar';
 import { createFactureListColumns } from '@/components/facturation/facture-list-columns';
 import { AjustementsList } from '@/components/facturation/ajustements-list';
-import { EcheanceApercuHtml } from '@/components/facturation/echeance-apercu-html';
 import { BrouillonsTab } from '@/components/facturation/brouillons-tab';
 import { ManuelTab } from '@/components/facturation/manuel-tab';
-import { ResteAFacturerTab } from '@/components/facturation/reste-a-facturer-tab';
 import { EmptyState } from '@/components/shared/empty-state';
+import { TermeHint } from '@/components/shared/terme-hint';
 import type {
   FactureListItem,
   FacturesPage,
   FacturesPageParams,
   FactureStatutFiltrable,
-  EcheancePending,
   BrouillonItem,
   listProjetsForFacturation,
 } from '@/lib/queries/factures';
 import { fetchFacturesPage } from '@/lib/actions/factures/list';
 import type { AjustementPending } from '@/lib/queries/ajustements';
 import type { ProjetBillableEvents } from '@/lib/queries/billable-events';
-import { buildResteAFacturer } from '@/lib/utils/reste-a-facturer';
-import { cn } from '@/lib/utils';
 
 const FACTURE_FILTERS: FilterOption[] = [
   {
@@ -95,7 +97,6 @@ function toPageParams(
 
 interface FacturationPageClientProps {
   facturesPage: FacturesPage;
-  echeances: EcheancePending[];
   ajustements: AjustementPending[];
   brouillons: BrouillonItem[];
   manualProjets: ProjetBillableEvents[];
@@ -108,7 +109,6 @@ interface FacturationPageClientProps {
 // oxlint-disable-next-line react-doctor/no-giant-component
 export function FacturationPageClient({
   facturesPage,
-  echeances,
   ajustements,
   brouillons,
   manualProjets,
@@ -119,15 +119,14 @@ export function FacturationPageClient({
   // oxlint-disable-next-line react-doctor/prefer-useReducer
 }: FacturationPageClientProps) {
   const { push } = useRouter();
-  // Onglet par défaut : Brouillons s'il y en a (à émettre), sinon Factures.
-  // Jamais l'onglet Échéances (legacy, structurellement vide en prod).
-  const [activeTab, setActiveTab] = useState(brouillons.length > 0 ? 0 : 3);
-  const [echeanceView, setEcheanceView] = useState<'list' | 'calendar'>('list');
+  // Onglet par défaut : À émettre s'il y a des factures en attente, sinon
+  // Factures. (L'onglet Échéances legacy a été retiré : table vide en prod,
+  // vérifié 2026-07-09.)
+  const [activeTab, setActiveTab] = useState(brouillons.length > 0 ? 0 : 1);
+  const [chooserOpen, setChooserOpen] = useState(false);
   const [newFactureOpen, setNewFactureOpen] = useState(false);
   const [newFactureLibreOpen, setNewFactureLibreOpen] = useState(false);
-  const [preview, setPreview] = useState<
-    { kind: 'facture'; ref: string } | { kind: 'echeance'; id: string } | null
-  >(null);
+  const [previewRef, setPreviewRef] = useState<string | null>(null);
   const [previewLoaded, setPreviewLoaded] = useState(false);
 
   // Pagination serveur keyset : la page 1 vient du SSR (facturesPage), les
@@ -174,34 +173,10 @@ export function FacturationPageClient({
     () =>
       createFactureListColumns((ref) => {
         setPreviewLoaded(false);
-        setPreview({ kind: 'facture', ref });
+        setPreviewRef(ref);
       }),
     [],
   );
-
-  const raf = useMemo(
-    () => buildResteAFacturer(manualProjets),
-    [manualProjets],
-  );
-
-  const previewTitle =
-    preview?.kind === 'facture'
-      ? `Aperçu de la facture ${preview.ref}`
-      : preview?.kind === 'echeance'
-        ? 'Aperçu de l\u2019échéance (brouillon)'
-        : '';
-
-  const previewInlineUrl =
-    preview?.kind === 'facture'
-      ? `/api/factures/${preview.ref}/pdf?inline=true`
-      : '';
-
-  const previewDownloadUrl =
-    preview?.kind === 'facture'
-      ? `/api/factures/${preview.ref}/pdf`
-      : preview?.kind === 'echeance'
-        ? `/api/echeances/${preview.id}/pdf-preview`
-        : null;
 
   const handleRowClick = (row: FactureListItem) => {
     push(`/facturation/${row.ref}`);
@@ -219,88 +194,106 @@ export function FacturationPageClient({
     window.location.href = `/api/factures/export${qs ? `?${qs}` : ''}`;
   };
 
+  // CTA unique : une étape de choix route vers le bon dialog existant.
+  const newFactureCta = isAdmin && (
+    <Button size="sm" onClick={() => setChooserOpen(true)}>
+      <Plus className="mr-1.5 size-4" />
+      Nouvelle facture
+    </Button>
+  );
+
+  const dialogs = (
+    <>
+      <Dialog open={chooserOpen} onOpenChange={setChooserOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nouvelle facture</DialogTitle>
+            <DialogDescription>Que voulez-vous facturer ?</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setChooserOpen(false);
+                setNewFactureOpen(true);
+              }}
+              disabled={projetsForFacturation.length === 0}
+              className="hover:border-primary/50 hover:bg-muted/40 flex items-start gap-3 rounded-lg border p-4 text-left transition-colors disabled:opacity-50"
+            >
+              <FolderKanban className="text-primary mt-0.5 size-5 shrink-0" />
+              <span>
+                <span className="block text-sm font-semibold">
+                  Depuis un projet
+                </span>
+                <span className="text-muted-foreground block text-xs">
+                  Facture liée à un projet et ses contrats (échéances,
+                  commission).
+                </span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setChooserOpen(false);
+                setNewFactureLibreOpen(true);
+              }}
+              disabled={clientsForFreeFacture.length === 0}
+              className="hover:border-primary/50 hover:bg-muted/40 flex items-start gap-3 rounded-lg border p-4 text-left transition-colors disabled:opacity-50"
+            >
+              <ReceiptText className="text-primary mt-0.5 size-5 shrink-0" />
+              <span>
+                <span className="block text-sm font-semibold">Hors projet</span>
+                <span className="text-muted-foreground block text-xs">
+                  Facture libre : prestation ponctuelle, refacturation, sans
+                  projet associé.
+                </span>
+              </span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <NewFactureDialog
+        open={newFactureOpen}
+        onOpenChange={setNewFactureOpen}
+        initialProjets={projetsForFacturation}
+      />
+      {isAdmin && (
+        <NewFactureLibreDialog
+          open={newFactureLibreOpen}
+          onOpenChange={setNewFactureLibreOpen}
+          clients={clientsForFreeFacture}
+          societes={societesEmettrices}
+        />
+      )}
+    </>
+  );
+
   if (
     (facturesPage.total ?? rows.length) === 0 &&
-    echeances.length === 0 &&
     ajustements.length === 0 &&
     brouillons.length === 0 &&
     manualProjets.length === 0
   ) {
     return (
       <>
-        <div className="mb-3 flex justify-end gap-2">
-          {isAdmin && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setNewFactureLibreOpen(true)}
-              disabled={clientsForFreeFacture.length === 0}
-            >
-              <Plus className="mr-1.5 size-4" />
-              Facture libre
-            </Button>
-          )}
-          {isAdmin && (
-            <Button
-              size="sm"
-              onClick={() => setNewFactureOpen(true)}
-              disabled={projetsForFacturation.length === 0}
-            >
-              <Plus className="mr-1.5 size-4" />
-              Nouvelle facture
-            </Button>
-          )}
-        </div>
+        <div className="mb-3 flex justify-end gap-2">{newFactureCta}</div>
         <EmptyState
           icon={FileText}
           title="Aucune facture"
-          description="Les échéances sont générées automatiquement depuis les contrats actifs. Les factures apparaîtront ici une fois émises depuis ces échéances."
+          description="Les factures apparaîtront ici une fois préparées puis émises."
+          hint="Le flux : un contrat actif génère des montants à facturer, vous préparez une facture (encore modifiable), puis vous l'émettez : elle reçoit alors son numéro définitif et part au client."
         />
-        <NewFactureDialog
-          open={newFactureOpen}
-          onOpenChange={setNewFactureOpen}
-          initialProjets={projetsForFacturation}
-        />
-        {isAdmin && (
-          <NewFactureLibreDialog
-            open={newFactureLibreOpen}
-            onOpenChange={setNewFactureLibreOpen}
-            clients={clientsForFreeFacture}
-            societes={societesEmettrices}
-          />
-        )}
+        {dialogs}
       </>
     );
   }
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <div className="mb-3 flex justify-end gap-2">
-        {isAdmin && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setNewFactureLibreOpen(true)}
-            disabled={clientsForFreeFacture.length === 0}
-          >
-            <Plus className="mr-1.5 size-4" />
-            Facture libre
-          </Button>
-        )}
-        {isAdmin && (
-          <Button
-            size="sm"
-            onClick={() => setNewFactureOpen(true)}
-            disabled={projetsForFacturation.length === 0}
-          >
-            <Plus className="mr-1.5 size-4" />
-            Nouvelle facture
-          </Button>
-        )}
-      </div>
+      <div className="mb-3 flex justify-end gap-2">{newFactureCta}</div>
       <TabsList variant="line">
         <TabsTrigger value={0}>
-          Brouillons
+          À émettre
           {brouillons.length > 0 && (
             <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[10px] font-bold text-white">
               {brouillons.length}
@@ -308,29 +301,10 @@ export function FacturationPageClient({
           )}
         </TabsTrigger>
         <TabsTrigger value={1}>
-          Échéances
-          {echeances.length > 0 && (
-            <span className="bg-primary ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white">
-              {echeances.length}
-            </span>
-          )}
-        </TabsTrigger>
-        {manualProjets.length > 0 && (
-          <TabsTrigger value={2}>
-            Commission
-            <span className="text-muted-foreground ml-1.5 text-xs">
-              ({manualProjets.length})
-            </span>
-          </TabsTrigger>
-        )}
-        <TabsTrigger value={3}>
           Factures
           <span className="text-muted-foreground ml-1.5 text-xs">
             ({total ?? rows.length})
           </span>
-        </TabsTrigger>
-        <TabsTrigger value={4}>
-          Ajustements
           {ajustements.length > 0 && (
             <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[10px] font-bold text-white">
               {ajustements.length}
@@ -338,90 +312,46 @@ export function FacturationPageClient({
           )}
         </TabsTrigger>
         {manualProjets.length > 0 && (
-          <TabsTrigger value={5}>
-            Reste à facturer
-            {raf.totals.nbContratsFacturable > 0 && (
-              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--success)] px-1.5 text-[10px] font-bold text-white">
-                {raf.totals.nbContratsFacturable}
-              </span>
-            )}
+          <TabsTrigger value={2}>
+            Commission HEOL
+            <span className="text-muted-foreground ml-1.5 text-xs">
+              ({manualProjets.length})
+            </span>
           </TabsTrigger>
         )}
       </TabsList>
 
       <TabsContent value={0}>
         <div className="mt-4">
-          <BrouillonsTab brouillons={brouillons} />
-        </div>
-      </TabsContent>
-
-      <TabsContent value={1}>
-        <div className="mt-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <BillingPeriodBanner />
-            <div className="bg-muted inline-flex items-center rounded-lg p-0.5">
-              <button
-                type="button"
-                onClick={() => setEcheanceView('list')}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-                  echeanceView === 'list'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-                aria-label="Vue liste"
-              >
-                <List className="size-3.5" />
-                Liste
-              </button>
-              <button
-                type="button"
-                onClick={() => setEcheanceView('calendar')}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-                  echeanceView === 'calendar'
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-                aria-label="Vue calendrier"
-              >
-                <Calendar className="size-3.5" />
-                Calendrier
-              </button>
-            </div>
-          </div>
-          {echeanceView === 'list' ? (
-            <EcheanceTable
-              echeances={echeances}
-              onPreview={(id) => {
-                setPreviewLoaded(false);
-                setPreview({ kind: 'echeance', id });
-              }}
+          {brouillons.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="Rien à émettre"
+              description="Aucune facture en préparation."
+              hint="Une facture à émettre est préparée mais pas encore envoyée : elle reste modifiable et ne porte pas encore de numéro définitif."
             />
           ) : (
-            <EcheanceCalendar echeances={echeances} />
+            <BrouillonsTab brouillons={brouillons} />
           )}
         </div>
       </TabsContent>
 
-      {manualProjets.length > 0 && (
-        <TabsContent value={5}>
-          <div className="mt-4">
-            <ResteAFacturerTab raf={raf} />
-          </div>
-        </TabsContent>
-      )}
-
-      {manualProjets.length > 0 && (
-        <TabsContent value={2}>
-          <div className="mt-4">
-            <ManuelTab projets={manualProjets} />
-          </div>
-        </TabsContent>
-      )}
-
-      <TabsContent value={3}>
+      <TabsContent value={1}>
         <div className="mt-4">
+          {ajustements.length > 0 && (
+            <details className="border-warning/40 bg-warning/5 mb-4 rounded-lg border">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-medium">
+                <TermeHint terme="ajustement">
+                  {ajustements.length} ajustement
+                  {ajustements.length > 1 ? 's' : ''}
+                </TermeHint>{' '}
+                en attente : corrections à reporter sur les prochaines factures
+              </summary>
+              <div className="border-t px-4 py-3">
+                <AjustementsList ajustements={ajustements} />
+              </div>
+            </details>
+          )}
           <div className="mb-4 flex justify-end">
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-1.5 size-4" />
@@ -445,17 +375,30 @@ export function FacturationPageClient({
         </div>
       </TabsContent>
 
-      <TabsContent value={4}>
-        <div className="mt-4">
-          <AjustementsList ajustements={ajustements} />
-        </div>
-      </TabsContent>
+      {manualProjets.length > 0 && (
+        <TabsContent value={2}>
+          <div className="mt-4 space-y-4">
+            <p className="text-muted-foreground text-xs">
+              <TermeHint terme="commission">Commission</TermeHint> du modèle
+              engagement (HEOL) : base = encaissements OPCO du client.{' '}
+              <Link
+                href="/a-facturer"
+                className="text-primary inline-flex items-center gap-1 hover:underline"
+              >
+                Voir le reste à facturer par contrat
+                <ArrowRight className="size-3" />
+              </Link>
+            </p>
+            <ManuelTab projets={manualProjets} />
+          </div>
+        </TabsContent>
+      )}
 
       <Sheet
-        open={preview !== null}
+        open={previewRef !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setPreview(null);
+            setPreviewRef(null);
             setPreviewLoaded(false);
           }
         }}
@@ -465,10 +408,10 @@ export function FacturationPageClient({
           className="flex !w-[min(800px,95vw)] flex-col gap-0 p-0 data-[side=right]:sm:max-w-[min(800px,95vw)]"
         >
           <SheetHeader className="border-border flex flex-row items-center justify-between border-b p-4 pr-12">
-            <SheetTitle>{previewTitle}</SheetTitle>
-            {previewDownloadUrl && (
+            <SheetTitle>{`Aperçu de la facture ${previewRef ?? ''}`}</SheetTitle>
+            {previewRef && (
               <a
-                href={previewDownloadUrl}
+                href={`/api/factures/${previewRef}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={buttonVariants({ variant: 'outline', size: 'sm' })}
@@ -478,10 +421,7 @@ export function FacturationPageClient({
               </a>
             )}
           </SheetHeader>
-          {preview?.kind === 'echeance' && (
-            <EcheanceApercuHtml key={preview.id} echeanceId={preview.id} />
-          )}
-          {preview?.kind === 'facture' && (
+          {previewRef && (
             <div className="relative flex-1">
               {!previewLoaded && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
@@ -493,9 +433,9 @@ export function FacturationPageClient({
               )}
               {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
               <iframe
-                key={preview.ref}
-                src={previewInlineUrl}
-                title={previewTitle}
+                key={previewRef}
+                src={`/api/factures/${previewRef}/pdf?inline=true`}
+                title={`Aperçu de la facture ${previewRef}`}
                 onLoad={() => setPreviewLoaded(true)}
                 className="absolute inset-0 size-full border-0 bg-white"
               />
@@ -504,19 +444,7 @@ export function FacturationPageClient({
         </SheetContent>
       </Sheet>
 
-      <NewFactureDialog
-        open={newFactureOpen}
-        onOpenChange={setNewFactureOpen}
-        initialProjets={projetsForFacturation}
-      />
-      {isAdmin && (
-        <NewFactureLibreDialog
-          open={newFactureLibreOpen}
-          onOpenChange={setNewFactureLibreOpen}
-          clients={clientsForFreeFacture}
-          societes={societesEmettrices}
-        />
-      )}
+      {dialogs}
     </Tabs>
   );
 }

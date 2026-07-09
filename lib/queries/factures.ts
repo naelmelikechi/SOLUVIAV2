@@ -415,34 +415,6 @@ export async function getPaiementsByFactureId(factureId: string) {
   return data;
 }
 
-export async function getEcheancesPending() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('echeances')
-    .select(
-      `
-      id, mois_concerne, date_emission_prevue, montant_prevu_ht, validee,
-      projet:projets!echeances_projet_id_fkey(id, ref, client:clients!projets_client_id_fkey(trigramme, raison_sociale, tva_intracommunautaire))
-    `,
-    )
-    .is('facture_id', null)
-    .eq('validee', false)
-    .order('date_emission_prevue');
-  if (error) {
-    logger.error('queries.factures', 'getEcheancesPending failed', { error });
-    throw new AppError(
-      'FACTURES_ECHEANCES_FETCH_FAILED',
-      'Impossible de charger les échéances',
-      { cause: error },
-    );
-  }
-  return data;
-}
-
-export type EcheancePending = Awaited<
-  ReturnType<typeof getEcheancesPending>
->[number];
-
 // Check if an avoir exists for a given facture
 export async function getAvoirForFacture(factureOrigineId: string) {
   const supabase = await createClient();

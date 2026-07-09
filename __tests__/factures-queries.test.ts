@@ -14,7 +14,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  *   structure attendue avec contrats archive=false.
  * - getFacturesList : tri (numero_seq DESC), exclusion brouillons / demo.
  * - getBrouillons : ne renvoie que statut='a_emettre', tri created_at ASC.
- * - getEcheancesPending : filtres facture_id IS NULL + validee=false + tri.
  *
  * NB: Le module n'expose pas de pagination explicite (limit/offset) ni de
  * filtre par statut user-controle - ces operations sont effectuees cote
@@ -358,45 +357,6 @@ describe('getBrouillons', () => {
 
     const op = mock.ops.find((o) => o.table === 'factures');
     expect(op!.limits).toContain(500);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// getEcheancesPending - facture_id IS NULL + validee=false
-// ---------------------------------------------------------------------------
-
-describe('getEcheancesPending', () => {
-  it('filters facture_id IS NULL and validee=false', async () => {
-    const mock = buildSupabase({
-      echeances: {
-        data: [
-          { id: 'e1', mois_concerne: '2026-05-01', validee: false },
-          { id: 'e2', mois_concerne: '2026-06-01', validee: false },
-        ],
-      },
-    });
-    vi.mocked(createClient).mockResolvedValue(
-      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
-    );
-
-    const { getEcheancesPending } = await import('@/lib/queries/factures');
-    const result = await getEcheancesPending();
-
-    expect(result).toHaveLength(2);
-    const op = mock.ops.find((o) => o.table === 'echeances');
-    expect(op).toBeDefined();
-    const isNull = op!.filters.find(
-      (f) => f.col === 'facture_id' && f.op === 'is',
-    );
-    expect(isNull?.val).toBeNull();
-    const validee = op!.filters.find(
-      (f) => f.col === 'validee' && f.op === 'eq',
-    );
-    expect(validee?.val).toBe(false);
-    // tri par date_emission_prevue
-    expect(
-      op!.orders.find((o) => o.col === 'date_emission_prevue'),
-    ).toBeDefined();
   });
 });
 

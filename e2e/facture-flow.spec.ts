@@ -33,11 +33,15 @@ test.describe('Facturation - flux critique brouillon -> emission -> PDF', () => 
     page,
   }) => {
     // ----- 1. Creer un brouillon de facture libre via le dialog -----
+    // CTA unique "Nouvelle facture" -> etape de choix -> "Hors projet".
     await page.goto('/facturation');
     await page
-      .getByRole('button', { name: /facture libre/i })
+      .getByRole('button', { name: /nouvelle facture/i })
       .first()
       .click();
+    const chooser = page.getByRole('dialog');
+    await expect(chooser).toBeVisible();
+    await chooser.getByRole('button', { name: /hors projet/i }).click();
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
@@ -60,7 +64,7 @@ test.describe('Facturation - flux critique brouillon -> emission -> PDF', () => 
     // ----- 2. Envoyer le brouillon (= emission, ref assignee par trigger) -----
     // La table brouillons n'affiche pas la description : on cible par client
     // (fixture dediee, donc sans ambiguite).
-    await page.getByRole('tab', { name: /brouillons/i }).click();
+    await page.getByRole('tab', { name: /à émettre/i }).click();
     const row = page.getByRole('row').filter({ hasText: CLIENT_NAME }).first();
     await expect(row).toBeVisible({ timeout: 10_000 });
     await row

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 import {
   getAssignments,
   getClientByRef,
@@ -12,7 +11,6 @@ import {
 } from '@/lib/queries/qualiopi';
 import { getActiveUsersMinimal } from '@/lib/queries/users';
 import { computeCompletion } from '@/lib/eduvia/quality-types';
-import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { IndicatorClient } from '@/components/qualiopi/indicator-client';
 import { NoticeIframe } from '@/components/qualiopi/notice-iframe';
@@ -118,12 +116,21 @@ export default async function IndicatorPage({
   return (
     <div>
       <div className="mb-4">
-        <Link href={`/qualiopi/${p.clientRef}/${campusId}/${criterionId}`}>
-          <Button variant="ghost" size="sm" className="-ml-2">
-            <ArrowLeft className="mr-1.5 size-4" />
-            {criterion.title}
-          </Button>
-        </Link>
+        <Breadcrumbs
+          items={[
+            { label: 'Qualité', href: '/qualiopi' },
+            { label: client.raison_sociale, href: `/qualiopi/${p.clientRef}` },
+            {
+              label: campus.denomination,
+              href: `/qualiopi/${p.clientRef}/${campusId}`,
+            },
+            {
+              label: `Critère ${criterion.prefix}`,
+              href: `/qualiopi/${p.clientRef}/${campusId}/${criterionId}`,
+            },
+            { label: `Indicateur ${indicator.code}` },
+          ]}
+        />
       </div>
 
       <div className="mb-6 flex items-start gap-4">

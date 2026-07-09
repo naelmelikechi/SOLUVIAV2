@@ -23,6 +23,10 @@ export default async function SocietesEmettricesPage() {
       <PageHeader
         title="Sociétés émettrices"
         description="Entités juridiques qui émettent devis et factures"
+        breadcrumbs={[
+          { label: 'Paramètres', href: '/admin/parametres' },
+          { label: 'Sociétés émettrices' },
+        ]}
       >
         <Link
           href="/admin/parametres/societes-emettrices/nouvelle"

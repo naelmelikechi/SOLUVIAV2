@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ChevronRight, User } from 'lucide-react';
+import { ChevronRight, User } from 'lucide-react';
+import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 import {
   getAssignments,
   getClientByRef,
@@ -11,7 +12,6 @@ import {
 } from '@/lib/queries/qualiopi';
 import { computeCompletion } from '@/lib/eduvia/quality-types';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
 
 export const revalidate = 60;
@@ -90,14 +90,18 @@ export default async function CriterionPage({
 
   return (
     <div>
-      {/* Header avec retour */}
       <div className="mb-4">
-        <Link href={`/qualiopi/${p.clientRef}/${campusId}`}>
-          <Button variant="ghost" size="sm" className="-ml-2">
-            <ArrowLeft className="mr-1.5 size-4" />
-            Retour
-          </Button>
-        </Link>
+        <Breadcrumbs
+          items={[
+            { label: 'Qualité', href: '/qualiopi' },
+            { label: client.raison_sociale, href: `/qualiopi/${p.clientRef}` },
+            {
+              label: campus.denomination,
+              href: `/qualiopi/${p.clientRef}/${campusId}`,
+            },
+            { label: `Critère ${criterion.prefix}` },
+          ]}
+        />
       </div>
 
       <div className="mb-4 flex items-start gap-4">

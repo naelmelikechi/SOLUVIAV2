@@ -130,6 +130,11 @@ export default async function QualiopiCampusPage({
       <PageHeader
         title={`Qualité - ${client.raison_sociale}`}
         description={`${campus.denomination} · ${conformeCriteria}/${criteriaWithStats.length} critères conformes`}
+        breadcrumbs={[
+          { label: 'Qualité', href: '/qualiopi' },
+          { label: client.raison_sociale, href: `/qualiopi/${clientRef}` },
+          { label: campus.denomination },
+        ]}
       >
         <CriteriaFilter
           basePath={`/qualiopi/${clientRef}/${campusId}`}

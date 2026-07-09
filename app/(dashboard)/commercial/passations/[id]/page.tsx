@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 import { PassationSection } from '@/components/commercial/passations/passation-section';
 import { normalizeSnapshot } from '@/lib/queries/passation';
 import { createClient } from '@/lib/supabase/server';
@@ -54,12 +53,12 @@ export default async function PassationDetailPage({
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <Link
-          href="/commercial/passations"
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
-        >
-          <ArrowLeft className="size-3.5" /> Passations
-        </Link>
+        <Breadcrumbs
+          items={[
+            { label: 'Passations', href: '/commercial/passations' },
+            { label: raisonSociale },
+          ]}
+        />
         <h1 className="text-2xl font-semibold tracking-tight">
           {raisonSociale}
         </h1>

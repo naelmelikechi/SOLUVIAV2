@@ -44,6 +44,10 @@ export default async function QualiopiClientPage({
       <PageHeader
         title={`Qualité - ${client.raison_sociale}`}
         description="Sélectionnez un campus"
+        breadcrumbs={[
+          { label: 'Qualité', href: '/qualiopi' },
+          { label: client.raison_sociale },
+        ]}
       />
       {campuses.length === 0 ? (
         <EmptyState

@@ -6,7 +6,7 @@ import {
   BellRing,
   type LucideIcon,
 } from 'lucide-react';
-import { Card } from '@/components/crm/ui/card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/crm/utils';
 
 type Kpi = {

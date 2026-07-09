@@ -1,14 +1,14 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { Timeline, type TimelineItem } from '@/components/crm/shared/timeline';
-import { Button } from '@/components/crm/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/crm/ui/dialog';
+} from '@/components/ui/dialog';
 import { loadAllActivites } from '@/lib/crm/actions/activites';
 
 /**

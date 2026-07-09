@@ -13,10 +13,10 @@ import {
   type OpportuniteCompleteParsed,
 } from '@/lib/crm/validators/opportunite-complete';
 import { createOpportuniteComplete } from '@/lib/crm/actions/opportunites';
-import { Button } from '@/components/crm/ui/button';
-import { Input } from '@/components/crm/ui/input';
-import { Label } from '@/components/crm/ui/label';
-import { Textarea } from '@/components/crm/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/crm/ui/dialog';
+} from '@/components/ui/dialog';
 
 const emptyContact = { prenom: '', nom: '', email: '', telephone: '' };
 const emptyAdresse = { libelle: '', ville: '', departement: '', region: '' };

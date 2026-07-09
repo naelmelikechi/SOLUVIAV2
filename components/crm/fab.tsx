@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button } from '@/components/crm/ui/button';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/crm/utils';
 
 /**

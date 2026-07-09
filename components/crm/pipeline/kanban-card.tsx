@@ -2,7 +2,7 @@
 import { type CSSProperties } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { useRouter } from 'next/navigation';
-import { Card } from '@/components/crm/ui/card';
+import { Card } from '@/components/ui/card';
 import type { OppCard } from './types';
 
 export function KanbanCard({ opp, tint }: { opp: OppCard; tint?: string }) {

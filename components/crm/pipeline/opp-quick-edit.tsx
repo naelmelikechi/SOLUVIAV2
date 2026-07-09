@@ -2,9 +2,9 @@
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { runWithToast } from '@/components/crm/shared/run-with-toast';
-import { Input } from '@/components/crm/ui/input';
-import { Label } from '@/components/crm/ui/label';
-import { Button } from '@/components/crm/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { updateOpportuniteFields } from '@/lib/crm/actions/opportunites';
 
 type Fields = {

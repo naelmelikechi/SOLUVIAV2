@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { ChevronsUpDown, MapPin, X } from 'lucide-react';
-import { Button } from '@/components/crm/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/crm/ui/popover';
+} from '@/components/ui/popover';
 import {
   Command,
   CommandEmpty,
@@ -14,7 +14,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/crm/ui/command';
+} from '@/components/ui/command';
 import {
   departementLabel,
   regionForDepartement,

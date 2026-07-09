@@ -1,7 +1,7 @@
 'use client';
 import { useState, useTransition } from 'react';
 import { ArchiveRestore, ChevronDown, Trash2 } from 'lucide-react';
-import { Button } from '@/components/crm/ui/button';
+import { Button } from '@/components/ui/button';
 import { ConfirmButton } from '@/components/crm/shared/confirm-button';
 import { runWithToast } from '@/components/crm/shared/run-with-toast';
 import { restoreRelance, deleteRelance } from '@/lib/crm/actions/relances';

@@ -14,7 +14,7 @@ import {
   filtreRentree,
   type OppRegions,
 } from '@/lib/crm/domain/geo-stats';
-import { Button } from '@/components/crm/ui/button';
+import { Button } from '@/components/ui/button';
 
 type Metric = 'opps' | 'alternants';
 

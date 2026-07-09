@@ -2,13 +2,13 @@
 import { useState } from 'react';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import { cn } from '@/lib/crm/utils';
-import { Button } from '@/components/crm/ui/button';
-import { Badge } from '@/components/crm/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/crm/ui/popover';
+} from '@/components/ui/popover';
 import {
   Command,
   CommandEmpty,
@@ -16,7 +16,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/crm/ui/command';
+} from '@/components/ui/command';
 import type { Option } from '@/components/crm/shared/entity-combobox';
 
 /** Sélection multiple d'entités (ex. plusieurs commerciaux sur un RDV). */

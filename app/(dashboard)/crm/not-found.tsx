@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { buttonVariants } from '@/components/crm/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { cn } from '@/lib/crm/utils';
 
 // 404 thémée pour les routes /crm (ex. compte/opportunité introuvable).

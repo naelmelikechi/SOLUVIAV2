@@ -11,8 +11,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/crm/ui/select';
-import { Button } from '@/components/crm/ui/button';
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { moveOpportuniteStage } from '@/lib/crm/actions/opportunites';
 import { label, statutOppLabel } from '@/lib/crm/labels';

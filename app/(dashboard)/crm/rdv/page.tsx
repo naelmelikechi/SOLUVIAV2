@@ -4,7 +4,7 @@ import { RdvCalendar } from '@/components/crm/rdv/rdv-calendar-lazy';
 import { RdvLists } from '@/components/crm/rdv/rdv-list';
 import { RdvForm } from '@/components/crm/rdv/rdv-form';
 import { RdvDetail } from '@/components/crm/rdv/rdv-detail';
-import { Fab } from '@/components/crm/ui/fab';
+import { Fab } from '@/components/crm/fab';
 import { Plus } from 'lucide-react';
 
 export default async function RdvPage({

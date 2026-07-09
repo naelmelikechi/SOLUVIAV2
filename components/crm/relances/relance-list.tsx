@@ -1,8 +1,8 @@
 'use client';
 import { useTransition } from 'react';
 import { Archive, Pencil } from 'lucide-react';
-import { Checkbox } from '@/components/crm/ui/checkbox';
-import { Button } from '@/components/crm/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 import { RelanceQuickEdit } from '@/components/crm/relances/relance-quick-edit';
 import { bucketRelances } from '@/lib/crm/domain/relances';
 import { parseDateOnly } from '@/lib/crm/domain/dates';

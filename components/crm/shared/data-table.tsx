@@ -16,8 +16,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/crm/ui/table';
-import { Input } from '@/components/crm/ui/input';
+} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 
 export function DataTable<TData, TValue>({
   columns,

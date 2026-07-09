@@ -1,6 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
-import { Textarea } from '@/components/crm/ui/textarea';
+import { Textarea } from '@/components/ui/textarea';
 
 export type MentionOption = { value: string; label: string };
 

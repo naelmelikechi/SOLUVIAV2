@@ -1,11 +1,6 @@
 import Link from 'next/link';
 import { Moon, ClipboardList } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/crm/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDateTime } from '@/lib/crm/format';
 import type { DashboardRisks } from '@/lib/crm/queries/dashboard';
 

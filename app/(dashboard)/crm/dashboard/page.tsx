@@ -20,12 +20,7 @@ import { ActiviteRecente } from '@/components/crm/dashboard/activite-recente';
 import { CarteRegions } from '@/components/crm/dashboard/carte-regions';
 import { RiskCards } from '@/components/crm/dashboard/risk-cards';
 import { type TimelineItem } from '@/components/crm/shared/timeline';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/crm/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default async function DashboardPage() {
   const [d, risks] = await Promise.all([dashboardData(), dashboardRisks()]);

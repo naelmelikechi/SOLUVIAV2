@@ -4,12 +4,13 @@ import { useRouter } from 'next/navigation';
 import { Bell, AtSign, CalendarClock, BellRing, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Button, buttonVariants } from '@/components/crm/ui/button';
+import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/crm/ui/popover';
+} from '@/components/ui/popover';
 import { cn } from '@/lib/crm/utils';
 import { markRead, markAllRead } from '@/lib/crm/actions/notifications';
 import type { NotificationItem } from '@/lib/crm/queries/notifications';

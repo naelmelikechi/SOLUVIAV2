@@ -194,6 +194,11 @@ export function NewFactureDialog({
       prev.map((l, i) => {
         const contrat = projetData.contrats[i];
         if (!contrat) return l;
+        // Regle DECA : un contrat sans contract_number bloquerait l'emission
+        // (lib/actions/factures/emission.ts) - on ne le selectionne jamais.
+        if (checked && !contrat.contract_number?.trim()) {
+          return { ...l, selected: false };
+        }
         if (checked) {
           // Lors du select-all : applique le mois global a toutes les lignes
           // qui n'ont pas ete editees manuellement.
@@ -368,11 +373,39 @@ export function NewFactureDialog({
         )}
       >
         <DialogHeader>
-          <DialogTitle>
-            {step === 1
-              ? 'Nouvelle facture - choisir le projet'
-              : 'Nouvelle facture - choisir les contrats'}
-          </DialogTitle>
+          <DialogTitle>Nouvelle facture</DialogTitle>
+          <div
+            aria-label={`Étape ${step} sur 2`}
+            className="flex items-center gap-2 text-xs"
+          >
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium',
+                step === 1
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground',
+              )}
+            >
+              <span className="bg-primary/15 inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
+                1
+              </span>
+              Projet
+            </span>
+            <span className="text-muted-foreground">&rsaquo;</span>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium',
+                step === 2
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground',
+              )}
+            >
+              <span className="bg-primary/15 inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
+                2
+              </span>
+              Lignes
+            </span>
+          </div>
         </DialogHeader>
 
         {step === 1 && (
@@ -513,6 +546,7 @@ export function NewFactureDialog({
                   {projetData.contrats.map((c, idx) => {
                     const ligne = lignes[idx];
                     if (!ligne) return null;
+                    const decaManquant = !c.contract_number?.trim();
                     const isFirstSelected =
                       ligne.selected &&
                       !lignes.slice(0, idx).some((l) => l.selected);
@@ -527,6 +561,7 @@ export function NewFactureDialog({
                         <td className="p-2 align-top">
                           <Checkbox
                             checked={ligne.selected}
+                            disabled={decaManquant}
                             onCheckedChange={(v) =>
                               handleToggleOne(idx, v === true)
                             }
@@ -538,6 +573,14 @@ export function NewFactureDialog({
                             c.contract_number ??
                             c.internal_number ??
                             ''}
+                          {decaManquant && (
+                            <span
+                              className="mt-0.5 block font-sans text-[10px] text-orange-600 dark:text-orange-400"
+                              title="Sans numéro DECA, l'OPCO refuse la facture : l'émission serait bloquée. Renseignez le DECA dans Eduvia puis attendez la synchro."
+                            >
+                              DECA manquant - non facturable
+                            </span>
+                          )}
                         </td>
                         <td className="p-2 align-top">
                           {[c.apprenant_prenom, c.apprenant_nom]

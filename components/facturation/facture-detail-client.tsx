@@ -43,9 +43,11 @@ export function FactureDetailActions({
   const { replace, refresh } = useRouter();
   const [avoirOpen, setAvoirOpen] = useState(false);
   const [editInfoOpen, setEditInfoOpen] = useState(false);
-  const [sendDialogOpen, setSendDialogOpen] = useState(false);
-  const [resendDialogOpen, setResendDialogOpen] = useState(false);
-  const [relanceDialogOpen, setRelanceDialogOpen] = useState(false);
+  // Un seul dialog d'envoi, pilote par mode (envoi initial / renvoi /
+  // relance) au lieu de 3 instances + 3 flags open.
+  const [sendMode, setSendMode] = useState<
+    'send' | 'resend' | 'relance' | null
+  >(null);
 
   const isBrouillon = facture.statut === 'a_emettre';
 
@@ -131,7 +133,7 @@ export function FactureDetailActions({
           <Button
             variant="default"
             size="sm"
-            onClick={() => setSendDialogOpen(true)}
+            onClick={() => setSendMode('send')}
           >
             <Send className="mr-1.5 size-4" />
             Envoyer
@@ -157,7 +159,7 @@ export function FactureDetailActions({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setResendDialogOpen(true)}
+            onClick={() => setSendMode('resend')}
           >
             <Mail className="mr-1.5 size-4" />
             Renvoyer par email
@@ -168,7 +170,7 @@ export function FactureDetailActions({
             variant="outline"
             size="sm"
             className="border-orange-200 text-orange-600 hover:bg-orange-50 dark:border-orange-900 dark:text-orange-400 dark:hover:bg-orange-950/30"
-            onClick={() => setRelanceDialogOpen(true)}
+            onClick={() => setSendMode('relance')}
           >
             <AlertTriangle className="mr-1.5 size-4" />
             Envoyer une relance
@@ -251,44 +253,36 @@ export function FactureDetailActions({
         />
       )}
 
-      {/* Envoi initial du brouillon */}
-      {isBrouillon && (
-        <SendFactureDialog
-          open={sendDialogOpen}
-          onOpenChange={setSendDialogOpen}
-          factureRef={facture.ref}
-          contacts={contacts}
-          onConfirm={handleConfirmSend}
-          title="Envoyer la facture"
-          confirmLabel="Envoyer"
-        />
-      )}
-
-      {/* Renvoi email facture deja emise */}
-      {!facture.est_avoir && !isBrouillon && (
-        <SendFactureDialog
-          open={resendDialogOpen}
-          onOpenChange={setResendDialogOpen}
-          factureRef={facture.ref}
-          contacts={contacts}
-          onConfirm={handleConfirmResend}
-          title="Renvoyer la facture par email"
-          confirmLabel="Renvoyer"
-        />
-      )}
-
-      {/* Relance pour facture en retard */}
-      {facture.statut === 'en_retard' && (
-        <SendFactureDialog
-          open={relanceDialogOpen}
-          onOpenChange={setRelanceDialogOpen}
-          factureRef={facture.ref}
-          contacts={contacts}
-          onConfirm={handleConfirmRelance}
-          title="Envoyer une relance"
-          confirmLabel="Envoyer la relance"
-        />
-      )}
+      {/* Dialog d'envoi unique : le mode determine libelles et action */}
+      <SendFactureDialog
+        open={sendMode !== null}
+        onOpenChange={(open) => {
+          if (!open) setSendMode(null);
+        }}
+        factureRef={facture.ref}
+        contacts={contacts}
+        onConfirm={
+          sendMode === 'relance'
+            ? handleConfirmRelance
+            : sendMode === 'resend'
+              ? handleConfirmResend
+              : handleConfirmSend
+        }
+        title={
+          sendMode === 'relance'
+            ? 'Envoyer une relance'
+            : sendMode === 'resend'
+              ? 'Renvoyer la facture par email'
+              : 'Envoyer la facture'
+        }
+        confirmLabel={
+          sendMode === 'relance'
+            ? 'Envoyer la relance'
+            : sendMode === 'resend'
+              ? 'Renvoyer'
+              : 'Envoyer'
+        }
+      />
     </>
   );
 }

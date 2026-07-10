@@ -44,7 +44,9 @@ export async function createBrouillonEcheancier(input: {
 
   // Recalcul serveur : seules les échéances réellement dues au moment T
   // partent en brouillon (idempotent : ce qui vient d'être préparé par un
-  // autre admin n'est plus dû).
+  // autre admin n'est plus dû). Limite connue (TOCTOU) : deux admins cliquant
+  // au MÊME instant peuvent créer deux brouillons identiques - sans risque
+  // gapless (brouillons sans numéro, supprimables depuis À émettre).
   const { dues } = await getEcheancierDues(parsed.data.projetId);
   const moisSet = new Set(parsed.data.mois);
   const selected = dues.filter((d) => moisSet.has(d.moisConcerne));

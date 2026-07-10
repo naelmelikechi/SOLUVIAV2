@@ -5,6 +5,7 @@ import {
   type EcheancierProjetInput,
   type EcheancierContratInput,
   type EcheancierTemplateInput,
+  type BilledJalonLine,
 } from '@/lib/queries/echeancier-dues';
 
 // Template 12 x 1/12 (modele "1/12 par mois")
@@ -53,6 +54,19 @@ function contrat(
   };
 }
 
+/** Ligne facturee avec snapshots (defaut : NPEC 12000, taux 10 -> base 1200). */
+function ligne(
+  montantHt: number,
+  npecSnapshot: number | null = 12_000,
+  tauxSnapshot: number | null = 10,
+): BilledJalonLine {
+  return {
+    montant_ht: montantHt,
+    npec_snapshot: npecSnapshot,
+    taux_commission_snapshot: tauxSnapshot,
+  };
+}
+
 // NPEC 12000 x 10% = 1200 de commission, soit 100/mois en 1/12.
 // date_debut avril 2026 -> jalons M+1=mai, M+2=juin, M+3=juillet...
 
@@ -76,13 +90,13 @@ describe('computeEcheancierDues', () => {
     expect(dues[0]!.templateNom).toBe('12 douzièmes');
   });
 
-  it('deduit le deja-facture en montant, jalons les plus anciens d abord', () => {
-    // 150 deja factures : M+1 (100) consomme, M+2 partiel (50 dus), M+3 entier
+  it('deduit la couverture facturee, jalons les plus anciens d abord', () => {
+    // 150 factures (1,5 jalon) : M+1 couvert, M+2 partiel (50 dus), M+3 entier
     const dues = computeEcheancierDues({
       projets: [projet()],
       contrats: [contrat()],
       templates: [DOUZIEMES],
-      billedByContrat: new Map([['k1', 150]]),
+      billedByContrat: new Map([['k1', [ligne(150)]]]),
       cutoffMois: '2026-07-01',
     });
     expect(dues.map((d) => [d.moisConcerne, d.montantHt])).toEqual([
@@ -93,12 +107,12 @@ describe('computeEcheancierDues', () => {
 
   it('gere les lignes manuelles cumulees (M+1..M+2 en une ligne)', () => {
     // L ancien dialog emettait 200 (2 mois cumules) sur une seule ligne :
-    // la deduction en montant ne double-propose pas ces deux mois.
+    // la couverture en quote-parts ne double-propose pas ces deux mois.
     const dues = computeEcheancierDues({
       projets: [projet()],
       contrats: [contrat()],
       templates: [DOUZIEMES],
-      billedByContrat: new Map([['k1', 200]]),
+      billedByContrat: new Map([['k1', [ligne(200)]]]),
       cutoffMois: '2026-07-01',
     });
     expect(dues).toHaveLength(1);
@@ -110,10 +124,72 @@ describe('computeEcheancierDues', () => {
       projets: [projet()],
       contrats: [contrat()],
       templates: [DOUZIEMES],
-      billedByContrat: new Map([['k1', 1200]]),
+      billedByContrat: new Map([['k1', [ligne(1200)]]]),
       cutoffMois: '2026-07-01',
     });
     expect(dues).toHaveLength(0);
+  });
+
+  it('une hausse de NPEC ne re-propose PAS les jalons deja factures', () => {
+    // 3 jalons factures a 100 (snapshots NPEC 12000), puis NPEC releve a
+    // 15000. Le delta sur les jalons passes appartient au pipeline
+    // ajustements : ici rien n'est du a M+3, et M+4 sort a la nouvelle base.
+    const billed = new Map([['k1', [ligne(100), ligne(100), ligne(100)]]]);
+    const duesM3 = computeEcheancierDues({
+      projets: [projet()],
+      contrats: [contrat({ npec_amount: 15_000 })],
+      templates: [DOUZIEMES],
+      billedByContrat: billed,
+      cutoffMois: '2026-07-01',
+    });
+    expect(duesM3).toHaveLength(0);
+
+    const duesM4 = computeEcheancierDues({
+      projets: [projet()],
+      contrats: [contrat({ npec_amount: 15_000 })],
+      templates: [DOUZIEMES],
+      billedByContrat: billed,
+      cutoffMois: '2026-08-01',
+    });
+    expect(duesM4.map((d) => [d.moisConcerne, d.montantHt])).toEqual([
+      ['2026-08-01', 125], // 15000 x 10% / 12
+    ]);
+  });
+
+  it('une hausse du taux de commission ne re-facture pas retroactivement', () => {
+    // Jalon M+1 facture a 100 (taux snapshot 10%), taux projet releve a 12%.
+    // Politique computeDerivance : le taux snapshot fait foi sur l'emis.
+    const dues = computeEcheancierDues({
+      projets: [projet({ taux_commission: 12 })],
+      contrats: [contrat()],
+      templates: [DOUZIEMES],
+      billedByContrat: new Map([['k1', [ligne(100, 12_000, 10)]]]),
+      cutoffMois: '2026-05-01',
+    });
+    expect(dues).toHaveLength(0);
+  });
+
+  it('fallback base courante si les snapshots manquent (legacy)', () => {
+    const dues = computeEcheancierDues({
+      projets: [projet()],
+      contrats: [contrat()],
+      templates: [DOUZIEMES],
+      billedByContrat: new Map([['k1', [ligne(100, null, null)]]]),
+      cutoffMois: '2026-05-01',
+    });
+    expect(dues).toHaveLength(0); // 100 / base courante 1200 = 1 jalon couvert
+  });
+
+  it('ignore les lignes a montant negatif ou nul', () => {
+    const dues = computeEcheancierDues({
+      projets: [projet()],
+      contrats: [contrat()],
+      templates: [DOUZIEMES],
+      billedByContrat: new Map([['k1', [ligne(-100), ligne(0)]]]),
+      cutoffMois: '2026-05-01',
+    });
+    expect(dues).toHaveLength(1);
+    expect(dues[0]!.montantHt).toBe(100); // plafonne au montant du jalon
   });
 
   it('exclut contrats rompus, archives, sans date ou sans NPEC', () => {
@@ -185,26 +261,12 @@ describe('computeEcheancierDues', () => {
     expect(dues[0]!.contributions).toHaveLength(2);
   });
 
-  it('un net negatif (avoirs > facture) ne gonfle jamais un jalon', () => {
-    // Ex: avoir de 200 emis alors que 100 seulement factures -> net -100.
-    // Le jalon du est plafonne a son montant (100), pas 200.
-    const dues = computeEcheancierDues({
-      projets: [projet()],
-      contrats: [contrat()],
-      templates: [DOUZIEMES],
-      billedByContrat: new Map([['k1', -100]]),
-      cutoffMois: '2026-05-01',
-    });
-    expect(dues).toHaveLength(1);
-    expect(dues[0]!.montantHt).toBe(100);
-  });
-
   it('ignore les reliquats d arrondi < 1 centime', () => {
     const dues = computeEcheancierDues({
       projets: [projet()],
       contrats: [contrat()],
       templates: [DOUZIEMES],
-      billedByContrat: new Map([['k1', 99.995]]),
+      billedByContrat: new Map([['k1', [ligne(99.995)]]]),
       cutoffMois: '2026-05-01',
     });
     expect(dues).toHaveLength(0);

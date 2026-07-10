@@ -15,20 +15,27 @@ import {
 // la suppression du cron) de ce qui reste à facturer pour les projets au
 // modèle échéancier.
 //
-// Principe : jalons attendus à date (mois_absolu <= mois courant) MOINS ce qui
-// a déjà été facturé sur le contrat. La déduction est EN MONTANT par contrat
-// (pas par présence de jalon) car le dialog manuel historique émettait des
-// lignes cumulées (M+1..M+x en une ligne) : on alloue le total déjà facturé
-// aux jalons les plus anciens d'abord, le reliquat de chaque jalon est dû.
+// Principe : jalons attendus à date (mois_absolu <= mois courant) dont la
+// quote-part n'est pas encore couverte par ce qui a déjà été facturé sur le
+// contrat. La couverture se mesure en QUOTE-PARTS (euros facturés ÷ base
+// snapshot de la ligne, base = npec_snapshot × taux_snapshot / 100), allouées
+// aux jalons les plus anciens d'abord :
+//   - les lignes manuelles legacy cumulées (M+1..M+x en une seule ligne)
+//     couvrent bien x jalons ;
+//   - un changement de NPEC ou de taux ne "dé-couvre" PAS les jalons déjà
+//     facturés : le delta sur ces jalons est le territoire EXCLUSIF du
+//     pipeline ajustements (detectNpecChangeAjustement, qui travaille aux
+//     snapshots). Valoriser les jalons passés aux paramètres courants en
+//     déduisant des euros facturerait ce delta une seconde fois.
 //
-// "Déjà facturé" = lignes standard (est_avoir=false, tous statuts y compris
-// brouillon pour ne pas préparer deux fois) rattachées à un jalon
-// (mois_relatif > 0), NET des avoirs. Les lignes d'avoir sont stockées en
-// montant NÉGATIF mais sans mois_relatif : on les nette au niveau contrat
-// (sinon un avoir NPEC laisserait le "déjà facturé" au montant plein et les
-// jalons suivants seraient sous-proposés à hauteur de l'avoir, durablement).
-// Les avoirs du monde engagement (event_type renseigné) sont exclus : ils
-// compensent des events engagement/opco_step, pas des jalons.
+// "Déjà facturé" = lignes standard jalon (est_avoir=false, event_type IS NULL
+// - les lignes engagement portent aussi mois_relatif=step_number -, tous
+// statuts y compris brouillon pour ne pas préparer deux fois). Les AVOIRS
+// sont volontairement ignorés : un avoir d'ajustement NPEC corrige un jalon
+// couvert (il ne le rend pas re-facturable), une rupture sort le contrat du
+// calcul via son état, et un avoir d'annulation pure laisse le jalon
+// "couvert" (sous-proposition conservatrice, refacturable via le dialog
+// manuel). Jamais de sur-proposition.
 // ---------------------------------------------------------------------------
 
 export interface EcheancierProjetInput {
@@ -61,6 +68,13 @@ export interface EcheancierTemplateInput {
   nom: string;
   jalons: unknown;
   is_default: boolean;
+}
+
+/** Ligne jalon standard déjà facturée/préparée (avec ses snapshots). */
+export interface BilledJalonLine {
+  montant_ht: number;
+  npec_snapshot: number | null;
+  taux_commission_snapshot: number | null;
 }
 
 export interface EcheancierDueContribution {
@@ -100,14 +114,14 @@ export function currentMoisCutoff(now: Date = new Date()): string {
 
 /**
  * Cœur PUR (aucune DB) : calcule les échéances dues par projet × mois.
- * `billedByContrat` = somme HT des lignes jalon standard déjà émises/préparées
- * par contrat.
+ * `billedByContrat` = lignes jalon standard déjà émises/préparées par contrat
+ * (leurs snapshots servent à convertir les euros en quote-parts couvertes).
  */
 export function computeEcheancierDues(input: {
   projets: EcheancierProjetInput[];
   contrats: EcheancierContratInput[];
   templates: EcheancierTemplateInput[];
-  billedByContrat: Map<string, number>;
+  billedByContrat: Map<string, BilledJalonLine[]>;
   cutoffMois: string;
 }): EcheancierDueMois[] {
   const { projets, contrats, templates, billedByContrat, cutoffMois } = input;
@@ -160,18 +174,36 @@ export function computeEcheancierDues(input: {
       }
       contributions.sort((a, b) => a.mois_relatif - b.mois_relatif);
 
-      // Allocation du déjà-facturé aux jalons les plus anciens d'abord.
-      // Clamp à 0 : un net négatif (avoirs > facturé) ne doit jamais gonfler
-      // un jalon au-delà de son propre montant.
-      let restantBilled = Math.max(0, billedByContrat.get(c.id) ?? 0);
+      // Couverture en QUOTE-PARTS : chaque ligne facturée couvre
+      // montant / (base snapshot) de contrat. Fallback sur la base courante
+      // si les snapshots manquent (lignes manuelles legacy incomplètes).
+      const currentBase = (ctx.npec_amount * taux) / 100;
+      let coveredQp = 0;
+      for (const line of billedByContrat.get(c.id) ?? []) {
+        const montant = Number(line.montant_ht);
+        if (!(montant > 0)) continue;
+        const snapBase =
+          (Number(line.npec_snapshot ?? 0) *
+            Number(line.taux_commission_snapshot ?? 0)) /
+          100;
+        const baseRef = snapBase > 0 ? snapBase : currentBase;
+        if (baseRef <= 0) continue;
+        coveredQp += montant / baseRef;
+      }
+
       const apprenant =
         `${c.apprenant_prenom ?? ''} ${c.apprenant_nom ?? ''}`.trim();
 
+      // Allocation de la couverture aux jalons les plus anciens d'abord.
       for (const contrib of contributions) {
-        const consomme = Math.min(contrib.montant_ht, restantBilled);
-        restantBilled = round2(restantBilled - consomme);
-        const due = round2(contrib.montant_ht - consomme);
-        // Tolérance : ignore les reliquats d'arrondi < 1 centime.
+        if (coveredQp >= contrib.quote_part - 1e-9) {
+          coveredQp -= contrib.quote_part;
+          continue;
+        }
+        const dueQp = contrib.quote_part - Math.max(0, coveredQp);
+        coveredQp = 0;
+        // Borne au montant du jalon (sécurité arrondi), tolérance < 1 centime.
+        const due = Math.min(round2(dueQp * currentBase), contrib.montant_ht);
         if (due < 0.01) continue;
 
         const arr = byMois.get(contrib.mois_absolu) ?? [];
@@ -309,24 +341,29 @@ export async function getEcheancierDues(projetId?: string): Promise<{
 }
 
 /**
- * Somme HT par contrat des lignes jalon standard (mois_relatif > 0), nette
- * des avoirs échéancier (négatifs, sans mois_relatif ni event_type).
+ * Lignes jalon standard par contrat : est_avoir=false, event_type IS NULL
+ * (les lignes engagement portent aussi mois_relatif=step_number, on les
+ * exclut explicitement comme le fait lib/echeancier/ajustements.ts),
+ * mois_relatif > 0, tous statuts. Les avoirs sont volontairement ignorés
+ * (cf. en-tête du module).
  * Batch par tranches de 200 contrats pour rester sous les limites PostgREST.
  */
 async function loadBilledByContrat(
   supabase: Awaited<ReturnType<typeof createClient>>,
   contratIds: string[],
-): Promise<Map<string, number>> {
-  const billed = new Map<string, number>();
+): Promise<Map<string, BilledJalonLine[]>> {
+  const billed = new Map<string, BilledJalonLine[]>();
   const CHUNK = 200;
   for (let i = 0; i < contratIds.length; i += CHUNK) {
     const chunk = contratIds.slice(i, i + CHUNK);
     const { data, error } = await supabase
       .from('facture_lignes')
       .select(
-        'contrat_id, montant_ht, mois_relatif, event_type, facture:factures!inner(est_avoir)',
+        'contrat_id, montant_ht, npec_snapshot, taux_commission_snapshot, facture:factures!inner(est_avoir)',
       )
-      .in('contrat_id', chunk);
+      .in('contrat_id', chunk)
+      .is('event_type', null)
+      .gt('mois_relatif', 0);
     if (error) {
       logger.error('queries.echeancier-dues', 'lignes fetch failed', {
         error,
@@ -334,17 +371,14 @@ async function loadBilledByContrat(
       continue;
     }
     for (const l of data ?? []) {
-      if (!l.contrat_id) continue;
-      const compte = l.facture?.est_avoir
-        ? // Avoir : net (montant négatif), sauf avoirs du monde engagement.
-          l.event_type == null
-        : // Ligne standard : uniquement les lignes jalon.
-          (l.mois_relatif ?? 0) > 0;
-      if (!compte) continue;
-      billed.set(
-        l.contrat_id,
-        round2((billed.get(l.contrat_id) ?? 0) + Number(l.montant_ht)),
-      );
+      if (!l.contrat_id || l.facture?.est_avoir) continue;
+      const arr = billed.get(l.contrat_id) ?? [];
+      arr.push({
+        montant_ht: Number(l.montant_ht),
+        npec_snapshot: l.npec_snapshot,
+        taux_commission_snapshot: l.taux_commission_snapshot,
+      });
+      billed.set(l.contrat_id, arr);
     }
   }
   return billed;

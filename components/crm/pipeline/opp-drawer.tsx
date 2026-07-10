@@ -43,7 +43,7 @@ import {
   deleteOpportunite,
 } from '@/lib/crm/actions/opportunites';
 import { toggleRelance } from '@/lib/crm/actions/relances';
-import { formatDate, formatDateTime } from '@/lib/crm/format';
+import { formatDateParis, formatDateTimeParis } from '@/lib/utils/formatters';
 import { label, statutOppLabel, statutRdvLabel } from '@/lib/crm/labels';
 import type { Etape } from './types';
 
@@ -330,7 +330,7 @@ export function OppDrawer({
                     {opp.date_cible_prochain_rdv && (
                       <Row
                         term="Prochain RDV cible"
-                        value={formatDate(opp.date_cible_prochain_rdv)}
+                        value={formatDateParis(opp.date_cible_prochain_rdv)}
                       />
                     )}
                     {opp.probabilite != null && opp.probabilite > 0 && (
@@ -339,7 +339,7 @@ export function OppDrawer({
                     {opp.date_cloture_prevue && (
                       <Row
                         term="Clôture prévue"
-                        value={formatDate(opp.date_cloture_prevue)}
+                        value={formatDateParis(opp.date_cloture_prevue)}
                       />
                     )}
                     {opp.source && <Row term="Source" value={opp.source} />}
@@ -434,7 +434,7 @@ export function OppDrawer({
                       </span>
                       <div className="flex items-center gap-3">
                         <span className="text-muted-foreground">
-                          {formatDate(r.date_echeance)}
+                          {formatDateParis(r.date_echeance)}
                         </span>
                         <button
                           type="button"
@@ -471,7 +471,7 @@ export function OppDrawer({
                     >
                       <span>{r.titre}</span>
                       <span className="text-muted-foreground">
-                        {formatDateTime(r.debut)} ·{' '}
+                        {formatDateTimeParis(r.debut)} ·{' '}
                         {label(statutRdvLabel, r.statut)}
                       </span>
                     </div>

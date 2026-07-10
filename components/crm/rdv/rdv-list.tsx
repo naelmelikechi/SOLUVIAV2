@@ -1,7 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { Users } from 'lucide-react';
-import { formatDateTime } from '@/lib/crm/format';
+import { formatDateTimeParis } from '@/lib/utils/formatters';
 
 type Commercial = {
   user: { id: string; prenom: string | null; nom: string | null } | null;
@@ -49,7 +49,7 @@ function Row({ r }: { r: RdvItem }) {
         )}
       </span>
       <span className="text-muted-foreground shrink-0">
-        {formatDateTime(r.debut)}
+        {formatDateTimeParis(r.debut)}
       </span>
     </li>
   );

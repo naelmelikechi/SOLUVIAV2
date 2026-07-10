@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmButton } from '@/components/crm/shared/confirm-button';
 import { runWithToast } from '@/components/crm/shared/run-with-toast';
 import { restoreRelance, deleteRelance } from '@/lib/crm/actions/relances';
-import { formatDate } from '@/lib/crm/format';
+import { formatDateParis } from '@/lib/utils/formatters';
 import { label, prioriteLabel } from '@/lib/crm/labels';
 import { cn } from '@/lib/crm/utils';
 
@@ -28,8 +28,11 @@ function ArchivedRow({ r }: { r: ArchivedRel }) {
         <div className="text-muted-foreground">{r.titre}</div>
         <div className="text-muted-foreground/80 text-xs">
           {r.compte?.nom ?? r.opportunite?.intitule ?? ''} ·{' '}
-          {formatDate(r.date_echeance)} · {label(prioriteLabel, r.priorite)}
-          {r.archived_at ? ` · archivée le ${formatDate(r.archived_at)}` : ''}
+          {formatDateParis(r.date_echeance)} ·{' '}
+          {label(prioriteLabel, r.priorite)}
+          {r.archived_at
+            ? ` · archivée le ${formatDateParis(r.archived_at)}`
+            : ''}
         </div>
       </div>
       <Button

@@ -1,5 +1,5 @@
 import { createCrmClient } from '@/lib/crm/supabase/server';
-import { todayInParis } from '@/lib/crm/format';
+import { todayInParis } from '@/lib/utils/formatters';
 import { type OppRegions } from '@/lib/crm/domain/geo-stats';
 import { fetchRisks } from '@/lib/crm/queries/recap';
 import { listEtapes } from '@/lib/crm/queries/opportunites';

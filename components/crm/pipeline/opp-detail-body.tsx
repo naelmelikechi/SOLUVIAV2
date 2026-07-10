@@ -79,6 +79,7 @@ export type OppDetail = {
   historique_synthese: string | null;
   numero_contrat: string | null;
   type_prospect: string | null;
+  calendrier_previsionnel: Record<string, string> | null;
   compte: {
     id: string;
     nom: string;

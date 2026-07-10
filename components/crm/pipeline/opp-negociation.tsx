@@ -19,6 +19,7 @@ import {
   CANAL_ORIGINE_LABELS,
   INITIATEUR_LABELS,
   TYPE_PROSPECT_LABELS,
+  JALONS_CALENDRIER,
 } from '@/lib/utils/constants';
 import { updateOpportuniteNegociation } from '@/lib/crm/actions/opportunites';
 import type { NegociationInput } from '@/lib/crm/validators/negociation';
@@ -42,6 +43,7 @@ export type OppNegociation = {
   historique_synthese: string | null;
   numero_contrat: string | null;
   type_prospect: string | null;
+  calendrier_previsionnel: Record<string, string> | null;
 };
 
 const numStr = (v: number | null) => (v != null ? String(v) : '');
@@ -186,6 +188,9 @@ export function OppNegociation({ opp }: { opp: OppNegociation }) {
   const [historique, setHistorique] = useState(opp.historique_synthese ?? '');
   const [numeroContrat, setNumeroContrat] = useState(opp.numero_contrat ?? '');
   const [typeProspect, setTypeProspect] = useState(opp.type_prospect ?? '');
+  const [calendrier, setCalendrier] = useState<Record<string, string>>(
+    opp.calendrier_previsionnel ?? {},
+  );
 
   const payload: NegociationInput = {
     perimetre_missions: perimetre,
@@ -205,6 +210,7 @@ export function OppNegociation({ opp }: { opp: OppNegociation }) {
     historique_synthese: historique,
     numero_contrat: numeroContrat,
     type_prospect: typeProspect,
+    calendrier_previsionnel: calendrier,
   };
 
   const save = () =>
@@ -381,6 +387,34 @@ export function OppNegociation({ opp }: { opp: OppNegociation }) {
                 onChange={(e) => setNumeroContrat(e.target.value)}
                 placeholder="Optionnel"
               />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Calendrier prévisionnel (section 5 de la synthèse)</Label>
+            <p className="text-muted-foreground text-xs">
+              Mois au format AAAA-MM (rendu 08/2026) ou texte libre (« OK », « à
+              aviser »…). Vide = non renseigné.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {JALONS_CALENDRIER.map((j) => (
+                <div key={j.key} className="space-y-1.5">
+                  <Label
+                    htmlFor={`nego-jalon-${j.key}`}
+                    className="text-muted-foreground font-normal"
+                  >
+                    {j.label}
+                  </Label>
+                  <Input
+                    id={`nego-jalon-${j.key}`}
+                    value={calendrier[j.key] ?? ''}
+                    onChange={(e) =>
+                      setCalendrier((c) => ({ ...c, [j.key]: e.target.value }))
+                    }
+                    placeholder="2026-08"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 

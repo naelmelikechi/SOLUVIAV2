@@ -302,15 +302,25 @@ export async function soumettreSynthese(
 
   const lienApp = `/commercial/passations/${synthese.id}`;
   if (destinataires.size > 0) {
-    await supabase.from('notifications').insert(
-      [...destinataires.keys()].map((uid) => ({
-        user_id: uid,
-        type: 'passation_diffusee' as const,
-        titre: 'Synthèse de passation à traiter',
-        message: `La synthèse de ${snapshot.identite.raisonSociale} est soumise. Affectez un Chef de Projet (délai cible 24h).`,
-        lien: lienApp,
-      })),
-    );
+    // Insert via service-role : la policy notifications_insert est admin-only,
+    // or le soumetteur nominal est un commercial (l'insert RLS échouerait).
+    const { error: notifErr } = await createAdminClient()
+      .from('notifications')
+      .insert(
+        [...destinataires.keys()].map((uid) => ({
+          user_id: uid,
+          type: 'passation_diffusee' as const,
+          titre: 'Synthèse de passation à traiter',
+          message: `La synthèse de ${snapshot.identite.raisonSociale} est soumise. Affectez un Chef de Projet (délai cible 24h).`,
+          lien: lienApp,
+        })),
+      );
+    if (notifErr) {
+      logger.error('actions.passation', 'notifications vague 1 failed', {
+        syntheseId,
+        error: notifErr,
+      });
+    }
     const emails = [...destinataires.values()].filter((e): e is string =>
       Boolean(e),
     );
@@ -391,13 +401,22 @@ export async function diffuserVague2(
   if (error) return { success: false, error: error.message };
 
   if (client.cdp_referent_id !== userId) {
-    await supabase.from('notifications').insert({
-      user_id: client.cdp_referent_id,
-      type: 'passation_diffusee' as const,
-      titre: 'Synthèse de passation reçue',
-      message: `La synthèse de passation de ${client.raison_sociale} vous a été transmise.`,
-      lien: '/commercial/cdp',
-    });
+    // Service-role : même contrainte RLS que la vague 1 (insert admin-only).
+    const { error: notifErr } = await createAdminClient()
+      .from('notifications')
+      .insert({
+        user_id: client.cdp_referent_id,
+        type: 'passation_diffusee' as const,
+        titre: 'Synthèse de passation reçue',
+        message: `La synthèse de passation de ${client.raison_sociale} vous a été transmise.`,
+        lien: '/commercial/cdp',
+      });
+    if (notifErr) {
+      logger.error('actions.passation', 'notification vague 2 failed', {
+        syntheseId,
+        error: notifErr,
+      });
+    }
   }
 
   logAudit(

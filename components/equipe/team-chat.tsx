@@ -81,10 +81,6 @@ export function TeamChat({ initialMessages, getUser }: TeamChatProps) {
     return Notification.permission === 'default';
   });
 
-  // Outer wrapper of the chat card. We use it to scroll the whole chat into
-  // view of the dashboard <main> scroll container on mount (the team grid
-  // above is tall, so the chat sits below the fold by default).
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Tracks whether the user is currently scrolled near the bottom. When they
   // aren't, new messages trigger the "X nouveaux" pill instead of auto-scroll.
@@ -350,15 +346,8 @@ export function TeamChat({ initialMessages, getUser }: TeamChatProps) {
     // We only care about the *count* changing, not message identity.
   }, [messages.length]);
 
-  // ----- Bring the chat into view on mount -------------------------------
-  // The /equipe page stacks PageHeader + EquipeGrid + TeamChat inside the
-  // dashboard <main overflow-y-auto>. With a full team the grid pushes the
-  // chat below the fold; users had to scroll the page manually to find it.
-  // We scroll the chat wrapper into view (block: 'end' keeps the bottom of
-  // the chat + input bar visible, and leaves the team grid partially visible
-  // above) synchronously before paint so there is no visible jump.
+  // ----- Stick to bottom on first paint -----------------------------------
   useLayoutEffect(() => {
-    wrapperRef.current?.scrollIntoView({ block: 'end', behavior: 'instant' });
     // Force-stick au bottom apres un frame : sur l'arrivee de page, le
     // useLayoutEffect([messages.length]) ci-dessus calcule scrollHeight avant
     // que les avatars/Dicebear/giphy ne soient peints. Le ResizeObserver
@@ -505,10 +494,7 @@ export function TeamChat({ initialMessages, getUser }: TeamChatProps) {
   const canSend = !sending && (trimmedLen > 0 || !!pendingGif);
 
   return (
-    <div
-      ref={wrapperRef}
-      className="border-border bg-card flex flex-col rounded-xl border"
-    >
+    <div className="border-border bg-card flex h-full min-h-0 flex-col rounded-xl border">
       <div className="border-border flex items-center justify-between border-b px-4 py-2">
         <h2 className="text-foreground text-sm font-medium">
           Chat équipe
@@ -545,11 +531,11 @@ export function TeamChat({ initialMessages, getUser }: TeamChatProps) {
         </div>
       </div>
 
-      <div className="relative">
+      <div className="relative flex min-h-0 flex-1 flex-col">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex max-h-96 min-h-48 flex-col gap-3 overflow-y-auto px-4 py-3"
+          className="flex max-h-96 min-h-48 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3 lg:max-h-none"
         >
           {grouped.length === 0 ? (
             <p className="text-muted-foreground my-8 text-center text-sm italic">

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatEuros,
-  formatDateTime,
-  formatDate,
+  formatDateTimeParis,
+  formatDateParis,
   todayInParis,
-} from './format';
+} from '@/lib/utils/formatters';
 
 describe('todayInParis', () => {
   it('retourne exactement le format YYYY-MM-DD (contrat des requêtes badge/dashboard)', () => {
@@ -25,16 +25,16 @@ describe('formatEuros', () => {
 
 describe('formatDateTime', () => {
   it("affiche l'année quand elle diffère de l'année courante (B-L3)", () => {
-    expect(formatDateTime('2099-01-15T10:00:00Z')).toContain('2099');
+    expect(formatDateTimeParis('2099-01-15T10:00:00Z')).toContain('2099');
   });
   it('rend un tiret pour une valeur absente/invalide', () => {
-    expect(formatDateTime(null)).toBe('-');
-    expect(formatDateTime('pas-une-date')).toBe('-');
+    expect(formatDateTimeParis(null)).toBe('-');
+    expect(formatDateTimeParis('pas-une-date')).toBe('-');
   });
 });
 
 describe('formatDate', () => {
   it('rend un tiret pour null', () => {
-    expect(formatDate(null)).toBe('-');
+    expect(formatDateParis(null)).toBe('-');
   });
 });

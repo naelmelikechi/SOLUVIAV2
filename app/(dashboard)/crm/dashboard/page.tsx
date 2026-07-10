@@ -6,7 +6,11 @@ import {
   History,
   MapPin,
 } from 'lucide-react';
-import { formatDate, formatDateTime, todayInParis } from '@/lib/crm/format';
+import {
+  formatDateParis,
+  formatDateTimeParis,
+  todayInParis,
+} from '@/lib/utils/formatters';
 import { dashboardData, dashboardRisks } from '@/lib/crm/queries/dashboard';
 import {
   apprentisEnPipeline,
@@ -84,7 +88,7 @@ export default async function DashboardPage() {
                     <span
                       className={`shrink-0 text-xs ${overdue ? 'text-destructive' : 'text-muted-foreground'}`}
                     >
-                      {formatDate(r.date_echeance)}
+                      {formatDateParis(r.date_echeance)}
                       {overdue ? ' (retard)' : ''}
                     </span>
                   </Link>
@@ -137,7 +141,7 @@ export default async function DashboardPage() {
                 >
                   <span className="truncate">{r.titre}</span>
                   <span className="text-muted-foreground shrink-0 text-xs">
-                    {formatDateTime(r.debut)}
+                    {formatDateTimeParis(r.debut)}
                   </span>
                 </Link>
               ))

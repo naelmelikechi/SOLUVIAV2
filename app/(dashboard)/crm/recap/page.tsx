@@ -2,7 +2,7 @@ import { requireCrmAdmin } from '@/lib/crm/auth/roles';
 import { createCrmClient } from '@/lib/crm/supabase/server';
 import { buildRecap } from '@/lib/crm/recap';
 import { lastRecap } from '@/lib/crm/queries/recap';
-import { formatDateTime } from '@/lib/crm/format';
+import { formatDateTimeParis } from '@/lib/utils/formatters';
 import { RecapPreview } from '@/components/crm/recap/recap-preview';
 
 export default async function RecapPage() {
@@ -22,7 +22,7 @@ export default async function RecapPage() {
           Envoi automatique lundi, mercredi &amp; vendredi (17-18 h).
           Destinataires : variable <code>RECAP_RECIPIENTS</code>.
           {dernier
-            ? ` Dernier envoi : ${formatDateTime(dernier.created_at)} (${dernier.trigger}).`
+            ? ` Dernier envoi : ${formatDateTimeParis(dernier.created_at)} (${dernier.trigger}).`
             : ' Aucun envoi enregistré.'}
         </p>
       </div>

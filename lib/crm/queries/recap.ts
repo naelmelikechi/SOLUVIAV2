@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/crm/database.types';
-import { todayInParis } from '@/lib/crm/format';
+import { todayInParis } from '@/lib/utils/formatters';
 import { isHiddenEmail } from '@/lib/crm/auth/hidden';
 import { listEtapes } from '@/lib/crm/queries/opportunites';
 import type { RecapPeriod, DormanteInput } from '@/lib/crm/domain/recap';

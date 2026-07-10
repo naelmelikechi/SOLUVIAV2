@@ -1,5 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { TZ, parisDateOnly } from '@/lib/utils/dates-paris';
 
 const currencyFormatter = new Intl.NumberFormat('fr-FR', {
   style: 'currency',
@@ -70,4 +71,64 @@ export function formatHeures(h: number): string {
   if (minutes === 60) return `${hours + 1}h`;
   if (minutes === 0) return `${hours}h`;
   return `${hours}h${minutes.toString().padStart(2, '0')}`;
+}
+
+// ---------------------------------------------------------------------------
+// Variantes fuseau Europe/Paris (ex lib/crm/format.ts, fusionné ici).
+// Contrat différent de formatDate/formatDateLong ci-dessus : null-safe
+// (retourne '-') et calées sur le fuseau Paris quel que soit le serveur.
+// ---------------------------------------------------------------------------
+
+export { parisDateOnly };
+
+/** Formate une date (sans heure) en français, fuseau Europe/Paris. '-' si vide. */
+export function formatDateParis(iso?: string | null): string {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: TZ,
+  });
+}
+
+/**
+ * Formate une date + heure en français, fuseau Europe/Paris.
+ * L'année n'est affichée que si elle diffère de l'année courante : évite
+ * l'ambiguïté à la bascule d'année sans alourdir les dates de l'année en cours.
+ */
+export function formatDateTimeParis(iso?: string | null): string {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '-';
+  const yearInParis = (date: Date) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric' }).format(
+      date,
+    );
+  const showYear = yearInParis(d) !== yearInParis(new Date());
+  return d.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    ...(showYear ? { year: 'numeric' } : {}),
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: TZ,
+  });
+}
+
+/**
+ * Date du jour au format "YYYY-MM-DD" dans le fuseau Europe/Paris.
+ * À utiliser partout (queries serveur ET UI) pour éviter le décalage UTC vs local
+ * près de minuit (badge cloche ≠ page Relances entre minuit et ~02h l'été).
+ */
+export function todayInParis(): string {
+  return parisDateOnly(new Date());
+}
+
+/** Formate un montant en euros (fr-FR). Coerce les `numeric` Postgres renvoyés en string. */
+export function formatEuros(n?: number | string | null): string {
+  const v = Number(n ?? 0);
+  return `${(Number.isFinite(v) ? v : 0).toLocaleString('fr-FR')} €`;
 }

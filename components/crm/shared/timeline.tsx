@@ -1,4 +1,4 @@
-import { formatDateTime } from '@/lib/crm/format';
+import { formatDateTimeParis } from '@/lib/utils/formatters';
 import { label, activiteTypeLabel } from '@/lib/crm/labels';
 
 export type TimelineItem = {
@@ -21,7 +21,7 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
           <div className="text-muted-foreground text-xs">
             {[it.auteur?.prenom, it.auteur?.nom].filter(Boolean).join(' ') ||
               '-'}{' '}
-            · {formatDateTime(it.created_at)} ·{' '}
+            · {formatDateTimeParis(it.created_at)} ·{' '}
             {label(activiteTypeLabel, it.type)}
           </div>
         </li>

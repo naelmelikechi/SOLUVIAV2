@@ -1,6 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/crm/database.types';
-import { formatDate, formatDateTime, parisDateOnly } from '@/lib/crm/format';
+import {
+  formatDateParis,
+  formatDateTimeParis,
+  parisDateOnly,
+} from '@/lib/utils/formatters';
 import { sendEmail, recapEmail } from '@/lib/crm/email';
 import {
   apprentisEnPipeline,
@@ -41,13 +45,13 @@ export function assembleModel(
   const relMap = (r: RecapRaw['relEnRetard'][number]) => ({
     titre: r.titre,
     compte: r.compte?.nom ?? null,
-    echeance: formatDate(r.date_echeance),
+    echeance: formatDateParis(r.date_echeance),
     assignee: r.assignee?.nom_complet ?? null,
   });
   const rdvMap = (r: RecapRaw['rdvAvenir'][number]) => ({
     titre: r.titre,
     compte: r.compte?.nom ?? null,
-    quand: formatDateTime(r.debut),
+    quand: formatDateTimeParis(r.debut),
     commerciaux: commerciauxLabel(r.commerciaux ?? []),
   });
   return {
@@ -65,7 +69,7 @@ export function assembleModel(
     rdvADebriefer: raw.risks.rdvADebriefer.slice(0, 8).map((r) => ({
       titre: r.titre,
       compte: r.compte?.nom ?? null,
-      quand: formatDateTime(r.debut),
+      quand: formatDateTimeParis(r.debut),
       commerciaux: null,
     })),
     delta: {

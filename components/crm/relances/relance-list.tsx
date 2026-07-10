@@ -8,7 +8,7 @@ import { bucketRelances } from '@/lib/crm/domain/relances';
 import { parseDateOnly } from '@/lib/crm/domain/dates';
 import { toggleRelance, archiveRelance } from '@/lib/crm/actions/relances';
 import { runWithToast } from '@/components/crm/shared/run-with-toast';
-import { formatDate } from '@/lib/crm/format';
+import { formatDateParis } from '@/lib/utils/formatters';
 import { label, prioriteLabel } from '@/lib/crm/labels';
 
 type Rel = {
@@ -46,7 +46,8 @@ function RelanceRow({ r }: { r: Rel }) {
         <div>{r.titre}</div>
         <div className="text-muted-foreground text-xs">
           {r.compte?.nom ?? r.opportunite?.intitule ?? ''} ·{' '}
-          {formatDate(r.date_echeance)} · {label(prioriteLabel, r.priorite)}
+          {formatDateParis(r.date_echeance)} ·{' '}
+          {label(prioriteLabel, r.priorite)}
           {assigneeNom ? ` · ${assigneeNom}` : ''}
         </div>
         {r.note && (

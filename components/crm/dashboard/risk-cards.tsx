@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Moon, ClipboardList } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatDateTime } from '@/lib/crm/format';
+import { formatDateTimeParis } from '@/lib/utils/formatters';
 import type { DashboardRisks } from '@/lib/crm/queries/dashboard';
 
 export function RiskCards({ dormantes, rdvADebriefer }: DashboardRisks) {
@@ -66,7 +66,7 @@ export function RiskCards({ dormantes, rdvADebriefer }: DashboardRisks) {
                   {r.compte ? ` · ${r.compte}` : ''}
                 </span>
                 <span className="text-muted-foreground shrink-0 text-xs">
-                  {formatDateTime(r.debut)}
+                  {formatDateTimeParis(r.debut)}
                 </span>
               </Link>
             ))

@@ -390,11 +390,21 @@ export function OppCreateForm({ trigger }: { trigger: React.ReactNode }) {
               </Button>
             )}
             {step === 1 ? (
-              <Button type="button" onClick={goNext}>
+              // key distincte : sans elle, React réutilise le même noeud
+              // <button> au changement d'étape et le navigateur peut
+              // déclencher la soumission implicite pendant la fin du click
+              // (morphing submit button). Le submit final passe par
+              // handleSubmit() explicite, pas par type="submit".
+              <Button key="next" type="button" onClick={goNext}>
                 Continuer
               </Button>
             ) : (
-              <Button type="submit" disabled={pending}>
+              <Button
+                key="submit"
+                type="button"
+                disabled={pending}
+                onClick={handleSubmit(onSubmit)}
+              >
                 {pending ? '…' : "Créer l'opportunité"}
               </Button>
             )}

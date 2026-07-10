@@ -43,6 +43,7 @@ export default async function FacturationPage() {
     brouillons,
     manualProjetsList,
     echeancier,
+    echeancierProjetsList,
     projetsForFacturation,
     currentUserRes,
     clientsForFacturation,
@@ -54,6 +55,9 @@ export default async function FacturationPage() {
     // Onglet "A l'engagement" : uniquement les projets de ce modele.
     listBillableProjets('engagement'),
     getEcheancierDues(),
+    // Selecteur de l'onglet Echeancier : projets de ce modele avec >=1 contrat
+    // (exclut de fait les projets internes, sans contrat Eduvia).
+    listBillableProjets('echeancier'),
     listProjetsForFacturation(),
     user
       ? supabase.from('users').select('role').eq('id', user.id).single()
@@ -87,7 +91,7 @@ export default async function FacturationPage() {
         brouillons={brouillons}
         manualProjets={manualProjetsEvents}
         echeancierDues={echeancier.dues}
-        hasEcheancierProjets={echeancier.hasEcheancierProjets}
+        echeancierProjets={echeancierProjetsList}
         echeancierCutoff={currentMoisCutoff()}
         projetsForFacturation={projetsForFacturation}
         clientsForFreeFacture={clientsForFacturation.data ?? []}

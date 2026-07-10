@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState, useTransition } from 'react';
+import { Fragment, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CalendarClock, ChevronDown, ChevronRight } from 'lucide-react';
@@ -9,6 +9,13 @@ import { createBrouillonEcheancier } from '@/lib/actions/factures';
 import type { EcheancierDueMois } from '@/lib/queries/echeancier-dues';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -21,21 +28,49 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { formatCurrency, formatMoisConcerne } from '@/lib/utils/formatters';
 import { cn } from '@/lib/utils';
 
+export interface EcheancierProjetOption {
+  id: string;
+  ref: string;
+  client_raison_sociale: string;
+}
+
 interface EcheancierTabProps {
+  /** Projets au modèle échéancier ayant au moins un contrat. */
+  projets: EcheancierProjetOption[];
+  /** Échéances dues, tous projets confondus (filtrées ici par le sélecteur). */
   dues: EcheancierDueMois[];
   /** 1er du mois courant (yyyy-mm-01) : tout mois antérieur est en retard. */
   cutoffMois: string;
 }
 
-function rowKey(d: EcheancierDueMois): string {
-  return `${d.projetId}::${d.moisConcerne}`;
-}
+const NDASH = '-';
 
-export function EcheancierTab({ dues, cutoffMois }: EcheancierTabProps) {
+export function EcheancierTab({
+  projets,
+  dues,
+  cutoffMois,
+}: EcheancierTabProps) {
   const { refresh } = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [pendingMois, setPendingMois] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // Un seul CFA/projet à la fois (pas de mélange) : défaut = le premier
+  // projet qui a des échéances dues, sinon le premier de la liste.
+  const [selectedProjetId, setSelectedProjetId] = useState<string>(
+    () => dues[0]?.projetId ?? projets[0]?.id ?? '',
+  );
+
+  const projetDues = useMemo(
+    () => dues.filter((d) => d.projetId === selectedProjetId),
+    [dues, selectedProjetId],
+  );
+
+  const duesCountByProjet = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const d of dues) m.set(d.projetId, (m.get(d.projetId) ?? 0) + 1);
+    return m;
+  }, [dues]);
 
   const toggleExpand = (key: string) => {
     setExpanded((prev) => {
@@ -47,14 +82,13 @@ export function EcheancierTab({ dues, cutoffMois }: EcheancierTabProps) {
   };
 
   const onPrepare = (due: EcheancierDueMois) => {
-    const key = rowKey(due);
-    setPendingKey(key);
+    setPendingMois(due.moisConcerne);
     startTransition(async () => {
       const res = await createBrouillonEcheancier({
         projetId: due.projetId,
         mois: [due.moisConcerne],
       });
-      setPendingKey(null);
+      setPendingMois(null);
       if (res.success) {
         toast.success(
           'Brouillon de facture préparé. À vérifier puis envoyer dans l’onglet À émettre.',
@@ -66,168 +100,229 @@ export function EcheancierTab({ dues, cutoffMois }: EcheancierTabProps) {
     });
   };
 
-  if (dues.length === 0) {
+  if (projets.length === 0) {
     return (
       <Card className="p-6">
         <EmptyState
           icon={CalendarClock}
-          title="Échéancier à jour"
-          description="Toutes les échéances dues des projets au modèle échéancier ont été facturées."
-          hint="Une échéance devient due le mois de son jalon (1/12 par défaut). Elle apparaît ici tant qu'aucune facture ne la couvre."
+          title="Aucun projet au modèle échéancier"
+          description="Les projets facturés en jalons mensuels (1/12) apparaîtront ici."
         />
       </Card>
     );
   }
 
-  const totalDu = dues.reduce((s, d) => s + d.montantHt, 0);
+  const totalDu = projetDues.reduce((s, d) => s + d.montantHt, 0);
+  const selectedProjet = projets.find((p) => p.id === selectedProjetId);
 
   return (
     <Card className="p-6">
-      <div className="text-muted-foreground mb-4 text-sm">
-        {'Total dû : '}
-        <span className="text-foreground font-semibold tabular-nums">
-          {formatCurrency(totalDu)}
-        </span>{' '}
-        HT sur {dues.length} échéance{dues.length > 1 ? 's' : ''}
-      </div>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-8" />
-              <TableHead>Projet</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Mois</TableHead>
-              <TableHead className="text-right">Contrats</TableHead>
-              <TableHead className="text-right">Montant HT</TableHead>
-              <TableHead className="w-40" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {dues.map((due) => {
-              const key = rowKey(due);
-              const isExpanded = expanded.has(key);
-              const enRetard = due.moisConcerne < cutoffMois;
-              const rowPending = isPending && pendingKey === key;
-              return (
-                <Fragment key={key}>
-                  <TableRow
-                    className="hover:bg-muted/40 cursor-pointer"
-                    onClick={() => toggleExpand(key)}
-                  >
-                    <TableCell>
-                      {isExpanded ? (
-                        <ChevronDown className="text-muted-foreground size-4" />
-                      ) : (
-                        <ChevronRight className="text-muted-foreground size-4" />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-mono text-xs">{due.projetRef}</span>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {due.clientRaisonSociale}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">
-                          {formatMoisConcerne(due.moisConcerne)}
-                        </span>
-                        {enRetard && (
-                          <span className="inline-flex items-center rounded-full bg-[var(--warning)]/15 px-2 py-0.5 text-[10px] font-medium text-[var(--warning)]">
-                            En retard
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums">
-                      {new Set(due.contributions.map((c) => c.contratId)).size}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="font-mono text-sm font-semibold tabular-nums">
-                        {formatCurrency(due.montantHt)}
+      {/* Sélecteur projet : l'état affiché est TOUJOURS celui d'un seul projet */}
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground text-sm">Projet :</span>
+          <Select
+            value={selectedProjetId}
+            onValueChange={(v) => setSelectedProjetId(v ?? '')}
+          >
+            <SelectTrigger className="min-w-[280px]">
+              <SelectValue placeholder="Sélectionner un projet">
+                {(value) => {
+                  const p = projets.find((x) => x.id === value);
+                  if (!p) return 'Sélectionner un projet';
+                  return (
+                    <>
+                      <span className="font-mono text-xs">{p.ref}</span>
+                      <span className="text-muted-foreground">
+                        {' '}
+                        {NDASH} {p.client_raison_sociale}
                       </span>
-                    </TableCell>
-                    <TableCell
-                      className="text-right"
-                      onClick={(e) => e.stopPropagation()}
+                    </>
+                  );
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {projets.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  <span className="font-mono text-xs">{p.ref}</span>
+                  <span className="text-muted-foreground">
+                    {' '}
+                    {NDASH} {p.client_raison_sociale}
+                  </span>
+                  {(duesCountByProjet.get(p.id) ?? 0) > 0 && (
+                    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--warning)] px-1 text-[10px] font-bold text-white">
+                      {duesCountByProjet.get(p.id)}
+                    </span>
+                  )}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {projetDues.length > 0 && (
+          <div className="text-muted-foreground text-sm">
+            {'Total dû : '}
+            <span className="text-foreground font-semibold tabular-nums">
+              {formatCurrency(totalDu)}
+            </span>{' '}
+            HT {NDASH} commission {projetDues[0]!.tauxCommission}%
+          </div>
+        )}
+      </div>
+
+      {projetDues.length === 0 ? (
+        <EmptyState
+          icon={CalendarClock}
+          title="Échéancier à jour"
+          description={
+            selectedProjet
+              ? `Toutes les échéances dues de ${selectedProjet.ref} ont été facturées (ou aucun jalon n'est encore arrivé à échéance).`
+              : 'Sélectionnez un projet.'
+          }
+          hint="Une échéance devient due le mois de son jalon. Elle apparaît ici tant qu'aucune facture ne la couvre."
+        />
+      ) : (
+        <div className="border-border overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8" />
+                <TableHead>Mois</TableHead>
+                <TableHead className="text-right">Contrats</TableHead>
+                <TableHead className="text-right">Montant HT</TableHead>
+                <TableHead className="w-40" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {projetDues.map((due) => {
+                const key = due.moisConcerne;
+                const isExpanded = expanded.has(key);
+                const enRetard = due.moisConcerne < cutoffMois;
+                const rowPending = isPending && pendingMois === key;
+                return (
+                  <Fragment key={key}>
+                    <TableRow
+                      className="hover:bg-muted/40 cursor-pointer"
+                      onClick={() => toggleExpand(key)}
                     >
-                      <Button
-                        size="sm"
-                        disabled={isPending}
-                        onClick={() => onPrepare(due)}
-                      >
-                        {rowPending
-                          ? 'Préparation...'
-                          : 'Préparer le brouillon'}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  {isExpanded && (
-                    <TableRow className="bg-muted/30 hover:bg-muted/30">
-                      <TableCell colSpan={7} className="p-0">
-                        <div className="px-10 py-3">
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="text-muted-foreground text-left">
-                                <th className="pb-1.5 font-medium">Contrat</th>
-                                <th className="pb-1.5 font-medium">
-                                  Apprenant
-                                </th>
-                                <th className="pb-1.5 font-medium">
-                                  Formation
-                                </th>
-                                <th className="pb-1.5 text-right font-medium">
-                                  Jalon
-                                </th>
-                                <th className="pb-1.5 text-right font-medium">
-                                  HT
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {due.contributions.map((c, i) => (
-                                <tr
-                                  key={`${c.contratId}-${c.moisRelatif}`}
-                                  className={cn(
-                                    i > 0 && 'border-border/50 border-t',
-                                  )}
-                                >
-                                  <td className="text-muted-foreground py-1 font-mono">
-                                    {c.contractNumber ?? c.contratRef ?? '-'}
-                                  </td>
-                                  <td className="py-1">{c.apprenant || '-'}</td>
-                                  <td className="text-muted-foreground max-w-[280px] truncate py-1">
-                                    {c.formationTitre ?? '-'}
-                                  </td>
-                                  <td className="py-1 text-right tabular-nums">
-                                    M+{c.moisRelatif}
-                                  </td>
-                                  <td className="py-1 text-right font-mono tabular-nums">
-                                    {formatCurrency(c.montantHt)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          <p className="text-muted-foreground mt-2 text-[10px]">
-                            Commission {due.tauxCommission}%
-                            {due.templateNom
-                              ? ` - échéancier « ${due.templateNom} »`
-                              : due.templateSource === 'override'
-                                ? ' - échéancier spécifique au projet'
-                                : ''}
-                          </p>
+                      <TableCell>
+                        {isExpanded ? (
+                          <ChevronDown className="text-muted-foreground size-4" />
+                        ) : (
+                          <ChevronRight className="text-muted-foreground size-4" />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">
+                            {formatMoisConcerne(due.moisConcerne)}
+                          </span>
+                          {enRetard && (
+                            <span className="inline-flex items-center rounded-full bg-[var(--warning)]/15 px-2 py-0.5 text-[10px] font-medium text-[var(--warning)]">
+                              En retard
+                            </span>
+                          )}
                         </div>
                       </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums">
+                        {
+                          new Set(due.contributions.map((c) => c.contratId))
+                            .size
+                        }
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-mono text-sm font-semibold tabular-nums">
+                          {formatCurrency(due.montantHt)}
+                        </span>
+                      </TableCell>
+                      <TableCell
+                        className="text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => onPrepare(due)}
+                        >
+                          {rowPending
+                            ? 'Préparation...'
+                            : 'Préparer le brouillon'}
+                        </Button>
+                      </TableCell>
                     </TableRow>
-                  )}
-                </Fragment>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+                    {isExpanded && (
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableCell colSpan={5} className="p-0">
+                          <div className="px-10 py-3">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="text-muted-foreground text-left">
+                                  <th className="pb-1.5 font-medium">
+                                    Contrat
+                                  </th>
+                                  <th className="pb-1.5 font-medium">
+                                    Apprenant
+                                  </th>
+                                  <th className="pb-1.5 font-medium">
+                                    Formation
+                                  </th>
+                                  <th className="pb-1.5 text-right font-medium">
+                                    Jalon
+                                  </th>
+                                  <th className="pb-1.5 text-right font-medium">
+                                    HT
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {due.contributions.map((c, i) => (
+                                  <tr
+                                    key={`${c.contratId}-${c.moisRelatif}`}
+                                    className={cn(
+                                      i > 0 && 'border-border/50 border-t',
+                                    )}
+                                  >
+                                    <td className="text-muted-foreground py-1 font-mono">
+                                      {c.contractNumber ??
+                                        c.contratRef ??
+                                        NDASH}
+                                    </td>
+                                    <td className="py-1">
+                                      {c.apprenant || NDASH}
+                                    </td>
+                                    <td className="text-muted-foreground max-w-[280px] truncate py-1">
+                                      {c.formationTitre ?? NDASH}
+                                    </td>
+                                    <td className="py-1 text-right tabular-nums">
+                                      M+{c.moisRelatif}
+                                    </td>
+                                    <td className="py-1 text-right font-mono tabular-nums">
+                                      {formatCurrency(c.montantHt)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <p className="text-muted-foreground mt-2 text-[10px]">
+                              Commission {due.tauxCommission}%
+                              {due.templateNom
+                                ? ` - échéancier « ${due.templateNom} »`
+                                : due.templateSource === 'override'
+                                  ? ' - échéancier spécifique au projet'
+                                  : ''}
+                            </p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </Card>
   );
 }

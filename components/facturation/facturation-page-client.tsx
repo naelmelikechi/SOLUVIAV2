@@ -40,7 +40,10 @@ import { createFactureListColumns } from '@/components/facturation/facture-list-
 import { AjustementsList } from '@/components/facturation/ajustements-list';
 import { BrouillonsTab } from '@/components/facturation/brouillons-tab';
 import { ManuelTab } from '@/components/facturation/manuel-tab';
-import { EcheancierTab } from '@/components/facturation/echeancier-tab';
+import {
+  EcheancierTab,
+  type EcheancierProjetOption,
+} from '@/components/facturation/echeancier-tab';
 import { EmptyState } from '@/components/shared/empty-state';
 import { TermeHint } from '@/components/shared/terme-hint';
 import type {
@@ -103,7 +106,7 @@ interface FacturationPageClientProps {
   brouillons: BrouillonItem[];
   manualProjets: ProjetBillableEvents[];
   echeancierDues: EcheancierDueMois[];
-  hasEcheancierProjets: boolean;
+  echeancierProjets: EcheancierProjetOption[];
   echeancierCutoff: string;
   projetsForFacturation: Awaited<ReturnType<typeof listProjetsForFacturation>>;
   clientsForFreeFacture: FreeFactureClientOption[];
@@ -118,7 +121,7 @@ export function FacturationPageClient({
   brouillons,
   manualProjets,
   echeancierDues,
-  hasEcheancierProjets,
+  echeancierProjets,
   echeancierCutoff,
   projetsForFacturation,
   clientsForFreeFacture,
@@ -328,7 +331,7 @@ export function FacturationPageClient({
             </span>
           </TabsTrigger>
         )}
-        {hasEcheancierProjets && (
+        {echeancierProjets.length > 0 && (
           <TabsTrigger value={3}>
             Échéancier
             {echeancierDues.length > 0 && (
@@ -413,7 +416,7 @@ export function FacturationPageClient({
         </TabsContent>
       )}
 
-      {hasEcheancierProjets && (
+      {echeancierProjets.length > 0 && (
         <TabsContent value={3}>
           <div className="mt-4 space-y-4">
             <p className="text-muted-foreground text-xs">
@@ -423,6 +426,7 @@ export function FacturationPageClient({
               sur chaque contrat.
             </p>
             <EcheancierTab
+              projets={echeancierProjets}
               dues={echeancierDues}
               cutoffMois={echeancierCutoff}
             />

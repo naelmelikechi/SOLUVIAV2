@@ -185,6 +185,20 @@ describe('computeEcheancierDues', () => {
     expect(dues[0]!.contributions).toHaveLength(2);
   });
 
+  it('un net negatif (avoirs > facture) ne gonfle jamais un jalon', () => {
+    // Ex: avoir de 200 emis alors que 100 seulement factures -> net -100.
+    // Le jalon du est plafonne a son montant (100), pas 200.
+    const dues = computeEcheancierDues({
+      projets: [projet()],
+      contrats: [contrat()],
+      templates: [DOUZIEMES],
+      billedByContrat: new Map([['k1', -100]]),
+      cutoffMois: '2026-05-01',
+    });
+    expect(dues).toHaveLength(1);
+    expect(dues[0]!.montantHt).toBe(100);
+  });
+
   it('ignore les reliquats d arrondi < 1 centime', () => {
     const dues = computeEcheancierDues({
       projets: [projet()],

@@ -23,9 +23,12 @@ import {
 //
 // "Déjà facturé" = lignes standard (est_avoir=false, tous statuts y compris
 // brouillon pour ne pas préparer deux fois) rattachées à un jalon
-// (mois_relatif > 0). Les avoirs sont ignorés : les ruptures sortent les
-// contrats du calcul via leur état, et ignorer un avoir rend le calcul
-// conservateur (jamais de sur-proposition).
+// (mois_relatif > 0), NET des avoirs. Les lignes d'avoir sont stockées en
+// montant NÉGATIF mais sans mois_relatif : on les nette au niveau contrat
+// (sinon un avoir NPEC laisserait le "déjà facturé" au montant plein et les
+// jalons suivants seraient sous-proposés à hauteur de l'avoir, durablement).
+// Les avoirs du monde engagement (event_type renseigné) sont exclus : ils
+// compensent des events engagement/opco_step, pas des jalons.
 // ---------------------------------------------------------------------------
 
 export interface EcheancierProjetInput {
@@ -158,7 +161,9 @@ export function computeEcheancierDues(input: {
       contributions.sort((a, b) => a.mois_relatif - b.mois_relatif);
 
       // Allocation du déjà-facturé aux jalons les plus anciens d'abord.
-      let restantBilled = billedByContrat.get(c.id) ?? 0;
+      // Clamp à 0 : un net négatif (avoirs > facturé) ne doit jamais gonfler
+      // un jalon au-delà de son propre montant.
+      let restantBilled = Math.max(0, billedByContrat.get(c.id) ?? 0);
       const apprenant =
         `${c.apprenant_prenom ?? ''} ${c.apprenant_nom ?? ''}`.trim();
 
@@ -304,7 +309,8 @@ export async function getEcheancierDues(projetId?: string): Promise<{
 }
 
 /**
- * Somme HT des lignes jalon standard (non-avoir, tous statuts) par contrat.
+ * Somme HT par contrat des lignes jalon standard (mois_relatif > 0), nette
+ * des avoirs échéancier (négatifs, sans mois_relatif ni event_type).
  * Batch par tranches de 200 contrats pour rester sous les limites PostgREST.
  */
 async function loadBilledByContrat(
@@ -317,9 +323,10 @@ async function loadBilledByContrat(
     const chunk = contratIds.slice(i, i + CHUNK);
     const { data, error } = await supabase
       .from('facture_lignes')
-      .select('contrat_id, montant_ht, facture:factures!inner(est_avoir)')
-      .in('contrat_id', chunk)
-      .gt('mois_relatif', 0);
+      .select(
+        'contrat_id, montant_ht, mois_relatif, event_type, facture:factures!inner(est_avoir)',
+      )
+      .in('contrat_id', chunk);
     if (error) {
       logger.error('queries.echeancier-dues', 'lignes fetch failed', {
         error,
@@ -327,7 +334,13 @@ async function loadBilledByContrat(
       continue;
     }
     for (const l of data ?? []) {
-      if (!l.contrat_id || l.facture?.est_avoir) continue;
+      if (!l.contrat_id) continue;
+      const compte = l.facture?.est_avoir
+        ? // Avoir : net (montant négatif), sauf avoirs du monde engagement.
+          l.event_type == null
+        : // Ligne standard : uniquement les lignes jalon.
+          (l.mois_relatif ?? 0) > 0;
+      if (!compte) continue;
       billed.set(
         l.contrat_id,
         round2((billed.get(l.contrat_id) ?? 0) + Number(l.montant_ht)),

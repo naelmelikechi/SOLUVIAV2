@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import type { z } from 'zod';
 import { Plus, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ZoneCombobox, type Zone } from '@/components/crm/shared/zone-combobox';
 import {
   opportuniteCompleteSchema,
@@ -36,6 +37,10 @@ const emptyAdresse = { libelle: '', ville: '', departement: '', region: '' };
  */
 export function OppCreateForm({ trigger }: { trigger: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  // Deux étapes : 1. Identité (société, contacts, établissements),
+  // 2. Qualification (recrutement, RDV, commentaire). Un seul form RHF :
+  // l'état survit à la navigation entre étapes.
+  const [step, setStep] = useState<1 | 2>(1);
   const [pending, start] = useTransition();
   const {
     register,
@@ -43,6 +48,7 @@ export function OppCreateForm({ trigger }: { trigger: React.ReactNode }) {
     handleSubmit,
     reset,
     setValue,
+    trigger: validate,
     formState: { errors },
   } = useForm<
     z.input<typeof opportuniteCompleteSchema>,
@@ -94,6 +100,7 @@ export function OppCreateForm({ trigger }: { trigger: React.ReactNode }) {
         }
         toast.success('Opportunité créée');
         reset();
+        setStep(1);
         setOpen(false);
         // createOpportuniteComplete revalide /pipeline (route courante) : refresh redondant.
       } catch {
@@ -105,8 +112,24 @@ export function OppCreateForm({ trigger }: { trigger: React.ReactNode }) {
   const contactsError =
     errors.contacts?.message ?? errors.contacts?.root?.message ?? undefined;
 
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) setStep(1);
+  };
+
+  // Valide uniquement les champs de l'étape 1 avant de passer à la suite.
+  const goNext = async () => {
+    const ok = await validate([
+      'societe_nom',
+      'nombre_collaborateurs',
+      'contacts',
+      'adresses',
+    ]);
+    if (ok) setStep(2);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={trigger as React.ReactElement} />
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
@@ -114,212 +137,267 @@ export function OppCreateForm({ trigger }: { trigger: React.ReactNode }) {
           <DialogDescription className="sr-only">
             Société, contact(s), recrutement et 1er rendez-vous.
           </DialogDescription>
+          <div
+            aria-label={`Étape ${step} sur 2`}
+            className="flex items-center gap-2 text-xs"
+          >
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium',
+                step === 1
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground',
+              )}
+            >
+              <span className="bg-primary/15 inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
+                1
+              </span>
+              Identité
+            </span>
+            <span className="text-muted-foreground">&rsaquo;</span>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium',
+                step === 2
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground',
+              )}
+            >
+              <span className="bg-primary/15 inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
+                2
+              </span>
+              Qualification
+            </span>
+          </div>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Société */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold tracking-tight">Société</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="oc-societe">Nom de la société *</Label>
-                <Input id="oc-societe" {...register('societe_nom')} />
-                {errors.societe_nom && (
-                  <p className="text-destructive text-sm">
-                    {errors.societe_nom.message}
-                  </p>
-                )}
+          <div className={step === 1 ? 'space-y-5' : 'hidden'}>
+            {/* Société */}
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold tracking-tight">Société</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="oc-societe">Nom de la société *</Label>
+                  <Input id="oc-societe" {...register('societe_nom')} />
+                  {errors.societe_nom && (
+                    <p className="text-destructive text-sm">
+                      {errors.societe_nom.message}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="oc-collab">Nombre de collaborateurs</Label>
+                  <Input
+                    id="oc-collab"
+                    type="number"
+                    min="0"
+                    {...register('nombre_collaborateurs')}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="oc-collab">Nombre de collaborateurs</Label>
-                <Input
-                  id="oc-collab"
-                  type="number"
-                  min="0"
-                  {...register('nombre_collaborateurs')}
-                />
-              </div>
-            </div>
-          </section>
+            </section>
 
-          {/* Contacts */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold tracking-tight">
-                Contact(s)
-              </h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => append({ ...emptyContact })}
-              >
-                <Plus className="mr-1 h-4 w-4" />
-                Ajouter
-              </Button>
-            </div>
-            {fields.map((f, i) => (
-              <div
-                key={f.id}
-                className="border-border space-y-2 rounded-lg border p-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-xs">
-                    {i === 0 ? 'Contact principal' : `Contact ${i + 1}`}
-                  </span>
-                  {fields.length > 1 && (
+            {/* Contacts */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold tracking-tight">
+                  Contact(s)
+                </h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => append({ ...emptyContact })}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Ajouter
+                </Button>
+              </div>
+              {fields.map((f, i) => (
+                <div
+                  key={f.id}
+                  className="border-border space-y-2 rounded-lg border p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground text-xs">
+                      {i === 0 ? 'Contact principal' : `Contact ${i + 1}`}
+                    </span>
+                    {fields.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => remove(i)}
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label="Retirer ce contact"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="Prénom"
+                      aria-label={`Prénom du contact ${i + 1}`}
+                      {...register(`contacts.${i}.prenom`)}
+                    />
+                    <Input
+                      placeholder="Nom"
+                      aria-label={`Nom du contact ${i + 1}`}
+                      {...register(`contacts.${i}.nom`)}
+                    />
+                    <Input
+                      placeholder="Email"
+                      type="email"
+                      aria-label={`Email du contact ${i + 1}`}
+                      {...register(`contacts.${i}.email`)}
+                    />
+                    <Input
+                      placeholder="Téléphone"
+                      aria-label={`Téléphone du contact ${i + 1}`}
+                      {...register(`contacts.${i}.telephone`)}
+                    />
+                  </div>
+                </div>
+              ))}
+              {contactsError && (
+                <p className="text-destructive text-sm">{contactsError}</p>
+              )}
+            </section>
+
+            {/* Établissements / adresses (facultatif) - zones géographiques */}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold tracking-tight">
+                  Établissements / zones
+                </h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adr.append({ ...emptyAdresse })}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Ajouter
+                </Button>
+              </div>
+              {adr.fields.length === 0 && (
+                <p className="text-muted-foreground text-xs">
+                  Facultatif. Ajoutez un ou plusieurs établissements (plusieurs
+                  restaurants, plusieurs villes).
+                </p>
+              )}
+              {adr.fields.map((f, i) => (
+                <div
+                  key={f.id}
+                  className="border-border space-y-2 rounded-lg border p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground text-xs">
+                      {i === 0
+                        ? 'Établissement principal'
+                        : `Établissement ${i + 1}`}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => remove(i)}
+                      onClick={() => adr.remove(i)}
                       className="text-muted-foreground hover:text-destructive"
-                      aria-label="Retirer ce contact"
+                      aria-label="Retirer cet établissement"
                     >
                       <X className="h-4 w-4" />
                     </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
+                  </div>
                   <Input
-                    placeholder="Prénom"
-                    aria-label={`Prénom du contact ${i + 1}`}
-                    {...register(`contacts.${i}.prenom`)}
+                    placeholder="Libellé (ex. McDo République) - facultatif"
+                    aria-label={`Libellé de l'établissement ${i + 1}`}
+                    {...register(`adresses.${i}.libelle`)}
                   />
-                  <Input
-                    placeholder="Nom"
-                    aria-label={`Nom du contact ${i + 1}`}
-                    {...register(`contacts.${i}.nom`)}
-                  />
-                  <Input
-                    placeholder="Email"
-                    type="email"
-                    aria-label={`Email du contact ${i + 1}`}
-                    {...register(`contacts.${i}.email`)}
-                  />
-                  <Input
-                    placeholder="Téléphone"
-                    aria-label={`Téléphone du contact ${i + 1}`}
-                    {...register(`contacts.${i}.telephone`)}
+                  <ZoneCombobox
+                    value={{
+                      ville: adresses?.[i]?.ville || null,
+                      departement: adresses?.[i]?.departement || null,
+                      region: adresses?.[i]?.region || null,
+                    }}
+                    onChange={(z) => setZone(i, z)}
                   />
                 </div>
-              </div>
-            ))}
-            {contactsError && (
-              <p className="text-destructive text-sm">{contactsError}</p>
-            )}
-          </section>
-
-          {/* Établissements / adresses (facultatif) - zones géographiques */}
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
+              ))}
+            </section>
+          </div>
+          <div className={step === 2 ? 'space-y-5' : 'hidden'}>
+            {/* Recrutement */}
+            <section className="space-y-3">
               <h3 className="text-sm font-semibold tracking-tight">
-                Établissements / zones
+                Recrutement
               </h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => adr.append({ ...emptyAdresse })}
-              >
-                <Plus className="mr-1 h-4 w-4" />
-                Ajouter
-              </Button>
-            </div>
-            {adr.fields.length === 0 && (
-              <p className="text-muted-foreground text-xs">
-                Facultatif. Ajoutez un ou plusieurs établissements (plusieurs
-                restaurants, plusieurs villes).
-              </p>
-            )}
-            {adr.fields.map((f, i) => (
-              <div
-                key={f.id}
-                className="border-border space-y-2 rounded-lg border p-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-xs">
-                    {i === 0
-                      ? 'Établissement principal'
-                      : `Établissement ${i + 1}`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => adr.remove(i)}
-                    className="text-muted-foreground hover:text-destructive"
-                    aria-label="Retirer cet établissement"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="oc-app">
+                    Nombre d&apos;apprentis potentiels
+                  </Label>
+                  <Input
+                    id="oc-app"
+                    type="number"
+                    min="0"
+                    {...register('nb_alternants')}
+                  />
                 </div>
-                <Input
-                  placeholder="Libellé (ex. McDo République) - facultatif"
-                  aria-label={`Libellé de l'établissement ${i + 1}`}
-                  {...register(`adresses.${i}.libelle`)}
-                />
-                <ZoneCombobox
-                  value={{
-                    ville: adresses?.[i]?.ville || null,
-                    departement: adresses?.[i]?.departement || null,
-                    region: adresses?.[i]?.region || null,
-                  }}
-                  onChange={(z) => setZone(i, z)}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="oc-cfa">CFA actuel (facultatif)</Label>
+                  <Input id="oc-cfa" {...register('cfa')} />
+                </div>
               </div>
-            ))}
-          </section>
+            </section>
 
-          {/* Recrutement */}
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold tracking-tight">
-              Recrutement
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
+            {/* RDV + commentaire */}
+            <section className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="oc-rdv">Date du 1er RDV</Label>
+                  <Input
+                    id="oc-rdv"
+                    type="datetime-local"
+                    {...register('date_premier_rdv')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="oc-next">Date cible prochain RDV</Label>
+                  <Input
+                    id="oc-next"
+                    type="date"
+                    {...register('date_cible_prochain_rdv')}
+                  />
+                </div>
+              </div>
               <div className="space-y-2">
-                <Label htmlFor="oc-app">
-                  Nombre d&apos;apprentis potentiels
-                </Label>
-                <Input
-                  id="oc-app"
-                  type="number"
-                  min="0"
-                  {...register('nb_alternants')}
+                <Label htmlFor="oc-comment">Commentaire</Label>
+                <Textarea
+                  id="oc-comment"
+                  rows={2}
+                  {...register('commentaire')}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="oc-cfa">CFA actuel (facultatif)</Label>
-                <Input id="oc-cfa" {...register('cfa')} />
-              </div>
-            </div>
-          </section>
-
-          {/* RDV + commentaire */}
-          <section className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="oc-rdv">Date du 1er RDV</Label>
-                <Input
-                  id="oc-rdv"
-                  type="datetime-local"
-                  {...register('date_premier_rdv')}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="oc-next">Date cible prochain RDV</Label>
-                <Input
-                  id="oc-next"
-                  type="date"
-                  {...register('date_cible_prochain_rdv')}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="oc-comment">Commentaire</Label>
-              <Textarea id="oc-comment" rows={2} {...register('commentaire')} />
-            </div>
-          </section>
+            </section>
+          </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
-              {pending ? '…' : "Créer l'opportunité"}
-            </Button>
+            {step === 2 && (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={pending}
+                onClick={() => setStep(1)}
+              >
+                Retour
+              </Button>
+            )}
+            {step === 1 ? (
+              <Button type="button" onClick={goNext}>
+                Continuer
+              </Button>
+            ) : (
+              <Button type="submit" disabled={pending}>
+                {pending ? '…' : "Créer l'opportunité"}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

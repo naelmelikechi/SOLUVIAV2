@@ -39,7 +39,7 @@ export default async function AFacturerPage() {
       <div>
         <PageHeader
           title="À facturer"
-          description="Contrats dont une échéance OPCO est due et non encore transmise"
+          description="Contrats dont une échéance OPCO est due et non encore transmise sur Eduvia"
         />
         <AFacturerTable data={rows} />
       </div>

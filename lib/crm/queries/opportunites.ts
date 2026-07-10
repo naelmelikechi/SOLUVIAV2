@@ -145,6 +145,7 @@ export type OppDetail = {
   historique_synthese: string | null;
   numero_contrat: string | null;
   type_prospect: CrmTypeProspect | null;
+  calendrier_previsionnel: Record<string, string> | null;
   compte: {
     id: string;
     nom: string;
@@ -176,7 +177,7 @@ export async function getOpportunite(id: string): Promise<OppDetail | null> {
       source, date_cloture_prevue, cfa, date_cible_prochain_rdv,
       perimetre_missions, formations_rncp, type_formation, taux_npec, duree_contrat_ans,
       mois_demarrage, volume_an1, volume_an2, volume_an3, volume_garanti_seuil, leviers,
-      canal_origine, date_premier_contact, initiateur, historique_synthese, numero_contrat, type_prospect,
+      canal_origine, date_premier_contact, initiateur, historique_synthese, numero_contrat, type_prospect, calendrier_previsionnel,
       compte:comptes(id, nom, nombre_collaborateurs, siren, siret, forme_juridique, code_naf, naf_libelle, effectif_tranche, nb_implantations, ca_dernier_exercice, insee_verifie, contacts(id, prenom, nom, email, telephone, principal, role_decision, sensibilites), adresses(id, libelle, ville, departement, region, principal)),
       activites(id, type, contenu, created_at, auteur_id),
       relances(id, titre, date_echeance, fait, priorite),

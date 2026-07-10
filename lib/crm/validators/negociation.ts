@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { JALONS_CALENDRIER } from '@/lib/utils/constants';
 
 // Champs négociation / passation (A2) : capturés dans le pipeline CRM pour
 // alimenter buildSyntheseSnapshotFromOpportunite. Tout est optionnel (saisi au
@@ -33,6 +34,23 @@ const enumOrNull = <const T extends readonly [string, ...string[]]>(vals: T) =>
     z.enum(vals).nullable(),
   );
 
+// Jalons du calendrier prévisionnel (section 5 de la synthèse) : valeurs en
+// texte libre ('2026-08' comme 'OK' ou 'à aviser' - le PDF rend tel quel via
+// fmtMois). Les entrées vides sont retirées ; objet vide -> null en base.
+const jalonKeys = JALONS_CALENDRIER.map((j) => j.key);
+const optionalCalendrier = z
+  .record(z.string(), z.string())
+  .optional()
+  .nullable()
+  .transform((v) => {
+    if (v == null) return null;
+    const entries = Object.entries(v)
+      .filter(([k]) => (jalonKeys as string[]).includes(k))
+      .map(([k, val]) => [k, val.trim()] as const)
+      .filter(([, val]) => val !== '');
+    return entries.length > 0 ? Object.fromEntries(entries) : null;
+  });
+
 // Littéraux alignés sur lib/utils/constants.ts + CHECK de la migration
 // 20260708120000_crm_phase2_enrichissement.sql.
 export const negociationSchema = z.object({
@@ -60,6 +78,7 @@ export const negociationSchema = z.object({
   historique_synthese: optionalText,
   numero_contrat: optionalText,
   type_prospect: enumOrNull(['cfa', 'entreprise']),
+  calendrier_previsionnel: optionalCalendrier,
 });
 
 export type NegociationInput = z.input<typeof negociationSchema>;

@@ -26,7 +26,9 @@ export default async function AFacturerPage() {
 
   const [rows, manualProjetsList] = await Promise.all([
     getContratsAFacturer(),
-    listBillableProjets(),
+    // Le "reste a facturer par contrat" est un calcul du modele engagement :
+    // les projets echeancier ont leur vue dediee dans /facturation.
+    listBillableProjets('engagement'),
   ]);
   const manualProjets = await getBillableEventsForProjets(
     manualProjetsList.map((p) => p.id),

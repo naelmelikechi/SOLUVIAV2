@@ -5,6 +5,10 @@ import { formatCurrency } from '@/lib/utils/formatters';
 import { ttcToHt } from '@/lib/utils/montant-ht';
 import { Card } from '@/components/ui/card';
 import { CommissionRateBadge } from '@/components/projets/commission-rate-badge';
+import {
+  ModeleFacturationControl,
+  type ModeleFacturation,
+} from '@/components/projets/modele-facturation-control';
 
 function FinanceStatCard({
   label,
@@ -31,10 +35,16 @@ export function ProjetFinanceSection({
   finance,
   projetId,
   canEdit = false,
+  modeleFacturation,
+  echeancierTemplateId,
+  echeancierTemplates,
 }: {
   finance: ProjetFinance | null;
   projetId: string;
   canEdit?: boolean;
+  modeleFacturation: ModeleFacturation;
+  echeancierTemplateId: string | null;
+  echeancierTemplates: Array<{ id: string; nom: string; is_default: boolean }>;
 }) {
   if (!finance) {
     return (
@@ -55,13 +65,22 @@ export function ProjetFinanceSection({
 
   return (
     <Card className="p-6">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Finance</h3>
-        <CommissionRateBadge
-          projetId={projetId}
-          initialValue={finance.taux_commission}
-          canEdit={canEdit}
-        />
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <ModeleFacturationControl
+            projetId={projetId}
+            initialModele={modeleFacturation}
+            initialTemplateId={echeancierTemplateId}
+            templates={echeancierTemplates}
+            canEdit={canEdit}
+          />
+          <CommissionRateBadge
+            projetId={projetId}
+            initialValue={finance.taux_commission}
+            canEdit={canEdit}
+          />
+        </div>
       </div>
 
       {/* OPCO Side */}

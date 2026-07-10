@@ -40,6 +40,7 @@ import { createFactureListColumns } from '@/components/facturation/facture-list-
 import { AjustementsList } from '@/components/facturation/ajustements-list';
 import { BrouillonsTab } from '@/components/facturation/brouillons-tab';
 import { ManuelTab } from '@/components/facturation/manuel-tab';
+import { EcheancierTab } from '@/components/facturation/echeancier-tab';
 import { EmptyState } from '@/components/shared/empty-state';
 import { TermeHint } from '@/components/shared/terme-hint';
 import type {
@@ -53,6 +54,7 @@ import type {
 import { fetchFacturesPage } from '@/lib/actions/factures/list';
 import type { AjustementPending } from '@/lib/queries/ajustements';
 import type { ProjetBillableEvents } from '@/lib/queries/billable-events';
+import type { EcheancierDueMois } from '@/lib/queries/echeancier-dues';
 
 const FACTURE_FILTERS: FilterOption[] = [
   {
@@ -100,6 +102,9 @@ interface FacturationPageClientProps {
   ajustements: AjustementPending[];
   brouillons: BrouillonItem[];
   manualProjets: ProjetBillableEvents[];
+  echeancierDues: EcheancierDueMois[];
+  hasEcheancierProjets: boolean;
+  echeancierCutoff: string;
   projetsForFacturation: Awaited<ReturnType<typeof listProjetsForFacturation>>;
   clientsForFreeFacture: FreeFactureClientOption[];
   societesEmettrices: SocieteOption[];
@@ -112,6 +117,9 @@ export function FacturationPageClient({
   ajustements,
   brouillons,
   manualProjets,
+  echeancierDues,
+  hasEcheancierProjets,
+  echeancierCutoff,
   projetsForFacturation,
   clientsForFreeFacture,
   societesEmettrices,
@@ -272,7 +280,8 @@ export function FacturationPageClient({
     (facturesPage.total ?? rows.length) === 0 &&
     ajustements.length === 0 &&
     brouillons.length === 0 &&
-    manualProjets.length === 0
+    manualProjets.length === 0 &&
+    echeancierDues.length === 0
   ) {
     return (
       <>
@@ -313,10 +322,20 @@ export function FacturationPageClient({
         </TabsTrigger>
         {manualProjets.length > 0 && (
           <TabsTrigger value={2}>
-            Commission HEOL
+            À l&apos;engagement
             <span className="text-muted-foreground ml-1.5 text-xs">
               ({manualProjets.length})
             </span>
+          </TabsTrigger>
+        )}
+        {hasEcheancierProjets && (
+          <TabsTrigger value={3}>
+            Échéancier
+            {echeancierDues.length > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--warning)] px-1.5 text-[10px] font-bold text-white">
+                {echeancierDues.length}
+              </span>
+            )}
           </TabsTrigger>
         )}
       </TabsList>
@@ -379,8 +398,8 @@ export function FacturationPageClient({
         <TabsContent value={2}>
           <div className="mt-4 space-y-4">
             <p className="text-muted-foreground text-xs">
-              <TermeHint terme="commission">Commission</TermeHint> du modèle
-              engagement (HEOL) : base = encaissements OPCO du client.{' '}
+              <TermeHint terme="commission">Commission</TermeHint> du modèle à
+              l&apos;engagement : base = encaissements OPCO du client.{' '}
               <Link
                 href="/a-facturer"
                 className="text-primary inline-flex items-center gap-1 hover:underline"
@@ -390,6 +409,23 @@ export function FacturationPageClient({
               </Link>
             </p>
             <ManuelTab projets={manualProjets} />
+          </div>
+        </TabsContent>
+      )}
+
+      {hasEcheancierProjets && (
+        <TabsContent value={3}>
+          <div className="mt-4 space-y-4">
+            <p className="text-muted-foreground text-xs">
+              <TermeHint terme="commission">Commission</TermeHint> du modèle
+              échéancier : NPEC x taux, ventilé par jalons mensuels (1/12 par
+              défaut). Les montants tiennent compte de ce qui a déjà été facturé
+              sur chaque contrat.
+            </p>
+            <EcheancierTab
+              dues={echeancierDues}
+              cutoffMois={echeancierCutoff}
+            />
           </div>
         </TabsContent>
       )}

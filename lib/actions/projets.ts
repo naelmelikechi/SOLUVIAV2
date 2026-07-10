@@ -194,6 +194,81 @@ export async function updateProjetTauxCommission(
   return { success: true };
 }
 
+const UpdateProjetModeleFacturationSchema = z.object({
+  projetId: projetIdSchema,
+  modele: z.enum(['engagement', 'echeancier']),
+  // null = revenir au template par defaut global
+  echeancierTemplateId: z.string().uuid().nullable().optional(),
+});
+
+/**
+ * Change le modele de facturation d'un projet (engagement <-> echeancier)
+ * et, optionnellement, le template d'echeancier assigne. Le flag pilote les
+ * surfaces de facturation affichees, il n'interdit rien retroactivement.
+ */
+export async function updateProjetModeleFacturation(input: {
+  projetId: string;
+  modele: 'engagement' | 'echeancier';
+  echeancierTemplateId?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  const parsed = UpdateProjetModeleFacturationSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
+    };
+  }
+
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
+
+  const update: {
+    modele_facturation: string;
+    echeancier_template_id?: string | null;
+  } = { modele_facturation: parsed.data.modele };
+  if (parsed.data.echeancierTemplateId !== undefined) {
+    update.echeancier_template_id = parsed.data.echeancierTemplateId;
+  }
+
+  const { data: updated, error } = await supabase
+    .from('projets')
+    .update(update)
+    .eq('id', parsed.data.projetId)
+    .select('ref')
+    .single();
+
+  if (error) {
+    logger.error('actions.projets', 'updateProjetModeleFacturation failed', {
+      error,
+      projetId: parsed.data.projetId,
+    });
+    return {
+      success: false,
+      error: error.message || 'Erreur lors de la mise à jour du modèle',
+    };
+  }
+
+  logAudit(
+    'projet_modele_facturation_updated',
+    'projet',
+    parsed.data.projetId,
+    {
+      modele: parsed.data.modele,
+      echeancierTemplateId: parsed.data.echeancierTemplateId ?? null,
+    },
+    user.id,
+  );
+
+  revalidatePath('/projets');
+  revalidatePath('/facturation');
+  if (updated?.ref) {
+    revalidatePath(`/projets/${updated.ref}`);
+  }
+
+  return { success: true };
+}
+
 export async function duplicateProjet(
   projetId: string,
 ): Promise<{ success: boolean; ref?: string; error?: string }> {

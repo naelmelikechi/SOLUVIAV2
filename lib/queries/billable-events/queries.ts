@@ -162,12 +162,14 @@ export async function getBillableEventsForProjets(
 /**
  * Liste les projets actifs ayant au moins un contrat Eduvia non archive.
  * Utilise par le selecteur de projet dans la creation de brouillon.
+ * `modele` restreint au modele de facturation du projet (ex: 'engagement'
+ * pour l'onglet A l'engagement) ; omis = tous.
  */
-export async function listBillableProjets(): Promise<
-  Array<{ id: string; ref: string; client_raison_sociale: string }>
-> {
+export async function listBillableProjets(
+  modele?: 'engagement' | 'echeancier',
+): Promise<Array<{ id: string; ref: string; client_raison_sociale: string }>> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('projets')
     .select(
       `
@@ -179,7 +181,8 @@ export async function listBillableProjets(): Promise<
     .eq('archive', false)
     .eq('est_libre', false)
     .order('ref');
-
+  if (modele) query = query.eq('modele_facturation', modele);
+  const { data, error } = await query;
   if (error) {
     logger.error('queries.billable-events', 'listBillableProjets failed', {
       error,

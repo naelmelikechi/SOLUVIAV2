@@ -2633,6 +2633,7 @@ export type Database = {
           est_interne: boolean;
           est_libre: boolean;
           id: string;
+          modele_facturation: string;
           ref: string | null;
           statut: Database['public']['Enums']['statut_projet'];
           taux_commission: number;
@@ -2655,6 +2656,7 @@ export type Database = {
           est_interne?: boolean;
           est_libre?: boolean;
           id?: string;
+          modele_facturation?: string;
           ref?: string | null;
           statut?: Database['public']['Enums']['statut_projet'];
           taux_commission?: number;
@@ -2677,6 +2679,7 @@ export type Database = {
           est_interne?: boolean;
           est_libre?: boolean;
           id?: string;
+          modele_facturation?: string;
           ref?: string | null;
           statut?: Database['public']['Enums']['statut_projet'];
           taux_commission?: number;

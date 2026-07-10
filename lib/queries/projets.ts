@@ -167,6 +167,8 @@ export async function getProjetByRef(ref: string) {
       statut,
       date_debut,
       taux_commission,
+      modele_facturation,
+      echeancier_template_id,
       client:clients!projets_client_id_fkey (
         id,
         trigramme,

@@ -10,6 +10,10 @@ import {
   listBillableProjets,
   getBillableEventsForProjets,
 } from '@/lib/queries/billable-events';
+import {
+  getEcheancierDues,
+  currentMoisCutoff,
+} from '@/lib/queries/echeancier-dues';
 import { listSocietesEmettricesActives } from '@/lib/queries/societes-emettrices';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/roles';
@@ -38,6 +42,7 @@ export default async function FacturationPage() {
     ajustements,
     brouillons,
     manualProjetsList,
+    echeancier,
     projetsForFacturation,
     currentUserRes,
     clientsForFacturation,
@@ -46,7 +51,9 @@ export default async function FacturationPage() {
     getFacturesPage({ limit: 25 }),
     listAjustementsPending(),
     getBrouillons(),
-    listBillableProjets(),
+    // Onglet "A l'engagement" : uniquement les projets de ce modele.
+    listBillableProjets('engagement'),
+    getEcheancierDues(),
     listProjetsForFacturation(),
     user
       ? supabase.from('users').select('role').eq('id', user.id).single()
@@ -79,6 +86,9 @@ export default async function FacturationPage() {
         ajustements={ajustements}
         brouillons={brouillons}
         manualProjets={manualProjetsEvents}
+        echeancierDues={echeancier.dues}
+        hasEcheancierProjets={echeancier.hasEcheancierProjets}
+        echeancierCutoff={currentMoisCutoff()}
         projetsForFacturation={projetsForFacturation}
         clientsForFreeFacture={clientsForFacturation.data ?? []}
         societesEmettrices={societesActives.map((s) => ({

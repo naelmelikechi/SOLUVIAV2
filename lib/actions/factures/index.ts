@@ -5,6 +5,7 @@
 
 export {
   createFactures,
+  createBrouillonEcheancier,
   createFactureFromEvents,
   createBlankBrouillon,
   createFreeBrouillon,

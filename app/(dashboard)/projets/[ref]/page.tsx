@@ -8,6 +8,7 @@ import {
   getDocumentsByProjetId,
 } from '@/lib/queries/projets';
 import { getRdvFormateursByProjetId } from '@/lib/queries/rdv';
+import { listEcheancierTemplates } from '@/lib/queries/echeanciers';
 
 export async function generateMetadata({
   params,
@@ -62,6 +63,7 @@ export default async function ProjetDetailPage({
     documents,
     rdvsFormateurs,
     performance,
+    echeancierTemplates,
   ] = await Promise.all([
     authUser
       ? supabase.from('users').select('role').eq('id', authUser.id).single()
@@ -72,6 +74,7 @@ export default async function ProjetDetailPage({
     getDocumentsByProjetId(projet.id),
     getRdvFormateursByProjetId(projet.id),
     getProjetPerformance(projet.id),
+    listEcheancierTemplates(),
   ]);
 
   const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
@@ -121,6 +124,17 @@ export default async function ProjetDetailPage({
             finance={finance}
             projetId={projet.id}
             canEdit={userIsAdmin}
+            modeleFacturation={
+              projet.modele_facturation === 'engagement'
+                ? 'engagement'
+                : 'echeancier'
+            }
+            echeancierTemplateId={projet.echeancier_template_id}
+            echeancierTemplates={echeancierTemplates.map((t) => ({
+              id: t.id,
+              nom: t.nom,
+              is_default: t.is_default,
+            }))}
           />
           <div className="space-y-6">
             <ProjetTempsSection temps={temps} />

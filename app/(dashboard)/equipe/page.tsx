@@ -25,9 +25,13 @@ export default async function EquipePage() {
   ]);
   if (!user) redirect('/login');
 
+  // Deux usages simultanés : voir qui fait quoi (roster) et discuter (chat).
+  // Desktop : côte à côte, chat sticky pleine hauteur à droite (fini le chat
+  // sous la fold + scroll auto). Mobile : chat d'abord (usage principal),
+  // roster en dessous.
   return (
-    <div className="space-y-8">
-      <div>
+    <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
+      <div className="order-2 lg:order-none">
         <PageHeader
           title="Équipe"
           description="Contacts internes et projets actifs sur lesquels chacun est assigné"
@@ -35,18 +39,24 @@ export default async function EquipePage() {
         <EquipeGrid members={members} />
       </div>
 
-      <TeamChat
-        initialMessages={messages}
-        getUser={{
-          id: user.id,
-          prenom: user.prenom,
-          nom: user.nom,
-          email: user.email,
-          avatar_mode: user.avatar_mode as 'daily' | 'random' | 'frozen' | null,
-          avatar_seed: user.avatar_seed,
-          avatar_regen_date: user.avatar_regen_date,
-        }}
-      />
+      <div className="order-1 lg:sticky lg:top-6 lg:order-none lg:h-[calc(100vh-6.5rem)]">
+        <TeamChat
+          initialMessages={messages}
+          getUser={{
+            id: user.id,
+            prenom: user.prenom,
+            nom: user.nom,
+            email: user.email,
+            avatar_mode: user.avatar_mode as
+              | 'daily'
+              | 'random'
+              | 'frozen'
+              | null,
+            avatar_seed: user.avatar_seed,
+            avatar_regen_date: user.avatar_regen_date,
+          }}
+        />
+      </div>
     </div>
   );
 }

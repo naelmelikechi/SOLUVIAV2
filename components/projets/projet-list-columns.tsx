@@ -127,6 +127,20 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
     ),
   },
   {
+    accessorKey: 'modele_facturation',
+    meta: { label: 'Modèle' },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Modèle" />
+    ),
+    cell: ({ row }) =>
+      row.original.modele_facturation === 'engagement' ? (
+        <StatusBadge label="À l'engagement" color="green" />
+      ) : (
+        <StatusBadge label="Échéancier" color="blue" />
+      ),
+    filterFn: (row, id, value) => value.includes(row.getValue(id)),
+  },
+  {
     accessorKey: 'apprentisActifs',
     meta: { label: 'Apprentis actifs' },
     header: ({ column }) => (

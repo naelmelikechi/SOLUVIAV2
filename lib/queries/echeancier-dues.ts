@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { resolveTauxCommission } from '@/lib/utils/commission';
@@ -249,6 +251,12 @@ export function computeEcheancierDues(input: {
 // Loader DB
 // ---------------------------------------------------------------------------
 
+/** Client acceptés par le loader : session utilisateur (RLS) ou service role
+ *  (cron). Les deux exposent la même API typée Database. */
+type AnySupabase =
+  | Awaited<ReturnType<typeof createClient>>
+  | SupabaseClient<Database>;
+
 /**
  * Projets actifs au modèle échéancier (est_libre=false, non archivés) ayant
  * au moins un contrat. Retourne aussi la liste vide d'échéances dues si tout
@@ -258,8 +266,18 @@ export async function getEcheancierDues(projetId?: string): Promise<{
   hasEcheancierProjets: boolean;
   dues: EcheancierDueMois[];
 }> {
-  const supabase = await createClient();
+  return getEcheancierDuesWith(await createClient(), projetId);
+}
 
+/** Variante à client injecté : utilisée par le cron (service role, pas de
+ *  cookies) et par getEcheancierDues (client serveur RLS). */
+export async function getEcheancierDuesWith(
+  supabase: AnySupabase,
+  projetId?: string,
+): Promise<{
+  hasEcheancierProjets: boolean;
+  dues: EcheancierDueMois[];
+}> {
   let query = supabase
     .from('projets')
     .select(
@@ -349,7 +367,7 @@ export async function getEcheancierDues(projetId?: string): Promise<{
  * Batch par tranches de 200 contrats pour rester sous les limites PostgREST.
  */
 async function loadBilledByContrat(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: AnySupabase,
   contratIds: string[],
 ): Promise<Map<string, BilledJalonLine[]>> {
   const billed = new Map<string, BilledJalonLine[]>();

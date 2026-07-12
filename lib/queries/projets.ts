@@ -17,6 +17,7 @@ async function getProjetsList() {
       statut,
       date_debut,
       taux_commission,
+      modele_facturation,
       est_interne,
       client:clients!projets_client_id_fkey (
         id,

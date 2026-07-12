@@ -10,6 +10,10 @@
       "schedule": "0 9 * * 1-5"
     },
     {
+      "path": "/api/cron/echeancier-retard",
+      "schedule": "5 9 * * 1"
+    },
+    {
       "path": "/api/sync/eduvia",
       "schedule": "0 9-18 * * *"
     },

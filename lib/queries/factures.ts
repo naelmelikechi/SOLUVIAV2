@@ -415,6 +415,58 @@ export async function getPaiementsByFactureId(factureId: string) {
   return data;
 }
 
+// ---------------------------------------------------------------------------
+// KPIs de l'etat de la facturation (bandeau /facturation). Volumes faibles
+// (quelques centaines de lignes, 3 colonnes) : agregation en JS, pas de RPC.
+// Montants en HT (convention affichage HT partout).
+// ---------------------------------------------------------------------------
+export interface FacturationKpis {
+  /** Factures emises en attente de paiement (statut emise). */
+  enAttente: { count: number; montantHt: number };
+  /** Factures en retard de paiement. */
+  enRetard: { count: number; montantHt: number };
+  /** Facture du mois courant (tout statut emis, avoirs signes inclus). */
+  factureMois: { count: number; montantHt: number };
+}
+
+export async function getFacturationKpis(): Promise<FacturationKpis> {
+  const supabase = await createClient();
+  const moisDebut = `${new Date().toISOString().slice(0, 7)}-01`;
+
+  const [encoursRes, moisRes] = await Promise.all([
+    supabase
+      .from('factures')
+      .select('statut, montant_ht')
+      .in('statut', ['emise', 'en_retard']),
+    supabase
+      .from('factures')
+      .select('montant_ht, est_avoir')
+      .neq('statut', 'a_emettre')
+      .gte('date_emission', moisDebut),
+  ]);
+  if (encoursRes.error || moisRes.error) {
+    logger.error('queries.factures', 'getFacturationKpis failed', {
+      error: encoursRes.error ?? moisRes.error,
+    });
+  }
+
+  const encours = encoursRes.data ?? [];
+  const sum = (rows: { montant_ht: number | null }[]) =>
+    rows.reduce((s, r) => s + Number(r.montant_ht ?? 0), 0);
+  const emises = encours.filter((f) => f.statut === 'emise');
+  const retard = encours.filter((f) => f.statut === 'en_retard');
+  const mois = moisRes.data ?? [];
+
+  return {
+    enAttente: { count: emises.length, montantHt: sum(emises) },
+    enRetard: { count: retard.length, montantHt: sum(retard) },
+    factureMois: {
+      count: mois.filter((f) => !f.est_avoir).length,
+      montantHt: sum(mois),
+    },
+  };
+}
+
 // Check if an avoir exists for a given facture
 export async function getAvoirForFacture(factureOrigineId: string) {
   const supabase = await createClient();

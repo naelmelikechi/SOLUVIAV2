@@ -88,7 +88,7 @@ export const navSections: NavSection[] = [
       { href: '/qualiopi', label: 'Qualité', icon: ShieldCheck },
       {
         href: '/a-facturer',
-        label: 'À facturer',
+        label: 'À facturer (Eduvia)',
         icon: Send,
         requiresCdpOrAdmin: true,
       },

@@ -77,10 +77,10 @@ export async function getAccueilCdpData(
     {
       key: 'a-facturer',
       count: aFacturer.length,
-      title: 'Contrats à facturer',
+      title: 'Contrats à facturer dans Eduvia',
       description:
         montantAFacturer > 0
-          ? `≈ ${formatCurrency(Math.round(montantAFacturer))} d'échéances OPCO échues`
+          ? `≈ ${formatCurrency(Math.round(montantAFacturer))} d'échéances OPCO échues à transmettre`
           : 'Échéances OPCO échues à transmettre dans Eduvia',
       href: '/a-facturer',
       color: aFacturerColor,

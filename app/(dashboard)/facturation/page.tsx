@@ -2,9 +2,11 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import {
   getFacturesPage,
+  getFacturationKpis,
   getBrouillons,
   listProjetsForFacturation,
 } from '@/lib/queries/factures';
+import { FacturationKpisStrip } from '@/components/facturation/facturation-kpis';
 import { listAjustementsPending } from '@/lib/queries/ajustements';
 import {
   listBillableProjets,
@@ -39,6 +41,7 @@ export default async function FacturationPage() {
   // oxlint-disable-next-line react-doctor/server-sequential-independent-await
   const [
     facturesPage,
+    kpis,
     ajustements,
     brouillons,
     manualProjetsList,
@@ -50,6 +53,7 @@ export default async function FacturationPage() {
     societesActives,
   ] = await Promise.all([
     getFacturesPage({ limit: 25 }),
+    getFacturationKpis(),
     listAjustementsPending(),
     getBrouillons(),
     // Onglet "A l'engagement" : uniquement les projets de ce modele.
@@ -82,9 +86,21 @@ export default async function FacturationPage() {
 
   const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
 
+  const aEmettreMontantHt = brouillons.reduce(
+    (s, b) => s + Number(b.montant_ht ?? 0),
+    0,
+  );
+
   return (
     <div>
       <PageHeader title="Facturation" />
+      <div className="mb-6">
+        <FacturationKpisStrip
+          kpis={kpis}
+          aEmettreCount={brouillons.length}
+          aEmettreMontantHt={aEmettreMontantHt}
+        />
+      </div>
       <FacturationPageClient
         facturesPage={facturesPage}
         ajustements={ajustements}

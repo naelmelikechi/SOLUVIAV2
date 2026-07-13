@@ -401,8 +401,10 @@ export function FacturationPageClient({
         <TabsContent value={2}>
           <div className="mt-4 space-y-4">
             <p className="text-muted-foreground text-xs">
-              <TermeHint terme="commission">Commission</TermeHint> du modèle à
-              l&apos;engagement : base = encaissements OPCO du client.{' '}
+              <TermeHint terme="commission">Commission</TermeHint>
+              {
+                " du modèle à l'engagement : base = encaissements OPCO du client. "
+              }
               <Link
                 href="/a-facturer"
                 className="text-primary inline-flex items-center gap-1 hover:underline"
@@ -420,10 +422,10 @@ export function FacturationPageClient({
         <TabsContent value={3}>
           <div className="mt-4 space-y-4">
             <p className="text-muted-foreground text-xs">
-              <TermeHint terme="commission">Commission</TermeHint> du modèle
-              échéancier : NPEC x taux, ventilé par jalons mensuels (1/12 par
-              défaut). Les montants tiennent compte de ce qui a déjà été facturé
-              sur chaque contrat.
+              <TermeHint terme="commission">Commission</TermeHint>
+              {
+                ' du modèle échéancier : NPEC x taux, ventilé par jalons mensuels (1/12 par défaut). Les montants tiennent compte de ce qui a déjà été facturé sur chaque contrat.'
+              }
             </p>
             <EcheancierTab
               projets={echeancierProjets}

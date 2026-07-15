@@ -278,6 +278,93 @@ export async function affectCdp(
   return applyAffectation(clientId, cdpId, justification, false);
 }
 
+/**
+ * Retire le CDP référent d'un client. Le client redevient "à affecter" dans
+ * le panneau d'arbitrage. Les synthèses de passation déjà diffusées au CDP
+ * (vague 2) restent diffusées : pas de marche arrière sur la diffusion.
+ */
+export async function desaffectCdp(
+  clientId: string,
+  justification?: string,
+): Promise<{ success: boolean; error?: string }> {
+  const { userId, role, referentCdp } = await getCdpAuth();
+  if (!userId) return { success: false, error: 'Non authentifié' };
+  if (!isReferentCdp(role, referentCdp)) {
+    return { success: false, error: 'Accès refusé' };
+  }
+
+  const justif = justification?.trim();
+  const admin = createAdminClient();
+
+  const { data: client, error: clientError } = await admin
+    .from('clients')
+    .select('id, raison_sociale, cdp_referent_id')
+    .eq('id', clientId)
+    .single();
+  if (clientError || !client) {
+    return { success: false, error: 'Client introuvable' };
+  }
+
+  const fromCdpId = client.cdp_referent_id;
+  if (!fromCdpId) {
+    return { success: false, error: "Ce client n'a pas de CDP référent" };
+  }
+
+  const { error: updateError } = await admin
+    .from('clients')
+    .update({ cdp_referent_id: null, cdp_affecte_at: null })
+    .eq('id', clientId);
+  if (updateError) {
+    logger.error('actions.cdp', 'desaffectation update failed', {
+      clientId,
+      fromCdpId,
+      error: updateError,
+    });
+    return { success: false, error: 'Échec de la désaffectation' };
+  }
+
+  const { error: historyError } = await admin
+    .from('cdp_affectation_history')
+    .insert({
+      client_id: clientId,
+      from_cdp_id: fromCdpId,
+      to_cdp_id: null,
+      justification: justif ?? null,
+      changed_by: userId,
+    });
+  if (historyError) {
+    logger.error('actions.cdp', 'desaffectation history insert failed', {
+      clientId,
+      fromCdpId,
+      error: historyError,
+    });
+  }
+
+  if (fromCdpId !== userId) {
+    await admin.from('notifications').insert({
+      user_id: fromCdpId,
+      type: 'cdp_affecte',
+      titre: 'Client retiré de votre portefeuille',
+      message: `Le client ${client.raison_sociale} ne vous est plus affecté.`,
+      lien: '/commercial/cdp',
+    });
+  }
+
+  logAudit(
+    'cdp_desaffecte',
+    'client',
+    clientId,
+    {
+      from_cdp_id: fromCdpId,
+      to_cdp_id: null,
+      justification: justif ?? null,
+    },
+    userId,
+  );
+  revalidatePath('/commercial/cdp');
+  return { success: true };
+}
+
 /** Le CDP courant met à jour sa propre disponibilité (users.cdp_disponibilite). */
 export async function updateCdpDisponibilite(
   disponibilite: DispoCdp,

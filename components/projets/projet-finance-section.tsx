@@ -60,8 +60,11 @@ export function ProjetFinanceSection({
   // Commission SOLUVIA en HT : taux × base donne le TTC, on en déduit le HT (/1.2).
   const commSoluvia = ttcToHt(finance.taux_commission / 100);
 
-  const raf_opco = finance.production_opco - finance.facture_opco;
-  const rae_opco = finance.facture_opco - finance.encaisse_opco;
+  // Ligne du bas côté SOLUVIA : cohérente avec l'espace Facturation
+  // (les factures en base sont les commissions SOLUVIA, pas les montants OPCO).
+  const production_soluvia = finance.production_opco * commSoluvia;
+  const raf_soluvia = production_soluvia - finance.facture_soluvia;
+  const rae_soluvia = finance.facture_soluvia - finance.encaisse_soluvia;
 
   return (
     <Card className="p-6">
@@ -86,7 +89,7 @@ export function ProjetFinanceSection({
       {/* OPCO Side */}
       <div className="mb-4">
         <div className="text-muted-foreground mb-2 text-xs font-medium tracking-wider uppercase">
-          Côté OPCO (Client)
+          Côté OPCO (bordereaux Eduvia)
         </div>
         <div className="grid grid-cols-3 gap-4">
           <FinanceStatCard
@@ -115,44 +118,48 @@ export function ProjetFinanceSection({
         <div className="grid grid-cols-3 gap-4">
           <FinanceStatCard
             label="Production"
-            value={finance.production_opco * commSoluvia}
+            value={production_soluvia}
             color="text-[var(--warning)]"
           />
           <FinanceStatCard
             label="Facturé"
-            value={finance.facture_opco * commSoluvia}
+            value={finance.facture_soluvia}
             color="text-[var(--warning)]"
           />
           <FinanceStatCard
             label="Encaissé"
-            value={finance.encaisse_opco * commSoluvia}
+            value={finance.encaisse_soluvia}
             color="text-primary"
           />
         </div>
       </div>
 
-      {/* RAF / RAE / En retard */}
+      {/* RAF / RAE / En retard - commission SOLUVIA */}
       <div className="border-border border-t pt-4">
         <div className="grid grid-cols-3 gap-4">
           <FinanceStatCard
-            label="RAF (Reste à facturer)"
-            value={raf_opco}
+            label="RAF commission (à facturer)"
+            value={raf_soluvia}
             color={
-              raf_opco > 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'
+              raf_soluvia > 0
+                ? 'text-[var(--warning)]'
+                : 'text-muted-foreground'
             }
           />
           <FinanceStatCard
-            label="RAE (Reste à encaisser)"
-            value={rae_opco}
+            label="RAE commission (à encaisser)"
+            value={rae_soluvia}
             color={
-              rae_opco > 0 ? 'text-[var(--warning)]' : 'text-muted-foreground'
+              rae_soluvia > 0
+                ? 'text-[var(--warning)]'
+                : 'text-muted-foreground'
             }
           />
           <FinanceStatCard
             label="En retard"
-            value={finance.en_retard}
+            value={finance.en_retard_soluvia}
             color={
-              finance.en_retard > 0
+              finance.en_retard_soluvia > 0
                 ? 'text-red-600 dark:text-red-400'
                 : 'text-muted-foreground'
             }

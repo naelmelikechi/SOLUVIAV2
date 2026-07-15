@@ -18,6 +18,7 @@ import {
   Bug,
   Activity,
   KanbanSquare,
+  ListTodo,
 } from 'lucide-react';
 import { isAdmin, canAccessPipeline, isReferentCdp } from '@/lib/utils/roles';
 
@@ -67,6 +68,12 @@ export const navSections: NavSection[] = [
     title: '',
     items: [
       { href: '/accueil', label: 'Accueil', icon: Home },
+      {
+        href: '/taches',
+        label: 'Tâches',
+        icon: ListTodo,
+        keywords: ['plane', 'todo', 'issues'],
+      },
       {
         href: '/pilotage',
         label: 'Pilotage',

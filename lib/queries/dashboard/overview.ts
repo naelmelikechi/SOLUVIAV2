@@ -129,9 +129,10 @@ export async function getDashboardData() {
       { error: staleContratsRes.error },
     );
 
-  // "Sans progression" = contrats actifs depuis +30j sans activite recente.
-  // Source primaire : contrats_progressions.last_activity_at (Eduvia).
-  // Fallback : saisies_temps au niveau projet quand Eduvia n'a rien renvoye.
+  // "Sans progression" = contrats actifs depuis +30j sans activite APPRENANT
+  // recente (contrats_progressions.last_activity_at, source Eduvia). Pas de
+  // repechage par les saisies_temps internes : que l'equipe travaille sur le
+  // projet ne dit rien de l'activite de l'apprenant (decision 2026-07-15).
   const staleContrats = staleContratsRes.data ?? [];
   const thirtyDaysAgoTs = thirtyDaysAgo.getTime();
   const contratsWithNoEduviaActivity: Array<{
@@ -155,24 +156,7 @@ export async function getDashboardData() {
     }
   }
 
-  let contratsSansProgression = 0;
-  if (contratsWithNoEduviaActivity.length > 0) {
-    const projetIdsToCheck = [
-      ...new Set(contratsWithNoEduviaActivity.map((c) => c.projet_id)),
-    ];
-    const { data: recentSaisies } = await supabase
-      .from('saisies_temps')
-      .select('projet_id')
-      .in('projet_id', projetIdsToCheck)
-      .gte('date', thirtyDaysAgoStr);
-
-    const projetsWithSaisieRecente = new Set(
-      (recentSaisies ?? []).map((s) => s.projet_id),
-    );
-    contratsSansProgression = contratsWithNoEduviaActivity.filter(
-      (c) => !projetsWithSaisieRecente.has(c.projet_id),
-    ).length;
-  }
+  const contratsSansProgression = contratsWithNoEduviaActivity.length;
 
   const activeContratsList = contratsRes.data ?? [];
   return {

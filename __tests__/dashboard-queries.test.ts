@@ -254,7 +254,7 @@ describe('getDashboardData', () => {
     expect(data.contratsSansProgression).toBe(0);
   });
 
-  it('counts contratsSansProgression using fallback saisies_temps when Eduvia has no progression', async () => {
+  it('counts contratsSansProgression sans repechage saisies_temps (activite apprenant uniquement)', async () => {
     const mock = buildSupabase({
       projets: { data: [] },
       factures: { data: [] },
@@ -277,7 +277,8 @@ describe('getDashboardData', () => {
           ],
         },
       ],
-      // p1 a une saisie recente -> compte pas. p2 -> contratsSansProgression.
+      // Une saisie de temps recente sur p1 ne blanchit PLUS le contrat :
+      // seul last_activity_at (apprenant, Eduvia) fait foi.
       saisies_temps: { data: [{ projet_id: 'p1' }] },
     });
     vi.mocked(createClient).mockResolvedValue(
@@ -287,7 +288,7 @@ describe('getDashboardData', () => {
     const { getDashboardData } = await import('@/lib/queries/dashboard');
     const data = await getDashboardData();
 
-    expect(data.contratsSansProgression).toBe(1);
+    expect(data.contratsSansProgression).toBe(2);
   });
 
   it("filters contrats actifs by ACTIVE_CONTRACT_STATES via .in('contract_state', ...)", async () => {

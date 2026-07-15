@@ -97,7 +97,7 @@ export async function getAccueilCdpData(
       key: 'progression',
       count: dash.contratsSansProgression,
       title: 'Contrats sans progression',
-      description: 'Aucune activité depuis plus de 30 jours',
+      description: 'Aucune activité apprenant (Eduvia) depuis plus de 30 jours',
       href: '/projets',
       color: 'orange',
     },

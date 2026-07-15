@@ -353,6 +353,14 @@ export function useBadgeCounts(): BadgeCounts {
           { event: '*', schema: 'public', table: 'eduvia_invoice_steps' },
           () => debouncedRefresh('aFacturer', refreshAFacturer),
         )
+        // contrats : le flag facturation_verrouillee (marquage non facturable
+        // depuis /a-facturer) sort/rentre des contrats du compte "a facturer".
+        // Debounce absorbe le bruit des upserts de la sync Eduvia.
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'contrats' },
+          () => debouncedRefresh('aFacturer', refreshAFacturer),
+        )
         .subscribe();
     } catch {
       // Realtime unavailable (e.g. bad API key) - badges still work via initial fetch

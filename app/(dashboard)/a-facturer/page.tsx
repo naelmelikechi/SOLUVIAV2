@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
-import { getContratsAFacturer } from '@/lib/queries/contrats-a-facturer';
+import {
+  getContratsAFacturer,
+  getContratsNonFacturables,
+} from '@/lib/queries/contrats-a-facturer';
 import {
   listBillableProjets,
   getBillableEventsForProjets,
@@ -10,6 +13,7 @@ import {
 import { buildResteAFacturer } from '@/lib/utils/reste-a-facturer';
 import { PageHeader } from '@/components/shared/page-header';
 import { AFacturerTable } from '@/components/a-facturer/a-facturer-table';
+import { ContratsNonFacturables } from '@/components/a-facturer/contrats-non-facturables';
 import { ResteAFacturerTab } from '@/components/facturation/reste-a-facturer-tab';
 
 export const metadata: Metadata = { title: 'À facturer (Eduvia) - SOLUVIA' };
@@ -24,8 +28,9 @@ export default async function AFacturerPage() {
     redirect('/accueil');
   }
 
-  const [rows, manualProjetsList] = await Promise.all([
+  const [rows, nonFacturables, manualProjetsList] = await Promise.all([
     getContratsAFacturer(),
+    getContratsNonFacturables(),
     // Le "reste a facturer par contrat" est un calcul du modele engagement :
     // les projets echeancier ont leur vue dediee dans /facturation.
     listBillableProjets('engagement'),
@@ -44,6 +49,9 @@ export default async function AFacturerPage() {
           description="Contrats dont une échéance OPCO est due et non encore transmise sur Eduvia"
         />
         <AFacturerTable data={rows} />
+        <div className="mt-4">
+          <ContratsNonFacturables contrats={nonFacturables} />
+        </div>
       </div>
       {raf && (
         <div>

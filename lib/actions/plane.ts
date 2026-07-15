@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { requireAuth } from '@/lib/auth/guards';
+import { checkAuth, requireAuth } from '@/lib/auth/guards';
 import { planeConfigured, planeFetch } from '@/lib/plane/client';
 import { getPlaneProjectStates } from '@/lib/plane/queries';
 import { logger } from '@/lib/utils/logger';
@@ -122,4 +122,45 @@ export async function createPlaneTask(input: {
     });
     return { success: false, error: 'Échec de la création dans Plane' };
   }
+}
+
+const SetClientPlaneProjectSchema = z.object({
+  clientId: z.string().uuid(),
+  planeProjectId: z.string().uuid().nullable(),
+});
+
+/**
+ * Associe (ou dissocie avec null) un projet Plane à un client SOLUVIA.
+ * Alimente la carte Tâches des fiches client et pages projet. Réservé aux
+ * admins (le mapping est une donnée d'administration du client).
+ */
+export async function setClientPlaneProject(input: {
+  clientId: string;
+  planeProjectId: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
+
+  const parsed = SetClientPlaneProjectSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: 'Paramètres invalides' };
+  }
+  const { clientId, planeProjectId } = parsed.data;
+
+  const { error } = await auth.supabase
+    .from('clients')
+    .update({ plane_project_id: planeProjectId })
+    .eq('id', clientId);
+
+  if (error) {
+    logger.error('actions.plane', 'setClientPlaneProject failed', {
+      error,
+      clientId,
+    });
+    return { success: false, error: 'Échec de la mise à jour du client' };
+  }
+
+  revalidatePath(`/admin/clients/${clientId}`);
+  revalidatePath('/projets');
+  return { success: true };
 }

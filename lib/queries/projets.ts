@@ -176,7 +176,8 @@ export async function getProjetByRef(ref: string) {
         raison_sociale,
         siret,
         adresse,
-        localisation
+        localisation,
+        plane_project_id
       ),
       typologie:typologies_projet!projets_typologie_id_fkey (
         code,

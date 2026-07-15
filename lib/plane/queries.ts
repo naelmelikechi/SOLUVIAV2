@@ -166,6 +166,50 @@ export async function getPlaneProjectStates(
 }
 
 /**
+ * Issues OUVERTES (ni terminées ni annulées) d'un projet Plane, mappées en
+ * PlaneTask. Filtre optionnel par assigné.
+ */
+async function fetchOpenIssuesForProject(
+  project: PlaneProject,
+  memberId?: string,
+): Promise<PlaneTask[]> {
+  const [states, issues] = await Promise.all([
+    listAll<PlaneState>(`/projects/${project.id}/states/`),
+    listAll<PlaneIssue>(`/projects/${project.id}/issues/?per_page=100`),
+  ]);
+  const closedStates = new Set(
+    states
+      .filter((s) => s.group === 'completed' || s.group === 'cancelled')
+      .map((s) => s.id),
+  );
+  return issues
+    .filter(
+      (i) =>
+        !closedStates.has(i.state) &&
+        (memberId === undefined || i.assignees.includes(memberId)),
+    )
+    .map(
+      (i): PlaneTask => ({
+        id: i.id,
+        projectId: project.id,
+        projectIdentifier: project.identifier,
+        ref: `${project.identifier}-${i.sequence_id}`,
+        name: i.name,
+        priority: i.priority === 'none' ? null : i.priority,
+        targetDate: i.target_date,
+        url: planeWebUrl(`/projects/${project.id}/issues/${i.id}`),
+      }),
+    );
+}
+
+// Échéance la plus proche d'abord, les sans-date à la fin.
+function sortByTargetDate(tasks: PlaneTask[]): PlaneTask[] {
+  return tasks.sort((a, b) =>
+    (a.targetDate ?? '9999').localeCompare(b.targetDate ?? '9999'),
+  );
+}
+
+/**
  * Tâches Plane OUVERTES (ni terminées ni annulées) assignées à cet email,
  * tous projets du workspace confondus. Retourne null si Plane n'est pas
  * configuré ou si l'email n'a pas de compte Plane.
@@ -180,44 +224,37 @@ export async function getPlaneTasksForEmail(
 
     const projects = await listAll<PlaneProject>('/projects/');
     const perProject = await Promise.all(
-      projects.map(async (p) => {
-        const [states, issues] = await Promise.all([
-          listAll<PlaneState>(`/projects/${p.id}/states/`),
-          listAll<PlaneIssue>(`/projects/${p.id}/issues/?per_page=100`),
-        ]);
-        const closedStates = new Set(
-          states
-            .filter((s) => s.group === 'completed' || s.group === 'cancelled')
-            .map((s) => s.id),
-        );
-        return issues
-          .filter(
-            (i) => i.assignees.includes(memberId) && !closedStates.has(i.state),
-          )
-          .map(
-            (i): PlaneTask => ({
-              id: i.id,
-              projectId: p.id,
-              projectIdentifier: p.identifier,
-              ref: `${p.identifier}-${i.sequence_id}`,
-              name: i.name,
-              priority: i.priority === 'none' ? null : i.priority,
-              targetDate: i.target_date,
-              url: planeWebUrl(`/projects/${p.id}/issues/${i.id}`),
-            }),
-          );
-      }),
+      projects.map((p) => fetchOpenIssuesForProject(p, memberId)),
     );
 
-    // Échéance la plus proche d'abord, les sans-date à la fin.
-    return perProject
-      .flat()
-      .sort((a, b) =>
-        (a.targetDate ?? '9999').localeCompare(b.targetDate ?? '9999'),
-      );
+    return sortByTargetDate(perProject.flat());
   } catch (error) {
     // Best-effort : Plane indisponible ne doit jamais casser l'accueil.
     logger.error('plane.queries', 'getPlaneTasksForEmail failed', { error });
+    return null;
+  }
+}
+
+/**
+ * Toutes les tâches Plane OUVERTES d'un projet Plane donné (tous assignés
+ * confondus) - alimente la carte Tâches d'un client/projet SOLUVIA mappé via
+ * clients.plane_project_id. Retourne null si Plane n'est pas configuré, si le
+ * projet n'existe plus dans le workspace ou en cas d'erreur (best-effort).
+ */
+export async function getPlaneTasksForProject(
+  planeProjectId: string,
+): Promise<PlaneTask[] | null> {
+  if (!planeConfigured()) return null;
+  try {
+    const project = await planeFetch<PlaneProject>(
+      `/projects/${planeProjectId}/`,
+    );
+    return sortByTargetDate(await fetchOpenIssuesForProject(project));
+  } catch (error) {
+    logger.error('plane.queries', 'getPlaneTasksForProject failed', {
+      error,
+      planeProjectId,
+    });
     return null;
   }
 }

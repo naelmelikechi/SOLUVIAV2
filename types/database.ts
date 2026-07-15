@@ -651,6 +651,7 @@ export type Database = {
           numero_nda: string | null;
           numero_qualiopi: string | null;
           numero_uai: string | null;
+          plane_project_id: string | null;
           raison_sociale: string;
           siret: string | null;
           trigramme: string;
@@ -672,6 +673,7 @@ export type Database = {
           numero_nda?: string | null;
           numero_qualiopi?: string | null;
           numero_uai?: string | null;
+          plane_project_id?: string | null;
           raison_sociale: string;
           siret?: string | null;
           trigramme: string;
@@ -693,6 +695,7 @@ export type Database = {
           numero_nda?: string | null;
           numero_qualiopi?: string | null;
           numero_uai?: string | null;
+          plane_project_id?: string | null;
           raison_sociale?: string;
           siret?: string | null;
           trigramme?: string;

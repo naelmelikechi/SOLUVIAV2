@@ -32,6 +32,7 @@ import { getProjetPerformance } from '@/lib/queries/projet-performance';
 import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
 import { ProjetDocumentsSection } from '@/components/projets/projet-documents-section';
 import { ProjetRdvSection } from '@/components/projets/projet-rdv-section';
+import { EntiteTachesSection } from '@/components/taches/entite-taches-section';
 import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/roles';
 import { isContratActif } from '@/lib/utils/contrat-states';
@@ -153,6 +154,13 @@ export default async function ProjetDetailPage({
       </section>
 
       <section id="activite" className="mt-8 scroll-mt-16 space-y-6">
+        {projet.client && (
+          <EntiteTachesSection
+            clientId={projet.client.id}
+            planeProjectId={projet.client.plane_project_id}
+            canEdit={userIsAdmin}
+          />
+        )}
         <ProjetRdvSection projetId={projet.id} rdvs={rdvsFormateurs} />
         <ProjetDocumentsSection
           projetId={projet.id}

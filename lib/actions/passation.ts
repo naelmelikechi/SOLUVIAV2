@@ -200,8 +200,9 @@ export async function enregistrerSaisiesSynthese(
 /**
  * Soumet la synthèse au Référent CDP (Vague 1) : rend les 2 PDFs depuis le
  * snapshot figé + saisies, les dépose dans le bucket, passe le statut à
- * 'en_attente_arbitrage' et envoie le mail (PDF complet en pièce jointe) aux
- * Référents CDP + Direction, avec notification in-app.
+ * 'en_attente_arbitrage' et notifie in-app Référents CDP + Direction.
+ * AUCUN email automatique (décision 2026-07-15) : l'envoi du PDF par email
+ * se fait à la main via envoyerSyntheseEmail, destinataires choisis.
  */
 export async function soumettreSynthese(
   syntheseId: string,
@@ -285,6 +286,9 @@ export async function soumettreSynthese(
   if (error) return { success: false, error: error.message };
 
   // Destinataires vague 1 : Référents CDP + Direction (admins actifs).
+  // AUCUN email automatique (décision 2026-07-15) : notification in-app
+  // uniquement ; l'email part à la main via envoyerSyntheseEmail, avec des
+  // destinataires choisis explicitement.
   const destinataires = new Map<string, string | null>();
   const { data: referents } = await supabase
     .from('users')
@@ -319,19 +323,6 @@ export async function soumettreSynthese(
       logger.error('actions.passation', 'notifications vague 1 failed', {
         syntheseId,
         error: notifErr,
-      });
-    }
-    const emails = [...destinataires.values()].filter((e): e is string =>
-      Boolean(e),
-    );
-    if (emails.length > 0) {
-      await sendSyntheseVague1Email({
-        to: emails,
-        raisonSociale: snapshot.identite.raisonSociale,
-        referenceDossier: snapshot.meta.referenceDossier,
-        developpeur: snapshot.meta.developpeur,
-        lienFiche: `${getAppUrl()}${lienApp}`,
-        pdfComplet: complet,
       });
     }
   }
@@ -601,4 +592,123 @@ export async function getPassationStateBySynthese(syntheseId: string): Promise<{
   }
 
   return { synthese, reco, hasCdpReferent };
+}
+
+/**
+ * Destinataires éligibles à l'envoi manuel du PDF complet : admins et
+ * Référents CDP actifs uniquement. Le PDF complet contient la section 8
+ * (recommandation d'affectation) - jamais de CDP dans cette liste.
+ */
+export async function listDestinatairesSynthese(): Promise<{
+  destinataires: Array<{
+    id: string;
+    prenom: string;
+    nom: string;
+    email: string;
+    role: string;
+    referent_cdp: boolean;
+  }>;
+  error?: string;
+}> {
+  const { userId, role, pipeline } = await getAuthWithPipeline();
+  if (!userId) return { destinataires: [], error: 'Non authentifié' };
+  if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
+    return { destinataires: [], error: 'Accès refusé' };
+  }
+
+  // Liste transverse (admins + référents), lue via service-role : un
+  // commercial pipeline n'a pas le droit RLS de lister les autres users.
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('users')
+    .select('id, prenom, nom, email, role, referent_cdp')
+    .eq('actif', true)
+    .or('role.in.(admin,superadmin),referent_cdp.eq.true')
+    .order('prenom');
+  if (error) {
+    logger.error('actions.passation', 'listDestinataires failed', { error });
+    return { destinataires: [], error: 'Lecture impossible' };
+  }
+  return { destinataires: data ?? [] };
+}
+
+/**
+ * Envoi MANUEL du PDF complet par email aux destinataires choisis (décision
+ * 2026-07-15 : plus aucun email automatique sur la passation). Les ids sont
+ * re-filtrés côté serveur sur la population éligible (admins + référents
+ * actifs) : la section 8 ne doit jamais atteindre un CDP.
+ */
+export async function envoyerSyntheseEmail(
+  syntheseId: string,
+  destinataireIds: string[],
+): Promise<{ success: boolean; sent?: number; error?: string }> {
+  if (!uuidSchema.safeParse(syntheseId).success) {
+    return { success: false, error: 'Synthèse invalide' };
+  }
+  const ids = [...new Set(destinataireIds)].filter(
+    (id) => uuidSchema.safeParse(id).success,
+  );
+  if (ids.length === 0) {
+    return { success: false, error: 'Aucun destinataire sélectionné' };
+  }
+  const { supabase, userId, role, pipeline } = await getAuthWithPipeline();
+  if (!userId) return { success: false, error: 'Non authentifié' };
+  if (!(isAdmin(role) || canAccessPipeline(role, pipeline))) {
+    return { success: false, error: 'Accès refusé' };
+  }
+
+  const { data: synthese } = await supabase
+    .from('document_synthese')
+    .select('id, contenu, pdf_path_complet')
+    .eq('id', syntheseId)
+    .maybeSingle<PassationSynthese>();
+  if (!synthese) return { success: false, error: 'Synthèse inconnue' };
+  if (!synthese.pdf_path_complet || !synthese.contenu) {
+    return {
+      success: false,
+      error: 'PDF indisponible : soumettez la synthèse d’abord',
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data: users } = await admin
+    .from('users')
+    .select('id, email')
+    .in('id', ids)
+    .eq('actif', true)
+    .or('role.in.(admin,superadmin),referent_cdp.eq.true');
+  const emails = (users ?? []).map((u) => u.email).filter(Boolean);
+  if (emails.length === 0) {
+    return { success: false, error: 'Aucun destinataire éligible' };
+  }
+
+  const { data: blob, error: dlError } = await admin.storage
+    .from(BUCKET)
+    .download(synthese.pdf_path_complet);
+  if (dlError || !blob) {
+    return { success: false, error: 'Téléchargement du PDF impossible' };
+  }
+  const pdfComplet = Buffer.from(await blob.arrayBuffer());
+
+  const snapshot = normalizeSnapshot(synthese.contenu);
+  const res = await sendSyntheseVague1Email({
+    to: emails,
+    raisonSociale: snapshot.identite.raisonSociale,
+    referenceDossier: snapshot.meta.referenceDossier,
+    developpeur: snapshot.meta.developpeur,
+    lienFiche: `${getAppUrl()}/commercial/passations/${syntheseId}`,
+    pdfComplet,
+  });
+  if (!res.success) {
+    return { success: false, error: 'Échec de l’envoi (email)' };
+  }
+
+  logAudit(
+    'synthese_email_manuel',
+    'document_synthese',
+    syntheseId,
+    { destinataires: emails.length },
+    userId,
+  );
+  return { success: true, sent: emails.length };
 }

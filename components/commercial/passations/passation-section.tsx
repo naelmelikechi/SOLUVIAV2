@@ -8,6 +8,7 @@ import {
   Download,
   FileText,
   Info,
+  Mail,
   RefreshCw,
   Send,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ import {
   soumettreSynthese,
 } from '@/lib/actions/passation';
 import type { PassationReco, PassationSynthese } from '@/lib/queries/passation';
+import { PassationEmailDialog } from './passation-email-dialog';
 import { PassationForm } from './passation-form';
 import { PassationProgressRail } from './passation-progress-rail';
 
@@ -38,7 +40,8 @@ interface PassationState {
 }
 
 // Workflow spec F6 : generee -> en_cours_completion -> en_attente_arbitrage
-// (soumission = vague 1, mail PDF au Référent CDP + Direction) -> cdp_affecte
+// (soumission = vague 1, notification in-app - AUCUN email automatique depuis
+// le 2026-07-15, envoi manuel via PassationEmailDialog) -> cdp_affecte
 // (vague 2 automatique à l'affectation) -> archivee. La génération est 100 %
 // automatique via le pont opportunité gagnée (lib/crm/actions/pont.ts).
 const STATUTS_EDITABLES = new Set([
@@ -61,6 +64,7 @@ export function PassationSection({
     hasCdpReferent: false,
   });
   const [isPending, startTransition] = useTransition();
+  const [emailOpen, setEmailOpen] = useState(false);
   const { synthese, reco, hasCdpReferent } = state;
 
   // La page ne charge que la ligne synthèse en props : la reco (section 8) et
@@ -114,7 +118,7 @@ export function PassationSection({
       const r = await soumettreSynthese(synthese.id);
       if (r.success) {
         toast.success(
-          'Synthèse soumise : PDF envoyé au Référent CDP et à la Direction',
+          'Synthèse soumise (aucun email automatique) : utilisez « Envoyer par email » pour diffuser le PDF',
         );
         await reload();
         router.refresh();
@@ -238,6 +242,16 @@ export function PassationSection({
               <Download className="size-3.5" /> PDF complet
             </Button>
           ) : null}
+          {synthese.pdf_path_complet ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPending}
+              onClick={() => setEmailOpen(true)}
+            >
+              <Mail className="size-3.5" /> Envoyer par email
+            </Button>
+          ) : null}
           {synthese.pdf_path_cdp ? (
             <Button
               size="sm"
@@ -288,6 +302,12 @@ export function PassationSection({
           </p>
         ) : null}
       </div>
+
+      <PassationEmailDialog
+        syntheseId={synthese.id}
+        open={emailOpen}
+        onOpenChange={setEmailOpen}
+      />
     </div>
   );
 }

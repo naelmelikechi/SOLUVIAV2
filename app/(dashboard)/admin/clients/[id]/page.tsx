@@ -20,6 +20,7 @@ import { ClientApiKeysSection } from '@/components/admin/client-api-keys-section
 import { ClientApporteurSection } from '@/components/admin/client-apporteur-section';
 import { ClientProjetsSection } from '@/components/admin/client-projets-section';
 import { ClientDocumentsSection } from '@/components/admin/client-documents-section';
+import { EntiteTachesSection } from '@/components/taches/entite-taches-section';
 
 export default async function ClientDetailPage({
   params,
@@ -149,6 +150,15 @@ export default async function ClientDetailPage({
 
       {/* Projets associes */}
       <ClientProjetsSection projets={projets} />
+
+      {/* Taches Plane du client */}
+      <div className="mb-6">
+        <EntiteTachesSection
+          clientId={id}
+          planeProjectId={client.plane_project_id}
+          canEdit
+        />
+      </div>
 
       {/* Notes */}
       <ClientNotesSection clientId={id} notes={notes} />

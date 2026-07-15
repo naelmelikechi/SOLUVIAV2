@@ -287,8 +287,10 @@ interface LoadedInputs {
  */
 async function loadContratStepInputs(opts: {
   maxOpeningDate?: string;
+  /** Client explicite (ex. admin pour les crons) ; defaut = client RLS user. */
+  client?: ServerClient;
 }): Promise<LoadedInputs> {
-  const supabase = await createClient();
+  const supabase = opts.client ?? (await createClient());
 
   let query = supabase
     .from('eduvia_invoice_steps')
@@ -410,6 +412,23 @@ export async function getContratsAFacturer(): Promise<ContratAFacturer[]> {
     maxOpeningDate: today,
   });
   return selectContratsAFacturer({ contrats, steps, opcoByContratId, today });
+}
+
+/**
+ * Variante cron (client explicite, typiquement admin) : contrats à facturer
+ * TOUS CDP confondus + le CDP responsable de chaque contrat, pour notifier.
+ */
+export async function getContratsAFacturerWith(client: ServerClient): Promise<{
+  rows: ContratAFacturer[];
+  cdpIdByContratId: Map<string, string>;
+}> {
+  const today = toLocalISODate(new Date());
+  const { contrats, steps, opcoByContratId, cdpIdByContratId } =
+    await loadContratStepInputs({ maxOpeningDate: today, client });
+  return {
+    rows: selectContratsAFacturer({ contrats, steps, opcoByContratId, today }),
+    cdpIdByContratId,
+  };
 }
 
 /**

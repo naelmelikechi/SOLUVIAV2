@@ -11,6 +11,7 @@ import {
   CheckCheck,
   Trash2,
   BellOff,
+  Send,
 } from 'lucide-react';
 import type { NotificationItem } from '@/lib/queries/notifications';
 import {
@@ -28,6 +29,7 @@ import { cn } from '@/lib/utils';
 
 const iconMap: Record<string, React.ElementType> = {
   facture_retard: AlertTriangle,
+  contrat_facturable: Send,
   tache_retard: Clock,
   rappel_temps: Timer,
   periode_facturation: Calendar,
@@ -36,6 +38,7 @@ const iconMap: Record<string, React.ElementType> = {
 
 const iconColorMap: Record<string, string> = {
   facture_retard: 'text-red-500',
+  contrat_facturable: 'text-blue-500',
   tache_retard: 'text-orange-500',
   rappel_temps: 'text-blue-500',
   periode_facturation: 'text-violet-500',

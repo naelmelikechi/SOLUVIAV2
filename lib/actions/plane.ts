@@ -1,7 +1,6 @@
 'use server';
 
 import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
 import { requireAuth } from '@/lib/auth/guards';
 import { planeConfigured, planeFetch } from '@/lib/plane/client';
 import { getPlaneProjectStates } from '@/lib/plane/queries';
@@ -45,7 +44,8 @@ export async function togglePlaneTask(input: {
         state: done ? states.doneStateId : states.todoStateId,
       }),
     });
-    revalidatePath('/accueil');
+    // Pas de revalidatePath : la ligne reste affichée barrée (état optimiste
+    // du client) et DÉCOCHABLE. Elle disparaît au prochain chargement.
     return { success: true };
   } catch (error) {
     logger.error('actions.plane', 'togglePlaneTask failed', {

@@ -182,14 +182,28 @@ export function DataTable<TData, TValue>({
           aria-label="Tout sélectionner"
         />
       ),
+      // Zone de clic dédiée : base-ui Checkbox (span) ne relaie pas le
+      // onClick passé en prop, donc stopPropagation n'y suffit pas et le
+      // onRowClick de la ligne se déclenchait aussi (sheet ouvert au clic
+      // de sélection). Le div capte le clic, toggle, et coupe la propagation ;
+      // la checkbox devient purement visuelle (pointer-events-none).
       cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          disabled={!row.getCanSelect()}
-          onCheckedChange={(checked) => row.toggleSelected(Boolean(checked))}
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Sélectionner la ligne"
-        />
+        // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+        <div
+          className="-m-2 flex items-center justify-center p-2"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (row.getCanSelect()) row.toggleSelected();
+          }}
+        >
+          <Checkbox
+            checked={row.getIsSelected()}
+            disabled={!row.getCanSelect()}
+            onCheckedChange={(checked) => row.toggleSelected(Boolean(checked))}
+            className="pointer-events-none"
+            aria-label="Sélectionner la ligne"
+          />
+        </div>
       ),
       size: 36,
       enableSorting: false,
@@ -386,7 +400,18 @@ export function DataTable<TData, TValue>({
                       : undefined
                   }
                   tabIndex={onRowClick ? 0 : undefined}
-                  onClick={() => onRowClick?.(row.original)}
+                  onClick={(e) => {
+                    // Un clic sur la checkbox de sélection (ou son label) ne
+                    // doit pas déclencher l'ouverture de la ligne : le
+                    // stopPropagation du Checkbox base-ui ne couvre pas tous
+                    // les chemins d'événement.
+                    if (
+                      (e.target as HTMLElement).closest('[role="checkbox"]')
+                    ) {
+                      return;
+                    }
+                    onRowClick?.(row.original);
+                  }}
                   onKeyDown={
                     onRowClick
                       ? (e) => {

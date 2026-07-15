@@ -413,6 +413,28 @@ export async function getContratsAFacturer(): Promise<ContratAFacturer[]> {
 }
 
 /**
+ * Contrats marqués NON FACTURABLES (facturation_verrouillee) qui reviendraient
+ * dans « À facturer » si on les déverrouillait : mêmes inputs, noyau identique
+ * appliqué aux seuls contrats verrouillés (déverrouillés virtuellement).
+ * Sert la zone de réversibilité de /a-facturer.
+ */
+export async function getContratsNonFacturables(): Promise<ContratAFacturer[]> {
+  const today = toLocalISODate(new Date());
+  const { contrats, steps, opcoByContratId } = await loadContratStepInputs({
+    maxOpeningDate: today,
+  });
+  const verrouilles = contrats
+    .filter((c) => c.facturation_verrouillee)
+    .map((c) => ({ ...c, facturation_verrouillee: false }));
+  return selectContratsAFacturer({
+    contrats: verrouilles,
+    steps,
+    opcoByContratId,
+    today,
+  });
+}
+
+/**
  * Supervision superadmin : TOUS les contrats avec une échéance OPCO non
  * transmise (échu + à venir), tous CDP. RLS admin = tout.
  */

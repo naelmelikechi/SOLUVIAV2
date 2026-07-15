@@ -3408,7 +3408,8 @@ export type Database = {
         | 'linkedin_erreur'
         | 'passation_a_completer'
         | 'passation_rappel'
-        | 'taux_derogatoire';
+        | 'taux_derogatoire'
+        | 'contrat_facturable';
       typologie_client:
         | 'exigeant'
         | 'collaboratif'
@@ -3609,6 +3610,7 @@ export const Constants = {
         'passation_a_completer',
         'passation_rappel',
         'taux_derogatoire',
+        'contrat_facturable',
       ],
       typologie_client: [
         'exigeant',

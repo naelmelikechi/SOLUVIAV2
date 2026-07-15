@@ -80,6 +80,10 @@
     {
       "path": "/api/cron/crm-alertes",
       "schedule": "0 6 * * 1-5"
+    },
+    {
+      "path": "/api/cron/a-facturer-notif",
+      "schedule": "30 6 * * 1-5"
     }
   ]
 }

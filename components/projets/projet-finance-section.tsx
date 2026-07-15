@@ -62,8 +62,11 @@ export function ProjetFinanceSection({
 
   // Ligne du bas côté SOLUVIA : cohérente avec l'espace Facturation
   // (les factures en base sont les commissions SOLUVIA, pas les montants OPCO).
+  // RAF clampé à 0 quand il n'y a pas de production (projet libre / taux 0) :
+  // un reste à facturer négatif n'a pas de sens affiché.
   const production_soluvia = finance.production_opco * commSoluvia;
-  const raf_soluvia = production_soluvia - finance.facture_soluvia;
+  const raf_soluvia =
+    production_soluvia > 0 ? production_soluvia - finance.facture_soluvia : 0;
   const rae_soluvia = finance.facture_soluvia - finance.encaisse_soluvia;
 
   return (

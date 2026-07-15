@@ -295,11 +295,14 @@ export async function getProjetFinance(projetId: string) {
   // OPCO), factures (facture/en_retard SOLUVIA), projet (taux_commission).
   // Les deux suivantes (paiements, invoice_steps) dependent des resultats.
   const [contratsRes, facturesRes, projetRes] = await Promise.all([
+    // Contrats SANS filtre archive : la production ne compte que les
+    // non-archives, mais les bordereaux OPCO des contrats archives restent
+    // comptes (les factures SOLUVIA correspondantes existent toujours -
+    // gapless - donc l'OPCO doit rester symetrique).
     supabase
       .from('contrats')
-      .select('id, npec_amount')
-      .eq('projet_id', projetId)
-      .eq('archive', false),
+      .select('id, npec_amount, archive')
+      .eq('projet_id', projetId),
     supabase
       .from('factures')
       .select('id, montant_ht, montant_ttc, statut')
@@ -316,10 +319,9 @@ export async function getProjetFinance(projetId: string) {
   const factures = facturesRes.data;
   const projet = projetRes.data;
 
-  const production_opco = (contrats ?? []).reduce(
-    (sum, c) => sum + (c.npec_amount ?? 0),
-    0,
-  );
+  const production_opco = (contrats ?? [])
+    .filter((c) => !c.archive)
+    .reduce((sum, c) => sum + (c.npec_amount ?? 0), 0);
 
   // Les factures SOLUVIA sont des factures de commission (base = NPEC x taux) :
   // ce sont des montants cote SOLUVIA, pas cote OPCO.

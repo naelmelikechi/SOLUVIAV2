@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { ExternalLink, ListTodo } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
@@ -54,8 +55,16 @@ export function PlaneTasksCard({ tasks }: { tasks: PlaneTask[] }) {
           <ListTodo className="size-4" />
           Mes tâches (Plane)
         </h2>
-        <span className="text-muted-foreground text-xs tabular-nums">
-          {openCount} ouverte{openCount > 1 ? 's' : ''}
+        <span className="flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground tabular-nums">
+            {openCount} ouverte{openCount > 1 ? 's' : ''}
+          </span>
+          <Link
+            href="/taches"
+            className="text-primary font-medium hover:underline"
+          >
+            Voir tout
+          </Link>
         </span>
       </div>
       <ul className="divide-border divide-y">

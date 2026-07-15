@@ -66,19 +66,87 @@ async function listAll<T>(path: string): Promise<T[]> {
 }
 
 async function findMemberIdByEmail(email: string): Promise<string | null> {
-  const members =
-    await planeFetch<
-      Array<{
-        id?: string;
-        email?: string;
-        member?: { id: string; email: string };
-      }>
-    >('/members/');
+  const members = await planeFetch<
+    Array<{
+      id?: string;
+      email?: string;
+      member?: { id: string; email: string };
+    }>
+  >('/members/');
   for (const m of members) {
     const mm = m.member ?? m;
     if (mm.email?.toLowerCase() === email.toLowerCase()) return mm.id ?? null;
   }
   return null;
+}
+
+export interface PlaneProjectSummary {
+  id: string;
+  identifier: string;
+  name: string;
+}
+
+/** Projets du workspace (pour le formulaire de création de tâche). */
+export async function getPlaneProjectsList(): Promise<
+  PlaneProjectSummary[] | null
+> {
+  if (!planeConfigured()) return null;
+  try {
+    const projects = await listAll<PlaneProject>('/projects/');
+    return projects
+      .map((p) => ({ id: p.id, identifier: p.identifier, name: p.name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  } catch (error) {
+    logger.error('plane.queries', 'getPlaneProjectsList failed', { error });
+    return null;
+  }
+}
+
+export interface PlaneMember {
+  id: string;
+  email: string;
+  displayName: string;
+}
+
+/** Membres du workspace (pour assigner une tâche à la création). */
+export async function getPlaneMembers(): Promise<PlaneMember[] | null> {
+  if (!planeConfigured()) return null;
+  try {
+    const members = await planeFetch<
+      Array<{
+        id?: string;
+        email?: string;
+        display_name?: string;
+        first_name?: string;
+        last_name?: string;
+        member?: {
+          id: string;
+          email: string;
+          display_name?: string;
+          first_name?: string;
+          last_name?: string;
+        };
+      }>
+    >('/members/');
+    return members
+      .map((m) => {
+        const mm = m.member ?? m;
+        if (!mm.id || !mm.email) return null;
+        const fullName = [mm.first_name, mm.last_name]
+          .filter(Boolean)
+          .join(' ');
+        return {
+          id: mm.id,
+          email: mm.email,
+          displayName: fullName || mm.display_name || mm.email,
+        };
+      })
+      .filter((m): m is PlaneMember => m !== null)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'fr'));
+  } catch (error) {
+    logger.error('plane.queries', 'getPlaneMembers failed', { error });
+    return null;
+  }
 }
 
 export interface PlaneProjectStates {

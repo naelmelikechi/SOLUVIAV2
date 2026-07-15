@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import type { ContratNonFacture } from '@/lib/queries/contrats-a-facturer';
 import { supervisionColumns } from './accueil-supervision-columns';
 import { WorklistGrid } from './worklist-grid';
+import { PlaneTasksCard } from './plane-tasks-card';
+import type { PlaneTask } from '@/lib/plane/queries';
 import type { AccueilWorklistItem } from '@/lib/queries/accueil';
 
 // Cellule du bandeau de synthèse, rattachée visuellement à la table qu'elle
@@ -47,10 +49,12 @@ export function AccueilSuperadmin({
   prenom,
   contrats,
   worklist,
+  planeTasks = [],
 }: {
   prenom: string;
   contrats: ContratNonFacture[];
   worklist: AccueilWorklistItem[];
+  planeTasks?: PlaneTask[];
 }) {
   const [selectedContratId, setSelectedContratId] = useState<string | null>(
     null,
@@ -73,6 +77,8 @@ export function AccueilSuperadmin({
         </div>
 
         {worklist.length > 0 && <WorklistGrid items={worklist} />}
+
+        <PlaneTasksCard tasks={planeTasks} />
 
         {/* Supervision : le bandeau de stats et la table qu'il résume vivent
             dans la même Card - une seule unité de lecture. */}

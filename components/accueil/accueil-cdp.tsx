@@ -7,14 +7,18 @@ import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ContratDetailSheet } from '@/components/projets/contrat-detail-sheet';
 import { WorklistGrid } from '@/components/accueil/worklist-grid';
+import { PlaneTasksCard } from '@/components/accueil/plane-tasks-card';
+import type { PlaneTask } from '@/lib/plane/queries';
 import type { AccueilCdpData } from '@/lib/queries/accueil';
 
 export function AccueilCdp({
   prenom,
   data,
+  planeTasks = [],
 }: {
   prenom: string;
   data: AccueilCdpData;
+  planeTasks?: PlaneTask[];
 }) {
   const [selectedContratId, setSelectedContratId] = useState<string | null>(
     null,
@@ -42,6 +46,8 @@ export function AccueilCdp({
       ) : (
         <WorklistGrid items={items} />
       )}
+
+      <PlaneTasksCard tasks={planeTasks} />
 
       {aFacturerPreview.length > 0 && (
         <Card className="p-6">

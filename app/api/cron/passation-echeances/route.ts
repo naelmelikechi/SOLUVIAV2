@@ -3,11 +3,6 @@ import {
   sendCdpSaturationEmail,
   sendTousCdpSaturesEmail,
 } from '@/lib/email/cdp-templates';
-import {
-  sendPassationEscaladeDevEmail,
-  sendPassationEscaladeDirectionEmail,
-  sendPassationRappelReferentEmail,
-} from '@/lib/email/passation-templates';
 import { computeChargeAlertes } from '@/lib/passation/charge-alertes';
 import {
   ECHEANCE_COLONNE,
@@ -29,8 +24,10 @@ const SCOPE = 'cron.passation-echeances';
 
 // CRON : rappels 18h / escalades 48h du workflow de passation (Feature 6).
 // Un seul job Vercel gère les 4 échéances ; idempotence par colonne timestamp.
-// La passation a survécu à la suppression des prospects (Phase 2 CRM) : les
-// synthèses sont client-ancrées et l'UI vit sous /commercial/passations.
+// AUCUN email automatique sur la passation (décision 2026-07-15) : les
+// échéances notifient in-app uniquement, l'envoi du PDF par email est manuel
+// (envoyerSyntheseEmail, destinataires choisis). Les alertes de saturation
+// CDP (plan de charge, F7) conservent leurs emails.
 export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
@@ -53,10 +50,11 @@ export async function GET(request: Request) {
     .map((doc) => ({ doc, dues: echeancesDues(doc, now) }))
     .filter((d) => d.dues.length > 0);
 
-  // Destinataires transverses (une seule requête chacun).
+  // Destinataires transverses (une seule requête chacun). Les emails admins
+  // ne servent qu'aux alertes de saturation CDP, plus aux échéances.
   const { data: referents } = await supabase
     .from('users')
-    .select('id, email')
+    .select('id')
     .eq('referent_cdp', true)
     .eq('actif', true);
   const { data: admins } = await supabase
@@ -64,13 +62,11 @@ export async function GET(request: Request) {
     .select('id, email')
     .in('role', ['admin', 'superadmin'])
     .eq('actif', true);
+  const adminIds = (admins ?? []).map((a) => a.id);
   const adminEmails = (admins ?? [])
     .map((a) => a.email)
     .filter((e): e is string => Boolean(e));
   const referentIds = (referents ?? []).map((r) => r.id);
-  const referentEmails = (referents ?? [])
-    .map((r) => r.email)
-    .filter((e): e is string => Boolean(e));
 
   const compteurs: Record<EcheancePassation, number> = {
     rappel_dev: 0,
@@ -83,9 +79,7 @@ export async function GET(request: Request) {
   for (const { doc, dues } of actionnables) {
     const snapshot = normalizeSnapshot(doc.contenu);
     const nom = snapshot.identite.raisonSociale;
-    const ref = doc.reference_dossier ?? snapshot.meta.referenceDossier;
     const lienApp = `/commercial/passations/${doc.id}`;
-    const lienFiche = `${getAppUrl()}${lienApp}`;
 
     // Le Développeur en charge : genere_par, sinon l'apporteur commercial du
     // client lié (les synthèses du pont CRM sont générées avec genere_par null).
@@ -111,36 +105,23 @@ export async function GET(request: Request) {
             lien: lienApp,
           });
         } else if (due === 'escalade_dev') {
-          const emails = new Set(adminEmails);
-          if (devId) {
-            const { data: dev } = await supabase
-              .from('users')
-              .select('email')
-              .eq('id', devId)
-              .maybeSingle();
-            if (dev?.email) emails.add(dev.email);
-          }
-          if (emails.size > 0) {
-            await sendPassationEscaladeDevEmail({
-              to: [...emails],
-              prospectNom: nom,
-              referenceDossier: ref,
-              lienFiche,
-            });
+          const cibles = new Set([...adminIds, ...(devId ? [devId] : [])]);
+          if (cibles.size > 0) {
+            await supabase.from('notifications').insert(
+              [...cibles].map((uid) => ({
+                user_id: uid,
+                type: 'passation_rappel' as const,
+                titre: 'Synthèse de passation en retard (48h)',
+                message: `La synthèse de ${nom} n'est toujours pas soumise 48h après la signature.`,
+                lien: lienApp,
+              })),
+            );
           }
         } else if (due === 'rappel_referent') {
-          const emails = new Set([...referentEmails, ...adminEmails]);
-          if (emails.size > 0) {
-            await sendPassationRappelReferentEmail({
-              to: [...emails],
-              raisonSociale: nom,
-              referenceDossier: ref,
-              lienFiche,
-            });
-          }
-          if (referentIds.length > 0) {
+          const cibles = new Set([...referentIds, ...adminIds]);
+          if (cibles.size > 0) {
             await supabase.from('notifications').insert(
-              referentIds.map((uid) => ({
+              [...cibles].map((uid) => ({
                 user_id: uid,
                 type: 'passation_rappel' as const,
                 titre: 'Affectation CDP en attente',
@@ -150,13 +131,16 @@ export async function GET(request: Request) {
             );
           }
         } else if (due === 'escalade_direction') {
-          if (adminEmails.length > 0) {
-            await sendPassationEscaladeDirectionEmail({
-              to: adminEmails,
-              raisonSociale: nom,
-              referenceDossier: ref,
-              lienFiche,
-            });
+          if (adminIds.length > 0) {
+            await supabase.from('notifications').insert(
+              adminIds.map((uid) => ({
+                user_id: uid,
+                type: 'passation_rappel' as const,
+                titre: 'Passation sans affectation depuis 48h',
+                message: `La synthèse de ${nom} n'a toujours pas de Chef de Projet affecté 48h après sa création.`,
+                lien: lienApp,
+              })),
+            );
           }
         }
 

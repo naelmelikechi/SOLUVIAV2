@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import { isAdmin } from '@/lib/utils/roles';
 import { resolveAccueilView } from '@/lib/utils/accueil-routing';
 import { getAccueilCdpData } from '@/lib/queries/accueil';
+import { getPlaneTasksForEmail } from '@/lib/plane/queries';
 import { getContratsNonFacturesGlobal } from '@/lib/queries/contrats-a-facturer';
 import { AccueilPageClient } from '@/components/accueil/accueil-page-client';
 import { AccueilCdp } from '@/components/accueil/accueil-cdp';
@@ -32,22 +33,33 @@ export default async function AccueilPage() {
   });
 
   if (view === 'superadmin') {
-    const [contrats, worklist] = await Promise.all([
+    const [contrats, worklist, planeTasks] = await Promise.all([
       getContratsNonFacturesGlobal(),
       getAccueilCdpData(user.id),
+      getPlaneTasksForEmail(user.email),
     ]);
     return (
       <AccueilSuperadmin
         prenom={user.prenom ?? ''}
         contrats={contrats}
         worklist={worklist.items}
+        planeTasks={planeTasks ?? []}
       />
     );
   }
 
   if (view === 'cdp') {
-    const data = await getAccueilCdpData(user.id);
-    return <AccueilCdp prenom={user.prenom ?? ''} data={data} />;
+    const [data, planeTasks] = await Promise.all([
+      getAccueilCdpData(user.id),
+      getPlaneTasksForEmail(user.email),
+    ]);
+    return (
+      <AccueilCdp
+        prenom={user.prenom ?? ''}
+        data={data}
+        planeTasks={planeTasks ?? []}
+      />
+    );
   }
 
   if (view === 'commercial') {

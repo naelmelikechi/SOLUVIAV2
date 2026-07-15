@@ -13,6 +13,7 @@ import {
   type DocumentProps,
 } from '@react-pdf/renderer';
 import { createElement, type ReactElement, type ReactNode } from 'react';
+import { LOGO_SOLUVIA_DATA_URI } from '@/lib/assets/logo-soluvia';
 import type {
   SyntheseSaisies,
   SyntheseSnapshotV2,
@@ -39,7 +40,9 @@ const INK = '#2c2c28';
 const MUTED = '#8c8c86';
 const LINE = '#ebebe7';
 
-const LOGO_SRC = 'public/logo.png';
+// Data URI : le filesystem serverless Vercel n'embarque pas public/logo.png
+// (logo absent des PDFs generes en prod, constat dossier CAP AVENIR 2026-07).
+const LOGO_SRC = LOGO_SOLUVIA_DATA_URI;
 
 const styles = StyleSheet.create({
   page: {

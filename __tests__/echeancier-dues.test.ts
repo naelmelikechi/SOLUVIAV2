@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeEcheancierDues,
+  computeEcheancierUpcoming,
   currentMoisCutoff,
   type EcheancierProjetInput,
   type EcheancierContratInput,
@@ -270,6 +271,97 @@ describe('computeEcheancierDues', () => {
       cutoffMois: '2026-05-01',
     });
     expect(dues).toHaveLength(0);
+  });
+});
+
+describe('computeEcheancierUpcoming', () => {
+  // NPEC 12000 x 10% = 1200, 100/mois en 1/12. date_debut avril 2026 ->
+  // M+1=mai ... cutoff juillet, horizon 3 -> aout, sept, oct (M+4,5,6).
+  it('projette uniquement les mois strictement futurs, dans l horizon', () => {
+    const upcoming = computeEcheancierUpcoming({
+      projets: [projet()],
+      contrats: [contrat()],
+      templates: [DOUZIEMES],
+      cutoffMois: '2026-07-01',
+      monthsAhead: 3,
+    });
+    expect(upcoming.map((d) => [d.moisConcerne, d.montantHt])).toEqual([
+      ['2026-08-01', 100],
+      ['2026-09-01', 100],
+      ['2026-10-01', 100],
+    ]);
+  });
+
+  it('n inclut ni le mois courant (dû) ni au-delà de l horizon', () => {
+    const upcoming = computeEcheancierUpcoming({
+      projets: [projet()],
+      contrats: [contrat()],
+      templates: [DOUZIEMES],
+      cutoffMois: '2026-07-01',
+      monthsAhead: 1,
+    });
+    // Seul aout (M+4). Juillet exclu (dû), sept+ exclu (hors horizon).
+    expect(upcoming.map((d) => d.moisConcerne)).toEqual(['2026-08-01']);
+  });
+
+  it('projection BRUTE : ne déduit pas le déjà-facturé', () => {
+    // Contrairement aux dues, aucun billedByContrat : le montant plein sort.
+    const upcoming = computeEcheancierUpcoming({
+      projets: [projet()],
+      contrats: [contrat()],
+      templates: [DOUZIEMES],
+      cutoffMois: '2026-07-01',
+      monthsAhead: 3,
+    });
+    for (const d of upcoming) expect(d.montantHt).toBe(100);
+  });
+
+  it('ne dépasse pas la durée du contrat', () => {
+    const upcoming = computeEcheancierUpcoming({
+      projets: [projet()],
+      contrats: [contrat({ duree_mois: 5 })],
+      templates: [DOUZIEMES],
+      cutoffMois: '2026-07-01',
+      monthsAhead: 3,
+    });
+    // M+4=aout, M+5=sept existent ; M+6=oct dépasse la durée 5.
+    expect(upcoming.map((d) => d.moisConcerne)).toEqual([
+      '2026-08-01',
+      '2026-09-01',
+    ]);
+  });
+
+  it('exclut contrats rompus, archives, sans date ou sans NPEC', () => {
+    const upcoming = computeEcheancierUpcoming({
+      projets: [projet()],
+      contrats: [
+        contrat({ id: 'k1', contract_state: 'resilie' }),
+        contrat({ id: 'k2', archive: true }),
+        contrat({ id: 'k3', date_debut: null }),
+        contrat({ id: 'k4', npec_amount: 0 }),
+      ],
+      templates: [DOUZIEMES],
+      cutoffMois: '2026-07-01',
+      monthsAhead: 3,
+    });
+    expect(upcoming).toHaveLength(0);
+  });
+
+  it('agrege plusieurs contrats du meme projet par mois futur', () => {
+    const upcoming = computeEcheancierUpcoming({
+      projets: [projet()],
+      contrats: [
+        contrat({ id: 'k1' }),
+        contrat({ id: 'k2', ref: 'CTR-00002', date_debut: '2026-04-01' }),
+      ],
+      templates: [DOUZIEMES],
+      cutoffMois: '2026-07-01',
+      monthsAhead: 1,
+    });
+    expect(upcoming).toHaveLength(1);
+    expect(upcoming[0]!.moisConcerne).toBe('2026-08-01');
+    expect(upcoming[0]!.montantHt).toBe(200);
+    expect(upcoming[0]!.contributions).toHaveLength(2);
   });
 });
 

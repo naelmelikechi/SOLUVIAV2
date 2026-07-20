@@ -106,6 +106,7 @@ interface FacturationPageClientProps {
   brouillons: BrouillonItem[];
   manualProjets: ProjetBillableEvents[];
   echeancierDues: EcheancierDueMois[];
+  echeancierUpcoming: EcheancierDueMois[];
   echeancierProjets: EcheancierProjetOption[];
   echeancierCutoff: string;
   projetsForFacturation: Awaited<ReturnType<typeof listProjetsForFacturation>>;
@@ -121,6 +122,7 @@ export function FacturationPageClient({
   brouillons,
   manualProjets,
   echeancierDues,
+  echeancierUpcoming,
   echeancierProjets,
   echeancierCutoff,
   projetsForFacturation,
@@ -430,6 +432,7 @@ export function FacturationPageClient({
             <EcheancierTab
               projets={echeancierProjets}
               dues={echeancierDues}
+              upcoming={echeancierUpcoming}
               cutoffMois={echeancierCutoff}
             />
           </div>

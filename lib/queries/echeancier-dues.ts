@@ -7,6 +7,7 @@ import { isContratActif } from '@/lib/utils/contrat-states';
 import { round2 } from '@/lib/utils/number';
 import {
   computeJalonContribution,
+  moisAbsoluFromRelatif,
   resolveProjetEcheancier,
   type ContratEcheancierContext,
   type JalonContribution,
@@ -248,8 +249,117 @@ export function computeEcheancierDues(input: {
 }
 
 // ---------------------------------------------------------------------------
+// Projection des échéances À VENIR (jalons futurs) sur un horizon glissant.
+//
+// Contrairement à computeEcheancierDues, on ne déduit PAS le déjà-facturé :
+// c'est une prévision brute de ce qui sera facturé. Les jalons futurs ne sont
+// pas encore couverts (rien n'a été émis pour un mois qui n'est pas arrivé),
+// donc le montant plein du jalon est la bonne projection. On ne renvoie que
+// les mois STRICTEMENT postérieurs au mois courant et <= cutoff + monthsAhead.
+// ---------------------------------------------------------------------------
+export function computeEcheancierUpcoming(input: {
+  projets: EcheancierProjetInput[];
+  contrats: EcheancierContratInput[];
+  templates: EcheancierTemplateInput[];
+  cutoffMois: string;
+  monthsAhead: number;
+}): EcheancierDueMois[] {
+  const { projets, contrats, templates, cutoffMois, monthsAhead } = input;
+  // 1er du mois "cutoff + monthsAhead" : borne haute inclusive de l'horizon.
+  const horizonMois = moisAbsoluFromRelatif(cutoffMois, monthsAhead);
+
+  const contratsByProjet = new Map<string, EcheancierContratInput[]>();
+  for (const c of contrats) {
+    if (!c.projet_id) continue;
+    const arr = contratsByProjet.get(c.projet_id);
+    if (arr) arr.push(c);
+    else contratsByProjet.set(c.projet_id, [c]);
+  }
+
+  const rows: EcheancierDueMois[] = [];
+
+  for (const projet of projets) {
+    const projetContrats = contratsByProjet.get(projet.id) ?? [];
+    if (projetContrats.length === 0) continue;
+
+    const resolved = resolveProjetEcheancier(
+      {
+        echeancier_override: projet.echeancier_override,
+        echeancier_template_id: projet.echeancier_template_id,
+      },
+      templates,
+    );
+    if (resolved.jalons.length === 0) continue;
+
+    const taux = resolveTauxCommission(projet.taux_commission);
+    const byMois = new Map<string, EcheancierDueContribution[]>();
+
+    for (const c of projetContrats) {
+      if (c.archive || !isContratActif(c.contract_state)) continue;
+      if (!c.date_debut || !c.duree_mois) continue;
+
+      const ctx: ContratEcheancierContext = {
+        contrat_id: c.id,
+        npec_amount: Number(c.npec_amount ?? 0),
+        date_debut: c.date_debut,
+        duree_mois: c.duree_mois,
+        archive: c.archive,
+      };
+      const apprenant =
+        `${c.apprenant_prenom ?? ''} ${c.apprenant_nom ?? ''}`.trim();
+
+      for (const jalon of resolved.jalons) {
+        const contrib = computeJalonContribution(ctx, jalon, taux);
+        if (!contrib) continue;
+        // Strictement futur et dans l'horizon.
+        if (contrib.mois_absolu <= cutoffMois) continue;
+        if (contrib.mois_absolu > horizonMois) continue;
+
+        const arr = byMois.get(contrib.mois_absolu) ?? [];
+        arr.push({
+          contratId: c.id,
+          contratRef: c.ref,
+          contractNumber: c.contract_number,
+          apprenant,
+          formationTitre: c.formation_titre,
+          moisRelatif: contrib.mois_relatif,
+          quotePart: contrib.quote_part,
+          npecSnapshot: contrib.npec_snapshot,
+          montantHt: contrib.montant_ht,
+        });
+        byMois.set(contrib.mois_absolu, arr);
+      }
+    }
+
+    for (const [mois, contributions] of byMois) {
+      rows.push({
+        projetId: projet.id,
+        projetRef: projet.ref ?? '',
+        clientId: projet.client_id,
+        clientRaisonSociale: projet.client_raison_sociale,
+        tauxCommission: taux,
+        templateNom: resolved.template_nom ?? null,
+        templateSource: resolved.source,
+        moisConcerne: mois,
+        montantHt: round2(contributions.reduce((s, c) => s + c.montantHt, 0)),
+        contributions,
+      });
+    }
+  }
+
+  return rows.sort(
+    (a, b) =>
+      a.moisConcerne.localeCompare(b.moisConcerne) ||
+      a.projetRef.localeCompare(b.projetRef),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Loader DB
 // ---------------------------------------------------------------------------
+
+/** Horizon (mois) de la projection "À venir" affichée dans l'onglet Échéancier. */
+export const UPCOMING_MONTHS_AHEAD = 3;
 
 /** Client acceptés par le loader : session utilisateur (RLS) ou service role
  *  (cron). Les deux exposent la même API typée Database. */
@@ -265,6 +375,7 @@ type AnySupabase =
 export async function getEcheancierDues(projetId?: string): Promise<{
   hasEcheancierProjets: boolean;
   dues: EcheancierDueMois[];
+  upcoming: EcheancierDueMois[];
 }> {
   return getEcheancierDuesWith(await createClient(), projetId);
 }
@@ -277,6 +388,7 @@ export async function getEcheancierDuesWith(
 ): Promise<{
   hasEcheancierProjets: boolean;
   dues: EcheancierDueMois[];
+  upcoming: EcheancierDueMois[];
 }> {
   let query = supabase
     .from('projets')
@@ -296,7 +408,7 @@ export async function getEcheancierDuesWith(
     logger.error('queries.echeancier-dues', 'projets fetch failed', {
       error: pErr,
     });
-    return { hasEcheancierProjets: false, dues: [] };
+    return { hasEcheancierProjets: false, dues: [], upcoming: [] };
   }
 
   const projets: EcheancierProjetInput[] = (projetsRaw ?? []).flatMap((p) =>
@@ -314,7 +426,8 @@ export async function getEcheancierDuesWith(
         ]
       : [],
   );
-  if (projets.length === 0) return { hasEcheancierProjets: false, dues: [] };
+  if (projets.length === 0)
+    return { hasEcheancierProjets: false, dues: [], upcoming: [] };
 
   const projetIds = projets.map((p) => p.id);
 
@@ -337,25 +450,34 @@ export async function getEcheancierDuesWith(
     logger.error('queries.echeancier-dues', 'contrats fetch failed', {
       error: cErr,
     });
-    return { hasEcheancierProjets: true, dues: [] };
+    return { hasEcheancierProjets: true, dues: [], upcoming: [] };
   }
   const contrats = contratsRaw ?? [];
-  if (contrats.length === 0) return { hasEcheancierProjets: false, dues: [] };
+  if (contrats.length === 0)
+    return { hasEcheancierProjets: false, dues: [], upcoming: [] };
 
   const billedByContrat = await loadBilledByContrat(
     supabase,
     contrats.map((c) => c.id),
   );
 
+  const cutoffMois = currentMoisCutoff();
   const dues = computeEcheancierDues({
     projets,
     contrats,
     templates: templates ?? [],
     billedByContrat,
-    cutoffMois: currentMoisCutoff(),
+    cutoffMois,
+  });
+  const upcoming = computeEcheancierUpcoming({
+    projets,
+    contrats,
+    templates: templates ?? [],
+    cutoffMois,
+    monthsAhead: UPCOMING_MONTHS_AHEAD,
   });
 
-  return { hasEcheancierProjets: true, dues };
+  return { hasEcheancierProjets: true, dues, upcoming };
 }
 
 /**

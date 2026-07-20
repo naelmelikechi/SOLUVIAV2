@@ -39,15 +39,67 @@ interface EcheancierTabProps {
   projets: EcheancierProjetOption[];
   /** Échéances dues, tous projets confondus (filtrées ici par le sélecteur). */
   dues: EcheancierDueMois[];
+  /** Projection des échéances À VENIR (mois futurs, horizon glissant). */
+  upcoming: EcheancierDueMois[];
   /** 1er du mois courant (yyyy-mm-01) : tout mois antérieur est en retard. */
   cutoffMois: string;
 }
 
 const NDASH = '-';
 
+/** Détail contrat par contrat d'une échéance mois (dues ou à venir). */
+function EcheanceContribDetail({ due }: { due: EcheancierDueMois }) {
+  return (
+    <div className="px-10 py-3">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-muted-foreground text-left">
+            <th className="pb-1.5 font-medium">Contrat</th>
+            <th className="pb-1.5 font-medium">Apprenant</th>
+            <th className="pb-1.5 font-medium">Formation</th>
+            <th className="pb-1.5 text-right font-medium">Jalon</th>
+            <th className="pb-1.5 text-right font-medium">HT</th>
+          </tr>
+        </thead>
+        <tbody>
+          {due.contributions.map((c, i) => (
+            <tr
+              key={`${c.contratId}-${c.moisRelatif}`}
+              className={cn(i > 0 && 'border-border/50 border-t')}
+            >
+              <td className="text-muted-foreground py-1 font-mono">
+                {c.contractNumber ?? c.contratRef ?? NDASH}
+              </td>
+              <td className="py-1">{c.apprenant || NDASH}</td>
+              <td className="text-muted-foreground max-w-[280px] truncate py-1">
+                {c.formationTitre ?? NDASH}
+              </td>
+              <td className="py-1 text-right tabular-nums">
+                M+{c.moisRelatif}
+              </td>
+              <td className="py-1 text-right font-mono tabular-nums">
+                {formatCurrency(c.montantHt)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-muted-foreground mt-2 text-[10px]">
+        Commission {due.tauxCommission}%
+        {due.templateNom
+          ? ` - échéancier « ${due.templateNom} »`
+          : due.templateSource === 'override'
+            ? ' - échéancier spécifique au projet'
+            : ''}
+      </p>
+    </div>
+  );
+}
+
 export function EcheancierTab({
   projets,
   dues,
+  upcoming,
   cutoffMois,
 }: EcheancierTabProps) {
   const { refresh } = useRouter();
@@ -64,6 +116,11 @@ export function EcheancierTab({
   const projetDues = useMemo(
     () => dues.filter((d) => d.projetId === selectedProjetId),
     [dues, selectedProjetId],
+  );
+
+  const projetUpcoming = useMemo(
+    () => upcoming.filter((d) => d.projetId === selectedProjetId),
+    [upcoming, selectedProjetId],
   );
 
   const duesCountByProjet = useMemo(() => {
@@ -113,6 +170,7 @@ export function EcheancierTab({
   }
 
   const totalDu = projetDues.reduce((s, d) => s + d.montantHt, 0);
+  const totalUpcoming = projetUpcoming.reduce((s, d) => s + d.montantHt, 0);
   const selectedProjet = projets.find((p) => p.id === selectedProjetId);
 
   return (
@@ -254,65 +312,7 @@ export function EcheancierTab({
                     {isExpanded && (
                       <TableRow className="bg-muted/30 hover:bg-muted/30">
                         <TableCell colSpan={5} className="p-0">
-                          <div className="px-10 py-3">
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="text-muted-foreground text-left">
-                                  <th className="pb-1.5 font-medium">
-                                    Contrat
-                                  </th>
-                                  <th className="pb-1.5 font-medium">
-                                    Apprenant
-                                  </th>
-                                  <th className="pb-1.5 font-medium">
-                                    Formation
-                                  </th>
-                                  <th className="pb-1.5 text-right font-medium">
-                                    Jalon
-                                  </th>
-                                  <th className="pb-1.5 text-right font-medium">
-                                    HT
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {due.contributions.map((c, i) => (
-                                  <tr
-                                    key={`${c.contratId}-${c.moisRelatif}`}
-                                    className={cn(
-                                      i > 0 && 'border-border/50 border-t',
-                                    )}
-                                  >
-                                    <td className="text-muted-foreground py-1 font-mono">
-                                      {c.contractNumber ??
-                                        c.contratRef ??
-                                        NDASH}
-                                    </td>
-                                    <td className="py-1">
-                                      {c.apprenant || NDASH}
-                                    </td>
-                                    <td className="text-muted-foreground max-w-[280px] truncate py-1">
-                                      {c.formationTitre ?? NDASH}
-                                    </td>
-                                    <td className="py-1 text-right tabular-nums">
-                                      M+{c.moisRelatif}
-                                    </td>
-                                    <td className="py-1 text-right font-mono tabular-nums">
-                                      {formatCurrency(c.montantHt)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                            <p className="text-muted-foreground mt-2 text-[10px]">
-                              Commission {due.tauxCommission}%
-                              {due.templateNom
-                                ? ` - échéancier « ${due.templateNom} »`
-                                : due.templateSource === 'override'
-                                  ? ' - échéancier spécifique au projet'
-                                  : ''}
-                            </p>
-                          </div>
+                          <EcheanceContribDetail due={due} />
                         </TableCell>
                       </TableRow>
                     )}
@@ -321,6 +321,93 @@ export function EcheancierTab({
               })}
             </TableBody>
           </Table>
+        </div>
+      )}
+
+      {/* Projection : ce qui arrive et quand (jalons futurs, non encore dus). */}
+      {projetUpcoming.length > 0 && (
+        <div className="mt-6">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-foreground text-sm font-semibold">
+              À venir{' '}
+              <span className="text-muted-foreground font-normal">
+                · prochains 3 mois
+              </span>
+            </h3>
+            <div className="text-muted-foreground text-sm">
+              {'Prévisionnel : '}
+              <span className="text-foreground font-semibold tabular-nums">
+                {formatCurrency(totalUpcoming)}
+              </span>{' '}
+              HT
+            </div>
+          </div>
+          <div className="border-border overflow-x-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8" />
+                  <TableHead>Mois</TableHead>
+                  <TableHead className="text-right">Contrats</TableHead>
+                  <TableHead className="text-right">Montant HT prévu</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {projetUpcoming.map((due) => {
+                  const key = due.moisConcerne;
+                  const isExpanded = expanded.has(key);
+                  return (
+                    <Fragment key={key}>
+                      <TableRow
+                        className="hover:bg-muted/40 cursor-pointer"
+                        onClick={() => toggleExpand(key)}
+                      >
+                        <TableCell>
+                          {isExpanded ? (
+                            <ChevronDown className="text-muted-foreground size-4" />
+                          ) : (
+                            <ChevronRight className="text-muted-foreground size-4" />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">
+                              {formatMoisConcerne(due.moisConcerne)}
+                            </span>
+                            <span className="text-muted-foreground bg-muted inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium">
+                              Prévu
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">
+                          {
+                            new Set(due.contributions.map((c) => c.contratId))
+                              .size
+                          }
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="text-muted-foreground font-mono text-sm font-semibold tabular-nums">
+                            {formatCurrency(due.montantHt)}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell colSpan={4} className="p-0">
+                            <EcheanceContribDetail due={due} />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="text-muted-foreground mt-2 text-[11px]">
+            Projection des jalons à venir. La facturation se prépare depuis le
+            tableau du haut le mois où l&apos;échéance devient due.
+          </p>
         </div>
       )}
     </Card>

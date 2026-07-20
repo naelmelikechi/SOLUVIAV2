@@ -107,6 +107,7 @@ export default async function FacturationPage() {
         brouillons={brouillons}
         manualProjets={manualProjetsEvents}
         echeancierDues={echeancier.dues}
+        echeancierUpcoming={echeancier.upcoming}
         echeancierProjets={echeancierProjetsList}
         echeancierCutoff={currentMoisCutoff()}
         projetsForFacturation={projetsForFacturation}

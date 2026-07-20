@@ -272,18 +272,37 @@ export type ContratRow = Awaited<
   ReturnType<typeof getContratsByProjetId>
 >[number];
 
+// Montant encaisse cote OPCO pour un bordereau Eduvia. Meme semantique
+// "pedago regle" que lib/queries/billable-events/derive.ts : un step est
+// entierement regle si invoice_state = REGLE ou si opco_settled_amount couvre
+// le total (le state peut rester TRANSMIS a cause du premier equipement) ;
+// sinon on compte le reglement partiel.
+export function stepEncaisseOpco(step: {
+  total_amount: number | null;
+  invoice_state: string | null;
+  opco_settled_amount: number | null;
+}): number {
+  const total = step.total_amount ?? 0;
+  if (step.invoice_state === 'REGLE') return total;
+  if (step.opco_settled_amount == null) return 0;
+  return Math.min(step.opco_settled_amount, total);
+}
+
 export async function getProjetFinance(projetId: string) {
   const supabase = await createClient();
 
   // Trois queries independantes lancees en parallele : contrats (production
-  // OPCO), factures (facture/en_retard OPCO), projet (taux_commission). La
-  // 4e (paiements) depend du resultat factures, on la fait apres.
+  // OPCO), factures (facture/en_retard SOLUVIA), projet (taux_commission).
+  // Les deux suivantes (paiements, invoice_steps) dependent des resultats.
   const [contratsRes, facturesRes, projetRes] = await Promise.all([
+    // Contrats SANS filtre archive : la production ne compte que les
+    // non-archives, mais les bordereaux OPCO des contrats archives restent
+    // comptes (les factures SOLUVIA correspondantes existent toujours -
+    // gapless - donc l'OPCO doit rester symetrique).
     supabase
       .from('contrats')
-      .select('id, npec_amount')
-      .eq('projet_id', projetId)
-      .eq('archive', false),
+      .select('id, npec_amount, archive')
+      .eq('projet_id', projetId),
     supabase
       .from('factures')
       .select('id, montant_ht, montant_ttc, statut')
@@ -300,12 +319,13 @@ export async function getProjetFinance(projetId: string) {
   const factures = facturesRes.data;
   const projet = projetRes.data;
 
-  const production_opco = (contrats ?? []).reduce(
-    (sum, c) => sum + (c.npec_amount ?? 0),
-    0,
-  );
+  const production_opco = (contrats ?? [])
+    .filter((c) => !c.archive)
+    .reduce((sum, c) => sum + (c.npec_amount ?? 0), 0);
 
-  const facture_opco = (factures ?? []).reduce(
+  // Les factures SOLUVIA sont des factures de commission (base = NPEC x taux) :
+  // ce sont des montants cote SOLUVIA, pas cote OPCO.
+  const facture_soluvia = (factures ?? []).reduce(
     (sum, f) => sum + (f.montant_ht ?? 0),
     0,
   );
@@ -319,19 +339,46 @@ export async function getProjetFinance(projetId: string) {
       ttc: f.montant_ttc ?? 0,
     });
   }
-  let encaisse_opco = 0;
-  if (factureIds.length > 0) {
-    const { data: paiements } = await supabase
-      .from('paiements')
-      .select('montant, facture_id')
-      .in('facture_id', factureIds);
-    encaisse_opco = (paiements ?? []).reduce((sum, p) => {
-      const r = ratioByFacture.get(p.facture_id as string);
-      return sum + encaisseHt(p.montant ?? 0, r?.ht ?? 0, r?.ttc ?? 0);
-    }, 0);
-  }
 
-  const en_retard = (factures ?? [])
+  const contratIds = (contrats ?? []).map((c) => c.id);
+  const [paiementsRes, stepsRes] = await Promise.all([
+    factureIds.length > 0
+      ? supabase
+          .from('paiements')
+          .select('montant, facture_id')
+          .in('facture_id', factureIds)
+      : Promise.resolve({
+          data: [] as { montant: number | null; facture_id: string }[],
+        }),
+    contratIds.length > 0
+      ? supabase
+          .from('eduvia_invoice_steps')
+          .select('total_amount, invoice_state, opco_settled_amount')
+          .in('contrat_id', contratIds)
+      : Promise.resolve({
+          data: [] as {
+            total_amount: number | null;
+            invoice_state: string | null;
+            opco_settled_amount: number | null;
+          }[],
+        }),
+  ]);
+
+  const encaisse_soluvia = (paiementsRes.data ?? []).reduce((sum, p) => {
+    const r = ratioByFacture.get(p.facture_id as string);
+    return sum + encaisseHt(p.montant ?? 0, r?.ht ?? 0, r?.ttc ?? 0);
+  }, 0);
+
+  // Cote OPCO reel : bordereaux Eduvia emis (TRANSMIS/REGLE) et regles.
+  const steps = stepsRes.data ?? [];
+  const facture_opco = steps
+    .filter(
+      (s) => s.invoice_state === 'TRANSMIS' || s.invoice_state === 'REGLE',
+    )
+    .reduce((sum, s) => sum + (s.total_amount ?? 0), 0);
+  const encaisse_opco = steps.reduce((sum, s) => sum + stepEncaisseOpco(s), 0);
+
+  const en_retard_soluvia = (factures ?? [])
     .filter((f) => f.statut === 'en_retard')
     .reduce((sum, f) => sum + (f.montant_ht ?? 0), 0);
 
@@ -339,7 +386,9 @@ export async function getProjetFinance(projetId: string) {
     production_opco,
     facture_opco,
     encaisse_opco,
-    en_retard,
+    facture_soluvia,
+    encaisse_soluvia,
+    en_retard_soluvia,
     taux_commission: projet?.taux_commission ?? 0,
   };
 }

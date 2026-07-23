@@ -24,6 +24,29 @@ function toArray(v: string | string[] | undefined): string[] {
   return Array.isArray(v) ? v : [v];
 }
 
+// CC systematique interne sur les documents commerciaux (devis + factures,
+// envois initiaux ET relances), pour archivage/suivi. Applique par les
+// fonctions d'envoi devis/facture -- jamais globalement dans sendEmail, pour
+// ne pas polluer les emails RH/onboarding/alertes.
+export const DEFAULT_DOCUMENT_CC = ['iladj@mysoluvia.com'];
+
+/**
+ * Fusionne un CC explicite avec DEFAULT_DOCUMENT_CC.
+ * Dedupe (insensible a la casse) et retire toute adresse deja presente en TO.
+ */
+export function withDefaultCc(to: string[], cc: string[]): string[] {
+  const toKeys = new Set(to.map((e) => e.toLowerCase()));
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const email of [...cc, ...DEFAULT_DOCUMENT_CC]) {
+    const key = email.toLowerCase();
+    if (toKeys.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    result.push(email);
+  }
+  return result;
+}
+
 /**
  * Single entrypoint for all outbound Resend emails.
  *

@@ -7,8 +7,7 @@ import { syncOdoo } from '@/lib/odoo/sync';
 import type { OdooSyncResult } from '@/lib/odoo/sync';
 import { syncAllEduviaClients } from '@/lib/eduvia/sync';
 import type { SyncResult } from '@/lib/eduvia/sync';
-import { getUser } from '@/lib/queries/users';
-import { isAdmin } from '@/lib/utils/roles';
+import { checkAuth } from '@/lib/auth/guards';
 import { logger } from '@/lib/utils/logger';
 import { logAudit } from '@/lib/utils/audit';
 
@@ -18,9 +17,9 @@ export async function pingOdoo(): Promise<{
   error?: string;
 }> {
   try {
-    const user = await getUser();
-    if (!user || !isAdmin(user.role)) {
-      return { success: false, error: 'Non autorisé' };
+    const auth = await checkAuth();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
     const odoo = createOdooClient();
     const result = await odoo.ping();
@@ -39,15 +38,15 @@ export async function triggerOdooSync(): Promise<{
 }> {
   try {
     // Only admins can trigger manual sync
-    const user = await getUser();
-    if (!user || !isAdmin(user.role)) {
-      return { success: false, error: 'Non autorisé' };
+    const auth = await checkAuth();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
 
     const supabase = createAdminClient();
     const results = await syncOdoo(supabase);
 
-    logAudit('sync_odoo', 'system', undefined, results, user.id);
+    logAudit('sync_odoo', 'system', undefined, results, auth.user.id);
 
     return { success: true, results };
   } catch (err) {
@@ -67,15 +66,15 @@ export async function triggerEduviaSync(): Promise<{
   error?: string;
 }> {
   try {
-    const user = await getUser();
-    if (!user || !isAdmin(user.role)) {
-      return { success: false, error: 'Non autorisé' };
+    const auth = await checkAuth();
+    if (!auth.ok) {
+      return { success: false, error: auth.error };
     }
 
     const supabase = createAdminClient();
     const results = await syncAllEduviaClients(supabase);
 
-    logAudit('sync_eduvia', 'system', undefined, results, user.id);
+    logAudit('sync_eduvia', 'system', undefined, results, auth.user.id);
 
     return { success: true, results };
   } catch (err) {

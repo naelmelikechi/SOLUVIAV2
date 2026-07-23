@@ -2,11 +2,9 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { getUser } from '@/lib/queries/users';
+import { checkAuth } from '@/lib/auth/guards';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
-import { isAdmin } from '@/lib/utils/roles';
 
 const SocieteEmettriceSchema = z.object({
   code: z
@@ -49,9 +47,9 @@ type ActionResult<T = object> =
 export async function createSocieteEmettrice(
   input: SocieteEmettriceInput,
 ): Promise<ActionResult<{ id: string }>> {
-  const user = await getUser();
-  if (!isAdmin(user?.role)) {
-    return { success: false, error: 'Accès refusé (admin requis)' };
+  const auth = await checkAuth();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
 
   const parsed = SocieteEmettriceSchema.safeParse(input);
@@ -62,7 +60,7 @@ export async function createSocieteEmettrice(
     };
   }
 
-  const supabase = await createClient();
+  const { supabase } = auth;
   const { data, error } = await supabase
     .from('societes_emettrices')
     .insert({ ...parsed.data, actif: true })
@@ -87,9 +85,9 @@ export async function updateSocieteEmettrice(
   id: string,
   input: Partial<SocieteEmettriceInput>,
 ): Promise<ActionResult> {
-  const user = await getUser();
-  if (!isAdmin(user?.role)) {
-    return { success: false, error: 'Accès refusé (admin requis)' };
+  const auth = await checkAuth();
+  if (!auth.ok) {
+    return { success: false, error: auth.error };
   }
 
   const PartialSchema = SocieteEmettriceSchema.partial();
@@ -101,7 +99,7 @@ export async function updateSocieteEmettrice(
     };
   }
 
-  const supabase = await createClient();
+  const { supabase } = auth;
   const { error } = await supabase
     .from('societes_emettrices')
     .update(parsed.data)

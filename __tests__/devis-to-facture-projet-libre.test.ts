@@ -50,11 +50,13 @@ vi.mock('@/lib/utils/logger', () => ({
 }));
 vi.mock('@/lib/utils/audit', () => ({ logAudit: vi.fn() }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => buildSupabase()),
-}));
-vi.mock('@/lib/queries/users', () => ({
-  getUser: vi.fn(async () => ({ id: 'admin-1', role: 'admin' })),
+vi.mock('@/lib/auth/guards', () => ({
+  checkAuth: vi.fn(async () => ({
+    ok: true,
+    supabase: buildSupabase(),
+    user: { id: 'admin-1' },
+    role: 'admin',
+  })),
 }));
 vi.mock('@/lib/queries/parametres', () => ({
   getDelaiEcheanceJours: vi.fn(async () => 30),

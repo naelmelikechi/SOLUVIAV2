@@ -1,4 +1,4 @@
-import { sendEmail } from '@/lib/email/_send';
+import { sendEmail, withDefaultCc } from '@/lib/email/_send';
 import { getDevisById } from '@/lib/queries/devis';
 import { renderDevisPdfBuffer } from '@/lib/utils/render-devis-pdf';
 import { getAppUrl } from '@/lib/utils/app-url';
@@ -71,7 +71,7 @@ export async function sendDevisEmail(p: SendDevisParams): Promise<void> {
   const result = await sendEmail({
     from: FROM,
     to: recipients,
-    cc: p.cc,
+    cc: withDefaultCc(recipients, p.cc ?? []),
     replyTo: devis.societe_emettrice.email_contact,
     subject,
     html,
@@ -205,6 +205,7 @@ export async function sendDevisRelanceEmail(p: RelanceParams): Promise<void> {
   await sendEmail({
     from: FROM,
     to,
+    cc: withDefaultCc(to, []),
     subject,
     html,
     replyTo: devis.societe_emettrice.email_contact,

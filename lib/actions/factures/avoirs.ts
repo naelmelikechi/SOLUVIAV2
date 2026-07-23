@@ -168,7 +168,7 @@ export async function createAvoir(params: {
   const { data: origine, error: origineError } = await supabase
     .from('factures')
     .select(
-      'id, ref, projet_id, client_id, mois_concerne, montant_ht, taux_tva, statut, est_avoir',
+      'id, ref, projet_id, client_id, mois_concerne, montant_ht, taux_tva, statut, est_avoir, societe_emettrice_id',
     )
     .eq('id', factureOrigineId)
     .single();
@@ -283,7 +283,10 @@ export async function createAvoir(params: {
   // L'avoir est cree en BROUILLON (statut 'a_emettre' + est_avoir=true).
   // Le user doit le verifier puis l'envoyer via sendFacture, ce qui
   // transitionnera le statut vers 'avoir' et attribuera le ref final.
-  const societeEmettriceId = await getDefaultSocieteEmettriceId();
+  // Societe emettrice : celle de la facture d'origine (un avoir DIGIVIA ne
+  // doit pas sortir au nom de SOLUVIA) ; fallback defaut pour l'historique.
+  const societeEmettriceId =
+    origine.societe_emettrice_id ?? (await getDefaultSocieteEmettriceId());
   const { data: avoir, error: insertError } = await supabase
     .from('factures')
     .insert({

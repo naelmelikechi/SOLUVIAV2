@@ -1,6 +1,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { env } from '@/lib/env';
+import { logger } from '@/lib/utils/logger';
 
 // Rate limiter pour les endpoints sensibles (login, password reset).
 //
@@ -60,6 +61,23 @@ export interface RateLimitResult {
   retryAfter?: number;
 }
 
+// Le fail-open est un choix assume (disponibilite > protection), mais il doit
+// etre VISIBLE : sans alerte, une protection brute-force absente en prod
+// (env vars Upstash supprimees, Redis HS) passerait inapercue. Une seule
+// alerte par instance pour ne pas spammer Sentry.
+let failOpenAlerted = false;
+
+function alertFailOpen(reason: string, err?: unknown): void {
+  if (failOpenAlerted || process.env.NODE_ENV !== 'production') return;
+  failOpenAlerted = true;
+  // logger.error forwarde a Sentry (cf. lib/utils/logger.ts).
+  logger.error(
+    'rate-limit',
+    `Rate limit en fail-open (${reason}) : protection brute-force inactive`,
+    { error: err },
+  );
+}
+
 /**
  * Verifie le rate limit pour une cle donnee (typiquement l'IP du client
  * combinee avec l'email entre). Fail-open: si Redis est hors service ou
@@ -71,15 +89,19 @@ export async function checkRateLimit(
   opts: { limit: number; windowSeconds: number },
 ): Promise<RateLimitResult> {
   const limiter = getLimiter(key, opts.limit, opts.windowSeconds);
-  if (!limiter) return { limited: false };
+  if (!limiter) {
+    alertFailOpen('Upstash non configure');
+    return { limited: false };
+  }
 
   try {
     const { success, reset } = await limiter.limit(identifier);
     if (success) return { limited: false };
     const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000));
     return { limited: true, retryAfter };
-  } catch {
+  } catch (err) {
     // Indisponibilite Upstash: on ne casse pas l'auth.
+    alertFailOpen('Upstash injoignable', err);
     return { limited: false };
   }
 }

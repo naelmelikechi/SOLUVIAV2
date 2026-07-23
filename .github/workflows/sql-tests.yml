@@ -81,7 +81,8 @@ jobs:
       # Garde-fou anti-drift : compare les colonnes prod (pg-meta Supavia) au
       # schema local issu des migrations. Une colonne presente en prod mais
       # absente des migrations casserait `gen types --local` (cas vecu :
-      # contrats.support). Skip silencieux si les secrets sont absents.
+      # contrats.support). Echec BRUYANT si les secrets sont absents : un
+      # secret supprime/renomme rendrait sinon le check inoperant sans signal.
       # NB : sur push main ce step court en parallele du workflow migrate ;
       # une migration DESTRUCTIVE (DROP COLUMN) peut donner un faux positif
       # le temps que migrate applique - re-run du job apres migrate = vert.
@@ -92,8 +93,8 @@ jobs:
           SUPAVIA_DASHBOARD_PASSWORD: ${{ secrets.SUPAVIA_DASHBOARD_PASSWORD }}
         run: |
           if [ -z "$SUPAVIA_DASHBOARD_USER" ]; then
-            echo "Secrets Supavia absents - drift check skipped."
-            exit 0
+            echo "::error::Secrets Supavia absents (SUPAVIA_API_URL / SUPAVIA_DASHBOARD_USER / SUPAVIA_DASHBOARD_PASSWORD) - le drift check ne peut pas tourner."
+            exit 1
           fi
           npx --yes tsx scripts/check-schema-drift.ts
 

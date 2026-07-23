@@ -54,6 +54,12 @@ describe('factureContenuLabel', () => {
     ).toBe('Échéances');
   });
 
+  it('Échéance (générique) si step 0 - step Eduvia non numéroté', () => {
+    expect(
+      factureContenuLabel([{ event_type: 'opco_step', mois_relatif: 0 }]),
+    ).toBe('Échéance');
+  });
+
   it('Mixte si engagement + échéances', () => {
     expect(
       factureContenuLabel([

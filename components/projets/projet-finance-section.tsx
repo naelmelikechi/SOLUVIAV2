@@ -138,10 +138,10 @@ export function ProjetFinanceSection({
         {(finance.facture_soluvia_engagement > 0 ||
           finance.facture_soluvia_echeances > 0) && (
           <div className="text-muted-foreground mt-2 text-center text-[11px] tabular-nums">
-            dont Engagement (étape 1) :{' '}
+            dont facturation à l&apos;engagement : étape 1{' '}
             {formatCurrency(finance.facture_soluvia_engagement)}
             {' - '}
-            Échéances : {formatCurrency(finance.facture_soluvia_echeances)}
+            échéances {formatCurrency(finance.facture_soluvia_echeances)}
           </div>
         )}
       </div>

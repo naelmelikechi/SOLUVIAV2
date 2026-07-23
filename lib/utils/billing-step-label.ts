@@ -40,8 +40,10 @@ export function factureContenuLabel(
   if (hasEngagement && steps.size > 0) return 'Mixte';
   if (hasEngagement) return 'Engagement';
   if (steps.size === 1) {
+    // step 0 = mois_relatif de repli quand le step Eduvia n'est pas numerote :
+    // on retombe sur le libelle generique, "Échéance n°0" n'existe pas.
     const step = [...steps][0];
-    return step != null ? `Échéance n°${step}` : 'Échéance';
+    return step ? `Échéance n°${step}` : 'Échéance';
   }
   return 'Échéances';
 }

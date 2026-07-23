@@ -18,6 +18,7 @@ import {
   STATUT_FACTURE_COLORS,
 } from '@/lib/utils/constants';
 import { getPeppolStateBadge } from '@/lib/odoo/peppol-state';
+import { factureContenuLabel } from '@/lib/utils/billing-step-label';
 import { textFilterFn } from '@/lib/utils/table-filters';
 
 export function createFactureListColumns(
@@ -119,10 +120,18 @@ export function createFactureListColumns(
       size: 80,
       cell: ({ row }) => {
         const isProjet = row.original.projet !== null;
+        const contenu = factureContenuLabel(row.original.lignes ?? []);
         return (
-          <Badge variant={isProjet ? 'outline' : 'secondary'}>
-            {isProjet ? 'Projet' : 'Libre'}
-          </Badge>
+          <div className="flex flex-col items-start gap-1">
+            <Badge variant={isProjet ? 'outline' : 'secondary'}>
+              {isProjet ? 'Projet' : 'Libre'}
+            </Badge>
+            {contenu && (
+              <span className="text-muted-foreground text-[10px]">
+                {contenu}
+              </span>
+            )}
+          </div>
         );
       },
     },

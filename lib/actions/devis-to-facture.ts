@@ -2,11 +2,9 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { getUser } from '@/lib/queries/users';
+import { checkAuth } from '@/lib/auth/guards';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
-import { isAdmin } from '@/lib/utils/roles';
 import { getDevisById } from '@/lib/queries/devis';
 import { addDaysIso } from '@/lib/utils/dates';
 import { getDelaiEcheanceJours } from '@/lib/queries/parametres';
@@ -37,9 +35,8 @@ type LignePayload = {
 export async function createFactureFromDevis(
   input: CreateFactureFromDevisInput,
 ): Promise<Result<{ factureId: string }>> {
-  const user = await getUser();
-  if (!isAdmin(user?.role))
-    return { success: false, error: 'Accès refusé (admin requis)' };
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
 
   const parsed = CreateFactureFromDevisSchema.safeParse(input);
   if (!parsed.success)
@@ -61,7 +58,7 @@ export async function createFactureFromDevis(
       error: 'Devis incomplet (client ou société manquant)',
     };
 
-  const supabase = await createClient();
+  const { supabase } = auth;
 
   // Invariant "aucune facture sans projet" : la table devis n'a pas de lien
   // projet -> on rattache au projet libre du client du devis.

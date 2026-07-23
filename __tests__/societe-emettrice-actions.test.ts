@@ -1,19 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    from: vi.fn(() => ({
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn(async () => ({ data: { id: 'new-id' }, error: null })),
+vi.mock('@/lib/auth/guards', () => ({
+  checkAuth: vi.fn(async () => ({
+    ok: true,
+    supabase: {
+      from: vi.fn(() => ({
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(async () => ({
+              data: { id: 'new-id' },
+              error: null,
+            })),
+          })),
         })),
       })),
-    })),
+    },
+    user: { id: 'u1' },
+    role: 'admin',
   })),
-}));
-
-vi.mock('@/lib/queries/users', () => ({
-  getUser: vi.fn(async () => ({ id: 'u1', role: 'admin' })),
 }));
 
 vi.mock('@/lib/utils/audit', () => ({

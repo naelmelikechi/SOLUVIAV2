@@ -2,11 +2,9 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { getUser } from '@/lib/queries/users';
+import { checkAuth } from '@/lib/auth/guards';
 import { logAudit } from '@/lib/utils/audit';
 import { logger } from '@/lib/utils/logger';
-import { isAdmin } from '@/lib/utils/roles';
 import { computeLigneTotaux } from '@/lib/utils/devis-totals';
 import { getDefaultSocieteEmettriceId } from '@/lib/queries/societes-emettrices';
 
@@ -37,9 +35,8 @@ export type CreateDevisInput = z.input<typeof CreateDevisSchema>;
 export async function createDevis(
   input: CreateDevisInput,
 ): Promise<Result<{ id: string }>> {
-  const user = await getUser();
-  if (!isAdmin(user?.role))
-    return { success: false, error: 'Accès refusé (admin requis)' };
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
 
   const parsed = CreateDevisSchema.safeParse(input);
   if (!parsed.success)
@@ -48,7 +45,7 @@ export async function createDevis(
       error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
 
-  const supabase = await createClient();
+  const { supabase } = auth;
   const societeId =
     parsed.data.societe_emettrice_id ?? (await getDefaultSocieteEmettriceId());
 
@@ -76,7 +73,7 @@ export async function createDevis(
       date_validite: dateValidite,
       conditions_reglement: parsed.data.conditions_reglement,
       notes_internes: parsed.data.notes_internes,
-      created_by: user!.id,
+      created_by: auth.user.id,
     })
     .select('id')
     .single();
@@ -119,15 +116,15 @@ export async function addLigne(
   devisId: string,
   ligne: z.input<typeof LigneSchema>,
 ): Promise<Result<{ id: string }>> {
-  const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
   const parsed = LigneSchema.safeParse(ligne);
   if (!parsed.success)
     return {
       success: false,
       error: parsed.error.issues[0]?.message ?? 'Ligne invalide',
     };
-  const supabase = await createClient();
+  const { supabase } = auth;
   // Determine prochain ordre
   const { data: maxOrdre } = await supabase
     .from('devis_lignes')
@@ -162,15 +159,15 @@ export async function updateLigne(
   ligneId: string,
   input: z.input<typeof LigneSchema>,
 ): Promise<Result> {
-  const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
   const parsed = LigneSchema.safeParse(input);
   if (!parsed.success)
     return {
       success: false,
       error: parsed.error.issues[0]?.message ?? 'Ligne invalide',
     };
-  const supabase = await createClient();
+  const { supabase } = auth;
   const totaux = computeLigneTotaux(parsed.data);
   const { error } = await supabase
     .from('devis_lignes')
@@ -189,9 +186,9 @@ export async function updateLigne(
 }
 
 export async function deleteLigne(ligneId: string): Promise<Result> {
-  const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
-  const supabase = await createClient();
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
   const { error } = await supabase
     .from('devis_lignes')
     .delete()
@@ -205,9 +202,9 @@ export async function sendDevis(
   devisId: string,
   _opts?: { to?: string[]; cc?: string[] },
 ): Promise<Result<{ ref: string }>> {
-  const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
-  const supabase = await createClient();
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
   // 1. Bascule statut a envoye (triggers : alloue ref + token)
   const { data: updated, error: updErr } = await supabase
     .from('devis')
@@ -243,9 +240,9 @@ export async function sendDevis(
 }
 
 export async function cancelDevis(devisId: string): Promise<Result> {
-  const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
-  const supabase = await createClient();
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase } = auth;
   const { error } = await supabase
     .from('devis')
     .update({ statut: 'annule' })
@@ -260,10 +257,10 @@ export async function cancelDevis(devisId: string): Promise<Result> {
 export async function reviseDevis(
   devisId: string,
 ): Promise<Result<{ newDevisId: string }>> {
-  const user = await getUser();
-  if (!isAdmin(user?.role)) return { success: false, error: 'Accès refusé' };
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
 
-  const supabase = await createClient();
+  const { supabase } = auth;
   const { data: oldDevis, error: oldErr } = await supabase
     .from('devis')
     .select('*, lignes:devis_lignes(*)')
@@ -286,7 +283,7 @@ export async function reviseDevis(
       notes_internes: oldDevis.notes_internes,
       devis_parent_id: oldDevis.id,
       version: (oldDevis.version ?? 1) + 1,
-      created_by: user!.id,
+      created_by: auth.user.id,
     })
     .select('id')
     .single();

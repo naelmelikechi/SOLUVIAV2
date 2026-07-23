@@ -342,7 +342,7 @@ export async function getProjetFinance(projetId: string) {
   }
 
   const contratIds = (contrats ?? []).map((c) => c.id);
-  const [paiementsRes, stepsRes] = await Promise.all([
+  const [paiementsRes, stepsRes, lignesRes] = await Promise.all([
     factureIds.length > 0
       ? supabase
           .from('paiements')
@@ -362,6 +362,16 @@ export async function getProjetFinance(projetId: string) {
             invoice_state: string | null;
             opco_settled_amount: number | null;
           }[],
+        }),
+    // Split engagement / echeances du "Facturé" SOLUVIA (memes factures que
+    // facture_soluvia : emise/payee/en_retard, avoirs exclus par le statut).
+    factureIds.length > 0
+      ? supabase
+          .from('facture_lignes')
+          .select('event_type, montant_ht')
+          .in('facture_id', factureIds)
+      : Promise.resolve({
+          data: [] as { event_type: string | null; montant_ht: number }[],
         }),
   ]);
 
@@ -383,11 +393,24 @@ export async function getProjetFinance(projetId: string) {
     .filter((f) => f.statut === 'en_retard')
     .reduce((sum, f) => sum + (f.montant_ht ?? 0), 0);
 
+  // Repartition du facture SOLUVIA par type d'event (facturation a
+  // l'engagement) : etape 1 vs echeances OPCO. Les lignes sans event_type
+  // (manuelles/libres) ne rentrent dans aucun des deux buckets.
+  const lignesEvents = lignesRes.data ?? [];
+  const facture_soluvia_engagement = lignesEvents
+    .filter((l) => l.event_type === 'engagement')
+    .reduce((sum, l) => sum + (l.montant_ht ?? 0), 0);
+  const facture_soluvia_echeances = lignesEvents
+    .filter((l) => l.event_type === 'opco_step')
+    .reduce((sum, l) => sum + (l.montant_ht ?? 0), 0);
+
   return {
     production_opco,
     facture_opco,
     encaisse_opco,
     facture_soluvia,
+    facture_soluvia_engagement,
+    facture_soluvia_echeances,
     encaisse_soluvia,
     en_retard_soluvia,
     taux_commission: projet?.taux_commission ?? 0,

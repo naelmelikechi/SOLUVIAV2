@@ -26,8 +26,8 @@ export function ProjetTempsSection({
 }) {
   if (!temps || (temps.total === 0 && temps.totalAnnee === 0)) {
     return (
-      <Card className="p-6">
-        <h3 className="mb-2 text-sm font-semibold">Temps</h3>
+      <Card className="flex-row items-center justify-between p-4">
+        <h3 className="text-sm font-semibold">Temps</h3>
         <p className="text-muted-foreground text-sm">
           Aucune saisie cette année
         </p>

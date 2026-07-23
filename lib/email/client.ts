@@ -2,7 +2,7 @@ import { logger } from '@/lib/utils/logger';
 import { formatDate } from '@/lib/utils/formatters';
 import { escapeHtml } from '@/lib/utils/escape-html';
 import { buildFactureEmailHtml } from '@/lib/email/templates';
-import { sendEmail } from '@/lib/email/_send';
+import { sendEmail, withDefaultCc } from '@/lib/email/_send';
 import { renderFacturePdfBuffer } from '@/lib/utils/render-facture-pdf';
 import { getEmetteurInfo, type EmetteurInfo } from '@/lib/queries/parametres';
 import { getAppUrl } from '@/lib/utils/app-url';
@@ -10,10 +10,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
 const FROM_FACTURATION = 'SOLUVIA Facturation <contact@mysoluvia.com>';
-
-// CC systematique sur TOUS les envois de facturation (factures + relances),
-// pour archivage/suivi interne. Applique par resolveFactureRecipients.
-const DEFAULT_FACTURE_CC = ['iladj@mysoluvia.com'];
 
 const eurFormatter = new Intl.NumberFormat('fr-FR', {
   style: 'currency',
@@ -52,23 +48,6 @@ async function sendFactureEmail(params: {
 }
 
 /**
- * Fusionne le CC resolu avec le CC systematique DEFAULT_FACTURE_CC.
- * Dedupe (insensible a la casse) et retire toute adresse deja presente en TO.
- */
-function withDefaultCc(to: string[], cc: string[]): string[] {
-  const toKeys = new Set(to.map((e) => e.toLowerCase()));
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const email of [...cc, ...DEFAULT_FACTURE_CC]) {
-    const key = email.toLowerCase();
-    if (toKeys.has(key) || seen.has(key)) continue;
-    seen.add(key);
-    result.push(email);
-  }
-  return result;
-}
-
-/**
  * Resout les destinataires (TO + CC) pour un client donne.
  *
  * 1. Si override.to fourni -> override total (utilise pour dialog manuel).
@@ -77,7 +56,7 @@ function withDefaultCc(to: string[], cc: string[]): string[] {
  *    - CC = contacts avec recoit_factures_cc = true
  * 3. Fallback : si aucun contact flagge, prend le premier contact avec email
  *    (preserve comportement historique).
- * 4. CC systematique : DEFAULT_FACTURE_CC est toujours ajoute en copie.
+ * 4. CC systematique : DEFAULT_DOCUMENT_CC est toujours ajoute en copie.
  */
 async function resolveFactureRecipients(
   clientId: string,

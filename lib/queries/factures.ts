@@ -15,6 +15,7 @@ const FACTURES_LIST_SELECT = `
       id, ref, numero_seq, date_emission, date_echeance, mois_concerne,
       montant_ht, taux_tva, montant_tva, montant_ttc,
       statut, est_avoir, avoir_motif, facture_origine_id, peppol_state,
+      lignes:facture_lignes(event_type, mois_relatif),
       projet:projets!factures_projet_id_fkey!inner(id, ref),
       client:clients!factures_client_id_fkey!inner(id, trigramme, raison_sociale, is_demo, archive)
     ` as const;
@@ -46,6 +47,9 @@ export interface FactureListItem {
   avoir_motif: FactureRow['avoir_motif'];
   facture_origine_id: FactureRow['facture_origine_id'];
   peppol_state: FactureRow['peppol_state'];
+  // Lignes minimales pour le badge Contenu (Engagement / Échéance n°N / Mixte)
+  // de la liste. Voir lib/utils/billing-step-label.ts (factureContenuLabel).
+  lignes: Array<{ event_type: string | null; mois_relatif: number | null }>;
   projet: Pick<ProjetRow, 'id' | 'ref'> | null;
   client: Pick<
     ClientRow,

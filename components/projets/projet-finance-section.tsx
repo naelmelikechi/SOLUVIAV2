@@ -135,6 +135,15 @@ export function ProjetFinanceSection({
             color="text-primary"
           />
         </div>
+        {(finance.facture_soluvia_engagement > 0 ||
+          finance.facture_soluvia_echeances > 0) && (
+          <div className="text-muted-foreground mt-2 text-center text-[11px] tabular-nums">
+            dont facturation à l&apos;engagement : étape 1{' '}
+            {formatCurrency(finance.facture_soluvia_engagement)}
+            {' - '}
+            échéances {formatCurrency(finance.facture_soluvia_echeances)}
+          </div>
+        )}
       </div>
 
       {/* RAF / RAE / En retard - commission SOLUVIA */}

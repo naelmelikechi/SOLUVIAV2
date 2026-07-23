@@ -14,6 +14,7 @@ import type {
   BillableEvent,
 } from '@/lib/queries/billable-events';
 import { ttcToHt } from '@/lib/utils/montant-ht';
+import { billingStepLabel } from '@/lib/utils/billing-step-label';
 import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 
 import { Card } from '@/components/ui/card';
@@ -630,7 +631,10 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                           <TableCell>
                             {e.type === 'engagement' ? (
                               <div className="flex flex-col gap-0.5">
-                                <StatusBadge label="Engagement" color="green" />
+                                <StatusBadge
+                                  label={billingStepLabel('engagement', null)}
+                                  color="green"
+                                />
                                 {e.step_opening_date ? (
                                   <span className="text-muted-foreground text-[10px]">
                                     {formatDate(e.step_opening_date)}
@@ -640,7 +644,10 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                             ) : (
                               <div className="flex flex-col gap-0.5">
                                 <StatusBadge
-                                  label={`OPCO${stepSuffix}`}
+                                  label={billingStepLabel(
+                                    'opco_step',
+                                    e.step_number,
+                                  )}
                                   color="blue"
                                 />
                                 {e.step_opening_date ? (

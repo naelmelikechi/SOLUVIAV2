@@ -7,6 +7,632 @@ export type Json =
   | Json[];
 
 export type Database = {
+  crm: {
+    Tables: {
+      activites: {
+        Row: {
+          auteur_id: string | null;
+          compte_id: string | null;
+          contenu: string;
+          created_at: string;
+          id: string;
+          opportunite_id: string | null;
+          type: string;
+        };
+        Insert: {
+          auteur_id?: string | null;
+          compte_id?: string | null;
+          contenu: string;
+          created_at?: string;
+          id?: string;
+          opportunite_id?: string | null;
+          type?: string;
+        };
+        Update: {
+          auteur_id?: string | null;
+          compte_id?: string | null;
+          contenu?: string;
+          created_at?: string;
+          id?: string;
+          opportunite_id?: string | null;
+          type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'activites_compte_id_fkey';
+            columns: ['compte_id'];
+            isOneToOne: false;
+            referencedRelation: 'comptes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'activites_opportunite_id_fkey';
+            columns: ['opportunite_id'];
+            isOneToOne: false;
+            referencedRelation: 'opportunites';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      adresses: {
+        Row: {
+          compte_id: string;
+          created_at: string;
+          departement: string | null;
+          id: string;
+          libelle: string | null;
+          principal: boolean;
+          region: string | null;
+          ville: string | null;
+        };
+        Insert: {
+          compte_id: string;
+          created_at?: string;
+          departement?: string | null;
+          id?: string;
+          libelle?: string | null;
+          principal?: boolean;
+          region?: string | null;
+          ville?: string | null;
+        };
+        Update: {
+          compte_id?: string;
+          created_at?: string;
+          departement?: string | null;
+          id?: string;
+          libelle?: string | null;
+          principal?: boolean;
+          region?: string | null;
+          ville?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'adresses_compte_id_fkey';
+            columns: ['compte_id'];
+            isOneToOne: false;
+            referencedRelation: 'comptes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      comptes: {
+        Row: {
+          adresse: string | null;
+          ca_dernier_exercice: number | null;
+          code_naf: string | null;
+          created_at: string;
+          effectif_tranche: string | null;
+          forme_juridique: string | null;
+          id: string;
+          insee_verifie: boolean;
+          naf_libelle: string | null;
+          nb_implantations: number | null;
+          nom: string;
+          nombre_collaborateurs: number | null;
+          notes: string | null;
+          responsable_id: string | null;
+          secteur: string | null;
+          siren: string | null;
+          siret: string | null;
+          site_web: string | null;
+          source: string | null;
+          statut: string;
+          telephone: string | null;
+          updated_at: string;
+          ville: string | null;
+        };
+        Insert: {
+          adresse?: string | null;
+          ca_dernier_exercice?: number | null;
+          code_naf?: string | null;
+          created_at?: string;
+          effectif_tranche?: string | null;
+          forme_juridique?: string | null;
+          id?: string;
+          insee_verifie?: boolean;
+          naf_libelle?: string | null;
+          nb_implantations?: number | null;
+          nom: string;
+          nombre_collaborateurs?: number | null;
+          notes?: string | null;
+          responsable_id?: string | null;
+          secteur?: string | null;
+          siren?: string | null;
+          siret?: string | null;
+          site_web?: string | null;
+          source?: string | null;
+          statut?: string;
+          telephone?: string | null;
+          updated_at?: string;
+          ville?: string | null;
+        };
+        Update: {
+          adresse?: string | null;
+          ca_dernier_exercice?: number | null;
+          code_naf?: string | null;
+          created_at?: string;
+          effectif_tranche?: string | null;
+          forme_juridique?: string | null;
+          id?: string;
+          insee_verifie?: boolean;
+          naf_libelle?: string | null;
+          nb_implantations?: number | null;
+          nom?: string;
+          nombre_collaborateurs?: number | null;
+          notes?: string | null;
+          responsable_id?: string | null;
+          secteur?: string | null;
+          siren?: string | null;
+          siret?: string | null;
+          site_web?: string | null;
+          source?: string | null;
+          statut?: string;
+          telephone?: string | null;
+          updated_at?: string;
+          ville?: string | null;
+        };
+        Relationships: [];
+      };
+      contacts: {
+        Row: {
+          compte_id: string;
+          created_at: string;
+          email: string | null;
+          fonction: string | null;
+          id: string;
+          nom: string | null;
+          notes: string | null;
+          prenom: string | null;
+          principal: boolean;
+          role_decision: string | null;
+          sensibilites: string | null;
+          telephone: string | null;
+        };
+        Insert: {
+          compte_id: string;
+          created_at?: string;
+          email?: string | null;
+          fonction?: string | null;
+          id?: string;
+          nom?: string | null;
+          notes?: string | null;
+          prenom?: string | null;
+          principal?: boolean;
+          role_decision?: string | null;
+          sensibilites?: string | null;
+          telephone?: string | null;
+        };
+        Update: {
+          compte_id?: string;
+          created_at?: string;
+          email?: string | null;
+          fonction?: string | null;
+          id?: string;
+          nom?: string | null;
+          notes?: string | null;
+          prenom?: string | null;
+          principal?: boolean;
+          role_decision?: string | null;
+          sensibilites?: string | null;
+          telephone?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'contacts_compte_id_fkey';
+            columns: ['compte_id'];
+            isOneToOne: false;
+            referencedRelation: 'comptes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      etapes: {
+        Row: {
+          actif: boolean;
+          couleur: string;
+          created_at: string;
+          id: string;
+          libelle: string;
+          ordre: number;
+          type: string;
+        };
+        Insert: {
+          actif?: boolean;
+          couleur?: string;
+          created_at?: string;
+          id?: string;
+          libelle: string;
+          ordre?: number;
+          type?: string;
+        };
+        Update: {
+          actif?: boolean;
+          couleur?: string;
+          created_at?: string;
+          id?: string;
+          libelle?: string;
+          ordre?: number;
+          type?: string;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          actor_id: string | null;
+          contenu: string;
+          created_at: string;
+          id: string;
+          link: string | null;
+          lu: boolean;
+          type: string;
+          user_id: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          contenu: string;
+          created_at?: string;
+          id?: string;
+          link?: string | null;
+          lu?: boolean;
+          type: string;
+          user_id: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          contenu?: string;
+          created_at?: string;
+          id?: string;
+          link?: string | null;
+          lu?: boolean;
+          type?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      opportunites: {
+        Row: {
+          alerte_sante_14_at: string | null;
+          alerte_sante_30_at: string | null;
+          calendrier_previsionnel: Json | null;
+          canal_origine: string | null;
+          cfa: string | null;
+          client_id: string | null;
+          compte_id: string;
+          contact_principal_id: string | null;
+          created_at: string;
+          date_cible_prochain_rdv: string | null;
+          date_cloture_prevue: string | null;
+          date_demarrage_souhaitee: string | null;
+          date_premier_contact: string | null;
+          duree_contrat_ans: number | null;
+          etape_id: string;
+          formation_visee: string | null;
+          formations_rncp: string[];
+          historique_synthese: string | null;
+          id: string;
+          initiateur: string | null;
+          intitule: string;
+          leviers: string[];
+          mois_demarrage: number | null;
+          montant: number | null;
+          motif_perte: string | null;
+          nb_alternants: number | null;
+          numero_contrat: string | null;
+          owner_id: string | null;
+          perimetre_missions: string | null;
+          probabilite: number | null;
+          source: string | null;
+          statut: string;
+          taux_npec: number | null;
+          type_formation: string | null;
+          type_prospect: string | null;
+          updated_at: string;
+          volume_an1: number | null;
+          volume_an2: number | null;
+          volume_an3: number | null;
+          volume_garanti_seuil: number | null;
+        };
+        Insert: {
+          alerte_sante_14_at?: string | null;
+          alerte_sante_30_at?: string | null;
+          calendrier_previsionnel?: Json | null;
+          canal_origine?: string | null;
+          cfa?: string | null;
+          client_id?: string | null;
+          compte_id: string;
+          contact_principal_id?: string | null;
+          created_at?: string;
+          date_cible_prochain_rdv?: string | null;
+          date_cloture_prevue?: string | null;
+          date_demarrage_souhaitee?: string | null;
+          date_premier_contact?: string | null;
+          duree_contrat_ans?: number | null;
+          etape_id: string;
+          formation_visee?: string | null;
+          formations_rncp?: string[];
+          historique_synthese?: string | null;
+          id?: string;
+          initiateur?: string | null;
+          intitule: string;
+          leviers?: string[];
+          mois_demarrage?: number | null;
+          montant?: number | null;
+          motif_perte?: string | null;
+          nb_alternants?: number | null;
+          numero_contrat?: string | null;
+          owner_id?: string | null;
+          perimetre_missions?: string | null;
+          probabilite?: number | null;
+          source?: string | null;
+          statut?: string;
+          taux_npec?: number | null;
+          type_formation?: string | null;
+          type_prospect?: string | null;
+          updated_at?: string;
+          volume_an1?: number | null;
+          volume_an2?: number | null;
+          volume_an3?: number | null;
+          volume_garanti_seuil?: number | null;
+        };
+        Update: {
+          alerte_sante_14_at?: string | null;
+          alerte_sante_30_at?: string | null;
+          calendrier_previsionnel?: Json | null;
+          canal_origine?: string | null;
+          cfa?: string | null;
+          client_id?: string | null;
+          compte_id?: string;
+          contact_principal_id?: string | null;
+          created_at?: string;
+          date_cible_prochain_rdv?: string | null;
+          date_cloture_prevue?: string | null;
+          date_demarrage_souhaitee?: string | null;
+          date_premier_contact?: string | null;
+          duree_contrat_ans?: number | null;
+          etape_id?: string;
+          formation_visee?: string | null;
+          formations_rncp?: string[];
+          historique_synthese?: string | null;
+          id?: string;
+          initiateur?: string | null;
+          intitule?: string;
+          leviers?: string[];
+          mois_demarrage?: number | null;
+          montant?: number | null;
+          motif_perte?: string | null;
+          nb_alternants?: number | null;
+          numero_contrat?: string | null;
+          owner_id?: string | null;
+          perimetre_missions?: string | null;
+          probabilite?: number | null;
+          source?: string | null;
+          statut?: string;
+          taux_npec?: number | null;
+          type_formation?: string | null;
+          type_prospect?: string | null;
+          updated_at?: string;
+          volume_an1?: number | null;
+          volume_an2?: number | null;
+          volume_an3?: number | null;
+          volume_garanti_seuil?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'opportunites_compte_id_fkey';
+            columns: ['compte_id'];
+            isOneToOne: false;
+            referencedRelation: 'comptes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunites_contact_principal_id_fkey';
+            columns: ['contact_principal_id'];
+            isOneToOne: false;
+            referencedRelation: 'contacts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'opportunites_etape_id_fkey';
+            columns: ['etape_id'];
+            isOneToOne: false;
+            referencedRelation: 'etapes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      rdv: {
+        Row: {
+          compte_id: string | null;
+          compte_rendu: string | null;
+          created_at: string;
+          created_by: string | null;
+          debut: string;
+          fin: string;
+          id: string;
+          lieu: string | null;
+          notes_prep: string | null;
+          opportunite_id: string | null;
+          statut: string;
+          titre: string;
+        };
+        Insert: {
+          compte_id?: string | null;
+          compte_rendu?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          debut: string;
+          fin: string;
+          id?: string;
+          lieu?: string | null;
+          notes_prep?: string | null;
+          opportunite_id?: string | null;
+          statut?: string;
+          titre: string;
+        };
+        Update: {
+          compte_id?: string | null;
+          compte_rendu?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          debut?: string;
+          fin?: string;
+          id?: string;
+          lieu?: string | null;
+          notes_prep?: string | null;
+          opportunite_id?: string | null;
+          statut?: string;
+          titre?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'rdv_compte_id_fkey';
+            columns: ['compte_id'];
+            isOneToOne: false;
+            referencedRelation: 'comptes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'rdv_opportunite_id_fkey';
+            columns: ['opportunite_id'];
+            isOneToOne: false;
+            referencedRelation: 'opportunites';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      rdv_commerciaux: {
+        Row: {
+          rdv_id: string;
+          user_id: string;
+        };
+        Insert: {
+          rdv_id: string;
+          user_id: string;
+        };
+        Update: {
+          rdv_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'rdv_commerciaux_rdv_id_fkey';
+            columns: ['rdv_id'];
+            isOneToOne: false;
+            referencedRelation: 'rdv';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      recaps: {
+        Row: {
+          actor_id: string | null;
+          created_at: string;
+          destinataires: string;
+          id: string;
+          meta: Json | null;
+          recap_date: string;
+          sujet: string;
+          trigger: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          created_at?: string;
+          destinataires: string;
+          id?: string;
+          meta?: Json | null;
+          recap_date: string;
+          sujet: string;
+          trigger?: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          created_at?: string;
+          destinataires?: string;
+          id?: string;
+          meta?: Json | null;
+          recap_date?: string;
+          sujet?: string;
+          trigger?: string;
+        };
+        Relationships: [];
+      };
+      relances: {
+        Row: {
+          archived_at: string | null;
+          assignee_id: string | null;
+          compte_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          date_echeance: string;
+          date_fait: string | null;
+          fait: boolean;
+          id: string;
+          note: string | null;
+          opportunite_id: string | null;
+          priorite: string;
+          titre: string;
+        };
+        Insert: {
+          archived_at?: string | null;
+          assignee_id?: string | null;
+          compte_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          date_echeance: string;
+          date_fait?: string | null;
+          fait?: boolean;
+          id?: string;
+          note?: string | null;
+          opportunite_id?: string | null;
+          priorite?: string;
+          titre: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          assignee_id?: string | null;
+          compte_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          date_echeance?: string;
+          date_fait?: string | null;
+          fait?: boolean;
+          id?: string;
+          note?: string | null;
+          opportunite_id?: string | null;
+          priorite?: string;
+          titre?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'relances_compte_id_fkey';
+            columns: ['compte_id'];
+            isOneToOne: false;
+            referencedRelation: 'comptes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'relances_opportunite_id_fkey';
+            columns: ['opportunite_id'];
+            isOneToOne: false;
+            referencedRelation: 'opportunites';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      create_opportunite_complete: { Args: { p: Json }; Returns: string };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
   graphql_public: {
     Tables: {
       [_ in never]: never;
@@ -2619,6 +3245,141 @@ export type Database = {
           },
         ];
       };
+      projet_lancement_commentaires: {
+        Row: {
+          contenu: string;
+          created_at: string;
+          etape_key: string;
+          id: string;
+          projet_id: string;
+          user_id: string;
+        };
+        Insert: {
+          contenu: string;
+          created_at?: string;
+          etape_key: string;
+          id?: string;
+          projet_id: string;
+          user_id: string;
+        };
+        Update: {
+          contenu?: string;
+          created_at?: string;
+          etape_key?: string;
+          id?: string;
+          projet_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'projet_lancement_commentaires_projet_id_fkey';
+            columns: ['projet_id'];
+            isOneToOne: false;
+            referencedRelation: 'projets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'projet_lancement_commentaires_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      projet_lancement_documents: {
+        Row: {
+          created_at: string;
+          etape_key: string;
+          id: string;
+          nom_fichier: string;
+          projet_id: string;
+          storage_path: string;
+          type_document: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          etape_key: string;
+          id?: string;
+          nom_fichier: string;
+          projet_id: string;
+          storage_path: string;
+          type_document?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          etape_key?: string;
+          id?: string;
+          nom_fichier?: string;
+          projet_id?: string;
+          storage_path?: string;
+          type_document?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'projet_lancement_documents_projet_id_fkey';
+            columns: ['projet_id'];
+            isOneToOne: false;
+            referencedRelation: 'projets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'projet_lancement_documents_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      projet_lancement_etapes: {
+        Row: {
+          created_at: string;
+          etape_key: string;
+          id: string;
+          projet_id: string;
+          statut: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          etape_key: string;
+          id?: string;
+          projet_id: string;
+          statut?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          etape_key?: string;
+          id?: string;
+          projet_id?: string;
+          statut?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'projet_lancement_etapes_projet_id_fkey';
+            columns: ['projet_id'];
+            isOneToOne: false;
+            referencedRelation: 'projets';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'projet_lancement_etapes_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       projets: {
         Row: {
           archive: boolean;
@@ -3546,6 +4307,9 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
+  crm: {
+    Enums: {},
+  },
   graphql_public: {
     Enums: {},
   },

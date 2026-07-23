@@ -9,6 +9,7 @@ import {
 } from '@/lib/queries/projets';
 import { getRdvFormateursByProjetId } from '@/lib/queries/rdv';
 import { listEcheancierTemplates } from '@/lib/queries/echeanciers';
+import { getLancementByProjetId } from '@/lib/queries/projet-lancement';
 
 export async function generateMetadata({
   params,
@@ -31,6 +32,7 @@ import { ProjetPerformanceVolets } from '@/components/projets/projet-performance
 import { getProjetPerformance } from '@/lib/queries/projet-performance';
 import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
 import { ProjetDocumentsSection } from '@/components/projets/projet-documents-section';
+import { ProjetLancementSection } from '@/components/projets/projet-lancement-section';
 import { ProjetRdvSection } from '@/components/projets/projet-rdv-section';
 import { EntiteTachesSection } from '@/components/taches/entite-taches-section';
 import { createClient } from '@/lib/supabase/server';
@@ -65,6 +67,7 @@ export default async function ProjetDetailPage({
     rdvsFormateurs,
     performance,
     echeancierTemplates,
+    lancement,
   ] = await Promise.all([
     authUser
       ? supabase.from('users').select('role').eq('id', authUser.id).single()
@@ -76,9 +79,14 @@ export default async function ProjetDetailPage({
     getRdvFormateursByProjetId(projet.id),
     getProjetPerformance(projet.id),
     listEcheancierTemplates(),
+    getLancementByProjetId(projet.id),
   ]);
 
   const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
+  const canEditLancement =
+    userIsAdmin ||
+    projet.cdp?.id === authUser?.id ||
+    projet.backup_cdp?.id === authUser?.id;
   const apprentisActifs = contrats.filter((c) =>
     isContratActif(c.contract_state),
   ).length;
@@ -103,6 +111,7 @@ export default async function ProjetDetailPage({
       <SectionNav
         items={[
           { id: 'synthese', label: 'Synthèse' },
+          { id: 'lancement', label: 'Lancement' },
           { id: 'finance', label: 'Finance' },
           { id: 'contrats', label: 'Contrats' },
           { id: 'activite', label: 'Activité' },
@@ -117,6 +126,17 @@ export default async function ProjetDetailPage({
           </h3>
           <ProjetPerformanceVolets data={performance} />
         </div>
+      </section>
+
+      <section id="lancement" className="mt-8 scroll-mt-16">
+        <ProjetLancementSection
+          projetId={projet.id}
+          projetRef={ref}
+          lancement={lancement}
+          canEdit={canEditLancement}
+          userIsAdmin={userIsAdmin}
+          currentUserId={authUser?.id ?? null}
+        />
       </section>
 
       <section id="finance" className="mt-8 scroll-mt-16">

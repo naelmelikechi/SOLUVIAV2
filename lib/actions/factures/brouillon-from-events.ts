@@ -11,6 +11,7 @@ import { getBillableEvents } from '@/lib/queries/billable-events';
 import { getDefaultSocieteEmettriceId } from '@/lib/queries/societes-emettrices';
 import { computeFactureTotauxTtcInclus } from '@/lib/utils/facture-totaux-ttc-inclus';
 import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
+import { billingStepLabel } from '@/lib/utils/billing-step-label';
 import { uuidSchema } from '@/lib/actions/factures/brouillons-shared';
 
 const SelectedEventSchema = z.object({
@@ -305,8 +306,8 @@ export async function createFactureFromEvents(params: {
   const lignes = filteredResolved.map((e, i) => {
     const typeLabel =
       e.type === 'engagement'
-        ? 'Engagement contrat'
-        : `Règlement OPCO #${e.step_number ?? '?'}`;
+        ? billingStepLabel('engagement', null)
+        : `${billingStepLabel('opco_step', e.step_number)} OPCO`;
     // Description : courte et factuelle. L apprenant et le DECA ont leur
     // propre colonne dans le PDF, on evite la repetition.
     // Coherence : montant_commissionne est TTC (cf. note totaux ci-dessus).

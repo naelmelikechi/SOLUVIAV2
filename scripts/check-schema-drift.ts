@@ -1,6 +1,9 @@
 /**
- * Garde-fou anti-drift de schéma : compare les colonnes du schéma `public`
- * de la PROD (Supavia, via pg-meta) avec celles d'un Supabase LOCAL migré.
+ * Garde-fou anti-drift de schéma : compare les colonnes des schémas `public`
+ * et `crm` de la PROD (Supavia, via pg-meta) avec celles d'un Supabase LOCAL
+ * migré. Le schéma `crm` est inclus car lib/crm/database.types.ts est maintenu
+ * A LA MAIN (pas de gen types) : un hotfix SQL prod sur crm.* serait sinon
+ * invisible de tout filet automatique.
  *
  * Pourquoi : une colonne créée en prod hors migration (hotfix SQL direct)
  * est invisible du repo -> `supabase gen types --local` la supprime de
@@ -30,17 +33,18 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-// Exceptions documentées : paires "table.colonne" tolérées en prod sans
-// migration (à n'utiliser qu'en dernier recours, avec un commentaire).
+// Exceptions documentées : triplets "schema.table.colonne" tolérés en prod
+// sans migration (à n'utiliser qu'en dernier recours, avec un commentaire).
 const ALLOWED_PROD_ONLY: string[] = [];
 
-// Même requête des deux côtés : colonnes des tables et vues du schéma public.
+// Même requête des deux côtés : colonnes des tables et vues des schémas
+// public et crm.
 const COLUMNS_SQL = `
-  select c.table_name || '.' || c.column_name as col
+  select c.table_schema || '.' || c.table_name || '.' || c.column_name as col
   from information_schema.columns c
   join information_schema.tables t
     on t.table_schema = c.table_schema and t.table_name = c.table_name
-  where c.table_schema = 'public'
+  where c.table_schema in ('public', 'crm')
     and t.table_type in ('BASE TABLE', 'VIEW')
   order by 1
 `;
@@ -155,7 +159,8 @@ async function main() {
     );
     for (const c of prodOnly) console.error(`    - ${c}`);
     console.error(
-      `\n  Danger : 'supabase gen types --local' supprimerait ces colonnes de types/database.ts.` +
+      `\n  Danger : 'supabase gen types --local' supprimerait ces colonnes de types/database.ts` +
+        `\n  (et une colonne crm.* hors migration est invisible de lib/crm/database.types.ts, maintenu a la main).` +
         `\n  Fix : écrire une migration de réparation (modèle : 20260610090001_repair_contrats_support_drift.sql)` +
         `\n  ou, en dernier recours, documenter l'exception dans ALLOWED_PROD_ONLY de ce script.`,
     );

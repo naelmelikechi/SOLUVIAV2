@@ -14,4 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: millionco/react-doctor@main
+      # Epingle sur un SHA (action tierce avec pull-requests: write) - audit
+      # 2026-07-23. Mettre a jour le SHA volontairement, pas via @main mutable.
+      - uses: millionco/react-doctor@54ba416f830952c30b6ddae7985ede8a251f0a5b # main 2026-07-23

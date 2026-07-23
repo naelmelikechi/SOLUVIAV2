@@ -25,7 +25,6 @@ import { ProjetFinanceSection } from '@/components/projets/projet-finance-sectio
 import { ProjetTempsSection } from '@/components/projets/projet-temps-section';
 import { ProjetQualiteSection } from '@/components/projets/projet-qualite-section';
 import { ProjetContratsTable } from '@/components/projets/projet-contrats-table';
-import { ProjetStatCards } from '@/components/projets/projet-stat-cards';
 import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
 import { ProjetEcheancierManualPlaceholder } from '@/components/projets/projet-echeancier-section';
 import { ProjetPerformanceVolets } from '@/components/projets/projet-performance-volets';
@@ -119,13 +118,10 @@ export default async function ProjetDetailPage({
       />
 
       <section id="synthese" className="scroll-mt-16">
-        <ProjetStatCards projet={projet} apprentisActifs={apprentisActifs} />
-        <div className="mt-6">
-          <h3 className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
-            Volets de performance
-          </h3>
-          <ProjetPerformanceVolets data={performance} />
-        </div>
+        <ProjetPerformanceVolets
+          data={performance}
+          apprentisActifs={apprentisActifs}
+        />
       </section>
 
       <section id="lancement" className="mt-8 scroll-mt-16">

@@ -5,6 +5,7 @@ import {
   GraduationCap,
   Trophy,
   Wallet,
+  Users,
   UserX,
   TrendingUp,
   Info,
@@ -32,25 +33,41 @@ const VOLETS: Array<{
   { key: 'rentabilite', title: 'Rentabilité', icon: TrendingUp },
 ];
 
-const STATUS_BG: Record<VoletPerformance['status'], string> = {
-  good: 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400',
-  warn: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
-  bad: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400',
-  neutral: 'bg-muted text-muted-foreground',
+const STATUS_TEXT: Record<VoletPerformance['status'], string> = {
+  good: 'text-green-600 dark:text-green-400',
+  warn: 'text-amber-600 dark:text-amber-500',
+  bad: 'text-red-600 dark:text-red-400',
+  neutral: 'text-muted-foreground',
 };
 
-export function ProjetPerformanceVolets({ data }: { data: ProjetPerformance }) {
+// Bande de KPI compacte : apprentis actifs + les 5 volets de performance sur
+// une seule rangee de tuiles (hairlines via gap-px sur fond border).
+export function ProjetPerformanceVolets({
+  data,
+  apprentisActifs,
+}: {
+  data: ProjetPerformance;
+  apprentisActifs: number;
+}) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {VOLETS.map(({ key, title, icon: Icon }) => {
-        const volet = data[key];
-        return <VoletCard key={key} title={title} icon={Icon} volet={volet} />;
-      })}
-    </div>
+    <Card className="bg-border grid grid-cols-2 gap-px p-0 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="bg-card flex flex-col gap-1 p-4">
+        <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase">
+          <Users className="size-3.5 shrink-0 text-[var(--info)]" />
+          <span className="truncate">Apprentis actifs</span>
+        </div>
+        <p className="text-xl font-bold text-[var(--info)] tabular-nums">
+          {apprentisActifs}
+        </p>
+      </div>
+      {VOLETS.map(({ key, title, icon: Icon }) => (
+        <VoletTile key={key} title={title} icon={Icon} volet={data[key]} />
+      ))}
+    </Card>
   );
 }
 
-function VoletCard({
+function VoletTile({
   title,
   icon: Icon,
   volet,
@@ -61,22 +78,18 @@ function VoletCard({
 }) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   return (
-    <Card className="flex flex-col gap-3 p-5">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div
-            className={`flex size-9 items-center justify-center rounded-lg ${STATUS_BG[volet.status]}`}
-          >
-            <Icon className="size-4" />
-          </div>
-          <h4 className="text-sm font-semibold">{title}</h4>
+    <div className="bg-card flex flex-col gap-1 p-4">
+      <div className="flex items-center justify-between gap-1">
+        <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-[11px] font-medium tracking-wider uppercase">
+          <Icon className={`size-3.5 shrink-0 ${STATUS_TEXT[volet.status]}`} />
+          <span className="truncate">{title}</span>
         </div>
         <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
           <PopoverTrigger
-            className="text-muted-foreground hover:text-foreground cursor-pointer rounded p-1 transition-colors"
+            className="text-muted-foreground hover:text-foreground cursor-pointer rounded p-0.5 transition-colors"
             aria-label={`Détail formule ${title}`}
           >
-            <Info className="size-3.5" />
+            <Info className="size-3" />
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 space-y-2 p-3 text-xs">
             <p className="font-semibold">Formule</p>
@@ -84,19 +97,17 @@ function VoletCard({
             <div className="bg-border h-px" />
             <p className="font-semibold">Détail</p>
             <p className="text-muted-foreground">{volet.detail}</p>
+            <p className="text-muted-foreground">
+              {volet.invertScale ? 'À minimiser.' : 'À maximiser.'}
+            </p>
           </PopoverContent>
         </Popover>
       </div>
-      <div>
-        <p className="text-2xl font-bold tabular-nums">{volet.display}</p>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {volet.invertScale
-            ? 'À minimiser'
-            : volet.status === 'neutral'
-              ? 'Données insuffisantes'
-              : '0 à 100 % · à maximiser'}
-        </p>
-      </div>
-    </Card>
+      <p
+        className={`text-xl font-bold tabular-nums ${STATUS_TEXT[volet.status]}`}
+      >
+        {volet.display}
+      </p>
+    </div>
   );
 }

@@ -4,32 +4,12 @@ import type { ProjetFinance } from '@/lib/queries/projets';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { ttcToHt } from '@/lib/utils/montant-ht';
 import { Card } from '@/components/ui/card';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { CommissionRateBadge } from '@/components/projets/commission-rate-badge';
 import {
   ModeleFacturationControl,
   type ModeleFacturation,
 } from '@/components/projets/modele-facturation-control';
-
-function FinanceStatCard({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color: string;
-}) {
-  return (
-    <div className="text-center">
-      <div className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
-        {label}
-      </div>
-      <div className={`mt-1 text-lg font-semibold tabular-nums ${color}`}>
-        {formatCurrency(value)}
-      </div>
-    </div>
-  );
-}
 
 export function ProjetFinanceSection({
   finance,
@@ -60,7 +40,7 @@ export function ProjetFinanceSection({
   // Commission SOLUVIA en HT : taux × base donne le TTC, on en déduit le HT (/1.2).
   const commSoluvia = ttcToHt(finance.taux_commission / 100);
 
-  // Ligne du bas côté SOLUVIA : cohérente avec l'espace Facturation
+  // Ligne SOLUVIA : cohérente avec l'espace Facturation
   // (les factures en base sont les commissions SOLUVIA, pas les montants OPCO).
   // RAF clampé à 0 quand il n'y a pas de production (projet libre / taux 0) :
   // un reste à facturer négatif n'a pas de sens affiché.
@@ -72,7 +52,15 @@ export function ProjetFinanceSection({
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Finance</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">Finance</h3>
+          {finance.en_retard_soluvia > 0 && (
+            <StatusBadge
+              label={`Retard ${formatCurrency(finance.en_retard_soluvia)}`}
+              color="red"
+            />
+          )}
+        </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
           <ModeleFacturationControl
             projetId={projetId}
@@ -89,103 +77,94 @@ export function ProjetFinanceSection({
         </div>
       </div>
 
-      {/* OPCO Side */}
-      <div className="mb-4">
-        <div className="text-muted-foreground mb-2 text-xs font-medium tracking-wider uppercase">
-          Côté OPCO (bordereaux Eduvia)
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          <FinanceStatCard
-            label="Production"
-            value={finance.production_opco}
-            color="text-[var(--warning)]"
-          />
-          <FinanceStatCard
-            label="Facturé"
-            value={finance.facture_opco}
-            color="text-[var(--warning)]"
-          />
-          <FinanceStatCard
-            label="Encaissé"
-            value={finance.encaisse_opco}
-            color="text-primary"
-          />
-        </div>
+      {/* SOLUVIA en ligne principale, OPCO en ligne secondaire : meme grille
+          Production / Facturé / Encaissé, hiérarchie par la typo. */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-muted-foreground text-[11px] font-medium tracking-wider uppercase">
+              <th className="pb-2 text-left font-medium" />
+              <th className="pb-2 text-right font-medium">Production</th>
+              <th className="pb-2 text-right font-medium">Facturé</th>
+              <th className="pb-2 text-right font-medium">Encaissé</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-border border-t">
+              <td className="py-2.5 pr-2 font-medium whitespace-nowrap">
+                SOLUVIA ({finance.taux_commission}%)
+              </td>
+              <td className="py-2.5 pl-2 text-right font-semibold tabular-nums">
+                {formatCurrency(production_soluvia)}
+              </td>
+              <td className="py-2.5 pl-2 text-right font-semibold tabular-nums">
+                {formatCurrency(finance.facture_soluvia)}
+              </td>
+              <td className="text-primary py-2.5 pl-2 text-right font-semibold tabular-nums">
+                {formatCurrency(finance.encaisse_soluvia)}
+              </td>
+            </tr>
+            <tr className="border-border text-muted-foreground border-t text-xs">
+              <td className="py-2 pr-2 whitespace-nowrap">
+                OPCO (bordereaux Eduvia)
+              </td>
+              <td className="py-2 pl-2 text-right tabular-nums">
+                {formatCurrency(finance.production_opco)}
+              </td>
+              <td className="py-2 pl-2 text-right tabular-nums">
+                {formatCurrency(finance.facture_opco)}
+              </td>
+              <td className="py-2 pl-2 text-right tabular-nums">
+                {formatCurrency(finance.encaisse_opco)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      {/* SOLUVIA Side */}
-      <div className="mb-4">
-        <div className="text-muted-foreground mb-2 text-xs font-medium tracking-wider uppercase">
-          Côté SOLUVIA ({finance.taux_commission}%)
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          <FinanceStatCard
-            label="Production"
-            value={production_soluvia}
-            color="text-[var(--warning)]"
-          />
-          <FinanceStatCard
-            label="Facturé"
-            value={finance.facture_soluvia}
-            color="text-[var(--warning)]"
-          />
-          <FinanceStatCard
-            label="Encaissé"
-            value={finance.encaisse_soluvia}
-            color="text-primary"
-          />
-        </div>
-        {(finance.facture_soluvia_engagement > 0 ||
-          finance.facture_soluvia_echeances > 0) && (
-          <div className="text-muted-foreground mt-2 text-center text-[11px] tabular-nums">
-            dont facturation à l&apos;engagement : étape 1{' '}
-            {formatCurrency(finance.facture_soluvia_engagement)}
-            {' - '}
-            échéances {formatCurrency(finance.facture_soluvia_echeances)}
-          </div>
-        )}
-      </div>
+      {(finance.facture_soluvia_engagement > 0 ||
+        finance.facture_soluvia_echeances > 0) && (
+        <p className="text-muted-foreground mt-1 text-[11px] tabular-nums">
+          dont facturation à l&apos;engagement : étape 1{' '}
+          {formatCurrency(finance.facture_soluvia_engagement)}
+          {' - '}
+          échéances {formatCurrency(finance.facture_soluvia_echeances)}
+        </p>
+      )}
 
-      {/* RAF / RAE / En retard - commission SOLUVIA */}
-      <div className="border-border border-t pt-4">
-        <div className="grid grid-cols-3 gap-4">
-          <FinanceStatCard
-            label="RAF commission (à facturer)"
-            value={raf_soluvia}
-            color={
+      <div className="border-border mt-4 flex flex-wrap items-center gap-x-6 gap-y-1 border-t pt-3 text-xs">
+        <span className="text-muted-foreground">
+          RAF (à facturer){' '}
+          <span
+            className={`font-semibold tabular-nums ${
               raf_soluvia > 0
                 ? 'text-[var(--warning)]'
                 : 'text-muted-foreground'
-            }
-          />
-          <FinanceStatCard
-            label="RAE commission (à encaisser)"
-            value={rae_soluvia}
-            color={
+            }`}
+          >
+            {formatCurrency(raf_soluvia)}
+          </span>
+        </span>
+        <span className="text-muted-foreground">
+          RAE (à encaisser){' '}
+          <span
+            className={`font-semibold tabular-nums ${
               rae_soluvia > 0
                 ? 'text-[var(--warning)]'
                 : 'text-muted-foreground'
-            }
-          />
-          <FinanceStatCard
-            label="En retard"
-            value={finance.en_retard_soluvia}
-            color={
-              finance.en_retard_soluvia > 0
-                ? 'text-red-600 dark:text-red-400'
-                : 'text-muted-foreground'
-            }
-          />
-        </div>
+            }`}
+          >
+            {formatCurrency(rae_soluvia)}
+          </span>
+        </span>
+        <Link
+          href="/facturation"
+          className="text-primary hover:text-primary/80 ml-auto inline-flex items-center gap-1 font-medium"
+        >
+          Voir les factures
+          <ArrowRight className="size-3" />
+        </Link>
       </div>
-
-      <Link
-        href="/facturation"
-        className="text-primary hover:text-primary/80 mt-3 inline-flex items-center gap-1 text-xs font-medium"
-      >
-        Voir les factures
-        <ArrowRight className="size-3" />
-      </Link>
     </Card>
   );
 }

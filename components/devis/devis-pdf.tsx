@@ -12,94 +12,17 @@ import type { DevisPdfData } from '@/lib/queries/devis';
 import { SIGNATURE_SOLUVIA_DATA_URI } from '@/lib/assets/signature-soluvia';
 import { type ReactElement } from 'react';
 import { formatClientAddressLines } from '@/lib/utils/fr-address';
+import { formatEur } from '@/lib/pdf/format';
+import { docStyles, createTotalsStyles } from '@/lib/pdf/commercial-doc-styles';
+import { DestinataireBlock, TotalsBlock, PaymentRow } from '@/lib/pdf/blocks';
 
+// Styles specifiques au devis ; le socle commun (page, header, table, RIB,
+// footer, totaux) vit dans lib/pdf/commercial-doc-styles.
 const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    paddingBottom: 100,
-    fontSize: 9,
-    fontFamily: 'Helvetica',
-    color: '#1a1a1a',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-  },
-  headerRight: { textAlign: 'right' },
-  logo: { width: 130, height: 26, marginBottom: 8, objectFit: 'contain' },
-  docTitle: { fontSize: 14, fontFamily: 'Helvetica-Bold', marginBottom: 4 },
-  docRef: {
-    fontSize: 12,
-    fontFamily: 'Helvetica-Bold',
-    color: '#d97706',
-    marginBottom: 2,
-  },
-  label: {
-    fontSize: 8,
-    fontFamily: 'Helvetica-Bold',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  sectionBox: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 4,
-    padding: 12,
-    marginBottom: 16,
-  },
-  bold: { fontFamily: 'Helvetica-Bold' },
-  muted: { color: '#6b7280' },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-  },
-  colNum: { width: '6%' },
   colLibelle: { width: '50%' },
   colQte: { width: '10%', textAlign: 'right' },
   colPu: { width: '17%', textAlign: 'right' },
   colMontant: { width: '17%', textAlign: 'right' },
-  totalsContainer: { marginTop: 16, alignItems: 'flex-end' },
-  totalsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 220,
-    paddingVertical: 3,
-  },
-  totalsTtc: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 220,
-    paddingVertical: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
-    marginTop: 4,
-  },
-  totalsTtcLabel: { fontSize: 11, fontFamily: 'Helvetica-Bold' },
-  totalsTtcValue: { fontSize: 11, fontFamily: 'Helvetica-Bold' },
-  paymentBox: {
-    marginTop: 18,
-    padding: 12,
-    backgroundColor: '#f0fdf4',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    borderRadius: 4,
-  },
-  paymentRow: { flexDirection: 'row', marginTop: 3 },
-  paymentLabel: { width: 70, color: '#6b7280' },
-  paymentValue: { flex: 1, fontFamily: 'Helvetica-Bold' },
   signatureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -131,30 +54,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     objectFit: 'contain',
   },
-  footer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 40,
-    right: 40,
-    fontSize: 7,
-    color: '#9ca3af',
-    lineHeight: 1.4,
-  },
 });
 
-const eurFormatter = new Intl.NumberFormat('fr-FR', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-});
-
-function formatEur(n: number | null | undefined): string {
-  if (n == null) return '0,00 EUR';
-  // Intl fr-FR utilise U+202F (espace fine insecable) comme separateur de
-  // milliers et U+00A0 avant le €. La police Helvetica du PDF n'a pas le
-  // glyphe U+202F (rendu comme "/"). On normalise tout espace en espace ASCII.
-  return eurFormatter.format(n).replace(/\s/g, ' ');
-}
+const totalsStyles = createTotalsStyles(220);
 
 function formatDate(s: string | null | undefined): string {
   if (!s) return '-';
@@ -199,25 +101,27 @@ export function DevisPdf({
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" style={docStyles.page}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={docStyles.header}>
           <View>
             {soc?.logo_url ? (
               // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={soc.logo_url} style={styles.logo} />
+              <Image src={soc.logo_url} style={docStyles.logo} />
             ) : null}
-            <Text style={styles.bold}>{soc?.raison_sociale ?? 'SOLUVIA'}</Text>
+            <Text style={docStyles.bold}>
+              {soc?.raison_sociale ?? 'SOLUVIA'}
+            </Text>
             <Text>{soc?.adresse}</Text>
             <Text>
               {soc?.code_postal} {soc?.ville}
             </Text>
-            <Text style={styles.muted}>SIRET {soc?.siret}</Text>
-            <Text style={styles.muted}>TVA {soc?.tva_intracom}</Text>
+            <Text style={docStyles.muted}>SIRET {soc?.siret}</Text>
+            <Text style={docStyles.muted}>TVA {soc?.tva_intracom}</Text>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.docTitle}>DEVIS</Text>
-            <Text style={styles.docRef}>{devis.ref ?? 'Brouillon'}</Text>
+          <View style={docStyles.headerRight}>
+            <Text style={docStyles.docTitle}>DEVIS</Text>
+            <Text style={docStyles.docRef}>{devis.ref ?? 'Brouillon'}</Text>
             <Text>
               Date :{' '}
               {formatDate(
@@ -232,52 +136,45 @@ export function DevisPdf({
         </View>
 
         {/* Bloc client */}
-        <View style={styles.sectionBox}>
-          <Text style={styles.label}>Devis pour</Text>
-          {client ? (
-            <>
-              <Text style={styles.bold}>{client.raison_sociale}</Text>
-              {formatClientAddressLines(
-                client.adresse,
-                client.localisation,
-              ).map((line, i) => (
-                <Text key={i}>{line}</Text>
-              ))}
-              {client.siret ? (
-                <Text style={styles.muted}>SIRET {client.siret}</Text>
-              ) : null}
-              {client.tva_intracommunautaire ? (
-                <Text style={styles.muted}>
-                  TVA {client.tva_intracommunautaire}
-                </Text>
-              ) : null}
-            </>
-          ) : (
-            <Text style={styles.muted}>Client non spécifié</Text>
-          )}
-        </View>
+        {client ? (
+          <DestinataireBlock
+            label="Devis pour"
+            raisonSociale={client.raison_sociale}
+            addressLines={formatClientAddressLines(
+              client.adresse,
+              client.localisation,
+            )}
+            siret={client.siret}
+            tva={client.tva_intracommunautaire}
+          />
+        ) : (
+          <DestinataireBlock
+            label="Devis pour"
+            emptyText="Client non spécifié"
+          />
+        )}
 
         {/* Objet */}
         <View style={{ marginBottom: 16 }}>
-          <Text style={styles.label}>Objet</Text>
+          <Text style={docStyles.label}>Objet</Text>
           <Text>{devis.objet}</Text>
         </View>
 
         {/* Table lignes */}
-        <View style={styles.tableHeader}>
-          <Text style={[styles.colNum, styles.bold]}>#</Text>
-          <Text style={[styles.colLibelle, styles.bold]}>Libellé</Text>
-          <Text style={[styles.colQte, styles.bold]}>Qté</Text>
-          <Text style={[styles.colPu, styles.bold]}>PU HT</Text>
-          <Text style={[styles.colMontant, styles.bold]}>Montant HT</Text>
+        <View style={docStyles.tableHeader}>
+          <Text style={[docStyles.colNum, docStyles.bold]}>#</Text>
+          <Text style={[styles.colLibelle, docStyles.bold]}>Libellé</Text>
+          <Text style={[styles.colQte, docStyles.bold]}>Qté</Text>
+          <Text style={[styles.colPu, docStyles.bold]}>PU HT</Text>
+          <Text style={[styles.colMontant, docStyles.bold]}>Montant HT</Text>
         </View>
         {lignes.map((l, idx) => (
-          <View key={l.ordre} style={styles.tableRow} wrap={false}>
-            <Text style={styles.colNum}>{idx + 1}</Text>
+          <View key={l.ordre} style={docStyles.tableRow} wrap={false}>
+            <Text style={docStyles.colNum}>{idx + 1}</Text>
             <View style={styles.colLibelle}>
               <Text>{l.libelle}</Text>
               {l.description ? (
-                <Text style={[styles.muted, { fontSize: 8 }]}>
+                <Text style={[docStyles.muted, { fontSize: 8 }]}>
                   {l.description}
                 </Text>
               ) : null}
@@ -293,46 +190,33 @@ export function DevisPdf({
         ))}
 
         {/* Totaux */}
-        <View style={styles.totalsContainer}>
-          <View style={styles.totalsRow}>
-            <Text style={styles.muted}>Sous-total HT</Text>
-            <Text>{formatEur(Number(devis.montant_ht))}</Text>
-          </View>
-          {Object.entries(tvaGroups).map(([taux, montant]) => (
-            <View key={taux} style={styles.totalsRow}>
-              <Text style={styles.muted}>TVA {taux}%</Text>
-              <Text>{formatEur(montant)}</Text>
-            </View>
-          ))}
-          <View style={styles.totalsTtc}>
-            <Text style={styles.totalsTtcLabel}>Total TTC</Text>
-            <Text style={styles.totalsTtcValue}>
-              {formatEur(Number(devis.montant_ttc))}
-            </Text>
-          </View>
-        </View>
+        <TotalsBlock
+          styles={totalsStyles}
+          rows={[
+            {
+              label: 'Sous-total HT',
+              value: formatEur(Number(devis.montant_ht)),
+            },
+            ...Object.entries(tvaGroups).map(([taux, montant]) => ({
+              label: `TVA ${taux}%`,
+              value: formatEur(montant),
+            })),
+          ]}
+          ttc={formatEur(Number(devis.montant_ttc))}
+        />
 
         {/* Modalites de paiement + RIB */}
-        <View style={styles.paymentBox} wrap={false}>
-          <Text style={styles.label}>Modalités de paiement</Text>
+        <View style={docStyles.paymentBox} wrap={false}>
+          <Text style={docStyles.label}>Modalités de paiement</Text>
           <Text style={{ marginTop: 4 }}>{conditions}</Text>
           {soc?.banque_nom ? (
             <>
-              <View style={styles.paymentRow}>
-                <Text style={styles.paymentLabel}>Banque</Text>
-                <Text style={styles.paymentValue}>{soc.banque_nom}</Text>
-              </View>
+              <PaymentRow label="Banque" value={soc.banque_nom} />
               {soc.banque_iban ? (
-                <View style={styles.paymentRow}>
-                  <Text style={styles.paymentLabel}>IBAN</Text>
-                  <Text style={styles.paymentValue}>{soc.banque_iban}</Text>
-                </View>
+                <PaymentRow label="IBAN" value={soc.banque_iban} />
               ) : null}
               {soc.banque_bic ? (
-                <View style={styles.paymentRow}>
-                  <Text style={styles.paymentLabel}>BIC</Text>
-                  <Text style={styles.paymentValue}>{soc.banque_bic}</Text>
-                </View>
+                <PaymentRow label="BIC" value={soc.banque_bic} />
               ) : null}
             </>
           ) : null}
@@ -341,7 +225,7 @@ export function DevisPdf({
         {/* Signature */}
         <View style={styles.signatureRow} wrap={false}>
           <View style={styles.signatureBox}>
-            <Text style={styles.label}>Pour {raisonSociale}</Text>
+            <Text style={docStyles.label}>Pour {raisonSociale}</Text>
             {/* Signature manuscrite apposee automatiquement. */}
             {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image
@@ -366,15 +250,15 @@ export function DevisPdf({
             </View>
           </View>
           <View style={styles.signatureBox}>
-            <Text style={styles.label}>Bon pour accord - Client</Text>
-            <Text style={[styles.muted, { fontSize: 8 }]}>
+            <Text style={docStyles.label}>Bon pour accord - Client</Text>
+            <Text style={[docStyles.muted, { fontSize: 8 }]}>
               {`Date, cachet et signature précédés de la mention manuscrite "Bon pour accord"`}
             </Text>
           </View>
         </View>
 
         {/* Footer */}
-        <View style={styles.footer} fixed>
+        <View style={docStyles.footer} fixed>
           <Text>{mentions}</Text>
           {soc && !footerMentionsIdentite ? (
             <Text style={{ marginTop: 4 }}>

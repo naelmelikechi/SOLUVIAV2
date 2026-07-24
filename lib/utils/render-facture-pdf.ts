@@ -1,23 +1,11 @@
 import 'server-only';
-import { createElement, type ReactElement, type ComponentProps } from 'react';
-// oxlint-disable-next-line react-doctor/prefer-dynamic-import
-import { renderToBuffer } from '@react-pdf/renderer';
+import { createElement, type ComponentProps } from 'react';
 import { FacturePdf } from '@/components/facturation/facture-pdf';
+import { renderPdfToBuffer } from '@/lib/pdf/render-to-buffer';
 
-/**
- * Rend le composant FacturePdf en buffer PDF.
- *
- * react-pdf type renderToBuffer comme `ReactElement<DocumentProps>` mais
- * notre composant a sa propre signature. Le cast `any` est centralise ici
- * pour ne pas dupliquer le hack + eslint-disable dans chaque route PDF.
- */
+/** Rend le composant FacturePdf en buffer PDF (cast centralise dans lib/pdf). */
 export async function renderFacturePdfBuffer(
   props: ComponentProps<typeof FacturePdf>,
 ): Promise<Buffer> {
-  const element = createElement(
-    FacturePdf,
-    props,
-  ) as ReactElement<// eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any>;
-  return renderToBuffer(element);
+  return renderPdfToBuffer(createElement(FacturePdf, props));
 }

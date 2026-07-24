@@ -22,7 +22,7 @@ import { isAdmin } from '@/lib/utils/roles';
 import { PageHeader } from '@/components/shared/page-header';
 import { FacturationPageClient } from '@/components/facturation/facturation-page-client';
 
-export const metadata: Metadata = { title: 'Facturation - SOLUVIA' };
+export const metadata: Metadata = { title: 'Factures - SOLUVIA' };
 export const revalidate = 30;
 
 export default async function FacturationPage() {
@@ -93,7 +93,7 @@ export default async function FacturationPage() {
 
   return (
     <div>
-      <PageHeader title="Facturation" />
+      <PageHeader title="Factures" />
       <div className="mb-6">
         <FacturationKpisStrip
           kpis={kpis}

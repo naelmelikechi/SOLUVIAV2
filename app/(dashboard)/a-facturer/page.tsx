@@ -16,7 +16,7 @@ import { AFacturerTable } from '@/components/a-facturer/a-facturer-table';
 import { ContratsNonFacturables } from '@/components/a-facturer/contrats-non-facturables';
 import { ResteAFacturerTab } from '@/components/facturation/reste-a-facturer-tab';
 
-export const metadata: Metadata = { title: 'À facturer (Eduvia) - SOLUVIA' };
+export const metadata: Metadata = { title: 'À facturer (OPCO) - SOLUVIA' };
 export const revalidate = 30;
 
 // Surface unique du "qu'est-ce qu'il reste à facturer" : contrats OPCO dus
@@ -45,7 +45,7 @@ export default async function AFacturerPage() {
     <div className="space-y-8">
       <div>
         <PageHeader
-          title="À facturer (Eduvia)"
+          title="À facturer (OPCO)"
           description="Contrats dont une échéance OPCO est due et non encore transmise sur Eduvia"
         />
         <AFacturerTable data={rows} />

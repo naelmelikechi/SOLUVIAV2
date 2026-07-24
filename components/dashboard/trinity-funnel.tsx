@@ -1,4 +1,5 @@
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowUpRight, ArrowDownRight, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils/formatters';
 
@@ -76,6 +77,13 @@ export function TrinityFunnel({
                 : `vs M-1 : ${trendUp ? '+' : ''}${productionTrend}%`}
             </span>
           </div>
+          <Link
+            href="/production"
+            className="text-primary hover:text-primary/80 mt-2 inline-flex items-center gap-1 text-xs font-medium"
+          >
+            Détail par mois
+            <ArrowRight className="size-3" />
+          </Link>
         </div>
 
         {/* Card 2 - Facturé */}
@@ -91,6 +99,13 @@ export function TrinityFunnel({
               ? `${formatCurrency(resteAFacturer)} reste à facturer`
               : 'tout est facturé'}
           </div>
+          <Link
+            href="/facturation"
+            className="text-primary hover:text-primary/80 mt-2 inline-flex items-center gap-1 text-xs font-medium"
+          >
+            Voir les factures
+            <ArrowRight className="size-3" />
+          </Link>
         </div>
 
         {/* Card 3 - Encaissé */}

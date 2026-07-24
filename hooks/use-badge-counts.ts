@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { createCrmBrowserClient } from '@/lib/crm/supabase/client';
 import {
   currentMondayLocalISO,
   currentFridayLocalISO,
@@ -70,11 +71,23 @@ async function fetchTempsCount(): Promise<number> {
 }
 
 async function fetchNotificationsCount(): Promise<number> {
-  const res = await supabaseClient()
+  // Cloche unique : notifications systeme (public) + CRM (mentions, RDV).
+  // Le count CRM est best-effort (RLS scope user_id = auth.uid()).
+  const sys = await supabaseClient()
     .from('notifications')
     .select('id', { count: 'exact', head: true })
     .is('read_at', null);
-  return res.count ?? 0;
+  let crmCount = 0;
+  try {
+    const crmRes = await createCrmBrowserClient()
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('lu', false);
+    crmCount = crmRes.count ?? 0;
+  } catch {
+    // schema crm indisponible : la cloche retombe sur le systeme seul
+  }
+  return (sys.count ?? 0) + crmCount;
 }
 
 /**

@@ -3,6 +3,7 @@ import {
   listRelancesArchivees,
 } from '@/lib/crm/queries/relances';
 import { compteOptions } from '@/lib/crm/queries/comptes';
+import { PageHeader } from '@/components/shared/page-header';
 import { commercialOptions } from '@/lib/crm/queries/rdv';
 import { RelanceList } from '@/components/crm/relances/relance-list';
 import { RelanceArchive } from '@/components/crm/relances/relance-archive';
@@ -20,7 +21,10 @@ export default async function RelancesPage() {
   ]);
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold tracking-tight">Relances</h1>
+      <PageHeader
+        title="Relances"
+        description="Relances commerciales à traiter"
+      />
       <RelanceList relances={relances} today={todayInParis()} />
       <RelanceArchive relances={archivees} />
       <RelanceForm

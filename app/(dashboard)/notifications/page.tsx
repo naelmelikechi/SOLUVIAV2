@@ -2,13 +2,19 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getNotifications } from '@/lib/queries/notifications';
+import { listMyNotifications } from '@/lib/crm/queries/notifications';
 import { PageHeader } from '@/components/shared/page-header';
 import { NotificationsPageClient } from '@/components/notifications/notifications-page-client';
 
 export const metadata: Metadata = { title: 'Notifications - SOLUVIA' };
 
 export default async function NotificationsPage() {
-  const notifications = await getNotifications();
+  // Cloche unique : notifications systeme (public) + notifications CRM
+  // (mentions, RDV - schema crm) dans la meme liste chronologique.
+  const [notifications, crmNotifications] = await Promise.all([
+    getNotifications(),
+    listMyNotifications(50),
+  ]);
 
   return (
     <div>
@@ -20,7 +26,10 @@ export default async function NotificationsPage() {
         Retour
       </Link>
       <PageHeader title="Notifications" description="Vos alertes et rappels" />
-      <NotificationsPageClient notifications={notifications} />
+      <NotificationsPageClient
+        notifications={notifications}
+        crmNotifications={crmNotifications}
+      />
     </div>
   );
 }

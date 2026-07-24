@@ -4,6 +4,7 @@ import {
   getOpportunite,
 } from '@/lib/crm/queries/opportunites';
 import { isKnownRegion } from '@/lib/crm/domain/geo';
+import { PageHeader } from '@/components/shared/page-header';
 import { commercialOptions } from '@/lib/crm/queries/rdv';
 import { cachedGetUser } from '@/lib/crm/auth/roles';
 import { isHiddenEmail } from '@/lib/crm/auth/hidden';
@@ -36,7 +37,7 @@ export default async function PipelinePage({
   const canNote = !isHiddenEmail(user?.email);
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold tracking-tight">Pipeline</h1>
+      <PageHeader title="Pipeline" description="Opportunités par étape" />
       <PipelineView
         etapes={etapes}
         opportunites={opportunites}

@@ -1,4 +1,5 @@
 import { listRdv, commercialOptions } from '@/lib/crm/queries/rdv';
+import { PageHeader } from '@/components/shared/page-header';
 import { compteOptions } from '@/lib/crm/queries/comptes';
 import { RdvCalendar } from '@/components/crm/rdv/rdv-calendar-lazy';
 import { RdvLists } from '@/components/crm/rdv/rdv-list';
@@ -22,7 +23,7 @@ export default async function RdvPage({
   const nowIso = new Date().toISOString();
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold tracking-tight">RDV</h1>
+      <PageHeader title="RDV" description="Rendez-vous commerciaux" />
       <RdvCalendar rdv={rdv} />
       <RdvLists rdv={rdv} nowIso={nowIso} />
       {/* key par id : remonte le détail (état local compte-rendu) au changement de RDV. */}

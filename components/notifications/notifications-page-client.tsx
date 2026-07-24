@@ -4,6 +4,9 @@ import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import {
   AlertTriangle,
+  AtSign,
+  BellRing,
+  CalendarClock,
   Clock,
   Timer,
   Calendar,
@@ -14,11 +17,16 @@ import {
   Send,
 } from 'lucide-react';
 import type { NotificationItem } from '@/lib/queries/notifications';
+import type { NotificationItem as CrmNotificationItem } from '@/lib/crm/queries/notifications';
 import {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification,
 } from '@/lib/actions/notifications';
+import {
+  markRead as markCrmRead,
+  markAllRead as markAllCrmRead,
+} from '@/lib/crm/actions/notifications';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/shared/empty-state';
 import { cn } from '@/lib/utils';
@@ -34,6 +42,9 @@ const iconMap: Record<string, React.ElementType> = {
   rappel_temps: Timer,
   periode_facturation: Calendar,
   erreur_sync: AlertCircle,
+  crm_mention: AtSign,
+  crm_rdv_assigned: CalendarClock,
+  crm_autre: BellRing,
 };
 
 const iconColorMap: Record<string, string> = {
@@ -43,6 +54,9 @@ const iconColorMap: Record<string, string> = {
   rappel_temps: 'text-blue-500',
   periode_facturation: 'text-violet-500',
   erreur_sync: 'text-red-400',
+  crm_mention: 'text-purple-500',
+  crm_rdv_assigned: 'text-blue-500',
+  crm_autre: 'text-muted-foreground',
 };
 
 // ---------------------------------------------------------------------------
@@ -77,26 +91,78 @@ function timeAgo(dateStr: string): string {
 
 interface NotificationsPageClientProps {
   notifications: NotificationItem[];
+  crmNotifications?: CrmNotificationItem[];
+}
+
+/** Item unifie affichable : notifications systeme + CRM dans une seule liste. */
+interface DisplayNotification {
+  id: string;
+  source: 'system' | 'crm';
+  type: string;
+  titre: string;
+  message: string | null;
+  lien: string | null;
+  read_at: string | null;
+  created_at: string;
 }
 
 export function NotificationsPageClient({
   notifications,
+  crmNotifications = [],
 }: NotificationsPageClientProps) {
   const { push, refresh } = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const hasUnread = notifications.some((n) => !n.read_at);
+  const merged: DisplayNotification[] = [
+    ...notifications.map(
+      (n): DisplayNotification => ({
+        id: n.id,
+        source: 'system',
+        type: n.type,
+        titre: n.titre,
+        message: n.message,
+        lien: n.lien,
+        read_at: n.read_at,
+        created_at: n.created_at,
+      }),
+    ),
+    ...crmNotifications.map(
+      (n): DisplayNotification => ({
+        id: n.id,
+        source: 'crm',
+        type: `crm_${n.type === 'mention' || n.type === 'rdv_assigned' ? n.type : 'autre'}`,
+        titre: n.contenu,
+        message: n.actor
+          ? `CRM - ${n.actor.prenom ?? ''} ${n.actor.nom ?? ''}`.trim()
+          : 'CRM',
+        lien: n.link,
+        read_at: n.lu ? n.created_at : null,
+        created_at: n.created_at,
+      }),
+    ),
+  ].sort((a, b) => b.created_at.localeCompare(a.created_at));
 
-  const handleMarkRead = (id: string) => {
+  const hasUnread = merged.some((n) => !n.read_at);
+  const hasCrmUnread = crmNotifications.some((n) => !n.lu);
+
+  const markOneRead = async (notification: DisplayNotification) => {
+    if (notification.source === 'crm') await markCrmRead(notification.id);
+    else await markNotificationRead(notification.id);
+  };
+
+  const handleMarkRead = (notification: DisplayNotification) => {
     startTransition(async () => {
-      await markNotificationRead(id);
+      await markOneRead(notification);
       refresh();
     });
   };
 
   const handleMarkAllRead = () => {
     startTransition(async () => {
-      await markAllNotificationsRead();
+      await Promise.all([
+        markAllNotificationsRead(),
+        hasCrmUnread ? markAllCrmRead() : Promise.resolve(),
+      ]);
       refresh();
     });
   };
@@ -108,10 +174,10 @@ export function NotificationsPageClient({
     });
   };
 
-  const handleNavigate = (notification: NotificationItem) => {
+  const handleNavigate = (notification: DisplayNotification) => {
     if (!notification.read_at) {
       startTransition(async () => {
-        await markNotificationRead(notification.id);
+        await markOneRead(notification);
         if (notification.lien) {
           push(notification.lien);
         } else {
@@ -123,7 +189,7 @@ export function NotificationsPageClient({
     }
   };
 
-  if (notifications.length === 0) {
+  if (merged.length === 0) {
     return (
       <EmptyState
         icon={BellOff}
@@ -152,7 +218,7 @@ export function NotificationsPageClient({
 
       {/* Notification list */}
       <div className="space-y-2">
-        {notifications.map((notification) => {
+        {merged.map((notification) => {
           const isUnread = !notification.read_at;
           const Icon = iconMap[notification.type] ?? AlertCircle;
           const iconColor =
@@ -229,21 +295,23 @@ export function NotificationsPageClient({
                     title="Marquer comme lu"
                     aria-label="Marquer comme lu"
                     disabled={isPending}
-                    onClick={() => handleMarkRead(notification.id)}
+                    onClick={() => handleMarkRead(notification)}
                   >
                     <CheckCheck className="size-3.5" />
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  title="Supprimer"
-                  aria-label="Supprimer la notification"
-                  disabled={isPending}
-                  onClick={() => handleDelete(notification.id)}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                {notification.source === 'system' && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    title="Supprimer"
+                    aria-label="Supprimer la notification"
+                    disabled={isPending}
+                    onClick={() => handleDelete(notification.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
           );

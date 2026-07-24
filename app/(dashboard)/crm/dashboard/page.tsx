@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PageHeader } from '@/components/shared/page-header';
 import {
   BarChart3,
   BellRing,
@@ -41,7 +42,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+      <PageHeader
+        title="CRM"
+        description="Vue d'ensemble du pipeline commercial"
+      />
 
       <KpiCards
         apprentis={apprentis}

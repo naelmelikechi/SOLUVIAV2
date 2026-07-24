@@ -17,6 +17,9 @@ import {
 } from '@/lib/utils/tva-intracom';
 import { formatClientAddressLines } from '@/lib/utils/fr-address';
 import { buildEInvoicingMentions } from '@/lib/utils/e-invoicing-mentions';
+import { formatEur } from '@/lib/pdf/format';
+import { docStyles, createTotalsStyles } from '@/lib/pdf/commercial-doc-styles';
+import { DestinataireBlock, TotalsBlock, PaymentRow } from '@/lib/pdf/blocks';
 
 const EMETTEUR_FALLBACK: EmetteurInfo = {
   raison_sociale: 'SOLUVIA',
@@ -29,86 +32,10 @@ const EMETTEUR_FALLBACK: EmetteurInfo = {
   titulaire_compte: null,
 };
 
+// Styles specifiques a la facture ; le socle commun (page, header, table,
+// RIB, footer, totaux) vit dans lib/pdf/commercial-doc-styles.
 const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    // Footer en position absolute (bottom: 40, hauteur ~50). Sans
-    // paddingBottom, le contenu coule par-dessus le footer (chevauchement
-    // observe en prod sur facture multi-pages). On reserve l espace.
-    paddingBottom: 100,
-    fontSize: 9,
-    fontFamily: 'Helvetica',
-    color: '#1a1a1a',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-  },
   headerLeft: {},
-  headerRight: {
-    textAlign: 'right',
-  },
-  logo: {
-    width: 130,
-    height: 26,
-    marginBottom: 8,
-    objectFit: 'contain',
-  },
-  companyName: {
-    fontSize: 16,
-    fontFamily: 'Helvetica-Bold',
-    color: '#16a34a',
-    marginBottom: 4,
-  },
-  docTitle: {
-    fontSize: 14,
-    fontFamily: 'Helvetica-Bold',
-    marginBottom: 4,
-  },
-  docRef: {
-    fontSize: 12,
-    fontFamily: 'Helvetica-Bold',
-    color: '#d97706',
-    marginBottom: 2,
-  },
-  label: {
-    fontSize: 8,
-    fontFamily: 'Helvetica-Bold',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  sectionBox: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 4,
-    padding: 12,
-    marginBottom: 16,
-  },
-  bold: {
-    fontFamily: 'Helvetica-Bold',
-  },
-  muted: {
-    color: '#6b7280',
-  },
-  // Table
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-  },
-  colNum: { width: '6%' },
   colDeca: { width: '16%' },
   colApprenant: { width: '20%' },
   colDescription: { width: '26%' },
@@ -117,34 +44,6 @@ const styles = StyleSheet.create({
   colDescriptionWide: { width: '54%' },
   colMontantHtWide: { width: '20%', textAlign: 'right' },
   colMontantTtcWide: { width: '20%', textAlign: 'right' },
-  // Totals
-  totalsContainer: {
-    marginTop: 16,
-    alignItems: 'flex-end',
-  },
-  totalsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 200,
-    paddingVertical: 3,
-  },
-  totalsTtc: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 200,
-    paddingVertical: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
-    marginTop: 4,
-  },
-  totalsTtcLabel: {
-    fontSize: 11,
-    fontFamily: 'Helvetica-Bold',
-  },
-  totalsTtcValue: {
-    fontSize: 11,
-    fontFamily: 'Helvetica-Bold',
-  },
   // OPCO grouping
   opcoHeader: {
     fontSize: 10,
@@ -159,16 +58,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 8,
     fontFamily: 'Helvetica-Bold',
-  },
-  // Footer
-  footer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 40,
-    right: 40,
-    fontSize: 7,
-    color: '#9ca3af',
-    lineHeight: 1.4,
   },
   avoirBanner: {
     backgroundColor: '#fef2f2',
@@ -202,41 +91,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     fontSize: 12,
   },
-  paymentBox: {
-    marginTop: 18,
-    padding: 12,
-    backgroundColor: '#f0fdf4',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    borderRadius: 4,
-  },
-  paymentRow: {
-    flexDirection: 'row',
-    marginTop: 3,
-  },
-  paymentLabel: {
-    width: 70,
-    color: '#6b7280',
-  },
-  paymentValue: {
-    flex: 1,
-    fontFamily: 'Helvetica-Bold',
-  },
 });
 
-const eurFormatter = new Intl.NumberFormat('fr-FR', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-});
-
-function formatEur(n: number): string {
-  // Helvetica embarquee dans @react-pdf/renderer ne contient pas le NNBSP
-  // (U+202F) que Intl.NumberFormat fr-FR utilise comme separateur de
-  // milliers - il est rendu en glyphe fallback ressemblant a un slash
-  // ("3/132,00 €" au lieu de "3 132,00 €"). On normalise en espace simple.
-  return eurFormatter.format(n).replace(/\s/g, ' ');
-}
+const totalsStyles = createTotalsStyles(200);
 
 interface FacturePdfProps {
   facture: FactureDetail;
@@ -295,28 +152,28 @@ export function FacturePdf({
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" style={docStyles.page}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={docStyles.header}>
           <View style={styles.headerLeft}>
             {/* Logo officiel Soluvia. URL absolue car @react-pdf fetch
                 au render-time cote serverless (filesystem read-only). */}
             {logoSrc ? (
               // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={logoSrc} style={styles.logo} />
+              <Image src={logoSrc} style={docStyles.logo} />
             ) : null}
             <Text>{adresseLigne1}</Text>
             {adresseLigne2 ? <Text>{adresseLigne2}</Text> : null}
-            <Text style={styles.muted}>SIRET {EMETTEUR.siret}</Text>
-            <Text style={styles.muted}>
+            <Text style={docStyles.muted}>SIRET {EMETTEUR.siret}</Text>
+            <Text style={docStyles.muted}>
               TVA intracommunautaire {EMETTEUR.tva}
             </Text>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.docTitle}>
+          <View style={docStyles.headerRight}>
+            <Text style={docStyles.docTitle}>
               {isAvoir ? 'AVOIR' : isDraft ? 'APERÇU FACTURE' : 'FACTURE'}
             </Text>
-            <Text style={styles.docRef}>{facture.ref}</Text>
+            <Text style={docStyles.docRef}>{facture.ref}</Text>
             <Text>
               Date :{' '}
               {facture.date_emission ? formatDate(facture.date_emission) : '-'}
@@ -326,7 +183,7 @@ export function FacturePdf({
               {facture.date_echeance ? formatDate(facture.date_echeance) : '-'}
             </Text>
             {facture.conditions_reglement && (
-              <Text style={styles.bold}>{facture.conditions_reglement}</Text>
+              <Text style={docStyles.bold}>{facture.conditions_reglement}</Text>
             )}
           </View>
         </View>
@@ -359,30 +216,20 @@ export function FacturePdf({
         )}
 
         {/* Destinataire */}
-        <View style={styles.sectionBox}>
-          <Text style={styles.label}>Facturer à</Text>
-          <Text style={styles.bold}>
-            {facture.client?.raison_sociale ?? ''}
-          </Text>
-          {formatClientAddressLines(
+        <DestinataireBlock
+          label="Facturer à"
+          raisonSociale={facture.client?.raison_sociale ?? ''}
+          addressLines={formatClientAddressLines(
             facture.client?.adresse,
             facture.client?.localisation,
-          ).map((line, i) => (
-            <Text key={i}>{line}</Text>
-          ))}
-          {facture.client?.siret && (
-            <Text style={styles.muted}>SIRET {facture.client.siret}</Text>
           )}
-          {facture.client?.tva_intracommunautaire && (
-            <Text style={styles.muted}>
-              TVA {facture.client.tva_intracommunautaire}
-            </Text>
-          )}
-        </View>
+          siret={facture.client?.siret}
+          tva={facture.client?.tva_intracommunautaire}
+        />
 
         {/* Objet */}
         <View style={{ marginBottom: 16 }}>
-          <Text style={styles.label}>Objet</Text>
+          <Text style={docStyles.label}>Objet</Text>
           <Text>
             {facture.objet ??
               (facture.projet?.ref
@@ -392,17 +239,17 @@ export function FacturePdf({
         </View>
 
         {/* Table header */}
-        <View style={styles.tableHeader}>
-          <Text style={[styles.colNum, styles.bold]}>N°</Text>
+        <View style={docStyles.tableHeader}>
+          <Text style={[docStyles.colNum, docStyles.bold]}>N°</Text>
           {hasContratLignes && (
-            <Text style={[styles.colDeca, styles.bold]}>DECA</Text>
+            <Text style={[styles.colDeca, docStyles.bold]}>DECA</Text>
           )}
           {hasContratLignes && (
-            <Text style={[styles.colApprenant, styles.bold]}>Apprenant</Text>
+            <Text style={[styles.colApprenant, docStyles.bold]}>Apprenant</Text>
           )}
-          <Text style={[colDescription, styles.bold]}>Description</Text>
-          <Text style={[colMontantHt, styles.bold]}>Montant HT</Text>
-          <Text style={[colMontantTtc, styles.bold]}>Montant TTC</Text>
+          <Text style={[colDescription, docStyles.bold]}>Description</Text>
+          <Text style={[colMontantHt, docStyles.bold]}>Montant HT</Text>
+          <Text style={[colMontantTtc, docStyles.bold]}>Montant TTC</Text>
         </View>
 
         {/* Table rows — grouped by opco_code when multiple OPCOs present */}
@@ -445,8 +292,8 @@ export function FacturePdf({
             const decaLabel =
               ligne.contrat?.contract_number ?? ligne.contrat?.ref ?? '';
             return (
-              <View key={ligne.id} style={styles.tableRow}>
-                <Text style={styles.colNum}>{numero}</Text>
+              <View key={ligne.id} style={docStyles.tableRow}>
+                <Text style={docStyles.colNum}>{numero}</Text>
                 {hasContratLignes && (
                   <Text style={styles.colDeca}>{decaLabel}</Text>
                 )}
@@ -457,7 +304,7 @@ export function FacturePdf({
                       : ''}
                   </Text>
                 )}
-                <Text style={[colDescription, styles.muted]}>
+                <Text style={[colDescription, docStyles.muted]}>
                   {ligne.description}
                 </Text>
                 <Text style={colMontantHt}>{formatEur(ligne.montant_ht)}</Text>
@@ -495,27 +342,22 @@ export function FacturePdf({
         })()}
 
         {/* Totals */}
-        <View style={styles.totalsContainer}>
-          <View style={styles.totalsRow}>
-            <Text style={styles.muted}>Sous-total HT</Text>
-            <Text>{formatEur(facture.montant_ht)}</Text>
-          </View>
-          <View style={styles.totalsRow}>
-            <Text style={styles.muted}>TVA {facture.taux_tva}%</Text>
-            <Text>{formatEur(facture.montant_tva)}</Text>
-          </View>
-          <View style={styles.totalsTtc}>
-            <Text style={styles.totalsTtcLabel}>Total TTC</Text>
-            <Text style={styles.totalsTtcValue}>
-              {formatEur(facture.montant_ttc)}
-            </Text>
-          </View>
-        </View>
+        <TotalsBlock
+          styles={totalsStyles}
+          rows={[
+            { label: 'Sous-total HT', value: formatEur(facture.montant_ht) },
+            {
+              label: `TVA ${facture.taux_tva}%`,
+              value: formatEur(facture.montant_tva),
+            },
+          ]}
+          ttc={formatEur(facture.montant_ttc)}
+        />
 
         {/* Mention autoliquidation TVA - obligatoire B2B intracom UE non-FR */}
         {isAutoliquidation && (
           <View style={{ marginTop: 12 }}>
-            <Text style={[styles.bold, { color: '#1a1a1a' }]}>
+            <Text style={[docStyles.bold, { color: '#1a1a1a' }]}>
               {AUTOLIQUIDATION_MENTION}
             </Text>
           </View>
@@ -533,8 +375,8 @@ export function FacturePdf({
 
         {/* Modalites de paiement / RIB */}
         {(EMETTEUR.iban || EMETTEUR.bic) && (
-          <View style={styles.paymentBox} wrap={false}>
-            <Text style={styles.label}>Modalités de paiement</Text>
+          <View style={docStyles.paymentBox} wrap={false}>
+            <Text style={docStyles.label}>Modalités de paiement</Text>
             <Text style={{ marginTop: 4 }}>
               {facture.conditions_reglement
                 ? `Règlement par virement bancaire - ${facture.conditions_reglement}.`
@@ -545,39 +387,22 @@ export function FacturePdf({
             </Text>
             <Text style={{ marginTop: 2, color: '#6b7280' }}>
               Merci d&apos;indiquer la référence{' '}
-              <Text style={styles.bold}>{facture.ref}</Text> lors du virement.
+              <Text style={docStyles.bold}>{facture.ref}</Text> lors du
+              virement.
             </Text>
             {EMETTEUR.titulaire_compte && (
-              <View style={styles.paymentRow}>
-                <Text style={styles.paymentLabel}>Titulaire</Text>
-                <Text style={styles.paymentValue}>
-                  {EMETTEUR.titulaire_compte}
-                </Text>
-              </View>
+              <PaymentRow label="Titulaire" value={EMETTEUR.titulaire_compte} />
             )}
             {EMETTEUR.banque && (
-              <View style={styles.paymentRow}>
-                <Text style={styles.paymentLabel}>Banque</Text>
-                <Text style={styles.paymentValue}>{EMETTEUR.banque}</Text>
-              </View>
+              <PaymentRow label="Banque" value={EMETTEUR.banque} />
             )}
-            {EMETTEUR.iban && (
-              <View style={styles.paymentRow}>
-                <Text style={styles.paymentLabel}>IBAN</Text>
-                <Text style={styles.paymentValue}>{EMETTEUR.iban}</Text>
-              </View>
-            )}
-            {EMETTEUR.bic && (
-              <View style={styles.paymentRow}>
-                <Text style={styles.paymentLabel}>BIC</Text>
-                <Text style={styles.paymentValue}>{EMETTEUR.bic}</Text>
-              </View>
-            )}
+            {EMETTEUR.iban && <PaymentRow label="IBAN" value={EMETTEUR.iban} />}
+            {EMETTEUR.bic && <PaymentRow label="BIC" value={EMETTEUR.bic} />}
           </View>
         )}
 
         {/* Footer */}
-        <View style={styles.footer} fixed>
+        <View style={docStyles.footer} fixed>
           <Text>
             En cas de retard de paiement, une pénalité égale à 3 fois le taux
             d&apos;intérêt légal sera appliquée, ainsi qu&apos;une indemnité

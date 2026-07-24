@@ -6,11 +6,22 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/shared/empty-state';
+import { createClient } from '@/lib/supabase/server';
+import { isAdmin } from '@/lib/utils/roles';
 
 export const metadata: Metadata = { title: 'Qualité - SOLUVIA' };
 export const revalidate = 60;
 
 export default async function QualiopiHomePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: currentUser } = user
+    ? await supabase.from('users').select('role').eq('id', user.id).single()
+    : { data: null };
+  const userIsAdmin = isAdmin(currentUser?.role ?? null);
+
   const allClients = await getQualiopiClients();
   // Le pseudo-client "Interne SOLUVIA" (trigramme INT) n'a pas vocation
   // a avoir une cle Eduvia : c'est le bucket des projets internes (R&D,
@@ -67,23 +78,23 @@ export default async function QualiopiHomePage() {
             </section>
           )}
 
-          {missing.length > 0 && (
-            <section>
-              <h2 className="text-muted-foreground mb-3 flex items-center gap-2 text-sm font-semibold tracking-wide uppercase">
-                <AlertTriangle className="size-4 text-[var(--warning)]" />
-                CFA sans clé API Eduvia ({missing.length})
-              </h2>
-              <Card className="p-4">
-                <p className="text-muted-foreground mb-3 text-sm">
-                  Ces clients n&apos;ont pas de clé API Eduvia active.
-                  Configurez-la dans la fiche du client pour activer le suivi
-                  Qualiopi.
-                </p>
+          {/* Tache de configuration (cle API dans la fiche client) : reservee
+              aux admins - un CDP n'a rien a faire de cette liste. */}
+          {userIsAdmin && missing.length > 0 && (
+            <details className="group">
+              <summary className="text-muted-foreground hover:text-foreground flex cursor-pointer list-none items-center gap-2 text-sm">
+                <AlertTriangle className="size-4 shrink-0 text-[var(--warning)]" />
+                <span>
+                  {missing.length} CFA sans clé API Eduvia (suivi Qualiopi
+                  inactif) - afficher
+                </span>
+              </summary>
+              <Card className="mt-3 p-4">
                 <ul className="divide-y divide-[var(--border-light)]">
                   {missing.map((c) => (
                     <li
                       key={c.id}
-                      className="flex items-center justify-between py-2"
+                      className="flex items-center justify-between py-1.5"
                     >
                       <div>
                         <span className="text-sm font-medium">
@@ -103,7 +114,7 @@ export default async function QualiopiHomePage() {
                   ))}
                 </ul>
               </Card>
-            </section>
+            </details>
           )}
         </div>
       )}

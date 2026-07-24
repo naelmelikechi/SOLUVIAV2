@@ -7,7 +7,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { SparklineSvg } from '@/components/shared/sparkline';
-import { KpiCardPlaceholder } from './kpi-card-placeholder';
 import {
   getKpiSeriesBatch,
   type Scope,
@@ -131,7 +130,9 @@ export async function QualitePedagogieSection({
           Indicateurs §5 : sources Eduvia (contrats, progressions, Qualiopi).
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Reussite et Rentabilite volontairement absents : pas de donnees
+          (examens Eduvia / couts directs) - on n'affiche pas de cartes "a venir". */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           title="Qualité Qualiopi"
           subtitle="Tâches conformes sur tous les CFA"
@@ -144,11 +145,6 @@ export async function QualitePedagogieSection({
           color="blue"
           series={series.get('pedagogie_avancement') ?? []}
         />
-        <KpiCardPlaceholder
-          title="Réussite"
-          tooltip="Données examens non disponibles côté Eduvia."
-          subtitle="Taux de réussite examens (à venir)"
-        />
         <KpiCard
           title="Financement"
           subtitle="Part facturée vs NPEC total contrats actifs"
@@ -160,11 +156,6 @@ export async function QualitePedagogieSection({
           subtitle="Contrats resilies ou annules, toutes periodes"
           color="red"
           series={series.get('taux_abandon') ?? []}
-        />
-        <KpiCardPlaceholder
-          title="Rentabilité"
-          tooltip="Coûts directs non tracés, formule à définir."
-          subtitle="Marge brute (à venir)"
         />
       </div>
     </section>
@@ -185,8 +176,8 @@ export function QualitePedagogieSectionSkeleton() {
           Indicateurs §5 : sources Eduvia (contrats, progressions, Qualiopi).
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
             <CardHeader className="pb-2">
               <Skeleton className="h-4 w-28" />

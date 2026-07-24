@@ -86,7 +86,7 @@ const CDP_TOUR: TourStep[] = [
     // sidebar. On cible /a-facturer, sa porte d'entree facturation a lui.
     element: '[data-tour="/a-facturer"]',
     popover: {
-      title: 'À facturer (Eduvia)',
+      title: 'À facturer (OPCO)',
       description:
         'Les contrats dont une échéance est due et pas encore transmise. Le badge bleu indique combien attendent une action.',
       side: 'right',

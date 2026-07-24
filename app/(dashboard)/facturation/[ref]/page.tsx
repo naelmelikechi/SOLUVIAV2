@@ -18,7 +18,7 @@ export async function generateMetadata({
   params: Promise<{ ref: string }>;
 }): Promise<Metadata> {
   const { ref } = await params;
-  return { title: `${ref} - Facturation - SOLUVIA` };
+  return { title: `${ref} - Factures - SOLUVIA` };
 }
 import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 import { Card } from '@/components/ui/card';

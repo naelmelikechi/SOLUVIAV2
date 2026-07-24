@@ -93,12 +93,6 @@ export const navSections: NavSection[] = [
       },
       { href: '/temps', label: 'Temps', icon: Clock },
       { href: '/qualiopi', label: 'Qualité', icon: ShieldCheck },
-      {
-        href: '/a-facturer',
-        label: 'À facturer (Eduvia)',
-        icon: Send,
-        requiresCdpOrAdmin: true,
-      },
       { href: '/production', label: 'Production', icon: TrendingUp },
     ],
   },
@@ -141,7 +135,16 @@ export const navSections: NavSection[] = [
         label: 'Factures',
         icon: FileText,
         adminOnly: true,
-        keywords: ['facturation'],
+        keywords: ['facturation', 'commissions', 'echeancier', 'engagement'],
+      },
+      {
+        // Tout ce qui se facture vit dans la meme section : les echeances
+        // OPCO a transmettre sur Eduvia aussi (avant : section Operations).
+        href: '/a-facturer',
+        label: 'À facturer (OPCO)',
+        icon: Send,
+        requiresCdpOrAdmin: true,
+        keywords: ['eduvia', 'echeances', 'opco', 'transmettre'],
       },
     ],
   },

@@ -184,10 +184,32 @@ export function MonthlyView({
     | { kind: 'banner'; year: number }
     | { kind: 'row'; row: MonthRow };
 
+  const [showEmptyHistory, setShowEmptyHistory] = useState(false);
+
+  // Masque les mois de tete sans aucune activite (historique avant les
+  // premieres donnees) : ils noyaient le tableau sous des lignes a 0 EUR.
+  const { visibleData, hiddenLeadingCount } = useMemo(() => {
+    const hasActivity = (r: MonthRow) =>
+      r.production !== 0 ||
+      r.facture !== 0 ||
+      r.encaisse !== 0 ||
+      r.en_retard !== 0 ||
+      r.raf !== 0 ||
+      r.rae !== 0;
+    const firstIdx = data.findIndex((r) => hasActivity(r) || r.isCurrent);
+    if (showEmptyHistory || firstIdx <= 0) {
+      return { visibleData: data, hiddenLeadingCount: 0 };
+    }
+    return {
+      visibleData: data.slice(firstIdx),
+      hiddenLeadingCount: firstIdx,
+    };
+  }, [data, showEmptyHistory]);
+
   const rowsWithYearBreaks = useMemo<YearGroupItem[]>(() => {
     const out: YearGroupItem[] = [];
     let currentYear: number | null = null;
-    for (const row of data) {
+    for (const row of visibleData) {
       const year = Number(row.mois.slice(0, 4));
       if (year !== currentYear) {
         out.push({ kind: 'banner', year });
@@ -196,7 +218,7 @@ export function MonthlyView({
       out.push({ kind: 'row', row });
     }
     return out;
-  }, [data]);
+  }, [visibleData]);
 
   // L'expansion reste locale a chaque instance (deplier OPCO ne deplie pas
   // SOLUVIA) ; seuls les caches de donnees sont partages via le drilldown.
@@ -354,6 +376,19 @@ export function MonthlyView({
             </TableRow>
           </TableHeader>
           <TableBody>
+            {hiddenLeadingCount > 0 && (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={totalColumnCount} className="py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmptyHistory(true)}
+                    className="text-muted-foreground hover:text-foreground text-xs underline-offset-2 hover:underline"
+                  >
+                    Afficher {hiddenLeadingCount} mois antérieurs sans activité
+                  </button>
+                </TableCell>
+              </TableRow>
+            )}
             {rowsWithYearBreaks.map((item) => {
               if (item.kind === 'banner') {
                 return (

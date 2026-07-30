@@ -3162,6 +3162,48 @@ export type Database = {
           },
         ];
       };
+      process_index: {
+        Row: {
+          content_hash: string;
+          contenu: string;
+          embedding: number[];
+          fiche_code: string;
+          id: string;
+          mission_code: string;
+          mission_nom: string;
+          source_fiche_id: string;
+          titre: string;
+          updated_at: string;
+          url: string;
+        };
+        Insert: {
+          content_hash: string;
+          contenu: string;
+          embedding: number[];
+          fiche_code: string;
+          id?: string;
+          mission_code: string;
+          mission_nom: string;
+          source_fiche_id: string;
+          titre: string;
+          updated_at?: string;
+          url: string;
+        };
+        Update: {
+          content_hash?: string;
+          contenu?: string;
+          embedding?: number[];
+          fiche_code?: string;
+          id?: string;
+          mission_code?: string;
+          mission_nom?: string;
+          source_fiche_id?: string;
+          titre?: string;
+          updated_at?: string;
+          url?: string;
+        };
+        Relationships: [];
+      };
       progression_snapshots_weekly: {
         Row: {
           captured_at: string;
@@ -4111,6 +4153,28 @@ export type Database = {
       refuse_devis_public: {
         Args: { p_motif: string; p_token: string };
         Returns: Json;
+      };
+      search_process_trgm: {
+        Args: { q: string };
+        Returns: {
+          content_hash: string;
+          contenu: string;
+          embedding: number[];
+          fiche_code: string;
+          id: string;
+          mission_code: string;
+          mission_nom: string;
+          source_fiche_id: string;
+          titre: string;
+          updated_at: string;
+          url: string;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'process_index';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
       };
     };
     Enums: {

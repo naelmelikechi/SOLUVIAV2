@@ -92,6 +92,17 @@ const serverSchema = z
     // (ai_status = 'skipped').
     OPENAI_API_KEY: z.string().min(1).optional(),
 
+    // Pont recherche process (source Soluvia-Process). Optionnels en dev/test,
+    // requis en prod pour le cron de synchro.
+    PROCESS_SYNC_SECRET: z
+      .string()
+      .min(16, 'PROCESS_SYNC_SECRET must be at least 16 chars')
+      .optional(),
+    PROCESS_SOURCE_URL: z
+      .string()
+      .url({ message: 'PROCESS_SOURCE_URL must be a valid URL' })
+      .optional(),
+
     // Destinataire des emails de bug reports. Si absent, fallback vers
     // l'admin principal (cf. lib/email/notifications.ts patterns).
     ADMIN_BUG_REPORT_EMAIL: z.string().email().optional(),
@@ -186,6 +197,8 @@ function parseEnv(): Env {
     RESEND_API_KEY: process.env.RESEND_API_KEY?.trim(),
     EMAIL_OVERRIDE: process.env.EMAIL_OVERRIDE?.trim(),
     OPENAI_API_KEY: process.env.OPENAI_API_KEY?.trim(),
+    PROCESS_SYNC_SECRET: process.env.PROCESS_SYNC_SECRET?.trim(),
+    PROCESS_SOURCE_URL: process.env.PROCESS_SOURCE_URL?.trim(),
     ADMIN_BUG_REPORT_EMAIL: process.env.ADMIN_BUG_REPORT_EMAIL?.trim(),
     GIPHY_API_KEY: process.env.GIPHY_API_KEY?.trim(),
     AVATAR_UNLOCK_SECRET: process.env.AVATAR_UNLOCK_SECRET?.trim(),

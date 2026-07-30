@@ -26,7 +26,9 @@ export function buildSnippet(
   }
 
   const start = Math.max(0, idx - Math.floor(maxLen / 3));
-  const slice = clean.slice(start, start + maxLen).trimEnd();
   const prefix = start > 0 ? '…' : '';
+  // On réserve la place du "…" de tête dans la longueur de la tranche pour
+  // garantir l'invariant total ≤ maxLen + 1 (le "…" de queue).
+  const slice = clean.slice(start, start + maxLen - prefix.length).trimEnd();
   return prefix + slice + '…';
 }

@@ -8,11 +8,12 @@ describe('buildSnippet', () => {
     expect(snip.length).toBeLessThanOrEqual(121);
     expect(snip.endsWith('…')).toBe(true);
   });
-  it('centre autour du premier mot de la requête trouvé', () => {
-    const contenu =
-      'intro '.repeat(30) + 'PROCEDURE_CIBLE ' + 'fin '.repeat(30);
+  it('centre autour du premier mot de la requête trouvé, sans dépasser maxLen+1', () => {
+    const contenu = 'x'.repeat(200) + 'PROCEDURE_CIBLE' + 'x'.repeat(200);
     const snip = buildSnippet(contenu, 'procedure_cible', 80);
     expect(snip.toLowerCase()).toContain('procedure_cible');
+    expect(snip.length).toBeLessThanOrEqual(81);
+    expect(snip.startsWith('…')).toBe(true);
   });
   it("renvoie le contenu tel quel s'il est plus court que la longueur", () => {
     expect(buildSnippet('court', 'x', 80)).toBe('court');

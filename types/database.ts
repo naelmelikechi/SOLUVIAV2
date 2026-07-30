@@ -3166,6 +3166,8 @@ export type Database = {
         Row: {
           content_hash: string;
           contenu: string;
+          detail: Json | null;
+          detail_hash: string | null;
           embedding: number[];
           fiche_code: string;
           id: string;
@@ -3179,6 +3181,8 @@ export type Database = {
         Insert: {
           content_hash: string;
           contenu: string;
+          detail?: Json | null;
+          detail_hash?: string | null;
           embedding: number[];
           fiche_code: string;
           id?: string;
@@ -3192,6 +3196,8 @@ export type Database = {
         Update: {
           content_hash?: string;
           contenu?: string;
+          detail?: Json | null;
+          detail_hash?: string | null;
           embedding?: number[];
           fiche_code?: string;
           id?: string;
@@ -4159,6 +4165,8 @@ export type Database = {
         Returns: {
           content_hash: string;
           contenu: string;
+          detail: Json | null;
+          detail_hash: string | null;
           embedding: number[];
           fiche_code: string;
           id: string;

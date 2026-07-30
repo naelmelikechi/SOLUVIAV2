@@ -4,6 +4,18 @@ import { env } from '@/lib/env';
 
 const EMBEDDING_MODEL = 'text-embedding-3-small'; // 1536 dims
 
+// text-embedding-3-small refuse tout input > 8192 tokens. Certaines fiches
+// (documents markdown longs) dépassent cette limite. On tronque par caractères
+// avant l'envoi : 16000 caractères restent sous 8192 tokens pour du texte
+// naturel/markdown, et le début de la fiche (titre + description + premières
+// tâches) porte l'essentiel du signal de recherche.
+const MAX_EMBED_CHARS = 16000;
+
+/** Tronque un texte à une longueur sûre pour l'API d'embedding. */
+export function truncateForEmbedding(text: string): string {
+  return text.length > MAX_EMBED_CHARS ? text.slice(0, MAX_EMBED_CHARS) : text;
+}
+
 function model() {
   const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
   // NB : sur @ai-sdk/openai v3, `.embedding(...)` et `.textEmbeddingModel(...)`
@@ -15,14 +27,20 @@ function model() {
 
 /** Embedding d'un texte unique (ex. la requête de recherche). */
 export async function embedText(text: string): Promise<number[]> {
-  const { embedding } = await embed({ model: model(), value: text });
+  const { embedding } = await embed({
+    model: model(),
+    value: truncateForEmbedding(text),
+  });
   return embedding;
 }
 
 /** Embeddings d'un lot de textes (ex. les fiches à (re)vectoriser). */
 export async function embedMany(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return [];
-  const { embeddings } = await aiEmbedMany({ model: model(), values: texts });
+  const { embeddings } = await aiEmbedMany({
+    model: model(),
+    values: texts.map(truncateForEmbedding),
+  });
   return embeddings;
 }
 

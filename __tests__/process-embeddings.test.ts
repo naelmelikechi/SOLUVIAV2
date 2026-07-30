@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { cosineSimilarity } from '@/lib/process/embeddings';
+import {
+  cosineSimilarity,
+  truncateForEmbedding,
+} from '@/lib/process/embeddings';
+
+describe('truncateForEmbedding', () => {
+  it('laisse un texte court intact', () => {
+    expect(truncateForEmbedding('court')).toBe('court');
+  });
+  it('tronque un texte trop long à 16000 caractères', () => {
+    const long = 'a'.repeat(20000);
+    expect(truncateForEmbedding(long).length).toBe(16000);
+  });
+});
 
 describe('cosineSimilarity', () => {
   it('vaut 1 pour deux vecteurs identiques', () => {

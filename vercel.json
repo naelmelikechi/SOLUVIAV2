@@ -84,6 +84,10 @@
     {
       "path": "/api/cron/a-facturer-notif",
       "schedule": "30 6 * * 1-5"
+    },
+    {
+      "path": "/api/cron/process-sync",
+      "schedule": "0 4 * * *"
     }
   ]
 }

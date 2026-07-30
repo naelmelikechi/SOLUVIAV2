@@ -29,7 +29,7 @@ export function rankResults(
       source_fiche_id: r.source_fiche_id,
       titre: r.titre,
       mission: r.mission_nom,
-      url: r.url,
+      url: `/process/fiches/${r.source_fiche_id}`,
       snippet: buildSnippet(r.contenu, query),
       score,
     }));
@@ -40,7 +40,7 @@ function rowToResult(r: IndexRow, query: string): ProcessSearchResult {
     source_fiche_id: r.source_fiche_id,
     titre: r.titre,
     mission: r.mission_nom,
-    url: r.url,
+    url: `/process/fiches/${r.source_fiche_id}`,
     snippet: buildSnippet(r.contenu, query),
     // Fallback trgm : similarité mots-clés (pg_trgm), pas de distance
     // vectorielle → aucun score cosinus significatif à exposer ici.

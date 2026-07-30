@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Search, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
+import { Search, ArrowRight } from 'lucide-react';
 import { searchProcessAction } from '@/app/(dashboard)/process/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,15 +61,13 @@ export function ProcessSearch() {
                 <p className="text-muted-foreground mt-1 text-sm">
                   {r.snippet}
                 </p>
-                <a
+                <Link
                   href={r.url}
-                  target="_blank"
-                  rel="noreferrer"
                   className="text-primary mt-2 inline-flex items-center gap-1 text-sm underline underline-offset-4"
                 >
                   Ouvrir la fiche
-                  <ExternalLink className="size-3.5" />
-                </a>
+                  <ArrowRight className="size-3.5" />
+                </Link>
               </CardContent>
             </Card>
           </li>

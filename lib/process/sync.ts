@@ -41,18 +41,29 @@ export async function syncProcessIndex(deps: SyncDeps): Promise<SyncResult> {
   let upserted = 0;
   if (changed.length) {
     const vectors = await embedMany(changed.map((f) => f.contenu));
-    const rows = changed.map((f, i) => ({
-      source_fiche_id: f.fiche_id,
-      mission_code: f.mission_code,
-      mission_nom: f.mission_nom,
-      fiche_code: f.fiche_code,
-      titre: f.titre,
-      contenu: f.contenu,
-      url: `${base}/fiches/${f.fiche_id}`,
-      content_hash: f.content_hash,
-      embedding: vectors[i] ?? [],
-      updated_at: new Date().toISOString(),
-    }));
+    if (vectors.length !== changed.length) {
+      throw new Error(
+        `embedMany a renvoyé ${vectors.length} vecteurs pour ${changed.length} fiches`,
+      );
+    }
+    const rows = changed.map((f, i) => {
+      const embedding = vectors[i];
+      if (!embedding || embedding.length === 0) {
+        throw new Error(`embedding manquant/vide pour la fiche ${f.fiche_id}`);
+      }
+      return {
+        source_fiche_id: f.fiche_id,
+        mission_code: f.mission_code,
+        mission_nom: f.mission_nom,
+        fiche_code: f.fiche_code,
+        titre: f.titre,
+        contenu: f.contenu,
+        url: `${base}/fiches/${f.fiche_id}`,
+        content_hash: f.content_hash,
+        embedding,
+        updated_at: new Date().toISOString(),
+      };
+    });
     const { error: upErr } = await admin
       .from('process_index')
       .upsert(rows, { onConflict: 'source_fiche_id' });

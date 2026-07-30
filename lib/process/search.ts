@@ -42,6 +42,8 @@ function rowToResult(r: IndexRow, query: string): ProcessSearchResult {
     mission: r.mission_nom,
     url: r.url,
     snippet: buildSnippet(r.contenu, query),
+    // Fallback trgm : similarité mots-clés (pg_trgm), pas de distance
+    // vectorielle → aucun score cosinus significatif à exposer ici.
     score: 0,
   };
 }

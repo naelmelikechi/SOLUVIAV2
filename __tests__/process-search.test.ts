@@ -51,4 +51,48 @@ describe('searchProcess', () => {
     expect(rpc).toHaveBeenCalledWith('search_process_trgm', { q: 'facturer' });
     expect(res.length).toBeGreaterThan(0);
   });
+
+  it("classe par cosinus quand l'embedding réussit (pas de fallback)", async () => {
+    const rpc = vi.fn();
+    const admin = {
+      from: () => ({
+        select: () => Promise.resolve({ data: ROWS, error: null }),
+      }),
+      rpc,
+    };
+    const res = await searchProcess('facturer', {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      admin: admin as any,
+      embedQuery: async () => [1, 0],
+    });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(res[0]!.source_fiche_id).toBe('1');
+    expect(res[0]!.score).toBeGreaterThan(0.9);
+  });
+
+  it("renvoie [] pour une requête vide sans toucher la DB ni l'embedding", async () => {
+    const embedQuery = vi.fn();
+    const admin = { from: vi.fn(), rpc: vi.fn() };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await searchProcess('   ', { admin: admin as any, embedQuery });
+    expect(res).toEqual([]);
+    expect(embedQuery).not.toHaveBeenCalled();
+    expect(admin.from).not.toHaveBeenCalled();
+  });
+
+  it("renvoie [] proprement si la lecture de l'index échoue", async () => {
+    const admin = {
+      from: () => ({
+        select: () =>
+          Promise.resolve({ data: null, error: { message: 'db down' } }),
+      }),
+      rpc: vi.fn(),
+    };
+    const res = await searchProcess('facturer', {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      admin: admin as any,
+      embedQuery: async () => [1, 0],
+    });
+    expect(res).toEqual([]);
+  });
 });

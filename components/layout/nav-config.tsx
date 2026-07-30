@@ -13,6 +13,7 @@ import {
   ScrollText,
   Send,
   Lightbulb,
+  Search,
   Building2,
   Settings,
   Bug,
@@ -153,6 +154,12 @@ export const navSections: NavSection[] = [
     items: [
       { href: '/equipe', label: 'Équipe', icon: UsersRound },
       { href: '/idees', label: 'Idées', icon: Lightbulb },
+      {
+        href: '/process',
+        label: 'Process',
+        icon: Search,
+        keywords: ['recherche', 'fiches', 'documentation'],
+      },
     ],
   },
   {

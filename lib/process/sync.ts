@@ -26,17 +26,22 @@ export async function syncProcessIndex(deps: SyncDeps): Promise<SyncResult> {
 
   const { data: existing, error: selErr } = await admin
     .from('process_index')
-    .select('source_fiche_id, content_hash');
+    .select('source_fiche_id, content_hash, detail_hash');
   if (selErr) throw new Error(`select process_index: ${selErr.message}`);
 
-  const existingHash = new Map(
+  const existingContent = new Map(
     (existing ?? []).map((r) => [r.source_fiche_id, r.content_hash]),
+  );
+  const existingDetail = new Map(
+    (existing ?? []).map((r) => [r.source_fiche_id, r.detail_hash]),
   );
   const sourceIds = new Set(source.map((f) => f.fiche_id));
   const base = sourceBaseUrl.replace(/\/$/, '');
 
   const changed = source.filter(
-    (f) => existingHash.get(f.fiche_id) !== f.content_hash,
+    (f) =>
+      existingContent.get(f.fiche_id) !== f.content_hash ||
+      existingDetail.get(f.fiche_id) !== f.detail_hash,
   );
   let upserted = 0;
   if (changed.length) {
@@ -60,6 +65,8 @@ export async function syncProcessIndex(deps: SyncDeps): Promise<SyncResult> {
         contenu: f.contenu,
         url: `${base}/fiches/${f.fiche_id}`,
         content_hash: f.content_hash,
+        detail: f.detail,
+        detail_hash: f.detail_hash,
         embedding,
         updated_at: new Date().toISOString(),
       };

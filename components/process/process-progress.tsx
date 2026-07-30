@@ -13,7 +13,7 @@ export function ProcessProgress({
   return (
     <div className="bg-muted relative h-2 w-full overflow-hidden rounded-full">
       <div
-        className="absolute inset-y-0 left-0 bg-[var(--orange-bg)]"
+        className="absolute inset-y-0 left-0 bg-orange-600 dark:bg-orange-400"
         style={{ width: `${pct(realise)}%` }}
       />
       <div

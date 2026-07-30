@@ -26,6 +26,7 @@ describe('rankResults', () => {
     const out = rankResults(ROWS as any, [1, 0], 'facturer', 1);
     expect(out).toHaveLength(1);
     expect(out[0]!.source_fiche_id).toBe('1');
+    expect(out[0]!.url).toBe('/process/fiches/1');
     expect(out[0]!.mission).toBe('M1');
     expect(out[0]!.snippet.toLowerCase()).toContain('facturer');
     expect(out[0]!.score).toBeGreaterThan(0.9);

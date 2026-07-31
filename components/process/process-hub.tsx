@@ -227,7 +227,7 @@ export function ProcessHub({ missions, all }: ProcessHubProps) {
                   <button
                     type="button"
                     onClick={() => setSelectedMission(null)}
-                    className="text-primary text-[12.5px]"
+                    className="text-primary focus-visible:outline-primary text-[12.5px] focus-visible:outline-2 focus-visible:outline-offset-2"
                   >
                     Réinitialiser
                   </button>
@@ -336,15 +336,23 @@ function ProcessRow({
       </span>
       <span className="text-muted-foreground col-span-2 hidden items-center gap-3.5 text-xs sm:col-span-1 sm:flex">
         {typeof score === 'number' ? (
-          <span className="inline-flex items-center gap-1.5" title="Pertinence">
-            <span className="bg-muted block h-[5px] w-[42px] overflow-hidden rounded-full">
+          (() => {
+            const pct = Math.max(0, Math.min(100, Math.round(score * 100)));
+            return (
               <span
-                className="bg-primary block h-full rounded-full"
-                style={{ width: `${Math.round(score * 100)}%` }}
-              />
-            </span>
-            {Math.round(score * 100)}%
-          </span>
+                className="inline-flex items-center gap-1.5"
+                title="Pertinence"
+              >
+                <span className="bg-muted block h-[5px] w-[42px] overflow-hidden rounded-full">
+                  <span
+                    className="bg-primary block h-full rounded-full"
+                    style={{ width: `${pct}%` }}
+                  />
+                </span>
+                {pct}%
+              </span>
+            );
+          })()
         ) : (
           <span className="inline-flex items-center gap-1 whitespace-nowrap">
             <b className="text-foreground font-semibold tabular-nums">

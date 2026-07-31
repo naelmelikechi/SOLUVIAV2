@@ -21,6 +21,8 @@ const getFicheRow = cache(async (id: string) => {
   return data;
 });
 
+// Lit la row via l'admin client ; l'accès à la route est protégé par `proxy.ts`
+// (le corps de la page ajoute en plus un gate `getUser()` explicite).
 export async function generateMetadata({
   params,
 }: {
@@ -98,12 +100,14 @@ export default async function ProcessFichePage({
 
       <header className="border-border flex flex-col border-b pb-[22px]">
         <div className="mb-3.5 flex flex-wrap items-center gap-2.5">
-          <Badge
-            variant="outline"
-            className="bg-primary/10 text-primary border-transparent font-mono text-[12px] font-semibold tracking-wide"
-          >
-            {detail.mission.code} · {detail.mission.nom}
-          </Badge>
+          {detail.fiche.code && (
+            <Badge
+              variant="outline"
+              className="bg-primary/10 text-primary border-transparent font-mono text-[12px] font-semibold tracking-wide"
+            >
+              {detail.fiche.code}
+            </Badge>
+          )}
           {detail.fiche.priorite && (
             <Badge
               variant="outline"

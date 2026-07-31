@@ -1,11 +1,21 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { ProcessSearch } from '@/components/process/process-search';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { listMissions, listAllProcess } from '@/lib/process/browse';
+import { stripMarkdown } from '@/lib/process/format';
+import { ProcessHub } from '@/components/process/process-hub';
 
 export const metadata: Metadata = {
-  title: 'Recherche process - SOLUVIA',
+  title: 'Process · SOLUVIA',
 };
+
+const SUB_MAX_LEN = 120;
+
+function truncate(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen).trimEnd() + '…';
+}
 
 export default async function ProcessPage() {
   const supabase = await createClient();
@@ -14,16 +24,16 @@ export default async function ProcessPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="mb-4">
-        <h1 className="text-xl font-semibold">Recherche de process</h1>
-        <p className="text-muted-foreground text-sm">
-          Pose une question : les process finalisés les plus pertinents
-          remontent en premier.
-        </p>
-      </div>
-      <ProcessSearch />
-    </div>
-  );
+  const admin = createAdminClient();
+  const [missions, all] = await Promise.all([
+    listMissions(admin),
+    listAllProcess(admin),
+  ]);
+
+  const cleanedAll = all.map((item) => ({
+    ...item,
+    sub: truncate(stripMarkdown(item.sub), SUB_MAX_LEN),
+  }));
+
+  return <ProcessHub missions={missions} all={cleanedAll} />;
 }

@@ -18,4 +18,9 @@ describe('buildSnippet', () => {
   it("renvoie le contenu tel quel s'il est plus court que la longueur", () => {
     expect(buildSnippet('court', 'x', 80)).toBe('court');
   });
+  it('nettoie le markdown (pas de "**" dans le snippet)', () => {
+    expect(
+      buildSnippet('**gras** ' + 'x'.repeat(300), 'gras', 80),
+    ).not.toContain('**');
+  });
 });

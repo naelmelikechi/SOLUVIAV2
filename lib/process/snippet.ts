@@ -1,3 +1,5 @@
+import { stripMarkdown } from './format';
+
 /**
  * Construit un extrait lisible du contenu, centré si possible autour du
  * premier terme de la requête présent dans le texte.
@@ -7,7 +9,7 @@ export function buildSnippet(
   query: string,
   maxLen = 200,
 ): string {
-  const clean = contenu.replace(/\s+/g, ' ').trim();
+  const clean = stripMarkdown(contenu);
   if (clean.length <= maxLen) return clean;
 
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);

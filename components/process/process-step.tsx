@@ -1,4 +1,5 @@
-import { Calendar, ExternalLink } from 'lucide-react';
+import { Calendar } from 'lucide-react';
+import { DeliverableLink } from '@/components/process/deliverable-link';
 import { ProcessMarkdown } from '@/components/process/process-markdown';
 import { ProcessTypeBadge } from '@/components/process/process-type-badge';
 import { formatEcheance, missionInitials } from '@/lib/process/format';
@@ -64,16 +65,7 @@ export function ProcessStep({ index, tache, isLast }: ProcessStepProps) {
         {tache.liens.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {tache.liens.map((lien, i) => (
-              <a
-                key={i}
-                href={lien.url}
-                target="_blank"
-                rel="noreferrer"
-                className="border-border bg-muted text-muted-foreground hover:border-primary hover:bg-primary/10 hover:text-primary inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12.5px] transition"
-              >
-                {lien.libelle}
-                <ExternalLink className="size-3 opacity-60" />
-              </a>
+              <DeliverableLink key={i} libelle={lien.libelle} url={lien.url} />
             ))}
           </div>
         )}

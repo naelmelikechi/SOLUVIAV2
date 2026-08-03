@@ -27,6 +27,21 @@ export interface ChatMsg {
   content: string;
 }
 
+/**
+ * Message côté UI : `ChatMsg` + les `sources` DE CE TOUR (assistant uniquement).
+ * Ce champ est purement local — il n'est JAMAIS envoyé à l'API (voir `toApiMsgs`)
+ * et sert à rattacher chaque réponse à ses propres sources (feedback + citations),
+ * indépendamment du dernier tour.
+ */
+interface UiMsg extends ChatMsg {
+  sources?: CitationSource[];
+}
+
+/** Réduit les messages UI au contrat API strict `{ role, content }` (sans `sources`). */
+function toApiMsgs(messages: UiMsg[]): ChatMsg[] {
+  return messages.map(({ role, content }) => ({ role, content }));
+}
+
 type FeedbackStatus = 'pending' | 'done' | 'error';
 interface FeedbackState {
   rating: 1 | -1;
@@ -52,13 +67,14 @@ function lastUserQuestion(history: ChatMsg[]): string {
   return '';
 }
 
-function replaceLastAssistant(prev: ChatMsg[], content: string): ChatMsg[] {
+/** Patch immuable du dernier message assistant (contenu et/ou sources préservés). */
+function patchLastAssistant(prev: UiMsg[], patch: Partial<UiMsg>): UiMsg[] {
   if (prev.length === 0) return prev;
   const idx = prev.length - 1;
   const last = prev[idx];
   if (!last || last.role !== 'assistant') return prev;
   const next = prev.slice();
-  next[idx] = { role: 'assistant', content };
+  next[idx] = { ...last, ...patch };
   return next;
 }
 
@@ -71,20 +87,19 @@ interface ProcessChatProps {
 
 /** Fil de discussion complet de l'assistant process : tours, streaming, citations, relances, feedback. */
 export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [sources, setSources] = useState<CitationSource[]>([]);
+  const [messages, setMessages] = useState<UiMsg[]>([]);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followups, setFollowups] = useState<string[]>([]);
   const [composer, setComposer] = useState('');
   const [feedback, setFeedback] = useState<Record<number, FeedbackState>>({});
 
-  const messagesRef = useRef<ChatMsg[]>([]);
+  const messagesRef = useRef<UiMsg[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const turnIdRef = useRef(0);
   const startedRef = useRef(false);
 
-  function updateMessages(updater: (prev: ChatMsg[]) => ChatMsg[]) {
+  function updateMessages(updater: (prev: UiMsg[]) => UiMsg[]) {
     const next = updater(messagesRef.current);
     messagesRef.current = next;
     setMessages(next);
@@ -113,7 +128,7 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
   );
 
   const runTurn = useCallback(
-    async (history: ChatMsg[]) => {
+    async (history: UiMsg[]) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -128,7 +143,9 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
         const res = await fetch('/api/process/ask', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ messages: history }),
+          // Contrat API strict : on n'envoie que { role, content } (jamais les
+          // `sources` UI attachées aux tours précédents).
+          body: JSON.stringify({ messages: toApiMsgs(history) }),
           signal: controller.signal,
         });
         if (id !== turnIdRef.current) return;
@@ -142,7 +159,11 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
         } catch {
           parsedSources = [];
         }
-        setSources(parsedSources);
+        // Les sources sont rattachées À CE tour (pas à un état global) : chaque
+        // réponse conserve ainsi ses propres citations/feedback.
+        updateMessages((prev) =>
+          patchLastAssistant(prev, { sources: parsedSources }),
+        );
 
         if (!res.ok || !res.body) {
           setError(UNAVAILABLE_MESSAGE);
@@ -158,9 +179,13 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
           if (done) break;
           if (id !== turnIdRef.current) return;
           acc += decoder.decode(value, { stream: true });
-          updateMessages((prev) => replaceLastAssistant(prev, acc));
+          updateMessages((prev) => patchLastAssistant(prev, { content: acc }));
         }
+        // Flush final : évite de perdre un dernier caractère multi-octets
+        // (accents français) resté dans le buffer du décodeur.
+        acc += decoder.decode();
         if (id !== turnIdRef.current) return;
+        updateMessages((prev) => patchLastAssistant(prev, { content: acc }));
         setAsking(false);
         void fireFollowups(id, lastUserQuestion(history), acc);
       } catch (e) {
@@ -177,7 +202,7 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
     (question: string) => {
       const trimmed = question.trim();
       if (!trimmed) return;
-      const history: ChatMsg[] = [
+      const history: UiMsg[] = [
         ...messagesRef.current,
         { role: 'user', content: trimmed },
       ];
@@ -192,6 +217,13 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
     const lastIdx = current.length - 1;
     const last = current[lastIdx];
     if (!last || last.role !== 'assistant') return;
+    // La réponse régénérée réoccupe le même index : on purge son feedback
+    // éventuel, sinon un « Merci ! » collerait à un contenu jamais noté.
+    setFeedback((f) => {
+      const next = { ...f };
+      delete next[lastIdx];
+      return next;
+    });
     // Retire la dernière réponse assistant et relance sur le même historique
     // (qui se termine donc sur la dernière question utilisateur).
     void runTurn(current.slice(0, lastIdx));
@@ -241,7 +273,9 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
           question,
           answer: msg.content,
           rating,
-          sources,
+          // Les sources DE CE tour (pas celles du dernier) : le feedback
+          // reflète exactement la réponse notée.
+          sources: msg.sources ?? [],
         }),
       });
       if (!res.ok) throw new Error('feedback_failed');
@@ -269,6 +303,10 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
 
   const firstQuestion = messages.find((m) => m.role === 'user')?.content ?? '';
   const lastIndex = messages.length - 1;
+  // La colonne « Sources » reflète le DERNIER tour assistant (affichage seul ;
+  // le feedback, lui, utilise les sources propres à chaque message).
+  const sidebarSources =
+    [...messages].reverse().find((m) => m.role === 'assistant')?.sources ?? [];
 
   return (
     <section className="mt-10">
@@ -328,7 +366,9 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
                 </div>
               ) : (
                 <>
-                  <CitationText sources={sources}>{m.content}</CitationText>
+                  <CitationText sources={m.sources ?? []}>
+                    {m.content}
+                  </CitationText>
                   {isLast && asking && (
                     <span
                       aria-hidden
@@ -449,13 +489,13 @@ export function ProcessChat({ initialQuestion, onExit }: ProcessChatProps) {
         <h2 className="mb-3 text-[15px] font-semibold tracking-tight">
           Sources
         </h2>
-        {sources.length === 0 ? (
+        {sidebarSources.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             Aucun process finalisé à citer.
           </p>
         ) : (
           <div className="flex flex-col gap-2.5">
-            {sources.map((s) => (
+            {sidebarSources.map((s) => (
               <Link
                 key={s.source_fiche_id}
                 href={s.url}

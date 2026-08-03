@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -41,36 +42,49 @@ function withCitationLinks(text: string, sources: CitationSource[]): string {
   });
 }
 
-const citationLink: NonNullable<Components['a']> = ({
-  href,
-  title,
-  children,
-}) => {
-  if (title?.startsWith(CITE_TITLE_PREFIX) && href) {
-    const n = title.slice(CITE_TITLE_PREFIX.length);
+/**
+ * Construit le renderer `a` de react-markdown en connaissant les `sources` du
+ * tour : une puce de citation n'est acceptée que si son `title` est bien notre
+ * marqueur ET que le `href` correspond EXACTEMENT à `sources[n-1].url` (borné).
+ * Un lien forgé (`[x](javascript:… "citation:1")` glissé par le modèle) ne
+ * passe donc jamais pour une citation de confiance et retombe sur le rendu lien
+ * classique — dont l'URL a déjà été assainie par le `urlTransform` par défaut
+ * de react-markdown.
+ */
+function makeCitationLink(
+  sources: CitationSource[],
+): NonNullable<Components['a']> {
+  return function CitationLink({ href, title, children }) {
+    if (title?.startsWith(CITE_TITLE_PREFIX) && href) {
+      const n = Number(title.slice(CITE_TITLE_PREFIX.length));
+      const source = Number.isInteger(n) && n >= 1 ? sources[n - 1] : undefined;
+      if (source && href === source.url) {
+        return (
+          <Link
+            href={href}
+            aria-label={`Voir la source ${n}`}
+            title={`Voir la source ${n}`}
+            className="bg-primary/10 text-primary hover:bg-primary/20 focus-visible:outline-primary relative -top-[3px] mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 align-middle text-[10px] font-semibold tabular-nums no-underline focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            {children}
+          </Link>
+        );
+      }
+    }
+    const external = typeof href === 'string' && /^https?:\/\//.test(href);
     return (
-      <Link
+      <a
         href={href}
-        title={`Voir la source ${n}`}
-        className="bg-primary/10 text-primary hover:bg-primary/20 focus-visible:outline-primary relative -top-[3px] mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 align-middle text-[10px] font-semibold tabular-nums no-underline focus-visible:outline-2 focus-visible:outline-offset-2"
+        title={title}
+        target={external ? '_blank' : undefined}
+        rel={external ? 'noreferrer' : undefined}
+        className="text-primary underline"
       >
         {children}
-      </Link>
+      </a>
     );
-  }
-  const external = typeof href === 'string' && /^https?:\/\//.test(href);
-  return (
-    <a
-      href={href}
-      title={title}
-      target={external ? '_blank' : undefined}
-      rel={external ? 'noreferrer' : undefined}
-      className="text-primary underline"
-    >
-      {children}
-    </a>
-  );
-};
+  };
+}
 
 /**
  * Rendu markdown de la réponse assistant, avec les citations `[n]` du texte
@@ -79,12 +93,13 @@ const citationLink: NonNullable<Components['a']> = ({
  */
 export function CitationText({ children, sources }: CitationTextProps) {
   const text = withCitationLinks(children, sources);
+  const components = useMemo<Components>(
+    () => ({ a: makeCitationLink(sources) }),
+    [sources],
+  );
   return (
     <div className="[&_a]:text-primary [&_code]:bg-muted text-sm leading-relaxed [&_code]:rounded [&_code]:px-1 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_strong]:font-semibold [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{ a: citationLink }}
-      >
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {text}
       </ReactMarkdown>
     </div>

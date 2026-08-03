@@ -45,6 +45,18 @@ interface DriveFetch {
   body: ReadableStream<Uint8Array> | null;
 }
 
+// Types réellement prévisualisables inline sans risque XSS. Tout autre type
+// (HTML/SVG/... auto-déclaré par Drive) est refusé (415) SANS téléchargement :
+// content-disposition: inline + CSP script-src 'self' 'unsafe-inline' rendrait
+// un .html/.svg servi en same-origin exécutable (nosniff ne protège pas ici).
+const ALLOWED_INLINE = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+]);
+
 /** Récupère un fichier Drive (export PDF si Google natif, sinon média brut). */
 export async function fetchDriveFile(fileId: string): Promise<DriveFetch> {
   const jwt = getJwt();
@@ -61,6 +73,13 @@ export async function fetchDriveFile(fileId: string): Promise<DriveFetch> {
   const meta = (await metaRes.json()) as { mimeType: string; name: string };
 
   const exportMime = exportMimeFor(meta.mimeType);
+  const contentType = exportMime ?? meta.mimeType;
+  const baseType = contentType.split(';')[0]!.trim().toLowerCase();
+  if (!ALLOWED_INLINE.has(baseType)) {
+    // Type non prévisualisable → pas de téléchargement des octets.
+    return { status: 415, contentType, body: null };
+  }
+
   const fileRes = exportMime
     ? await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMime)}`,
@@ -89,7 +108,7 @@ export async function isKnownDeliverable(
   for (const row of data ?? []) {
     const detail = (row as { detail: FicheDetail | null }).detail;
     for (const t of detail?.taches ?? []) {
-      for (const l of t.liens) {
+      for (const l of t.liens ?? []) {
         if (extractDriveFileId(l.url) === fileId) return true;
       }
     }

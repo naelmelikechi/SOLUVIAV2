@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import {
   driveConfigured,
   fetchDriveFile,
@@ -31,12 +30,13 @@ export async function GET(
 
   if (!/^[a-zA-Z0-9_-]+$/.test(fileId))
     return NextResponse.json({ error: 'bad_id' }, { status: 400 });
-  const admin = createAdminClient();
-  if (!(await isKnownDeliverable(admin, fileId)))
+  if (!(await isKnownDeliverable(supabase, fileId)))
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   try {
     const res = await fetchDriveFile(fileId);
+    if (res.status === 415)
+      return NextResponse.json({ error: 'unsupported_type' }, { status: 415 });
     if (res.status !== 200 || !res.body) {
       console.error('[process/drive] fetch échec', fileId, res.status);
       return NextResponse.json({ error: 'drive_error' }, { status: 502 });

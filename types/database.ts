@@ -3210,6 +3210,44 @@ export type Database = {
         };
         Relationships: [];
       };
+      process_qa_feedback: {
+        Row: {
+          answer: string;
+          created_at: string;
+          id: string;
+          question: string;
+          rating: number;
+          sources: Json | null;
+          user_id: string;
+        };
+        Insert: {
+          answer: string;
+          created_at?: string;
+          id?: string;
+          question: string;
+          rating: number;
+          sources?: Json | null;
+          user_id: string;
+        };
+        Update: {
+          answer?: string;
+          created_at?: string;
+          id?: string;
+          question?: string;
+          rating?: number;
+          sources?: Json | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'process_qa_feedback_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       progression_snapshots_weekly: {
         Row: {
           captured_at: string;

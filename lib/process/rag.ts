@@ -97,3 +97,43 @@ export function buildRagMessages(
   const prompt = `Process finalisés disponibles :\n\n${contexte}\n\n---\nQuestion du collaborateur : ${question}`;
   return { system: SYSTEM_PROMPT, prompt };
 }
+
+export interface ChatMsg {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+const SYSTEM_CHAT = `Tu es l'assistant des process internes de Soluvia (organisme de formation).
+Réponds à la conversation en te basant UNIQUEMENT sur les process fournis (numérotés [1], [2], …).
+- Cite tes affirmations avec le numéro du process source, ex. « … selon la fiche [1] ».
+- Sois concret et actionnable ; structure (étapes, points clés) en markdown concis, en français.
+- Si l'information n'est pas dans les process fournis, dis-le (« Je ne trouve pas cette information dans les process finalisés ») et n'invente rien.`;
+
+/** Messages pour le chat RAG : system d'ancrage + contexte numéroté + historique. */
+export function buildChatMessages(
+  history: ChatMsg[],
+  fiches: RagFiche[],
+): { system: string; messages: ChatMsg[] } {
+  const contexte = fiches.length
+    ? fiches
+        .map((f, i) => `[${i + 1}] ${f.mission} · ${f.titre}\n${f.contenu}`)
+        .join('\n\n')
+    : '(aucun process finalisé disponible)';
+  // Le contexte est injecté comme message `user` de tête (le `system` reste
+  // le grounding). Deux messages `user` consécutifs (ce préambule + le 1er
+  // tour de l'historique) est intentionnel et accepté par l'API.
+  const preface: ChatMsg = {
+    role: 'user',
+    content: `Process finalisés disponibles (source des réponses) :\n\n${contexte}\n\n---\nUtilise ces process pour répondre à la conversation ci-dessous.`,
+  };
+  return { system: SYSTEM_CHAT, messages: [preface, ...history] };
+}
+
+/** Dernier message utilisateur d'un historique (pour le retrieval). */
+export function lastUserQuestion(history: ChatMsg[]): string {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m && m.role === 'user') return m.content;
+  }
+  return '';
+}

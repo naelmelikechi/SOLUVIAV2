@@ -3,7 +3,6 @@ import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { env } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { retrieveContext, buildRagMessages } from '@/lib/process/rag';
 
 export const dynamic = 'force-dynamic';
@@ -24,10 +23,12 @@ export async function POST(req: NextRequest) {
   const q = (question ?? '').trim();
   if (!q)
     return NextResponse.json({ error: 'empty_question' }, { status: 400 });
+  if (q.length > 2000)
+    return NextResponse.json({ error: 'question_too_long' }, { status: 400 });
   if (!env.OPENAI_API_KEY)
     return NextResponse.json({ error: 'ai_not_configured' }, { status: 503 });
 
-  const fiches = await retrieveContext(q, { admin: createAdminClient() });
+  const fiches = await retrieveContext(q, { admin: supabase });
   const sources = fiches.map((f) => ({
     source_fiche_id: f.source_fiche_id,
     titre: f.titre,

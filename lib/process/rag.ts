@@ -54,7 +54,8 @@ export async function retrieveContext(
     queryVec = await embedQuery(q);
   } catch (e) {
     console.error('[process/rag] embedding échoué, fallback trgm:', e);
-    const { data } = await admin.rpc('search_process_trgm', { q });
+    const { data, error } = await admin.rpc('search_process_trgm', { q });
+    if (error) console.error('[process/rag] fallback trgm:', error.message);
     return ((data as Row[]) ?? []).slice(0, TOP_K).map(toFiche);
   }
 

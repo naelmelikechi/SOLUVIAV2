@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
 
   if (!question || !answer)
     return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
+  if (question.length > 4000 || answer.length > 20000)
+    return NextResponse.json({ error: 'too_long' }, { status: 400 });
   if (rating !== -1 && rating !== 1)
     return NextResponse.json({ error: 'invalid_rating' }, { status: 400 });
 

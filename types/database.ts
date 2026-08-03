@@ -3238,7 +3238,15 @@ export type Database = {
           sources?: Json | null;
           user_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'process_qa_feedback_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       progression_snapshots_weekly: {
         Row: {

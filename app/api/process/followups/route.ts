@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const FollowupsSchema = z.object({
-  suggestions: z.array(z.string()).max(3),
+  suggestions: z.array(z.string()),
 });
 
 export async function POST(req: NextRequest) {
@@ -37,9 +37,11 @@ export async function POST(req: NextRequest) {
     const { object } = await generateObject({
       model: openai('gpt-4o-mini'),
       schema: FollowupsSchema,
-      prompt: `À partir de cette Q/R sur les process internes Soluvia, propose 3 questions de relance courtes et utiles (max ~8 mots), en français, sans redite.\nQ: ${q}\nR: ${a}`,
+      prompt: `À partir de cette Q/R sur les process internes Soluvia, propose 3 questions de relance courtes et utiles (max ~8 mots), en français, sans redite.\nQ: ${q.slice(0, 2000)}\nR: ${a.slice(0, 6000)}`,
     });
-    return NextResponse.json({ suggestions: object.suggestions });
+    // Le schéma n'impose plus de `.max(3)` (sinon un output à 4+ items serait
+    // entièrement rejeté) : on borne côté réponse.
+    return NextResponse.json({ suggestions: object.suggestions.slice(0, 3) });
   } catch (err) {
     logger.warn('process/followups', 'Génération des relances échouée', {
       error: err,

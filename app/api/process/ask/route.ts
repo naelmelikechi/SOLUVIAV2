@@ -52,6 +52,13 @@ export async function POST(req: NextRequest) {
   if (messages.length === 0)
     return NextResponse.json({ error: 'invalid_messages' }, { status: 400 });
 
+  // Borne le payload complet (pas seulement le dernier message) pour éviter
+  // un historique surdimensionné (coût tokens / abus).
+  if (messages.length > 30)
+    return NextResponse.json({ error: 'too_many_messages' }, { status: 400 });
+  if (messages.some((m) => m.content.length > 6000))
+    return NextResponse.json({ error: 'message_too_long' }, { status: 400 });
+
   const question = lastUserQuestion(messages);
   if (!question.trim())
     return NextResponse.json({ error: 'empty_question' }, { status: 400 });

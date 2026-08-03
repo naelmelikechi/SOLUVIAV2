@@ -1,8 +1,8 @@
 create table if not exists public.process_qa_feedback (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null,
-  question text not null,
-  answer text not null,
+  user_id uuid not null references public.users(id) on delete cascade,
+  question text not null check (char_length(question) <= 4000),
+  answer text not null check (char_length(answer) <= 20000),
   rating smallint not null check (rating in (-1, 1)),
   sources jsonb,
   created_at timestamptz not null default now()

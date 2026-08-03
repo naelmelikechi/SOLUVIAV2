@@ -119,6 +119,9 @@ export function buildChatMessages(
         .map((f, i) => `[${i + 1}] ${f.mission} · ${f.titre}\n${f.contenu}`)
         .join('\n\n')
     : '(aucun process finalisé disponible)';
+  // Le contexte est injecté comme message `user` de tête (le `system` reste
+  // le grounding). Deux messages `user` consécutifs (ce préambule + le 1er
+  // tour de l'historique) est intentionnel et accepté par l'API.
   const preface: ChatMsg = {
     role: 'user',
     content: `Process finalisés disponibles (source des réponses) :\n\n${contexte}\n\n---\nUtilise ces process pour répondre à la conversation ci-dessous.`,

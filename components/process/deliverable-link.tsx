@@ -46,11 +46,11 @@ export function DeliverableLink({ libelle, url }: DeliverableLinkProps) {
           <Eye className="size-3 opacity-60" />
           {label}
         </DialogTrigger>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="flex h-[94vh] w-[96vw] max-w-[96vw] flex-col gap-3 sm:max-w-[96vw]">
           <DialogHeader>
             <DialogTitle>{label}</DialogTitle>
           </DialogHeader>
-          <div className="relative h-[78vh] w-full">
+          <div className="relative min-h-0 w-full flex-1">
             {!loaded && (
               <div className="text-muted-foreground bg-muted/40 absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-md">
                 <Loader2 className="size-6 animate-spin" />

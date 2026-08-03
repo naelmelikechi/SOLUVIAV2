@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Search, X } from 'lucide-react';
-import { searchProcessAction } from '@/app/(dashboard)/process/actions';
+import { ArrowRight, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Highlight } from '@/components/process/process-highlight';
+import {
+  ProcessAnswer,
+  type ProcessSource,
+} from '@/components/process/process-answer';
 import { cn } from '@/lib/utils';
 import type { MissionSummary, ProcessListItem } from '@/lib/process/browse';
-import type { ProcessSearchResult } from '@/lib/process/types';
 
 const EXAMPLES = [
   "mandat d'apprentissage non conforme",
@@ -26,40 +27,80 @@ interface ProcessHubProps {
 export function ProcessHub({ missions, all }: ProcessHubProps) {
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
-  const [results, setResults] = useState<ProcessSearchResult[]>([]);
+  const [answer, setAnswer] = useState('');
+  const [sources, setSources] = useState<ProcessSource[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedMission, setSelectedMission] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
 
   const listRef = useRef<HTMLDivElement>(null);
+  // Ignore un flux en cours si une nouvelle question est posée (ou effacée) entre-temps.
+  const askIdRef = useRef(0);
 
-  const bySourceId = useMemo(
-    () => new Map(all.map((item) => [item.source_fiche_id, item])),
-    [all],
-  );
-
-  function runSearch(q: string) {
+  async function ask(q: string) {
     const trimmed = q.trim();
     if (!trimmed) return;
+
+    const id = ++askIdRef.current;
     setSubmittedQuery(trimmed);
-    startTransition(async () => {
-      const res = await searchProcessAction(trimmed);
-      setResults(res);
-    });
+    setAnswer('');
+    setSources([]);
+    setAsking(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/process/ask', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ question: trimmed }),
+      });
+      if (id !== askIdRef.current) return;
+
+      const h = res.headers.get('x-process-sources');
+      setSources(h ? JSON.parse(decodeURIComponent(h)) : []);
+
+      if (!res.ok || !res.body) {
+        setError('L’assistant est momentanément indisponible.');
+        setAsking(false);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let acc = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (id !== askIdRef.current) return;
+        acc += dec.decode(value, { stream: true });
+        setAnswer(acc);
+      }
+      if (id === askIdRef.current) setAsking(false);
+    } catch {
+      if (id === askIdRef.current) {
+        setError('L’assistant est momentanément indisponible.');
+        setAsking(false);
+      }
+    }
   }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    runSearch(query);
+    void ask(query);
   }
 
   function onChipClick(example: string) {
     setQuery(example);
-    runSearch(example);
+    void ask(example);
   }
 
-  function clearSearch() {
+  function clearAnswer() {
+    askIdRef.current += 1;
     setSubmittedQuery(null);
-    setResults([]);
+    setAnswer('');
+    setSources([]);
+    setAsking(false);
+    setError(null);
     setQuery('');
   }
 
@@ -111,10 +152,10 @@ export function ProcessHub({ missions, all }: ProcessHubProps) {
           />
           <Button
             type="submit"
-            disabled={pending}
+            disabled={asking}
             className="shrink-0 gap-1.5 rounded-full px-4"
           >
-            {pending ? 'Recherche…' : 'Chercher'}
+            {asking ? 'Recherche…' : 'Chercher'}
             <ArrowRight className="size-[15px]" />
           </Button>
         </form>
@@ -137,58 +178,14 @@ export function ProcessHub({ missions, all }: ProcessHubProps) {
       </div>
 
       {submittedQuery ? (
-        <section className="mt-10">
-          <div className="mb-4 flex flex-wrap items-center gap-2.5">
-            <span className="font-semibold">« {submittedQuery} »</span>
-            <span className="text-muted-foreground text-[13px]">
-              {pending
-                ? 'Recherche en cours…'
-                : `${results.length} process pertinent${results.length > 1 ? 's' : ''}`}
-            </span>
-            <button
-              type="button"
-              onClick={clearSearch}
-              className="text-primary focus-visible:outline-primary ml-auto inline-flex items-center gap-1.5 text-[13px] focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              <X className="size-3.5" />
-              Effacer
-            </button>
-          </div>
-
-          {pending && (
-            <div className="flex flex-col gap-2.5">
-              <SkeletonRow />
-              <SkeletonRow />
-              <SkeletonRow />
-            </div>
-          )}
-
-          {!pending && results.length === 0 && (
-            <p className="text-muted-foreground text-sm">
-              Aucun process ne correspond.
-            </p>
-          )}
-
-          {!pending && results.length > 0 && (
-            <div className="flex flex-col gap-2.5">
-              {results.map((r) => {
-                const meta = bySourceId.get(r.source_fiche_id);
-                return (
-                  <ProcessRow
-                    key={r.source_fiche_id}
-                    sourceFicheId={r.source_fiche_id}
-                    ficheCode={meta?.fiche_code ?? '—'}
-                    titre={r.titre}
-                    sub={r.snippet}
-                    steps={meta?.steps ?? 0}
-                    query={submittedQuery}
-                    score={r.score}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </section>
+        <ProcessAnswer
+          query={submittedQuery}
+          answer={answer}
+          asking={asking}
+          error={error}
+          sources={sources}
+          onClear={clearAnswer}
+        />
       ) : (
         <div className="flex flex-col">
           <section className="mt-10">
@@ -303,8 +300,6 @@ interface ProcessRowProps {
   titre: string;
   sub: string;
   steps: number;
-  query?: string;
-  score?: number;
 }
 
 function ProcessRow({
@@ -313,8 +308,6 @@ function ProcessRow({
   titre,
   sub,
   steps,
-  query,
-  score,
 }: ProcessRowProps) {
   return (
     <Link
@@ -326,56 +319,21 @@ function ProcessRow({
       </span>
       <span className="min-w-0">
         <span className="text-foreground block truncate font-semibold tracking-tight">
-          {query ? <Highlight text={titre} query={query} /> : titre}
+          {titre}
         </span>
         {sub && (
           <span className="text-muted-foreground mt-0.5 block truncate text-[13px]">
-            {query ? <Highlight text={sub} query={query} /> : sub}
+            {sub}
           </span>
         )}
       </span>
       <span className="text-muted-foreground col-span-2 hidden items-center gap-3.5 text-xs sm:col-span-1 sm:flex">
-        {typeof score === 'number' ? (
-          (() => {
-            const pct = Math.max(0, Math.min(100, Math.round(score * 100)));
-            return (
-              <span
-                className="inline-flex items-center gap-1.5"
-                title="Pertinence"
-              >
-                <span className="bg-muted block h-[5px] w-[42px] overflow-hidden rounded-full">
-                  <span
-                    className="bg-primary block h-full rounded-full"
-                    style={{ width: `${pct}%` }}
-                  />
-                </span>
-                {pct}%
-              </span>
-            );
-          })()
-        ) : (
-          <span className="inline-flex items-center gap-1 whitespace-nowrap">
-            <b className="text-foreground font-semibold tabular-nums">
-              {steps}
-            </b>{' '}
-            étapes
-          </span>
-        )}
+        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+          <b className="text-foreground font-semibold tabular-nums">{steps}</b>{' '}
+          étapes
+        </span>
         <ArrowRight className="text-muted-foreground group-hover:text-primary size-[15px] transition group-hover:translate-x-0.5" />
       </span>
     </Link>
-  );
-}
-
-function SkeletonRow() {
-  return (
-    <div className="border-border bg-card grid animate-pulse grid-cols-[auto_1fr_auto] items-center gap-4 rounded-xl border px-4 py-3.5">
-      <span className="bg-muted h-6 w-14 rounded-lg" />
-      <span className="flex flex-col gap-2">
-        <span className="bg-muted h-4 w-2/3 rounded" />
-        <span className="bg-muted h-3 w-1/2 rounded" />
-      </span>
-      <span className="bg-muted hidden h-4 w-16 rounded sm:block" />
-    </div>
   );
 }

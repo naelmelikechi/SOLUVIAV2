@@ -1,23 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  ProcessAnswer,
-  type ProcessSource,
-} from '@/components/process/process-answer';
+  ProcessChat,
+  buildStarterSuggestions,
+} from '@/components/process/process-chat';
 import { cn } from '@/lib/utils';
 import type { MissionSummary, ProcessListItem } from '@/lib/process/browse';
-
-const EXAMPLES = [
-  "mandat d'apprentissage non conforme",
-  "planning d'alternance",
-  'escalade CFA',
-  'cadrage entreprise',
-];
 
 interface ProcessHubProps {
   missions: MissionSummary[];
@@ -26,92 +19,37 @@ interface ProcessHubProps {
 
 export function ProcessHub({ missions, all }: ProcessHubProps) {
   const [query, setQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
-  const [answer, setAnswer] = useState('');
-  const [sources, setSources] = useState<ProcessSource[]>([]);
-  const [asking, setAsking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Question initiale de la conversation en cours (undefined tant qu'aucune
+  // conversation n'a démarré : le hero + le parcours par mission restent
+  // affichés). `conversationKey` force un remount de <ProcessChat/> à chaque
+  // nouvelle conversation, pour repartir d'un fil vierge.
+  const [initialQuestion, setInitialQuestion] = useState<string | null>(null);
+  const [conversationKey, setConversationKey] = useState(0);
   const [selectedMission, setSelectedMission] = useState<string | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
-  // Ignore un flux en cours si une nouvelle question est posée (ou effacée) entre-temps.
-  const askIdRef = useRef(0);
-  // Interrompt côté serveur le flux OpenAI d'une requête supersédée ou effacée.
-  const abortRef = useRef<AbortController | null>(null);
 
-  async function ask(q: string) {
+  const starters = useMemo(() => buildStarterSuggestions(all), [all]);
+
+  function startConversation(q: string) {
     const trimmed = q.trim();
     if (!trimmed) return;
-
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const id = ++askIdRef.current;
-    setSubmittedQuery(trimmed);
-    setAnswer('');
-    setSources([]);
-    setAsking(true);
-    setError(null);
-
-    try {
-      const res = await fetch('/api/process/ask', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question: trimmed }),
-        signal: controller.signal,
-      });
-      if (id !== askIdRef.current) return;
-
-      const h = res.headers.get('x-process-sources');
-      setSources(h ? JSON.parse(decodeURIComponent(h)) : []);
-
-      if (!res.ok || !res.body) {
-        setError('L’assistant est momentanément indisponible.');
-        setAsking(false);
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let acc = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (id !== askIdRef.current) return;
-        acc += dec.decode(value, { stream: true });
-        setAnswer(acc);
-      }
-      if (id === askIdRef.current) setAsking(false);
-    } catch (e) {
-      if ((e as Error)?.name === 'AbortError') return;
-      if (id === askIdRef.current) {
-        setError('L’assistant est momentanément indisponible.');
-        setAsking(false);
-      }
-    }
+    setInitialQuestion(trimmed);
+    setConversationKey((k) => k + 1);
+    setQuery('');
   }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    void ask(query);
+    startConversation(query);
   }
 
   function onChipClick(example: string) {
-    setQuery(example);
-    void ask(example);
+    startConversation(example);
   }
 
-  function clearAnswer() {
-    askIdRef.current += 1;
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setSubmittedQuery(null);
-    setAnswer('');
-    setSources([]);
-    setAsking(false);
-    setError(null);
-    setQuery('');
+  function backToBrowse() {
+    setInitialQuestion(null);
   }
 
   function onMissionClick(code: string) {
@@ -162,39 +100,38 @@ export function ProcessHub({ missions, all }: ProcessHubProps) {
           />
           <Button
             type="submit"
-            disabled={asking}
+            disabled={!query.trim()}
             className="shrink-0 gap-1.5 rounded-full px-4"
           >
-            {asking ? 'Recherche…' : 'Chercher'}
+            Demander à l&rsquo;assistant
             <ArrowRight className="size-[15px]" />
           </Button>
         </form>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground mr-0.5 text-[12.5px]">
-            Essayez&nbsp;:
-          </span>
-          {EXAMPLES.map((example) => (
-            <button
-              key={example}
-              type="button"
-              onClick={() => onChipClick(example)}
-              className="border-border bg-card text-muted-foreground hover:border-primary hover:bg-primary/10 hover:text-primary focus-visible:outline-primary rounded-full border px-3.5 py-[7px] text-[13px] transition focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              {example}
-            </button>
-          ))}
-        </div>
+        {starters.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground mr-0.5 text-[12.5px]">
+              Essayez&nbsp;:
+            </span>
+            {starters.map((example) => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => onChipClick(example)}
+                className="border-border bg-card text-muted-foreground hover:border-primary hover:bg-primary/10 hover:text-primary focus-visible:outline-primary rounded-full border px-3.5 py-[7px] text-[13px] transition focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {submittedQuery ? (
-        <ProcessAnswer
-          query={submittedQuery}
-          answer={answer}
-          asking={asking}
-          error={error}
-          sources={sources}
-          onClear={clearAnswer}
+      {initialQuestion !== null ? (
+        <ProcessChat
+          key={conversationKey}
+          initialQuestion={initialQuestion}
+          onExit={backToBrowse}
         />
       ) : (
         <div className="flex flex-col">

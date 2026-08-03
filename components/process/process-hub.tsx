@@ -36,10 +36,16 @@ export function ProcessHub({ missions, all }: ProcessHubProps) {
   const listRef = useRef<HTMLDivElement>(null);
   // Ignore un flux en cours si une nouvelle question est posée (ou effacée) entre-temps.
   const askIdRef = useRef(0);
+  // Interrompt côté serveur le flux OpenAI d'une requête supersédée ou effacée.
+  const abortRef = useRef<AbortController | null>(null);
 
   async function ask(q: string) {
     const trimmed = q.trim();
     if (!trimmed) return;
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     const id = ++askIdRef.current;
     setSubmittedQuery(trimmed);
@@ -53,6 +59,7 @@ export function ProcessHub({ missions, all }: ProcessHubProps) {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ question: trimmed }),
+        signal: controller.signal,
       });
       if (id !== askIdRef.current) return;
 
@@ -76,7 +83,8 @@ export function ProcessHub({ missions, all }: ProcessHubProps) {
         setAnswer(acc);
       }
       if (id === askIdRef.current) setAsking(false);
-    } catch {
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return;
       if (id === askIdRef.current) {
         setError('L’assistant est momentanément indisponible.');
         setAsking(false);
@@ -96,6 +104,8 @@ export function ProcessHub({ missions, all }: ProcessHubProps) {
 
   function clearAnswer() {
     askIdRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
     setSubmittedQuery(null);
     setAnswer('');
     setSources([]);

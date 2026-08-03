@@ -78,7 +78,7 @@ export function ProcessAnswer({
         <h2 className="mb-3 text-[15px] font-semibold tracking-tight">
           Sources
         </h2>
-        {sources.length === 0 && !asking ? (
+        {sources.length === 0 && !asking && !error ? (
           <p className="text-muted-foreground text-sm">
             Aucun process finalisé à citer.
           </p>

@@ -107,6 +107,10 @@ const serverSchema = z
     // l'admin principal (cf. lib/email/notifications.ts patterns).
     ADMIN_BUG_REPORT_EMAIL: z.string().email().optional(),
 
+    // Compte de service Google (JSON) pour l'aperçu natif des livrables Drive.
+    // Optionnel : sans lui, l'aperçu est désactivé (503) et on garde le lien externe.
+    GOOGLE_SERVICE_ACCOUNT_KEY: z.string().min(1).optional(),
+
     // Upstash Redis - rate limiting for auth endpoints. Les noms longs
     // sont ceux auto-provisionnes par la Vercel Marketplace integration
     // (prefix "UPSTASH_REDIS_REST" applique devant les noms KV standards).
@@ -202,6 +206,7 @@ function parseEnv(): Env {
     ADMIN_BUG_REPORT_EMAIL: process.env.ADMIN_BUG_REPORT_EMAIL?.trim(),
     GIPHY_API_KEY: process.env.GIPHY_API_KEY?.trim(),
     AVATAR_UNLOCK_SECRET: process.env.AVATAR_UNLOCK_SECRET?.trim(),
+    GOOGLE_SERVICE_ACCOUNT_KEY: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
     SENTRY_DSN: process.env.SENTRY_DSN?.trim(),
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN?.trim(),
     UPSTASH_REDIS_REST_KV_REST_API_URL:

@@ -43,25 +43,46 @@ interface DriveFetch {
   status: number;
   contentType: string;
   body: ReadableStream<Uint8Array> | null;
+  /** true → servir avec `Content-Security-Policy: sandbox` (HTML/SVG rendus sans exécution de script). */
+  sandbox: boolean;
 }
 
-// Types réellement prévisualisables inline sans risque XSS. Tout autre type
-// (HTML/SVG/... auto-déclaré par Drive) est refusé (415) SANS téléchargement :
-// content-disposition: inline + CSP script-src 'self' 'unsafe-inline' rendrait
-// un .html/.svg servi en same-origin exécutable (nosniff ne protège pas ici).
-const ALLOWED_INLINE = new Set([
+// Types rendus inline directement, sans risque d'exécution (PDF, images raster,
+// texte brut).
+const DIRECT_INLINE = new Set([
   'application/pdf',
   'image/png',
   'image/jpeg',
   'image/gif',
   'image/webp',
+  'text/plain',
 ]);
+
+// Types affichables MAIS potentiellement porteurs de script (HTML, SVG). On les
+// autorise en les servant sous `Content-Security-Policy: sandbox` : le document
+// s'affiche (DOM + CSS) mais aucun script ne s'exécute → pas de XSS same-origin.
+const SANDBOXED_INLINE = new Set(['text/html', 'image/svg+xml']);
+
+export type Previewability = 'direct' | 'sandbox' | 'unsupported';
+/** Décide comment prévisualiser un content-type (pur, testable). */
+export function previewabilityFor(contentType: string): Previewability {
+  const base = contentType.split(';')[0]?.trim().toLowerCase() ?? '';
+  if (DIRECT_INLINE.has(base)) return 'direct';
+  if (SANDBOXED_INLINE.has(base)) return 'sandbox';
+  return 'unsupported';
+}
 
 /** Récupère un fichier Drive (export PDF si Google natif, sinon média brut). */
 export async function fetchDriveFile(fileId: string): Promise<DriveFetch> {
   const jwt = getJwt();
   const { token } = await jwt.getAccessToken();
-  if (!token) return { status: 500, contentType: 'text/plain', body: null };
+  if (!token)
+    return {
+      status: 500,
+      contentType: 'text/plain',
+      body: null,
+      sandbox: false,
+    };
   const auth = { Authorization: `Bearer ${token}` };
 
   const metaRes = await fetch(
@@ -69,15 +90,20 @@ export async function fetchDriveFile(fileId: string): Promise<DriveFetch> {
     { headers: auth },
   );
   if (!metaRes.ok)
-    return { status: metaRes.status, contentType: 'text/plain', body: null };
+    return {
+      status: metaRes.status,
+      contentType: 'text/plain',
+      body: null,
+      sandbox: false,
+    };
   const meta = (await metaRes.json()) as { mimeType: string; name: string };
 
   const exportMime = exportMimeFor(meta.mimeType);
   const contentType = exportMime ?? meta.mimeType;
-  const baseType = contentType.split(';')[0]!.trim().toLowerCase();
-  if (!ALLOWED_INLINE.has(baseType)) {
+  const preview = previewabilityFor(contentType);
+  if (preview === 'unsupported') {
     // Type non prévisualisable → pas de téléchargement des octets.
-    return { status: 415, contentType, body: null };
+    return { status: 415, contentType, body: null, sandbox: false };
   }
 
   const fileRes = exportMime
@@ -91,11 +117,17 @@ export async function fetchDriveFile(fileId: string): Promise<DriveFetch> {
       );
 
   if (!fileRes.ok)
-    return { status: fileRes.status, contentType: 'text/plain', body: null };
+    return {
+      status: fileRes.status,
+      contentType: 'text/plain',
+      body: null,
+      sandbox: false,
+    };
   return {
     status: 200,
-    contentType: exportMime ?? meta.mimeType,
+    contentType,
     body: fileRes.body,
+    sandbox: preview === 'sandbox',
   };
 }
 

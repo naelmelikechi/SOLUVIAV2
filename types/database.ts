@@ -3210,6 +3210,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      process_qa_feedback: {
+        Row: {
+          answer: string;
+          created_at: string;
+          id: string;
+          question: string;
+          rating: number;
+          sources: Json | null;
+          user_id: string;
+        };
+        Insert: {
+          answer: string;
+          created_at?: string;
+          id?: string;
+          question: string;
+          rating: number;
+          sources?: Json | null;
+          user_id: string;
+        };
+        Update: {
+          answer?: string;
+          created_at?: string;
+          id?: string;
+          question?: string;
+          rating?: number;
+          sources?: Json | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       progression_snapshots_weekly: {
         Row: {
           captured_at: string;

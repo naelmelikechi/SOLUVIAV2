@@ -1,7 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { extractDriveFileId } from '@/lib/process/drive-url';
-import { isKnownDeliverable } from '@/lib/process/drive';
+import { isKnownDeliverable, previewabilityFor } from '@/lib/process/drive';
+
+describe('previewabilityFor', () => {
+  it('direct pour PDF / images / texte', () => {
+    expect(previewabilityFor('application/pdf')).toBe('direct');
+    expect(previewabilityFor('image/png')).toBe('direct');
+    expect(previewabilityFor('text/plain; charset=utf-8')).toBe('direct');
+  });
+  it('sandbox pour HTML / SVG (rendu sans script)', () => {
+    expect(previewabilityFor('text/html; charset=UTF-8')).toBe('sandbox');
+    expect(previewabilityFor('image/svg+xml')).toBe('sandbox');
+  });
+  it('unsupported pour le reste', () => {
+    expect(previewabilityFor('application/zip')).toBe('unsupported');
+    expect(
+      previewabilityFor(
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ),
+    ).toBe('unsupported');
+  });
+});
 
 describe('extractDriveFileId', () => {
   it('extrait l’ID des formes /file/d, /document/d, /spreadsheets/d, /presentation/d', () => {

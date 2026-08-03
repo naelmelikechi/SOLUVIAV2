@@ -1,6 +1,7 @@
 'use client';
 
-import { Eye, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { Eye, ExternalLink, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ const CHIP_CLASS =
 export function DeliverableLink({ libelle, url }: DeliverableLinkProps) {
   const label = libelle.replace(/^__(VISUEL|ECRIT)__/, '');
   const id = extractDriveFileId(url);
+  const [loaded, setLoaded] = useState(false);
 
   if (!id) {
     return (
@@ -48,11 +50,21 @@ export function DeliverableLink({ libelle, url }: DeliverableLinkProps) {
           <DialogHeader>
             <DialogTitle>{label}</DialogTitle>
           </DialogHeader>
-          <iframe
-            src={`/api/process/drive/${id}`}
-            className="h-[78vh] w-full rounded-md border"
-            title={label}
-          />
+          <div className="relative h-[78vh] w-full">
+            {!loaded && (
+              <div className="text-muted-foreground bg-muted/40 absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-md">
+                <Loader2 className="size-6 animate-spin" />
+                <span className="text-sm">Chargement de l’aperçu…</span>
+              </div>
+            )}
+            {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad = événement de chargement (masque le loader), pas une interaction */}
+            <iframe
+              src={`/api/process/drive/${id}`}
+              onLoad={() => setLoaded(true)}
+              className="h-full w-full rounded-md border"
+              title={label}
+            />
+          </div>
           <DialogFooter className="sm:justify-start">
             <a
               href={url}

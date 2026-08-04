@@ -7,6 +7,9 @@ import {
   buildMarkdown,
   parseFrontmatter,
   ficheToBrainNote,
+  isNonAnswer,
+  conversationToBrainNote,
+  entityToBrainNote,
 } from '@/lib/brain/note';
 import type { BrainNote } from '@/lib/brain/types';
 import type { FinalizedFiche } from '@/lib/process/types';
@@ -115,5 +118,69 @@ describe('ficheToBrainNote', () => {
     expect(note.links).toContain('livrables/FILE42');
     expect(note.body).toContain('Résumé.');
     expect(note.body).toContain('Point 1');
+  });
+});
+
+describe('isNonAnswer', () => {
+  it('détecte les non-réponses', () => {
+    expect(
+      isNonAnswer('Je ne trouve pas cette information dans les process.'),
+    ).toBe(true);
+    expect(isNonAnswer('Aucune information disponible.')).toBe(true);
+    expect(isNonAnswer('trop court')).toBe(true);
+  });
+  it('accepte une vraie réponse', () => {
+    expect(
+      isNonAnswer(
+        'Les 3 statuts sont Dispose, À construire et SOLUVIA s’en charge selon la fiche.',
+      ),
+    ).toBe(false);
+  });
+});
+
+describe('conversationToBrainNote', () => {
+  it('capitalise une Q/R validée (path=question, liens sources, frontmatter anti-obsolescence)', () => {
+    const note = conversationToBrainNote(
+      {
+        id: 'fb1',
+        question: 'Quels sont les 3 statuts ?',
+        answer: 'Dispose, À construire, SOLUVIA s’en charge.',
+      },
+      ['livrables/FILE42.md', 'fiches/lancement-a-1'],
+      'qahash',
+      { 'livrables/FILE42': 'h42' },
+    );
+    expect(note.type).toBe('conversation');
+    expect(note.path).toBe('conversations/quels-sont-les-3-statuts.md');
+    expect(note.title).toBe('Quels sont les 3 statuts ?');
+    expect(note.source_ref).toBe('fb1');
+    expect(note.source_hash).toBe('qahash');
+    expect(note.links).toContain('livrables/FILE42');
+    expect(note.links).toContain('fiches/lancement-a-1');
+    expect(note.frontmatter.source_hashes).toEqual({
+      'livrables/FILE42': 'h42',
+    });
+    expect(note.body).toContain('Dispose');
+    expect(note.body).toContain('👍');
+  });
+});
+
+describe('entityToBrainNote', () => {
+  it('construit une note-carrefour avec définition + backlinks', () => {
+    const note = entityToBrainNote(
+      'opco',
+      'OPCO',
+      ['fiches/lancement-a-1', 'livrables/FILE42', 'fiches/lancement-a-1'],
+      'Opérateur de compétences finançant la formation.',
+      'ehash',
+    );
+    expect(note.type).toBe('entite');
+    expect(note.path).toBe('entites/opco.md');
+    expect(note.title).toBe('OPCO');
+    expect(note.source_ref).toBe('entite:opco');
+    // dédupliqué
+    expect(note.links).toEqual(['fiches/lancement-a-1', 'livrables/FILE42']);
+    expect(note.body).toContain('Opérateur de compétences');
+    expect(note.body).toContain('[[fiches/lancement-a-1]]');
   });
 });

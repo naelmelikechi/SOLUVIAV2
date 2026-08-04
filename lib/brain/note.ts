@@ -114,3 +114,90 @@ export function ficheToBrainNote(
     source_hash: fiche.content_hash,
   };
 }
+
+// ---------------------------------------------------------------- Phase 3
+
+/** Vrai si le texte est une non-réponse (à ne PAS capitaliser). Pur. */
+export function isNonAnswer(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    t.includes('je ne trouve pas') ||
+    t.includes('aucune information') ||
+    text.trim().length < 40
+  );
+}
+
+export interface FeedbackInput {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+/**
+ * Note `conversation` à partir d'une Q/R validée (👍). `derivedFrom` = paths des
+ * notes sources (fiches/livrables) sans extension. `sourceHash` = hash de la Q/R
+ * (idempotence). `sourceHashes` = hash courant de chaque source (anti-obsolescence). Pur.
+ */
+export function conversationToBrainNote(
+  fb: FeedbackInput,
+  derivedFrom: string[],
+  sourceHash: string,
+  sourceHashes: Record<string, string>,
+): BrainNote {
+  const links = [...new Set(derivedFrom.map((p) => p.replace(/\.md$/, '')))];
+  const body = [
+    `# ${fb.question}`,
+    '',
+    '> Réponse validée par un utilisateur (👍).',
+    '',
+    fb.answer.trim(),
+    ...(links.length
+      ? ['', '## Sources', links.map(wikilink).join(' · ')]
+      : []),
+  ].join('\n');
+  return {
+    path: `conversations/${slugify(fb.question).slice(0, 80)}.md`,
+    type: 'conversation',
+    title: fb.question,
+    aliases: [],
+    tags: ['faq'],
+    links,
+    body,
+    frontmatter: { derived_from: links, source_hashes: sourceHashes },
+    source_ref: fb.id,
+    source_hash: sourceHash,
+  };
+}
+
+/**
+ * Note `entite` (carrefour du graphe). `backlinks` = paths (sans extension) des
+ * notes qui la référencent. `definition` optionnelle (peut venir de Claude). Pur.
+ */
+export function entityToBrainNote(
+  slug: string,
+  name: string,
+  backlinks: string[],
+  definition: string,
+  sourceHash: string,
+): BrainNote {
+  const uniq = [...new Set(backlinks)];
+  const body = [
+    `# ${name}`,
+    ...(definition ? ['', definition] : []),
+    '',
+    '## Notes liées',
+    uniq.length ? uniq.map(wikilink).join(' · ') : '(aucune)',
+  ].join('\n');
+  return {
+    path: `entites/${slug}.md`,
+    type: 'entite',
+    title: name,
+    aliases: [],
+    tags: [],
+    links: uniq,
+    body,
+    frontmatter: {},
+    source_ref: `entite:${slug}`,
+    source_hash: sourceHash,
+  };
+}

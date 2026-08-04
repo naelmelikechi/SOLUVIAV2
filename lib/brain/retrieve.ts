@@ -65,5 +65,10 @@ export async function retrieveNotes(
     }
   }
 
-  return [...byPath.values()].slice(0, MAX_NOTES).map(toNote);
+  // Exclut les notes marquées obsolètes (`frontmatter.stale`) — ex. une réponse
+  // capitalisée dont la fiche/livrable source a changé (cf. anti-obsolescence P3).
+  return [...byPath.values()]
+    .filter((r) => r.frontmatter?.['stale'] !== true)
+    .slice(0, MAX_NOTES)
+    .map(toNote);
 }

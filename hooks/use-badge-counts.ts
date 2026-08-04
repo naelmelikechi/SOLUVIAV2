@@ -44,7 +44,7 @@ async function fetchFacturesCount(): Promise<number> {
   const res = await supabaseClient()
     .from('factures')
     .select(
-      'id, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), projet:projets!inner(client:clients!inner(is_demo, archive))',
+      'id, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut), projet:projets!inner(client:clients!inner(is_demo, archive))',
     )
     .eq('statut', 'en_retard');
   let count = 0;

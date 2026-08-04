@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       .select(
         `
         id, ref, date_echeance, montant_ht,
-        avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut),
+        avoirs:factures!facture_origine_id(montant_ht, statut),
         projet:projets!factures_projet_id_fkey(cdp_id)
       `,
       )

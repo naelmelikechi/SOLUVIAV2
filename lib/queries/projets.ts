@@ -97,7 +97,7 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
     supabase
       .from('factures')
       .select(
-        'id, projet_id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut)',
+        'id, projet_id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!facture_origine_id(montant_ht, statut)',
       )
       .in('projet_id', projetIds)
       .eq('statut', 'en_retard'),

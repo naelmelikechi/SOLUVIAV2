@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { computeQualiopiCompletionForClients } from '@/lib/queries/qualiopi-stats';
-import { soldeNetHt } from '@/lib/utils/avoir-netting';
+import { soldeNetHt, type AvoirsEmbed } from '@/lib/utils/avoir-netting';
 import { startOfWeek, startOfMonth, addWeeks } from 'date-fns';
 import {
   type IndicateursScope,
@@ -274,7 +274,7 @@ async function computeFacturation(
     supabase
       .from('factures')
       .select(
-        'projet_id, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut)',
+        'projet_id, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut)',
       )
       .eq('statut', 'en_retard')
       .lt('date_echeance', today)
@@ -297,10 +297,10 @@ async function computeFacturation(
   const emises = (emisesRes.data ?? []) as { projet_id: string }[];
   const echeances = (echeancesRes.data ?? []) as { projet_id: string }[];
   const retards = (
-    (retardRes.data ?? []) as {
+    (retardRes.data ?? []) as unknown as {
       projet_id: string;
       montant_ht: number | null;
-      avoirs: { montant_ht: number | null; statut: string }[];
+      avoirs: AvoirsEmbed;
     }[]
   ).filter((f) => soldeNetHt(f.montant_ht, f.avoirs) > 0);
 

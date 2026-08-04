@@ -93,7 +93,7 @@ export async function getDashboardFinancials(
     supabase
       .from('factures')
       .select(
-        'id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        'id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!facture_origine_id(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
       )
       .eq('statut', 'en_retard')
       .eq('projet.client.is_demo', false)

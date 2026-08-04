@@ -21,9 +21,24 @@ export interface AvoirLie {
   statut: string;
 }
 
+/**
+ * Forme de l'embed PostgREST `avoirs:factures!facture_origine_id(...)`.
+ * Runtime : toujours un tableau (relation one-to-many, verifie en prod).
+ * Types generes supabase-js : inferent a tort un objet simple sur cette
+ * relation self-referentielle via hint colonne - on accepte donc les deux
+ * formes et on normalise.
+ */
+export type AvoirsEmbed = AvoirLie[] | AvoirLie | null | undefined;
+
+/** Normalise l'embed avoirs en tableau. */
+export function toAvoirList(avoirs: AvoirsEmbed): AvoirLie[] {
+  if (!avoirs) return [];
+  return Array.isArray(avoirs) ? avoirs : [avoirs];
+}
+
 /** Somme (negative ou 0) des avoirs emis d'une liste d'avoirs lies. */
-export function sumAvoirsEmis(avoirs: AvoirLie[] | null | undefined): number {
-  return (avoirs ?? [])
+export function sumAvoirsEmis(avoirs: AvoirsEmbed): number {
+  return toAvoirList(avoirs)
     .filter((a) => a.statut === 'avoir')
     .reduce((s, a) => s + (a.montant_ht ?? 0), 0);
 }
@@ -34,7 +49,7 @@ export function sumAvoirsEmis(avoirs: AvoirLie[] | null | undefined): number {
  */
 export function soldeNetHt(
   montantHt: number | null | undefined,
-  avoirs: AvoirLie[] | null | undefined,
+  avoirs: AvoirsEmbed,
 ): number {
   return Math.max(0, (montantHt ?? 0) + sumAvoirsEmis(avoirs));
 }

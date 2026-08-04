@@ -41,7 +41,7 @@ export async function GET(request: Request) {
             supabase
               .from('factures')
               .select(
-                'id, montant_ht, statut, est_avoir, facture_origine_id, date_emission, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), client:clients!factures_client_id_fkey!inner(is_demo, archive)',
+                'id, montant_ht, statut, est_avoir, facture_origine_id, date_emission, avoirs:factures!facture_origine_id(montant_ht, statut), client:clients!factures_client_id_fkey!inner(is_demo, archive)',
               )
               .gte('date_emission', prevStartStr)
               .lte('date_emission', prevEndStr)

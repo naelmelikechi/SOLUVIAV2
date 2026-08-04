@@ -444,7 +444,7 @@ export async function getFacturationKpis(): Promise<FacturationKpis> {
     supabase
       .from('factures')
       .select(
-        'statut, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut)',
+        'statut, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut)',
       )
       .in('statut', ['emise', 'en_retard']),
     supabase

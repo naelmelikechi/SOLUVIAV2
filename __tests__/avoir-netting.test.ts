@@ -47,6 +47,13 @@ describe('soldeNetHt', () => {
     );
   });
 
+  it('accepte la forme objet simple de l embed PostgREST (types self-ref)', () => {
+    expect(soldeNetHt(1000, { montant_ht: -400, statut: 'avoir' })).toBe(600);
+    expect(soldeNetHt(1000, { montant_ht: -400, statut: 'a_emettre' })).toBe(
+      1000,
+    );
+  });
+
   it('plusieurs avoirs cumules', () => {
     expect(
       soldeNetHt(1000, [

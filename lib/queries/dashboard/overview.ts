@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { logger } from '@/lib/utils/logger';
 import { groupContratsByType } from '@/lib/utils/kpi-computations';
-import { soldeNetHt } from '@/lib/utils/avoir-netting';
+import { soldeNetHt, type AvoirsEmbed } from '@/lib/utils/avoir-netting';
 import { format } from 'date-fns';
 import { ACTIVE_STATES_ARRAY } from './shared';
 
@@ -40,7 +40,7 @@ export async function getDashboardData() {
       supabase
         .from('factures')
         .select(
-          'id, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+          'id, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
         )
         .eq('statut', 'en_retard')
         .eq('projet.client.is_demo', false)
@@ -52,7 +52,7 @@ export async function getDashboardData() {
       supabase
         .from('factures')
         .select(
-          'id, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+          'id, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
         )
         .eq('statut', 'emise')
         .eq('projet.client.is_demo', false)
@@ -169,12 +169,7 @@ export async function getDashboardData() {
 
   const activeContratsList = contratsRes.data ?? [];
   const countSoldeDu = (
-    rows:
-      | {
-          montant_ht: number | null;
-          avoirs: { montant_ht: number | null; statut: string }[];
-        }[]
-      | null,
+    rows: { montant_ht: number | null; avoirs: AvoirsEmbed }[] | null,
   ) =>
     (rows ?? []).filter((f) => soldeNetHt(f.montant_ht, f.avoirs) > 0).length;
 

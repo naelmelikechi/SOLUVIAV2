@@ -35,7 +35,7 @@ export async function GET(request: Request) {
             .select(
               `
         ref, montant_ttc, date_echeance,
-        avoirs:factures!factures_facture_origine_id_fkey(montant_ttc, statut),
+        avoirs:factures!facture_origine_id(montant_ttc, statut),
         client:clients!factures_client_id_fkey(raison_sociale)
       `,
             )
@@ -60,7 +60,12 @@ export async function GET(request: Request) {
         const items: FactureRetardItem[] = factures.flatMap((f) => {
           if (!f.ref || !f.date_echeance) return [];
           // Solde TTC net des avoirs emis (montants avoirs negatifs).
-          const avoirTtc = (f.avoirs ?? [])
+          // Normalisation objet/tableau : cf. AvoirsEmbed (avoir-netting.ts),
+          // les types generes inferent un objet sur cet embed self-ref.
+          const avoirsList = (
+            Array.isArray(f.avoirs) ? f.avoirs : f.avoirs ? [f.avoirs] : []
+          ) as { montant_ttc: number | null; statut: string }[];
+          const avoirTtc = avoirsList
             .filter((a) => a.statut === 'avoir')
             .reduce((s, a) => s + (a.montant_ttc ?? 0), 0);
           const soldeTtc = Math.max(0, (f.montant_ttc ?? 0) + avoirTtc);

@@ -126,7 +126,7 @@ export function ProjetFinanceSection({
             </tr>
             <tr className="border-border text-muted-foreground border-t text-xs">
               <td className="py-2 pr-2 whitespace-nowrap">
-                OPCO (bordereaux Eduvia)
+                OPCO (bordereaux Eduvia, hors 1er équipement)
               </td>
               <td className="py-2 pl-2 text-right tabular-nums">
                 {formatCurrency(finance.production_opco)}

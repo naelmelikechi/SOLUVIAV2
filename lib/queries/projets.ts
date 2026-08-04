@@ -295,20 +295,24 @@ export type ContratRow = Awaited<
   ReturnType<typeof getContratsByProjetId>
 >[number];
 
-// Montant encaisse cote OPCO pour un bordereau Eduvia. Meme semantique
+// Montant encaisse cote OPCO pour un bordereau Eduvia, PART PEDAGOGIE
+// uniquement (including_pedagogie_amount) : la ligne OPCO de la fiche
+// Finance se compare a la colonne Production (= NPEC pedagogique pur), le
+// premier equipement doit donc en etre exclu partout. Meme semantique
 // "pedago regle" que lib/queries/billable-events/derive.ts : un step est
 // entierement regle si invoice_state = REGLE ou si opco_settled_amount couvre
 // le total (le state peut rester TRANSMIS a cause du premier equipement) ;
-// sinon on compte le reglement partiel.
+// sinon on compte le reglement partiel, borne a la part pedagogie.
 export function stepEncaisseOpco(step: {
   total_amount: number | null;
+  including_pedagogie_amount: number | null;
   invoice_state: string | null;
   opco_settled_amount: number | null;
 }): number {
-  const total = step.total_amount ?? 0;
-  if (step.invoice_state === 'REGLE') return total;
+  const pedago = step.including_pedagogie_amount ?? step.total_amount ?? 0;
+  if (step.invoice_state === 'REGLE') return pedago;
   if (step.opco_settled_amount == null) return 0;
-  return Math.min(step.opco_settled_amount, total);
+  return Math.min(step.opco_settled_amount, pedago);
 }
 
 export async function getProjetFinance(projetId: string) {
@@ -402,11 +406,14 @@ export async function getProjetFinance(projetId: string) {
     contratIds.length > 0
       ? supabase
           .from('eduvia_invoice_steps')
-          .select('total_amount, invoice_state, opco_settled_amount')
+          .select(
+            'total_amount, including_pedagogie_amount, invoice_state, opco_settled_amount',
+          )
           .in('contrat_id', contratIds)
       : Promise.resolve({
           data: [] as {
             total_amount: number | null;
+            including_pedagogie_amount: number | null;
             invoice_state: string | null;
             opco_settled_amount: number | null;
           }[],
@@ -438,13 +445,19 @@ export async function getProjetFinance(projetId: string) {
     0,
   );
 
-  // Cote OPCO reel : bordereaux Eduvia emis (TRANSMIS/REGLE) et regles.
+  // Cote OPCO reel : bordereaux Eduvia emis (TRANSMIS/REGLE) et regles,
+  // PART PEDAGOGIE uniquement (including_pedagogie_amount) - le premier
+  // equipement est exclu pour rester comparable a la Production (NPEC
+  // pedagogique). Fallback total_amount si la part pedago n'est pas synchee.
   const steps = stepsRes.data ?? [];
   const facture_opco = steps
     .filter(
       (s) => s.invoice_state === 'TRANSMIS' || s.invoice_state === 'REGLE',
     )
-    .reduce((sum, s) => sum + (s.total_amount ?? 0), 0);
+    .reduce(
+      (sum, s) => sum + (s.including_pedagogie_amount ?? s.total_amount ?? 0),
+      0,
+    );
   const encaisse_opco = steps.reduce((sum, s) => sum + stepEncaisseOpco(s), 0);
 
   let en_retard_soluvia = 0;

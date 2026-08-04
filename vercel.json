@@ -88,10 +88,6 @@
     {
       "path": "/api/cron/process-sync",
       "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron/brain-sync",
-      "schedule": "30 4 * * *"
     }
   ]
 }

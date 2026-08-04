@@ -21,6 +21,10 @@ function row(
     facture,
     encaisse,
     en_retard,
+    // TTC de test : x1.2 simple (les tests ne verifient que la mecanique)
+    factureTtc: Math.round(facture * 1.2 * 100) / 100,
+    encaisseTtc: Math.round(encaisse * 1.2 * 100) / 100,
+    enRetardTtc: Math.round(en_retard * 1.2 * 100) / 100,
   };
 }
 

@@ -4,7 +4,9 @@ import { formatCurrency } from '@/lib/utils/formatters';
 
 export interface ContextChipsProps {
   enRetard: number;
+  enRetardTtc: number;
   aFacturer: number;
+  aFacturerTtc: number;
   weekHours: number;
   editMode?: boolean;
   onHide?: () => void;
@@ -37,7 +39,9 @@ const valueTone: Record<ChipTone, string> = {
 
 export function ContextChips({
   enRetard,
+  enRetardTtc,
   aFacturer,
+  aFacturerTtc,
   weekHours,
   editMode,
   onHide,
@@ -48,7 +52,7 @@ export function ContextChips({
     chips.push({
       key: 'enRetard',
       label: 'En retard',
-      value: formatCurrency(enRetard),
+      value: `${formatCurrency(enRetard)} HT · ${formatCurrency(enRetardTtc)} TTC`,
       href: '/facturation',
       cta: 'Relancer',
       tone: 'danger',
@@ -58,7 +62,7 @@ export function ContextChips({
     chips.push({
       key: 'aFacturer',
       label: 'À facturer',
-      value: formatCurrency(aFacturer),
+      value: `${formatCurrency(aFacturer)} HT · ${formatCurrency(aFacturerTtc)} TTC`,
       href: '/facturation',
       cta: 'Émettre',
       tone: 'info',

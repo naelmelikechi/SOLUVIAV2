@@ -3,7 +3,11 @@ import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { resolveTauxCommission } from '@/lib/utils/commission';
-import { soldeNetHt, type AvoirsEmbed } from '@/lib/utils/avoir-netting';
+import {
+  soldeNetHt,
+  soldeNetTtc,
+  type AvoirsEmbed,
+} from '@/lib/utils/avoir-netting';
 import type { Database } from '@/types/database';
 
 type FactureRow = Database['public']['Tables']['factures']['Row'];
@@ -426,15 +430,15 @@ export async function getPaiementsByFactureId(factureId: string) {
 // ---------------------------------------------------------------------------
 // KPIs de l'etat de la facturation (bandeau /facturation). Volumes faibles
 // (quelques centaines de lignes, 3 colonnes) : agregation en JS, pas de RPC.
-// Montants en HT (convention affichage HT partout).
+// Montants HT + TTC (TTC = somme des montant_ttc factures, valeurs PDF).
 // ---------------------------------------------------------------------------
 export interface FacturationKpis {
   /** Factures emises en attente de paiement (statut emise). */
-  enAttente: { count: number; montantHt: number };
+  enAttente: { count: number; montantHt: number; montantTtc: number };
   /** Factures en retard de paiement. */
-  enRetard: { count: number; montantHt: number };
+  enRetard: { count: number; montantHt: number; montantTtc: number };
   /** Facture du mois courant (tout statut emis, avoirs signes inclus). */
-  factureMois: { count: number; montantHt: number };
+  factureMois: { count: number; montantHt: number; montantTtc: number };
 }
 
 export async function getFacturationKpis(): Promise<FacturationKpis> {
@@ -444,15 +448,17 @@ export async function getFacturationKpis(): Promise<FacturationKpis> {
   const [encoursRes, moisRes] = await Promise.all([
     // Avoirs lies embarques : l'encours (en attente / en retard) est le solde
     // net apres avoirs emis - une facture soldee par avoir sort des KPIs.
+    // TTC = montant_ttc des factures/avoirs (la valeur des PDF), pas un
+    // recalcul : zero derive de centimes.
     supabase
       .from('factures')
       .select(
-        'statut, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut)',
+        'statut, montant_ht, montant_ttc, avoirs:factures!facture_origine_id(montant_ht, montant_ttc, statut)',
       )
       .in('statut', ['emise', 'en_retard']),
     supabase
       .from('factures')
-      .select('montant_ht, est_avoir')
+      .select('montant_ht, montant_ttc, est_avoir')
       .neq('statut', 'a_emettre')
       .gte('date_emission', moisDebut),
   ]);
@@ -467,16 +473,16 @@ export async function getFacturationKpis(): Promise<FacturationKpis> {
   const encours = (encoursRes.data ?? []).map((f) => ({
     statut: f.statut,
     solde: soldeNetHt(f.montant_ht, f.avoirs),
+    soldeTtc: soldeNetTtc(f.montant_ttc, f.avoirs),
   }));
   const kpiEncours = (statut: string) => {
     const rows = encours.filter((f) => f.statut === statut && f.solde > 0);
     return {
       count: rows.length,
       montantHt: rows.reduce((s, r) => s + r.solde, 0),
+      montantTtc: rows.reduce((s, r) => s + r.soldeTtc, 0),
     };
   };
-  const sum = (rows: { montant_ht: number | null }[]) =>
-    rows.reduce((s, r) => s + Number(r.montant_ht ?? 0), 0);
   const mois = moisRes.data ?? [];
 
   return {
@@ -484,7 +490,8 @@ export async function getFacturationKpis(): Promise<FacturationKpis> {
     enRetard: kpiEncours('en_retard'),
     factureMois: {
       count: mois.filter((f) => !f.est_avoir).length,
-      montantHt: sum(mois),
+      montantHt: mois.reduce((s, r) => s + Number(r.montant_ht ?? 0), 0),
+      montantTtc: mois.reduce((s, r) => s + Number(r.montant_ttc ?? 0), 0),
     },
   };
 }

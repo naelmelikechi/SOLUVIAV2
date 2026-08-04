@@ -6,7 +6,8 @@ import { computeContractSchedule } from '@/lib/queries/production';
 import { getContratsActifs } from '@/lib/queries/production-aggregates';
 import type { Periode } from '@/lib/utils/dashboard-periode';
 import { encaisseHt } from '@/lib/utils/montant-ht';
-import { soldeNetHt } from '@/lib/utils/avoir-netting';
+import { soldeNetHt, soldeNetTtc } from '@/lib/utils/avoir-netting';
+import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 import {
   format,
   startOfMonth,
@@ -43,7 +44,7 @@ export async function getDashboardFinancials(
   let facturesQuery = supabase
     .from('factures')
     .select(
-      'montant_ht, statut, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+      'montant_ht, montant_ttc, statut, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
     )
     .in('statut', ['emise', 'payee', 'en_retard', 'avoir'])
     .eq('projet.client.is_demo', false)
@@ -93,7 +94,7 @@ export async function getDashboardFinancials(
     supabase
       .from('factures')
       .select(
-        'id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!facture_origine_id(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        'id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!facture_origine_id(montant_ht, montant_ttc, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
       )
       .eq('statut', 'en_retard')
       .eq('projet.client.is_demo', false)
@@ -137,11 +138,13 @@ export async function getDashboardFinancials(
       .select('date')
       .gte('date', monthStart)
       .lte('date', monthEnd),
-    // Echeances pretes a emettre pour totalAFacturer (cumul a date, non periodise)
+    // Echeances pretes a emettre pour totalAFacturer (cumul a date, non
+    // periodise). tva_intracommunautaire : TTC theorique au regime du client
+    // (pas encore de facture, donc pas de montant_ttc PDF a reprendre).
     supabase
       .from('echeances')
       .select(
-        'montant_prevu_ht, projet:projets!echeances_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        'montant_prevu_ht, projet:projets!echeances_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive, tva_intracommunautaire))',
       )
       .is('facture_id', null)
       .eq('validee', false)
@@ -284,6 +287,11 @@ export async function getDashboardFinancials(
     (sum, f) => sum + f.montant_ht,
     0,
   );
+  // TTC facture = somme des montant_ttc (valeurs PDF), avoirs negatifs inclus.
+  const totalFactureTtc = (facturesRes.data ?? []).reduce(
+    (sum, f) => sum + (f.montant_ttc ?? 0),
+    0,
+  );
   // Encaissé ramené en HT au prorata HT/TTC de chaque facture (paiements stockés en TTC).
   const totalEncaisse = (paiementsRes.data ?? []).reduce((sum, p) => {
     const facture = p.facture as {
@@ -295,6 +303,11 @@ export async function getDashboardFinancials(
       encaisseHt(p.montant, facture?.montant_ht ?? 0, facture?.montant_ttc ?? 0)
     );
   }, 0);
+  // Encaissé TTC = paiements bruts (deja stockes en TTC).
+  const totalEncaisseTtc = (paiementsRes.data ?? []).reduce(
+    (sum, p) => sum + (p.montant ?? 0),
+    0,
+  );
 
   // totalProduction = commission SOLUVIA (NPEC × taux, HT) prorata sur la durée
   // du contrat, part qui tombe sur le mois courant. Indépendant de la facturation.
@@ -313,11 +326,15 @@ export async function getDashboardFinancials(
     }
   }
   totalProduction = Math.round(totalProduction * 100) / 100;
+  // Theorique : la commission est TTC-native (NPEC x taux), le schedule la
+  // livre en HT (/1.2) - le x1.2 restitue exactement le TTC contractuel.
+  const totalProductionTtc = Math.round(totalProduction * 1.2 * 100) / 100;
 
   // totalEnRetard = solde des factures statut=en_retard apres deduction des
   // avoirs emis lies ET des paiements partiels deja recus (le solde
   // reellement en retard ; une facture soldee par avoir pese 0).
   let totalEnRetard = 0;
+  let totalEnRetardTtc = 0;
   for (const f of facturesRetardRes.data ?? []) {
     const solde = soldeNetHt(f.montant_ht, f.avoirs);
     if (solde <= 0) continue;
@@ -328,8 +345,13 @@ export async function getDashboardFinancials(
     );
     const encaisse = encaisseHt(encaisseTtc, f.montant_ht, f.montant_ttc);
     totalEnRetard += Math.max(0, solde - encaisse);
+    // TTC : meme netting sur les montants PDF (montant_ttc facture + avoirs),
+    // moins les paiements bruts.
+    const soldeTtc = soldeNetTtc(f.montant_ttc, f.avoirs);
+    totalEnRetardTtc += Math.max(0, soldeTtc - encaisseTtc);
   }
   totalEnRetard = Math.round(totalEnRetard * 100) / 100;
+  totalEnRetardTtc = Math.round(totalEnRetardTtc * 100) / 100;
 
   // Dedup par cle composite source_client_id:eduvia_employee_id (meme cle que
   // le KPI RQTH ci-dessus) : les employee_id Eduvia ne sont uniques que par
@@ -385,7 +407,12 @@ export async function getDashboardFinancials(
       ? Math.round((distinctEntries / expectedEntries) * 100)
       : 0;
 
-  type EcheanceMontant = { montant_prevu_ht: number | null };
+  type EcheanceMontant = {
+    montant_prevu_ht: number | null;
+    projet: {
+      client: { tva_intracommunautaire: string | null } | null;
+    } | null;
+  };
   const echeancesPretes =
     (echeancesAFacturerRes.data as unknown as EcheanceMontant[]) ?? [];
   // HT : les echeances n'ont que le HT en base (montant_prevu_ht), cohérent avec le funnel HT.
@@ -396,13 +423,30 @@ export async function getDashboardFinancials(
         0,
       ) * 100,
     ) / 100;
+  // TTC theorique par echeance au regime TVA du client (pas encore de
+  // facture emise, donc pas de montant_ttc PDF a reprendre).
+  const totalAFacturerTtc =
+    Math.round(
+      echeancesPretes.reduce((sum, e) => {
+        const ht = Number(e.montant_prevu_ht ?? 0);
+        const taux = resolveTvaRegime(
+          e.projet?.client?.tva_intracommunautaire,
+        ).taux;
+        return sum + ht * (1 + taux / 100);
+      }, 0) * 100,
+    ) / 100;
 
   return {
     totalProduction,
+    totalProductionTtc,
     totalFacture,
+    totalFactureTtc,
     totalEncaisse,
+    totalEncaisseTtc,
     totalEnRetard,
+    totalEnRetardTtc,
     totalAFacturer,
+    totalAFacturerTtc,
     nbApprenantsActifs,
     nbFormationsEnCours,
     nbAbandons,

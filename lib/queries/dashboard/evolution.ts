@@ -3,7 +3,7 @@ import { logger } from '@/lib/utils/logger';
 import { computeContractSchedule } from '@/lib/queries/production';
 import { getContratsActifs } from '@/lib/queries/production-aggregates';
 import { encaisseHt } from '@/lib/utils/montant-ht';
-import { soldeNetHt } from '@/lib/utils/avoir-netting';
+import { soldeNetHt, soldeNetTtc } from '@/lib/utils/avoir-netting';
 import { previousPeriode, type Periode } from '@/lib/utils/dashboard-periode';
 
 /**
@@ -26,6 +26,11 @@ export interface PreviousPeriodFinancials {
   facture: number;
   encaisse: number;
   enRetard: number;
+  // Equivalents TTC (montant_ttc factures = valeurs PDF, paiements bruts).
+  productionTtc: number;
+  factureTtc: number;
+  encaisseTtc: number;
+  enRetardTtc: number;
   label: string;
 }
 
@@ -48,7 +53,7 @@ export async function getPreviousPeriodFinancials(
       supabase
         .from('factures')
         .select(
-          'montant_ht, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+          'montant_ht, montant_ttc, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
         )
         .in('statut', ['emise', 'payee', 'en_retard', 'avoir'])
         .gte('date_emission', prevFromStr)
@@ -70,7 +75,7 @@ export async function getPreviousPeriodFinancials(
       supabase
         .from('factures')
         .select(
-          'montant_ht, montant_ttc, paiements(montant, date_reception), avoirs:factures!facture_origine_id(montant_ht, statut, date_emission), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+          'montant_ht, montant_ttc, paiements(montant, date_reception), avoirs:factures!facture_origine_id(montant_ht, montant_ttc, statut, date_emission), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
         )
         .neq('statut', 'a_emettre')
         .eq('est_avoir', false)
@@ -113,13 +118,22 @@ export async function getPreviousPeriodFinancials(
     (s, f) => s + (f.montant_ht ?? 0),
     0,
   );
+  const factureTtc = (facturesRes.data ?? []).reduce(
+    (s, f) => s + (f.montant_ttc ?? 0),
+    0,
+  );
 
   const encaisse = (paiementsRes.data ?? []).reduce((s, p) => {
     const f = p.facture as { montant_ht: number; montant_ttc: number } | null;
     return s + encaisseHt(p.montant, f?.montant_ht ?? 0, f?.montant_ttc ?? 0);
   }, 0);
+  const encaisseTtc = (paiementsRes.data ?? []).reduce(
+    (s, p) => s + (p.montant ?? 0),
+    0,
+  );
 
   let enRetard = 0;
+  let enRetardTtc = 0;
   for (const f of retardRes.data ?? []) {
     const avoirsAvant = (
       Array.isArray(f.avoirs) ? f.avoirs : f.avoirs ? [f.avoirs] : []
@@ -130,14 +144,20 @@ export async function getPreviousPeriodFinancials(
     const solde = soldeNetHt(f.montant_ht, avoirsAvant);
     if (solde <= 0) continue;
     const paiements = Array.isArray(f.paiements) ? f.paiements : [];
-    const encaisseTtc = paiements
+    const paiementsAvantTtc = paiements
       .filter(
         (p: { date_reception: string | null }) =>
           p.date_reception != null && p.date_reception < boundaryStr,
       )
       .reduce((s: number, p: { montant: number }) => s + p.montant, 0);
-    const dejaEncaisse = encaisseHt(encaisseTtc, f.montant_ht, f.montant_ttc);
+    const dejaEncaisse = encaisseHt(
+      paiementsAvantTtc,
+      f.montant_ht,
+      f.montant_ttc,
+    );
     enRetard += Math.max(0, solde - dejaEncaisse);
+    const soldeTtc = soldeNetTtc(f.montant_ttc, avoirsAvant);
+    enRetardTtc += Math.max(0, soldeTtc - paiementsAvantTtc);
   }
 
   return {
@@ -145,6 +165,11 @@ export async function getPreviousPeriodFinancials(
     facture: round2(facture),
     encaisse: round2(encaisse),
     enRetard: round2(enRetard),
+    // Commission TTC-native : le x1.2 restitue le TTC contractuel exact.
+    productionTtc: round2(production * 1.2),
+    factureTtc: round2(factureTtc),
+    encaisseTtc: round2(encaisseTtc),
+    enRetardTtc: round2(enRetardTtc),
     label: prev.label,
   };
 }

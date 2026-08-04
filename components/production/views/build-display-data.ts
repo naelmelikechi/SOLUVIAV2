@@ -17,6 +17,16 @@ export interface MonthRow {
   en_retard: number;
   raf: number;
   rae: number;
+  // Equivalents TTC (montant_ttc factures = valeurs PDF, paiements bruts ;
+  // production TTC = commission contractuelle x1.2, exacte car TTC-native).
+  // En perspective OPCO (montants bordereaux NPEC, pas de TVA), l'UI n'affiche
+  // pas ces lignes.
+  productionTtc: number;
+  factureTtc: number;
+  encaisseTtc: number;
+  enRetardTtc: number;
+  rafTtc: number;
+  raeTtc: number;
   rolling12: number;
   ytd: number;
   isFuture: boolean;
@@ -62,40 +72,53 @@ export function buildDisplayData(
   const today = new Date();
   const currentKey = format(today, 'yyyy-MM');
 
-  const rows: Omit<MonthRow, 'raf' | 'rae' | 'rolling12' | 'ytd'>[] = data.map(
-    (row) => {
-      const d = new Date(row.mois + 'T00:00:00');
-      const monthKey = row.mois.slice(0, 7);
-      const isFuture = monthKey > currentKey;
-      const isCurrent = monthKey === currentKey;
+  const rows: Omit<
+    MonthRow,
+    'raf' | 'rae' | 'rafTtc' | 'raeTtc' | 'rolling12' | 'ytd'
+  >[] = data.map((row) => {
+    const d = new Date(row.mois + 'T00:00:00');
+    const monthKey = row.mois.slice(0, 7);
+    const isFuture = monthKey > currentKey;
+    const isCurrent = monthKey === currentKey;
 
-      // facture/encaisse/en_retard = montants réels SOLUVIA (commission déjà
-      // facturée), identiques quelle que soit la perspective. Seule la
-      // production diffère (NPEC brut OPCO vs commission SOLUVIA HT).
-      return {
-        mois: row.mois,
-        date: d,
-        label: row.label,
-        production: isSoluvia
-          ? Math.round(row.productionSoluvia)
-          : Math.round(row.production),
-        facture: Math.round(row.facture),
-        encaisse: Math.round(row.encaisse),
-        en_retard: Math.round(row.en_retard),
-        isFuture,
-        isCurrent,
-      };
-    },
-  );
+    // facture/encaisse/en_retard = montants réels SOLUVIA (commission déjà
+    // facturée), identiques quelle que soit la perspective. Seule la
+    // production diffère (NPEC brut OPCO vs commission SOLUVIA HT).
+    return {
+      mois: row.mois,
+      date: d,
+      label: row.label,
+      production: isSoluvia
+        ? Math.round(row.productionSoluvia)
+        : Math.round(row.production),
+      facture: Math.round(row.facture),
+      encaisse: Math.round(row.encaisse),
+      en_retard: Math.round(row.en_retard),
+      productionTtc: isSoluvia
+        ? Math.round(row.productionSoluvia * 1.2)
+        : Math.round(row.production),
+      factureTtc: Math.round(row.factureTtc),
+      encaisseTtc: Math.round(row.encaisseTtc),
+      enRetardTtc: Math.round(row.enRetardTtc),
+      isFuture,
+      isCurrent,
+    };
+  });
 
   let cumulProduction = 0;
   let cumulFacture = 0;
   let cumulEncaisse = 0;
+  let cumulProductionTtc = 0;
+  let cumulFactureTtc = 0;
+  let cumulEncaisseTtc = 0;
 
   return rows.map((row, idx) => {
     cumulProduction += row.production;
     cumulFacture += row.facture;
     cumulEncaisse += row.encaisse;
+    cumulProductionTtc += row.productionTtc;
+    cumulFactureTtc += row.factureTtc;
+    cumulEncaisseTtc += row.encaisseTtc;
 
     let rolling12 = 0;
     for (let i = Math.max(0, idx - 11); i <= idx; i++) {
@@ -114,6 +137,8 @@ export function buildDisplayData(
       ...row,
       raf: cumulProduction - cumulFacture,
       rae: cumulFacture - cumulEncaisse,
+      rafTtc: cumulProductionTtc - cumulFactureTtc,
+      raeTtc: cumulFactureTtc - cumulEncaisseTtc,
       rolling12,
       ytd,
     };

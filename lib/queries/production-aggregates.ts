@@ -32,6 +32,11 @@ export interface MonthSums {
   facture: number;
   en_retard: number;
   encaisse: number;
+  // Equivalents TTC : sommes des montant_ttc factures (valeurs PDF) et
+  // paiements bruts - zero recalcul, zero derive de centimes.
+  factureTtc: number;
+  enRetardTtc: number;
+  encaisseTtc: number;
 }
 
 export interface ContratActifRow {
@@ -69,6 +74,9 @@ export async function getMonthSums(
           facture: Number(r.facture),
           en_retard: Number(r.en_retard),
           encaisse: Number(r.encaisse),
+          factureTtc: Number(r.facture_ttc ?? 0),
+          enRetardTtc: Number(r.en_retard_ttc ?? 0),
+          encaisseTtc: Number(r.encaisse_ttc ?? 0),
         });
       }
       return map;
@@ -109,7 +117,7 @@ async function getMonthSumsFallback(
       supabase
         .from('factures')
         .select(
-          'id, montant_ht, statut, est_avoir, facture_origine_id, mois_concerne, client:clients!inner(is_demo, archive)',
+          'id, montant_ht, montant_ttc, statut, est_avoir, facture_origine_id, mois_concerne, client:clients!inner(is_demo, archive)',
         )
         .gte('mois_concerne', firstKey)
         .lt('mois_concerne', nextAfterLastKey)
@@ -152,20 +160,31 @@ async function getMonthSumsFallback(
   const entry = (key: string): MonthSums => {
     let e = map.get(key);
     if (!e) {
-      e = { facture: 0, en_retard: 0, encaisse: 0 };
+      e = {
+        facture: 0,
+        en_retard: 0,
+        encaisse: 0,
+        factureTtc: 0,
+        enRetardTtc: 0,
+        encaisseTtc: 0,
+      };
       map.set(key, e);
     }
     return e;
   };
 
   const facturesRows = facturesRes.data ?? [];
-  const avoirByOrigine = new Map<string, number>();
+  const avoirByOrigine = new Map<string, { ht: number; ttc: number }>();
   for (const f of facturesRows) {
     if (f.est_avoir && f.statut === 'avoir' && f.facture_origine_id) {
-      avoirByOrigine.set(
-        f.facture_origine_id,
-        (avoirByOrigine.get(f.facture_origine_id) ?? 0) + f.montant_ht,
-      );
+      const prev = avoirByOrigine.get(f.facture_origine_id) ?? {
+        ht: 0,
+        ttc: 0,
+      };
+      avoirByOrigine.set(f.facture_origine_id, {
+        ht: prev.ht + f.montant_ht,
+        ttc: prev.ttc + (f.montant_ttc ?? 0),
+      });
     }
   }
 
@@ -173,11 +192,11 @@ async function getMonthSumsFallback(
     if (!f.mois_concerne) continue;
     const e = entry(f.mois_concerne.slice(0, 7));
     e.facture += f.montant_ht;
+    e.factureTtc += f.montant_ttc ?? 0;
     if (f.statut === 'en_retard') {
-      e.en_retard += Math.max(
-        0,
-        f.montant_ht + (avoirByOrigine.get(f.id) ?? 0),
-      );
+      const av = avoirByOrigine.get(f.id);
+      e.en_retard += Math.max(0, f.montant_ht + (av?.ht ?? 0));
+      e.enRetardTtc += Math.max(0, (f.montant_ttc ?? 0) + (av?.ttc ?? 0));
     }
   }
 
@@ -194,6 +213,7 @@ async function getMonthSumsFallback(
       facture.montant_ht,
       facture.montant_ttc,
     );
+    e.encaisseTtc += p.montant ?? 0;
   }
 
   return map;

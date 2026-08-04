@@ -36,6 +36,9 @@ export interface EvolutionRow {
   label: string;
   current: string;
   previous: string;
+  /** Equivalents TTC (lignes financieres uniquement), deja formates. */
+  currentTtc?: string;
+  previousTtc?: string;
   change: number;
   unit: '%' | 'pt';
   positiveIsGood: boolean;
@@ -111,7 +114,14 @@ export function buildEvolutionData(
   data: Pick<DashboardData, 'projetsActifs' | 'contratsActifs'>,
   financials: Pick<
     DashboardFinancials,
-    'totalProduction' | 'totalFacture' | 'totalEncaisse' | 'totalEnRetard'
+    | 'totalProduction'
+    | 'totalFacture'
+    | 'totalEncaisse'
+    | 'totalEnRetard'
+    | 'totalProductionTtc'
+    | 'totalFactureTtc'
+    | 'totalEncaisseTtc'
+    | 'totalEnRetardTtc'
   >,
   // Valeurs M-1 calculees en LIVE sur la fenetre precedente (evolution.ts) :
   // production/facture/encaisse periodises M-1, en retard = stock reconstitue
@@ -134,6 +144,8 @@ export function buildEvolutionData(
       label: 'Production',
       current: formatCurrency(financials.totalProduction),
       previous: formatCurrency(previousFinancials.production),
+      currentTtc: formatCurrency(financials.totalProductionTtc),
+      previousTtc: formatCurrency(previousFinancials.productionTtc),
       change: computeEvolution(
         true,
         financials.totalProduction,
@@ -146,6 +158,8 @@ export function buildEvolutionData(
       label: 'Facturé',
       current: formatCurrency(financials.totalFacture),
       previous: formatCurrency(previousFinancials.facture),
+      currentTtc: formatCurrency(financials.totalFactureTtc),
+      previousTtc: formatCurrency(previousFinancials.factureTtc),
       change: computeEvolution(
         true,
         financials.totalFacture,
@@ -158,6 +172,8 @@ export function buildEvolutionData(
       label: 'Encaissé',
       current: formatCurrency(financials.totalEncaisse),
       previous: formatCurrency(previousFinancials.encaisse),
+      currentTtc: formatCurrency(financials.totalEncaisseTtc),
+      previousTtc: formatCurrency(previousFinancials.encaisseTtc),
       change: computeEvolution(
         true,
         financials.totalEncaisse,
@@ -170,6 +186,8 @@ export function buildEvolutionData(
       label: 'En retard',
       current: formatCurrency(financials.totalEnRetard),
       previous: formatCurrency(previousFinancials.enRetard),
+      currentTtc: formatCurrency(financials.totalEnRetardTtc),
+      previousTtc: formatCurrency(previousFinancials.enRetardTtc),
       change: computeEvolution(
         true,
         financials.totalEnRetard,

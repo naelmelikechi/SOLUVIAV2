@@ -90,6 +90,10 @@ export default async function FacturationPage() {
     (s, b) => s + Number(b.montant_ht ?? 0),
     0,
   );
+  const aEmettreMontantTtc = brouillons.reduce(
+    (s, b) => s + Number(b.montant_ttc ?? 0),
+    0,
+  );
 
   return (
     <div>
@@ -99,6 +103,7 @@ export default async function FacturationPage() {
           kpis={kpis}
           aEmettreCount={brouillons.length}
           aEmettreMontantHt={aEmettreMontantHt}
+          aEmettreMontantTtc={aEmettreMontantTtc}
         />
       </div>
       <FacturationPageClient

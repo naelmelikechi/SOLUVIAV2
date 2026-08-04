@@ -45,6 +45,8 @@ function facture(
   return {
     id,
     montant_ht: montantHt,
+    // TTC de test : x1.2 simple (les tests financiers verifient le HT).
+    montant_ttc: Math.round(montantHt * 1.2 * 100) / 100,
     statut,
     est_avoir: opts.estAvoir ?? false,
     facture_origine_id: opts.origineId ?? null,

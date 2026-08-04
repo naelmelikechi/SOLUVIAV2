@@ -17,6 +17,22 @@ import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/utils/formatters';
 import type { MonthRow } from './build-display-data';
 
+/**
+ * Cellule montant double HT / TTC (perspective SOLUVIA). Le HT reste la
+ * valeur principale, le TTC (valeurs PDF sommees) en sous-ligne discrete.
+ */
+function DualAmount({ ht, ttc }: { ht: number; ttc?: number }) {
+  if (ttc === undefined) return <>{formatCurrency(ht)}</>;
+  return (
+    <span className="inline-flex flex-col items-end">
+      <span>{formatCurrency(ht)}</span>
+      <span className="text-muted-foreground text-[10px] leading-tight font-normal">
+        {formatCurrency(ttc)} TTC
+      </span>
+    </span>
+  );
+}
+
 interface ExpandableMonthRowsProps {
   row: MonthRow;
   showGroups: {
@@ -82,15 +98,27 @@ export function ExpandableMonthRows({
         {showGroups.mois && (
           <>
             <TableCell className="border-l-2 border-l-emerald-500 text-right tabular-nums">
-              {formatCurrency(row.production)}
+              {isOpco ? (
+                formatCurrency(row.production)
+              ) : (
+                <DualAmount ht={row.production} ttc={row.productionTtc} />
+              )}
             </TableCell>
             {!isOpco && (
               <>
                 <TableCell className="text-right tabular-nums">
-                  {row.isFuture ? '-' : formatCurrency(row.facture)}
+                  {row.isFuture ? (
+                    '-'
+                  ) : (
+                    <DualAmount ht={row.facture} ttc={row.factureTtc} />
+                  )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {row.isFuture ? '-' : formatCurrency(row.encaisse)}
+                  {row.isFuture ? (
+                    '-'
+                  ) : (
+                    <DualAmount ht={row.encaisse} ttc={row.encaisseTtc} />
+                  )}
                 </TableCell>
               </>
             )}
@@ -106,13 +134,21 @@ export function ExpandableMonthRows({
                   'font-semibold text-red-600',
               )}
             >
-              {row.isFuture ? '-' : formatCurrency(row.en_retard)}
+              {row.isFuture ? (
+                '-'
+              ) : (
+                <DualAmount ht={row.en_retard} ttc={row.enRetardTtc} />
+              )}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {formatCurrency(row.raf)}
+              <DualAmount ht={row.raf} ttc={row.rafTtc} />
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {row.isFuture ? '-' : formatCurrency(row.rae)}
+              {row.isFuture ? (
+                '-'
+              ) : (
+                <DualAmount ht={row.rae} ttc={row.raeTtc} />
+              )}
             </TableCell>
           </>
         )}
@@ -176,21 +212,50 @@ interface ClientBreakdownTableProps {
 function pickClient(c: ProductionByClientRow, isSoluvia: boolean) {
   // facture/encaisse/enRetard = montants réels SOLUVIA, communs aux deux
   // perspectives ; seule la production change (NPEC brut OPCO vs commission HT).
+  // TTC : sommes des montant_ttc factures (valeurs PDF) ; production TTC =
+  // commission contractuelle (x1.2 exact, TTC-native). En OPCO les TTC sont
+  // undefined (montants bordereaux, pas de TVA) et l'UI reste simple.
   return {
     production: isSoluvia ? c.productionSoluvia : c.production,
+    productionTtc: isSoluvia ? c.productionSoluvia * 1.2 : undefined,
     facture: c.facture,
     encaisse: c.encaisse,
     enRetard: c.enRetard,
+    factureTtc: isSoluvia ? c.factureTtc : undefined,
+    encaisseTtc: isSoluvia ? c.encaisseTtc : undefined,
+    enRetardTtc: isSoluvia ? c.enRetardTtc : undefined,
   };
 }
 
 function pickProjet(p: ProductionByProjetRow, isSoluvia: boolean) {
   return {
     production: isSoluvia ? p.productionSoluvia : p.production,
+    productionTtc: isSoluvia ? p.productionSoluvia * 1.2 : undefined,
     facture: p.facture,
     encaisse: p.encaisse,
     enRetard: p.enRetard,
+    factureTtc: isSoluvia ? p.factureTtc : undefined,
+    encaisseTtc: isSoluvia ? p.encaisseTtc : undefined,
+    enRetardTtc: isSoluvia ? p.enRetardTtc : undefined,
   };
+}
+
+/** Total arrondi d'une colonne du drill-down, en HT + TTC optionnel. */
+function DualTotal({
+  htValues,
+  ttcValues,
+}: {
+  htValues: number[];
+  ttcValues?: (number | undefined)[];
+}) {
+  const totalHt = Math.round(htValues.reduce((s, v) => s + v, 0));
+  const ttcDefined = ttcValues?.every((v) => v !== undefined)
+    ? (ttcValues as number[])
+    : undefined;
+  const totalTtc = ttcDefined
+    ? Math.round(ttcDefined.reduce((s, v) => s + v, 0))
+    : undefined;
+  return <DualAmount ht={totalHt} ttc={totalTtc} />;
 }
 
 function ClientBreakdownTable({
@@ -246,36 +311,36 @@ function ClientBreakdownTable({
               {clients.reduce((s, r) => s + r.nbProjets, 0)}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {formatCurrency(
-                Math.round(
-                  clients.reduce(
-                    (s, r) => s + pickClient(r, isSoluvia).production,
-                    0,
-                  ),
-                ),
-              )}
+              <DualTotal
+                htValues={clients.map(
+                  (r) => pickClient(r, isSoluvia).production,
+                )}
+                ttcValues={clients.map(
+                  (r) => pickClient(r, isSoluvia).productionTtc,
+                )}
+              />
             </TableCell>
             {!isOpco && (
               <>
                 <TableCell className="text-right tabular-nums">
-                  {formatCurrency(
-                    Math.round(
-                      clients.reduce(
-                        (s, r) => s + pickClient(r, isSoluvia).facture,
-                        0,
-                      ),
-                    ),
-                  )}
+                  <DualTotal
+                    htValues={clients.map(
+                      (r) => pickClient(r, isSoluvia).facture,
+                    )}
+                    ttcValues={clients.map(
+                      (r) => pickClient(r, isSoluvia).factureTtc,
+                    )}
+                  />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatCurrency(
-                    Math.round(
-                      clients.reduce(
-                        (s, r) => s + pickClient(r, isSoluvia).encaisse,
-                        0,
-                      ),
-                    ),
-                  )}
+                  <DualTotal
+                    htValues={clients.map(
+                      (r) => pickClient(r, isSoluvia).encaisse,
+                    )}
+                    ttcValues={clients.map(
+                      (r) => pickClient(r, isSoluvia).encaisseTtc,
+                    )}
+                  />
                 </TableCell>
                 <TableCell
                   className={cn(
@@ -286,14 +351,14 @@ function ClientBreakdownTable({
                     ) > 0 && 'text-red-600',
                   )}
                 >
-                  {formatCurrency(
-                    Math.round(
-                      clients.reduce(
-                        (s, r) => s + pickClient(r, isSoluvia).enRetard,
-                        0,
-                      ),
-                    ),
-                  )}
+                  <DualTotal
+                    htValues={clients.map(
+                      (r) => pickClient(r, isSoluvia).enRetard,
+                    )}
+                    ttcValues={clients.map(
+                      (r) => pickClient(r, isSoluvia).enRetardTtc,
+                    )}
+                  />
                 </TableCell>
               </>
             )}
@@ -345,15 +410,36 @@ function ExpandableClientRows({
           {client.nbProjets}
         </TableCell>
         <TableCell className="text-right tabular-nums">
-          {formatCurrency(Math.round(view.production))}
+          <DualAmount
+            ht={Math.round(view.production)}
+            ttc={
+              view.productionTtc !== undefined
+                ? Math.round(view.productionTtc)
+                : undefined
+            }
+          />
         </TableCell>
         {!isOpco && (
           <>
             <TableCell className="text-right tabular-nums">
-              {formatCurrency(Math.round(view.facture))}
+              <DualAmount
+                ht={Math.round(view.facture)}
+                ttc={
+                  view.factureTtc !== undefined
+                    ? Math.round(view.factureTtc)
+                    : undefined
+                }
+              />
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {formatCurrency(Math.round(view.encaisse))}
+              <DualAmount
+                ht={Math.round(view.encaisse)}
+                ttc={
+                  view.encaisseTtc !== undefined
+                    ? Math.round(view.encaisseTtc)
+                    : undefined
+                }
+              />
             </TableCell>
             <TableCell
               className={cn(
@@ -361,7 +447,14 @@ function ExpandableClientRows({
                 view.enRetard > 0 && 'font-semibold text-red-600',
               )}
             >
-              {formatCurrency(Math.round(view.enRetard))}
+              <DualAmount
+                ht={Math.round(view.enRetard)}
+                ttc={
+                  view.enRetardTtc !== undefined
+                    ? Math.round(view.enRetardTtc)
+                    : undefined
+                }
+              />
             </TableCell>
           </>
         )}
@@ -440,15 +533,36 @@ function ProjetBreakdownTable({
                   {p.nbContrats}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatCurrency(Math.round(view.production))}
+                  <DualAmount
+                    ht={Math.round(view.production)}
+                    ttc={
+                      view.productionTtc !== undefined
+                        ? Math.round(view.productionTtc)
+                        : undefined
+                    }
+                  />
                 </TableCell>
                 {!isOpco && (
                   <>
                     <TableCell className="text-right tabular-nums">
-                      {formatCurrency(Math.round(view.facture))}
+                      <DualAmount
+                        ht={Math.round(view.facture)}
+                        ttc={
+                          view.factureTtc !== undefined
+                            ? Math.round(view.factureTtc)
+                            : undefined
+                        }
+                      />
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatCurrency(Math.round(view.encaisse))}
+                      <DualAmount
+                        ht={Math.round(view.encaisse)}
+                        ttc={
+                          view.encaisseTtc !== undefined
+                            ? Math.round(view.encaisseTtc)
+                            : undefined
+                        }
+                      />
                     </TableCell>
                     <TableCell
                       className={cn(
@@ -456,7 +570,14 @@ function ProjetBreakdownTable({
                         view.enRetard > 0 && 'font-semibold text-red-600',
                       )}
                     >
-                      {formatCurrency(Math.round(view.enRetard))}
+                      <DualAmount
+                        ht={Math.round(view.enRetard)}
+                        ttc={
+                          view.enRetardTtc !== undefined
+                            ? Math.round(view.enRetardTtc)
+                            : undefined
+                        }
+                      />
                     </TableCell>
                   </>
                 )}
@@ -470,36 +591,36 @@ function ProjetBreakdownTable({
               {projets.reduce((s, r) => s + r.nbContrats, 0)}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {formatCurrency(
-                Math.round(
-                  projets.reduce(
-                    (s, r) => s + pickProjet(r, isSoluvia).production,
-                    0,
-                  ),
-                ),
-              )}
+              <DualTotal
+                htValues={projets.map(
+                  (r) => pickProjet(r, isSoluvia).production,
+                )}
+                ttcValues={projets.map(
+                  (r) => pickProjet(r, isSoluvia).productionTtc,
+                )}
+              />
             </TableCell>
             {!isOpco && (
               <>
                 <TableCell className="text-right tabular-nums">
-                  {formatCurrency(
-                    Math.round(
-                      projets.reduce(
-                        (s, r) => s + pickProjet(r, isSoluvia).facture,
-                        0,
-                      ),
-                    ),
-                  )}
+                  <DualTotal
+                    htValues={projets.map(
+                      (r) => pickProjet(r, isSoluvia).facture,
+                    )}
+                    ttcValues={projets.map(
+                      (r) => pickProjet(r, isSoluvia).factureTtc,
+                    )}
+                  />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatCurrency(
-                    Math.round(
-                      projets.reduce(
-                        (s, r) => s + pickProjet(r, isSoluvia).encaisse,
-                        0,
-                      ),
-                    ),
-                  )}
+                  <DualTotal
+                    htValues={projets.map(
+                      (r) => pickProjet(r, isSoluvia).encaisse,
+                    )}
+                    ttcValues={projets.map(
+                      (r) => pickProjet(r, isSoluvia).encaisseTtc,
+                    )}
+                  />
                 </TableCell>
                 <TableCell
                   className={cn(
@@ -510,14 +631,14 @@ function ProjetBreakdownTable({
                     ) > 0 && 'text-red-600',
                   )}
                 >
-                  {formatCurrency(
-                    Math.round(
-                      projets.reduce(
-                        (s, r) => s + pickProjet(r, isSoluvia).enRetard,
-                        0,
-                      ),
-                    ),
-                  )}
+                  <DualTotal
+                    htValues={projets.map(
+                      (r) => pickProjet(r, isSoluvia).enRetard,
+                    )}
+                    ttcValues={projets.map(
+                      (r) => pickProjet(r, isSoluvia).enRetardTtc,
+                    )}
+                  />
                 </TableCell>
               </>
             )}

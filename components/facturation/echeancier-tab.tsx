@@ -169,8 +169,12 @@ export function EcheancierTab({
     );
   }
 
+  const ttcOf = (d: { montantHt: number; tvaPct: number }) =>
+    Math.round(d.montantHt * (1 + d.tvaPct / 100) * 100) / 100;
   const totalDu = projetDues.reduce((s, d) => s + d.montantHt, 0);
+  const totalDuTtc = projetDues.reduce((s, d) => s + ttcOf(d), 0);
   const totalUpcoming = projetUpcoming.reduce((s, d) => s + d.montantHt, 0);
+  const totalUpcomingTtc = projetUpcoming.reduce((s, d) => s + ttcOf(d), 0);
   const selectedProjet = projets.find((p) => p.id === selectedProjetId);
 
   return (
@@ -224,7 +228,8 @@ export function EcheancierTab({
             <span className="text-foreground font-semibold tabular-nums">
               {formatCurrency(totalDu)}
             </span>{' '}
-            HT {NDASH} commission {projetDues[0]!.tauxCommission}%
+            HT ({formatCurrency(totalDuTtc)} TTC) {NDASH} commission{' '}
+            {projetDues[0]!.tauxCommission}%
           </div>
         )}
       </div>
@@ -290,8 +295,16 @@ export function EcheancierTab({
                         }
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className="font-mono text-sm font-semibold tabular-nums">
-                          {formatCurrency(due.montantHt)}
+                        <span className="inline-flex flex-col items-end font-mono text-sm font-semibold tabular-nums">
+                          <span>{formatCurrency(due.montantHt)}</span>
+                          <span className="text-muted-foreground text-[10px] leading-tight font-normal">
+                            {formatCurrency(
+                              Math.round(
+                                due.montantHt * (1 + due.tvaPct / 100) * 100,
+                              ) / 100,
+                            )}{' '}
+                            TTC
+                          </span>
                         </span>
                       </TableCell>
                       <TableCell
@@ -339,7 +352,7 @@ export function EcheancierTab({
               <span className="text-foreground font-semibold tabular-nums">
                 {formatCurrency(totalUpcoming)}
               </span>{' '}
-              HT
+              HT ({formatCurrency(totalUpcomingTtc)} TTC)
             </div>
           </div>
           <div className="border-border overflow-x-auto rounded-lg border">
@@ -386,8 +399,16 @@ export function EcheancierTab({
                           }
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-muted-foreground font-mono text-sm font-semibold tabular-nums">
-                            {formatCurrency(due.montantHt)}
+                          <span className="text-muted-foreground inline-flex flex-col items-end font-mono text-sm font-semibold tabular-nums">
+                            <span>{formatCurrency(due.montantHt)}</span>
+                            <span className="text-[10px] leading-tight font-normal">
+                              {formatCurrency(
+                                Math.round(
+                                  due.montantHt * (1 + due.tvaPct / 100) * 100,
+                                ) / 100,
+                              )}{' '}
+                              TTC
+                            </span>
                           </span>
                         </TableCell>
                       </TableRow>

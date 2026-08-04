@@ -13,9 +13,14 @@ interface DashboardAlertsProps {
   totalProduction: number;
   totalFacture: number;
   totalEncaisse: number;
+  totalProductionTtc: number;
+  totalFactureTtc: number;
+  totalEncaisseTtc: number;
   productionTrend: number;
   totalEnRetard: number;
+  totalEnRetardTtc: number;
   totalAFacturer: number;
+  totalAFacturerTtc: number;
   weekHours: number;
   periodeLabel?: string;
   editMode: boolean;
@@ -31,9 +36,14 @@ export function DashboardAlerts({
   totalProduction,
   totalFacture,
   totalEncaisse,
+  totalProductionTtc,
+  totalFactureTtc,
+  totalEncaisseTtc,
   productionTrend,
   totalEnRetard,
+  totalEnRetardTtc,
   totalAFacturer,
+  totalAFacturerTtc,
   weekHours,
   periodeLabel,
   editMode,
@@ -60,6 +70,9 @@ export function DashboardAlerts({
           production={totalProduction}
           facture={totalFacture}
           encaisse={totalEncaisse}
+          productionTtc={totalProductionTtc}
+          factureTtc={totalFactureTtc}
+          encaisseTtc={totalEncaisseTtc}
           productionTrend={productionTrend}
           editMode={editMode}
           onHide={() => onHide('trinity')}
@@ -71,7 +84,9 @@ export function DashboardAlerts({
       {!isHidden('chips') && (
         <ContextChips
           enRetard={totalEnRetard}
+          enRetardTtc={totalEnRetardTtc}
           aFacturer={totalAFacturer}
+          aFacturerTtc={totalAFacturerTtc}
           weekHours={weekHours}
           editMode={editMode}
           onHide={() => onHide('chips')}

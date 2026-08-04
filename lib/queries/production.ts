@@ -102,6 +102,10 @@ export interface ProductionRow {
   encaisse: number;
   /** Sum of factures.montant_ht with statut = 'en_retard' */
   en_retard: number;
+  /** Equivalents TTC (montant_ttc factures = valeurs PDF, paiements bruts). */
+  factureTtc: number;
+  encaisseTtc: number;
+  enRetardTtc: number;
 }
 
 /** 25-month window: 12 past + current + 12 future, ISO YYYY-MM-DD strings. */
@@ -180,6 +184,9 @@ export async function getProductionData(): Promise<ProductionRow[]> {
     const facture = round2(sums?.facture ?? 0);
     const en_retard = round2(sums?.en_retard ?? 0);
     const encaisse = round2(sums?.encaisse ?? 0);
+    const factureTtc = round2(sums?.factureTtc ?? 0);
+    const enRetardTtc = round2(sums?.enRetardTtc ?? 0);
+    const encaisseTtc = round2(sums?.encaisseTtc ?? 0);
     const production = round2(productionByMonth.get(key) ?? 0);
     const productionSoluvia = round2(productionSoluviaByMonth.get(key) ?? 0);
 
@@ -194,6 +201,9 @@ export async function getProductionData(): Promise<ProductionRow[]> {
       facture,
       encaisse,
       en_retard,
+      factureTtc,
+      encaisseTtc,
+      enRetardTtc,
     };
   });
 }

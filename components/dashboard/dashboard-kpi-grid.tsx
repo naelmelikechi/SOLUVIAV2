@@ -237,10 +237,24 @@ export function DashboardKpiGrid({
                       {row.label}
                     </TableCell>
                     <TableCell className="num text-right">
-                      {row.current}
+                      <span className="inline-flex flex-col items-end">
+                        <span>{row.current}</span>
+                        {row.currentTtc && (
+                          <span className="text-muted-foreground text-[11px] leading-tight">
+                            {row.currentTtc} TTC
+                          </span>
+                        )}
+                      </span>
                     </TableCell>
                     <TableCell className="num text-muted-foreground text-right">
-                      {row.previous}
+                      <span className="inline-flex flex-col items-end">
+                        <span>{row.previous}</span>
+                        {row.previousTtc && (
+                          <span className="text-[11px] leading-tight">
+                            {row.previousTtc} TTC
+                          </span>
+                        )}
+                      </span>
                     </TableCell>
                     <TableCell className="pr-4 text-right">
                       {row.change === 0 ? (

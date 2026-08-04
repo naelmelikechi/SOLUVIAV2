@@ -55,6 +55,29 @@ export function soldeNetHt(
 }
 
 /**
+ * Variante TTC de soldeNetHt : meme netting sur les montants TTC PDF
+ * (factures.montant_ttc, la valeur imprimee sur les factures - jamais un
+ * x1,2 recalcule, pour rester au centime des PDF y compris TVA 0%).
+ */
+export interface AvoirLieTtc {
+  montant_ttc: number | null;
+  statut: string;
+}
+
+export type AvoirsTtcEmbed = AvoirLieTtc[] | AvoirLieTtc | null | undefined;
+
+export function soldeNetTtc(
+  montantTtc: number | null | undefined,
+  avoirs: AvoirsTtcEmbed,
+): number {
+  const list = !avoirs ? [] : Array.isArray(avoirs) ? avoirs : [avoirs];
+  const credit = list
+    .filter((a) => a.statut === 'avoir')
+    .reduce((s, a) => s + (a.montant_ttc ?? 0), 0);
+  return Math.max(0, (montantTtc ?? 0) + credit);
+}
+
+/**
  * Etat d'annulation d'une facture vis-a-vis de ses avoirs emis :
  *  - 'totale'    : avoirs >= montant (solde 0, plus rien du)
  *  - 'partielle' : avoirs partiels (solde reduit mais > 0)

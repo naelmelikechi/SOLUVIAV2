@@ -22,6 +22,10 @@ export interface ProductionByClientRow {
   facture: number;
   encaisse: number;
   enRetard: number;
+  // Equivalents TTC (montant_ttc factures = valeurs PDF, paiements bruts).
+  factureTtc: number;
+  encaisseTtc: number;
+  enRetardTtc: number;
   nbProjets: number;
 }
 
@@ -33,6 +37,10 @@ export interface ProductionByProjetRow {
   facture: number;
   encaisse: number;
   enRetard: number;
+  // Equivalents TTC (montant_ttc factures = valeurs PDF, paiements bruts).
+  factureTtc: number;
+  encaisseTtc: number;
+  enRetardTtc: number;
   commission: number;
   nbContrats: number;
 }
@@ -55,6 +63,7 @@ export interface ContratInput {
 export interface FactureInput {
   id: string;
   montant_ht: number;
+  montant_ttc: number;
   statut: string;
   est_avoir: boolean;
   facture_origine_id: string | null;
@@ -79,6 +88,10 @@ interface ProjetAgg {
   facture: number;
   encaisse: number;
   enRetard: number;
+  // Equivalents TTC (montant_ttc factures = valeurs PDF, paiements bruts).
+  factureTtc: number;
+  encaisseTtc: number;
+  enRetardTtc: number;
   commissions: number[];
   nbContrats: number;
 }
@@ -120,6 +133,9 @@ export function aggregateMonthByProjet(
         facture: 0,
         encaisse: 0,
         enRetard: 0,
+        factureTtc: 0,
+        encaisseTtc: 0,
+        enRetardTtc: 0,
         commissions: [],
         nbContrats: 0,
       };
@@ -156,13 +172,17 @@ export function aggregateMonthByProjet(
   // Avoirs emis indexes par facture d'origine : le "facture" du projet est
   // net (avoirs negatifs sommes tels quels), et le solde en retard d'une
   // facture deduit ses avoirs (soldee par avoir => plus en retard).
-  const avoirByOrigine = new Map<string, number>();
+  const avoirByOrigine = new Map<string, { ht: number; ttc: number }>();
   for (const f of factures) {
     if (f.est_avoir && f.statut === 'avoir' && f.facture_origine_id) {
-      avoirByOrigine.set(
-        f.facture_origine_id,
-        (avoirByOrigine.get(f.facture_origine_id) ?? 0) + f.montant_ht,
-      );
+      const prev = avoirByOrigine.get(f.facture_origine_id) ?? {
+        ht: 0,
+        ttc: 0,
+      };
+      avoirByOrigine.set(f.facture_origine_id, {
+        ht: prev.ht + f.montant_ht,
+        ttc: prev.ttc + (f.montant_ttc ?? 0),
+      });
     }
   }
 
@@ -170,11 +190,11 @@ export function aggregateMonthByProjet(
     if (!f.projet) continue;
     const entry = ensureProjet(f.projet);
     entry.facture += f.montant_ht;
+    entry.factureTtc += f.montant_ttc ?? 0;
     if (f.statut === 'en_retard') {
-      entry.enRetard += Math.max(
-        0,
-        f.montant_ht + (avoirByOrigine.get(f.id) ?? 0),
-      );
+      const av = avoirByOrigine.get(f.id);
+      entry.enRetard += Math.max(0, f.montant_ht + (av?.ht ?? 0));
+      entry.enRetardTtc += Math.max(0, (f.montant_ttc ?? 0) + (av?.ttc ?? 0));
     }
   }
 
@@ -182,6 +202,7 @@ export function aggregateMonthByProjet(
     if (!p.facture) continue;
     const entry = projetMap.get(p.facture.projet_id);
     if (entry) {
+      entry.encaisseTtc += p.montant ?? 0;
       entry.encaisse += encaisseHt(
         p.montant,
         p.facture.montant_ht,
@@ -207,6 +228,9 @@ export function rollupByClient(
     facture: number;
     encaisse: number;
     enRetard: number;
+    factureTtc: number;
+    encaisseTtc: number;
+    enRetardTtc: number;
     projetIds: Set<string>;
   };
   const clientMap = new Map<string, ClientAgg>();
@@ -221,6 +245,9 @@ export function rollupByClient(
         facture: 0,
         encaisse: 0,
         enRetard: 0,
+        factureTtc: 0,
+        encaisseTtc: 0,
+        enRetardTtc: 0,
         projetIds: new Set<string>(),
       };
       clientMap.set(p.clientId, client);
@@ -230,6 +257,9 @@ export function rollupByClient(
     client.facture += p.facture;
     client.encaisse += p.encaisse;
     client.enRetard += p.enRetard;
+    client.factureTtc += p.factureTtc;
+    client.encaisseTtc += p.encaisseTtc;
+    client.enRetardTtc += p.enRetardTtc;
     client.projetIds.add(projetId);
   }
 
@@ -241,6 +271,9 @@ export function rollupByClient(
     facture: round2(data.facture),
     encaisse: round2(data.encaisse),
     enRetard: round2(data.enRetard),
+    factureTtc: round2(data.factureTtc),
+    encaisseTtc: round2(data.encaisseTtc),
+    enRetardTtc: round2(data.enRetardTtc),
     nbProjets: data.projetIds.size,
   }));
 }
@@ -257,6 +290,9 @@ export function projectByProjet(
     facture: round2(data.facture),
     encaisse: round2(data.encaisse),
     enRetard: round2(data.enRetard),
+    factureTtc: round2(data.factureTtc),
+    encaisseTtc: round2(data.encaisseTtc),
+    enRetardTtc: round2(data.enRetardTtc),
     commission:
       data.commissions.length > 0
         ? round2(

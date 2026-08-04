@@ -5,6 +5,7 @@ import { logger } from '@/lib/utils/logger';
 import { resolveTauxCommission } from '@/lib/utils/commission';
 import { isContratActif } from '@/lib/utils/contrat-states';
 import { round2 } from '@/lib/utils/number';
+import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 import {
   computeJalonContribution,
   moisAbsoluFromRelatif,
@@ -49,6 +50,8 @@ export interface EcheancierProjetInput {
   echeancier_override: unknown;
   client_id: string;
   client_raison_sociale: string;
+  /** Taux de TVA du client (regime intracom resolu en amont), en %. */
+  tva_pct?: number;
 }
 
 export interface EcheancierContratInput {
@@ -99,6 +102,8 @@ export interface EcheancierDueMois {
   clientId: string;
   clientRaisonSociale: string;
   tauxCommission: number;
+  /** Taux de TVA applicable (regime client), pour l'affichage du TTC. */
+  tvaPct: number;
   /** Nom du template résolu (null si override local ou fallback vide). */
   templateNom: string | null;
   templateSource: 'override' | 'template' | 'default';
@@ -232,6 +237,7 @@ export function computeEcheancierDues(input: {
         clientId: projet.client_id,
         clientRaisonSociale: projet.client_raison_sociale,
         tauxCommission: taux,
+        tvaPct: projet.tva_pct ?? 20,
         templateNom: resolved.template_nom ?? null,
         templateSource: resolved.source,
         moisConcerne: mois,
@@ -338,6 +344,7 @@ export function computeEcheancierUpcoming(input: {
         clientId: projet.client_id,
         clientRaisonSociale: projet.client_raison_sociale,
         tauxCommission: taux,
+        tvaPct: projet.tva_pct ?? 20,
         templateNom: resolved.template_nom ?? null,
         templateSource: resolved.source,
         moisConcerne: mois,
@@ -395,7 +402,7 @@ export async function getEcheancierDuesWith(
     .select(
       `
       id, ref, taux_commission, echeancier_template_id, echeancier_override,
-      client:clients!projets_client_id_fkey(id, raison_sociale)
+      client:clients!projets_client_id_fkey(id, raison_sociale, tva_intracommunautaire)
     `,
     )
     .eq('archive', false)
@@ -422,6 +429,8 @@ export async function getEcheancierDuesWith(
             echeancier_override: p.echeancier_override,
             client_id: p.client.id,
             client_raison_sociale: p.client.raison_sociale ?? '',
+            // TTC affiche au regime TVA reel du client (0% intracom UE).
+            tva_pct: resolveTvaRegime(p.client.tva_intracommunautaire).taux,
           },
         ]
       : [],

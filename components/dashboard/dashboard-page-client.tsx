@@ -94,9 +94,14 @@ export function DashboardPageClient({
         totalProduction={totalProduction}
         totalFacture={totalFacture}
         totalEncaisse={totalEncaisse}
+        totalProductionTtc={financials.totalProductionTtc}
+        totalFactureTtc={financials.totalFactureTtc}
+        totalEncaisseTtc={financials.totalEncaisseTtc}
         productionTrend={productionTrend}
         totalEnRetard={totalEnRetard}
+        totalEnRetardTtc={financials.totalEnRetardTtc}
         totalAFacturer={totalAFacturer}
+        totalAFacturerTtc={financials.totalAFacturerTtc}
         weekHours={weekHours}
         periodeLabel={periode?.label}
         editMode={editMode}

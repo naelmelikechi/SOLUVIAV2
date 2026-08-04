@@ -174,11 +174,17 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
     ),
     cell: ({ row }) => {
       const amount = row.original.encaissementsEnRetard;
+      const amountTtc = row.original.encaissementsEnRetardTtc;
       return (
         <span
-          className={`text-sm tabular-nums ${amount > 0 ? 'font-medium text-[var(--destructive)]' : ''}`}
+          className={`inline-flex flex-col text-sm tabular-nums ${amount > 0 ? 'font-medium text-[var(--destructive)]' : ''}`}
         >
-          {formatCurrency(amount)}
+          <span>{formatCurrency(amount)}</span>
+          {amount > 0 && (
+            <span className="text-muted-foreground text-[10px] leading-tight font-normal">
+              {formatCurrency(amountTtc)} TTC
+            </span>
+          )}
         </span>
       );
     },

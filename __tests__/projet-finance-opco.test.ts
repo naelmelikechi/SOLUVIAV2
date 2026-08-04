@@ -6,12 +6,13 @@ import { describe, it, expect, vi } from 'vitest';
 /**
  * Tests pour stepEncaisseOpco (lib/queries/projets.ts).
  *
- * Semantique "pedago regle" alignee sur lib/queries/billable-events/derive.ts :
- * - invoice_state = REGLE -> total_amount
- * - opco_settled_amount couvre le total (state reste TRANSMIS a cause du
- *   premier equipement) -> total_amount
- * - reglement partiel -> opco_settled_amount
+ * Semantique "pedago regle" alignee sur lib/queries/billable-events/derive.ts,
+ * PART PEDAGOGIE uniquement (le premier equipement est exclu de la ligne OPCO
+ * de la fiche Finance pour rester comparable a la Production = NPEC pedago) :
+ * - invoice_state = REGLE -> including_pedagogie_amount
+ * - reglement partiel -> min(opco_settled_amount, part pedago)
  * - step non resynchronise (opco_settled_amount NULL) -> 0
+ * - including_pedagogie_amount NULL -> fallback total_amount
  */
 
 vi.mock('@/lib/utils/logger', () => ({
@@ -25,30 +26,33 @@ vi.mock('@/lib/supabase/server', () => ({
 import { stepEncaisseOpco } from '@/lib/queries/projets';
 
 describe('stepEncaisseOpco', () => {
-  it('compte le total quand le step est REGLE', () => {
+  it('compte la part pedago quand le step est REGLE (equipement exclu)', () => {
     expect(
       stepEncaisseOpco({
         total_amount: 1000,
+        including_pedagogie_amount: 900,
         invoice_state: 'REGLE',
         opco_settled_amount: null,
       }),
-    ).toBe(1000);
+    ).toBe(900);
   });
 
-  it('compte le total quand opco_settled_amount couvre le total (state TRANSMIS)', () => {
+  it('borne a la part pedago quand opco_settled_amount couvre tout (state TRANSMIS)', () => {
     expect(
       stepEncaisseOpco({
         total_amount: 1000,
+        including_pedagogie_amount: 900,
         invoice_state: 'TRANSMIS',
         opco_settled_amount: 1200,
       }),
-    ).toBe(1000);
+    ).toBe(900);
   });
 
   it('compte le reglement partiel', () => {
     expect(
       stepEncaisseOpco({
         total_amount: 1000,
+        including_pedagogie_amount: 900,
         invoice_state: 'TRANSMIS',
         opco_settled_amount: 400,
       }),
@@ -59,6 +63,7 @@ describe('stepEncaisseOpco', () => {
     expect(
       stepEncaisseOpco({
         total_amount: 1000,
+        including_pedagogie_amount: 900,
         invoice_state: 'TRANSMIS',
         opco_settled_amount: null,
       }),
@@ -66,16 +71,29 @@ describe('stepEncaisseOpco', () => {
     expect(
       stepEncaisseOpco({
         total_amount: 1000,
+        including_pedagogie_amount: 900,
         invoice_state: 'NOTSENT',
         opco_settled_amount: null,
       }),
     ).toBe(0);
   });
 
+  it('fallback sur total_amount quand la part pedago est NULL', () => {
+    expect(
+      stepEncaisseOpco({
+        total_amount: 1000,
+        including_pedagogie_amount: null,
+        invoice_state: 'REGLE',
+        opco_settled_amount: null,
+      }),
+    ).toBe(1000);
+  });
+
   it('tolere total_amount NULL', () => {
     expect(
       stepEncaisseOpco({
         total_amount: null,
+        including_pedagogie_amount: null,
         invoice_state: 'REGLE',
         opco_settled_amount: null,
       }),

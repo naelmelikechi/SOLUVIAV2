@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { sumAvoirsEmis, soldeNetHt } from '@/lib/utils/avoir-netting';
+import {
+  sumAvoirsEmis,
+  soldeNetHt,
+  avoirAnnulation,
+} from '@/lib/utils/avoir-netting';
 
 describe('sumAvoirsEmis', () => {
   it('somme uniquement les avoirs emis (statut avoir)', () => {
@@ -61,5 +65,39 @@ describe('soldeNetHt', () => {
         { montant_ht: -200, statut: 'avoir' },
       ]),
     ).toBe(500);
+  });
+});
+
+describe('avoirAnnulation', () => {
+  it('null sans avoir emis (brouillon ignore)', () => {
+    expect(avoirAnnulation(1000, [])).toBeNull();
+    expect(avoirAnnulation(1000, null)).toBeNull();
+    expect(
+      avoirAnnulation(1000, [{ montant_ht: -1000, statut: 'a_emettre' }]),
+    ).toBeNull();
+  });
+
+  it('totale quand l avoir couvre le montant (cas FAC-SOL-0014..0019)', () => {
+    expect(
+      avoirAnnulation(4012.8, [{ montant_ht: -4012.8, statut: 'avoir' }]),
+    ).toBe('totale');
+  });
+
+  it('partielle quand il reste un solde', () => {
+    expect(avoirAnnulation(1000, [{ montant_ht: -400, statut: 'avoir' }])).toBe(
+      'partielle',
+    );
+  });
+
+  it('tolerance au centime (arrondis numeric)', () => {
+    expect(
+      avoirAnnulation(100.0, [{ montant_ht: -99.999, statut: 'avoir' }]),
+    ).toBe('totale');
+  });
+
+  it('accepte la forme objet simple de l embed', () => {
+    expect(avoirAnnulation(1000, { montant_ht: -1000, statut: 'avoir' })).toBe(
+      'totale',
+    );
   });
 });

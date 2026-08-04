@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { resolveTauxCommission } from '@/lib/utils/commission';
-import { soldeNetHt } from '@/lib/utils/avoir-netting';
+import { soldeNetHt, type AvoirsEmbed } from '@/lib/utils/avoir-netting';
 import type { Database } from '@/types/database';
 
 type FactureRow = Database['public']['Tables']['factures']['Row'];
@@ -16,6 +16,7 @@ const FACTURES_LIST_SELECT = `
       id, ref, numero_seq, date_emission, date_echeance, mois_concerne,
       montant_ht, taux_tva, montant_tva, montant_ttc,
       statut, est_avoir, avoir_motif, facture_origine_id, peppol_state,
+      avoirs:factures!facture_origine_id(montant_ht, statut),
       lignes:facture_lignes(event_type, mois_relatif),
       projet:projets!factures_projet_id_fkey!inner(id, ref),
       client:clients!factures_client_id_fkey!inner(id, trigramme, raison_sociale, is_demo, archive)
@@ -48,6 +49,8 @@ export interface FactureListItem {
   avoir_motif: FactureRow['avoir_motif'];
   facture_origine_id: FactureRow['facture_origine_id'];
   peppol_state: FactureRow['peppol_state'];
+  /** Avoirs lies (embed self-ref) : annulation totale/partielle en liste. */
+  avoirs: AvoirsEmbed;
   // Lignes minimales pour le badge Contenu (Engagement / Échéance n°N / Mixte)
   // de la liste. Voir lib/utils/billing-step-label.ts (factureContenuLabel).
   lignes: Array<{ event_type: string | null; mois_relatif: number | null }>;
@@ -487,11 +490,12 @@ export async function getFacturationKpis(): Promise<FacturationKpis> {
 }
 
 // Check if an avoir exists for a given facture
+// montant_ht + statut : la fiche facture affiche annulation totale/partielle.
 export async function getAvoirForFacture(factureOrigineId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('factures')
-    .select('id, ref')
+    .select('id, ref, montant_ht, statut')
     .eq('est_avoir', true)
     .eq('facture_origine_id', factureOrigineId)
     .maybeSingle();

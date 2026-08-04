@@ -53,3 +53,19 @@ export function soldeNetHt(
 ): number {
   return Math.max(0, (montantHt ?? 0) + sumAvoirsEmis(avoirs));
 }
+
+/**
+ * Etat d'annulation d'une facture vis-a-vis de ses avoirs emis :
+ *  - 'totale'    : avoirs >= montant (solde 0, plus rien du)
+ *  - 'partielle' : avoirs partiels (solde reduit mais > 0)
+ *  - null        : aucun avoir emis
+ * Tolerance 0,5 centime : les montants viennent de numeric PostgREST.
+ */
+export function avoirAnnulation(
+  montantHt: number | null | undefined,
+  avoirs: AvoirsEmbed,
+): 'totale' | 'partielle' | null {
+  const credit = sumAvoirsEmis(avoirs);
+  if (credit >= -0.005) return null;
+  return (montantHt ?? 0) + credit <= 0.005 ? 'totale' : 'partielle';
+}

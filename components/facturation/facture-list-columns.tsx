@@ -18,6 +18,7 @@ import {
   STATUT_FACTURE_COLORS,
 } from '@/lib/utils/constants';
 import { getPeppolStateBadge } from '@/lib/odoo/peppol-state';
+import { avoirAnnulation } from '@/lib/utils/avoir-netting';
 import { factureContenuLabel } from '@/lib/utils/billing-step-label';
 import { textFilterFn } from '@/lib/utils/table-filters';
 
@@ -214,12 +215,25 @@ export function createFactureListColumns(
         // Badge Peppol discret : uniquement quand la facture a un statut de
         // transmission e-invoicing connu (peppol_state non null).
         const peppol = getPeppolStateBadge(row.original.peppol_state);
+        // Annulation par avoir : le statut DB ne change jamais a l'emission
+        // d'un avoir, on annote donc l'etat reel a cote.
+        const annulation = avoirAnnulation(
+          row.original.montant_ht,
+          row.original.avoirs,
+        );
         return (
           <div className="flex flex-col items-start gap-1">
-            <StatusBadge
-              label={STATUT_FACTURE_LABELS[statut] || statut}
-              color={STATUT_FACTURE_COLORS[statut] || 'gray'}
-            />
+            {annulation === 'totale' ? (
+              <StatusBadge label="Annulée par avoir" color="gray" />
+            ) : (
+              <StatusBadge
+                label={STATUT_FACTURE_LABELS[statut] || statut}
+                color={STATUT_FACTURE_COLORS[statut] || 'gray'}
+              />
+            )}
+            {annulation === 'partielle' && (
+              <StatusBadge label="Avoir partiel" color="orange" />
+            )}
             {peppol && (
               <StatusBadge label={peppol.label} color={peppol.color} />
             )}

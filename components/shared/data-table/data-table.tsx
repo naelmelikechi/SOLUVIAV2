@@ -53,6 +53,9 @@ interface DataTableProps<TData, TValue> {
   searchKey?: string;
   searchPlaceholder?: string;
   onRowClick?: (row: TData) => void;
+  /** Classes additionnelles par ligne (ex. griser les factures annulees
+   * par avoir). Fusionnees avec les classes de base de la ligne. */
+  rowClassName?: (row: TData) => string | undefined;
   defaultSort?: { id: string; desc: boolean };
   filters?: FilterOption[];
   /** Affiche des lignes skeleton a la place du corps du tableau. */
@@ -136,6 +139,7 @@ export function DataTable<TData, TValue>({
   searchKey,
   searchPlaceholder = 'Rechercher...',
   onRowClick,
+  rowClassName,
   defaultSort,
   filters,
   isLoading = false,
@@ -395,9 +399,14 @@ export function DataTable<TData, TValue>({
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
                   className={
-                    onRowClick
-                      ? 'focus-visible:bg-muted/50 cursor-pointer outline-none'
-                      : undefined
+                    [
+                      onRowClick
+                        ? 'focus-visible:bg-muted/50 cursor-pointer outline-none'
+                        : undefined,
+                      rowClassName?.(row.original),
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined
                   }
                   tabIndex={onRowClick ? 0 : undefined}
                   onClick={(e) => {

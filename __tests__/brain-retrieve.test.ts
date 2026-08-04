@@ -44,4 +44,16 @@ describe('retrieveNotes', () => {
     expect(paths).toContain('entites/opco.md');
     expect(paths).toHaveLength(2);
   });
+
+  it('exclut les notes marquées stale', async () => {
+    const stale = {
+      ...row('conversations/vieux.md'),
+      frontmatter: { stale: true },
+    };
+    const admin = fakeAdmin([row('fiches/a.md'), stale], []);
+    const notes = await retrieveNotes('x', { admin });
+    const paths = notes.map((n) => n.path);
+    expect(paths).toContain('fiches/a.md');
+    expect(paths).not.toContain('conversations/vieux.md');
+  });
 });

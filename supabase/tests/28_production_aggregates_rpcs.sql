@@ -2,13 +2,16 @@
 -- Test : production_month_sums() + contrats_actifs_fenetre() (RPC agregats
 -- production partagees dashboard / production / cron rapport mensuel)
 -- ===========================================================================
--- Migration : 20260702130000_production_month_sums_rpc.sql
+-- Migrations : 20260702130000_production_month_sums_rpc.sql
+--            + 20260804090000_production_month_sums_net_avoirs.sql
 -- Verifie : SECURITY INVOKER, search_path epingle, grants (authenticated +
 -- service_role oui / anon non), formats mixtes de mois_concerne ('YYYY-MM' et
--- 'YYYY-MM-01' bucketises dans le meme mois), exclusion est_avoir / clients
--- demo / clients archives, prorata HT de l'encaisse (y compris ttc = 0 =>
--- ratio 1), fenetre contrats (termine avant exclu, a cheval inclus, versement
--- OPCO M+duree+1 couvert par le +2, demarre apres exclu, demo/archive exclus).
+-- 'YYYY-MM-01' bucketises dans le meme mois), semantique NETTE (avoirs emis
+-- deduits, brouillons a_emettre exclus, en_retard = solde apres avoirs lies),
+-- exclusion clients demo / clients archives, prorata HT de l'encaisse (y
+-- compris ttc = 0 => ratio 1), fenetre contrats (termine avant exclu, a
+-- cheval inclus, versement OPCO M+duree+1 couvert par le +2, demarre apres
+-- exclu, demo/archive exclus).
 -- Les fixtures utilisent des mois en 2031 et des NPEC marqueurs pour etre
 -- independantes du seed.
 
@@ -22,7 +25,7 @@ SELECT plan(15);
 CREATE TEMP TABLE _ctx (
   client_id UUID, client_demo_id UUID, client_arch_id UUID,
   projet_id UUID, projet_demo_id UUID, projet_arch_id UUID,
-  f1_id UUID
+  f1_id UUID, f8_id UUID
 );
 INSERT INTO _ctx (client_id, client_demo_id, client_arch_id)
 VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid());
@@ -36,14 +39,18 @@ UPDATE _ctx SET
   projet_id      = get_or_create_projet_libre(client_id),
   projet_demo_id = get_or_create_projet_libre(client_demo_id),
   projet_arch_id = get_or_create_projet_libre(client_arch_id),
-  f1_id          = gen_random_uuid();
+  f1_id          = gen_random_uuid(),
+  f8_id          = gen_random_uuid();
 
 -- Factures du mois 2031-03 (formats mixtes) sur le client normal :
 --   F1 'YYYY-MM'    100 HT / 120 TTC, emise      -> facture
 --   F2 'YYYY-MM-01'  50 HT /  60 TTC, en_retard  -> facture + en_retard
---   F3 avoir        -30 HT / -36 TTC             -> exclue (est_avoir)
+--   F3 avoir emis   -30 HT / -36 TTC (origine F1) -> DEDUIT de facture
 --   F6 0 HT / 0 TTC, emise (cas ttc=0)           -> facture (+0)
 --   F7 mois 2031-02                              -> hors fenetre
+--   F8  80 HT, en_retard + F9 avoir emis -80 (origine F8)
+--       -> facture net +0, en_retard net 0 (soldee par avoir)
+--   F10 999 HT brouillon a_emettre               -> exclue (brouillon)
 -- Et 500 HT client demo (F4) + 700 HT client archive (F5) -> exclues.
 INSERT INTO factures (id, projet_id, client_id, date_emission, date_echeance, mois_concerne,
                       montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
@@ -75,12 +82,34 @@ SELECT projet_arch_id, client_arch_id, '2031-03-01'::date, '2031-04-30'::date, '
        700, 20, 140, 840, 'emise'::statut_facture, false, 'FAC-TG3-9106', 991106,
        (SELECT id FROM societes_emettrices WHERE code = 'SOL') FROM _ctx;
 
+-- F8 : en retard, integralement soldee par l'avoir F9 ci-dessous.
+INSERT INTO factures (id, projet_id, client_id, date_emission, date_echeance, mois_concerne,
+                      montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
+                      ref, numero_seq, societe_emettrice_id)
+SELECT f8_id, projet_id, client_id, '2031-03-02'::date, '2031-04-30'::date, '2031-03',
+       80, 20, 16, 96, 'en_retard'::statut_facture, false, 'FAC-TG1-9108', 991108,
+       (SELECT id FROM societes_emettrices WHERE code = 'SOL') FROM _ctx;
+
+-- F10 : brouillon (a_emettre), doit etre EXCLU du facture.
+INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_concerne,
+                      montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
+                      societe_emettrice_id)
+SELECT projet_id, client_id, '2031-03-20'::date, '2031-04-30'::date, '2031-03',
+       999, 20, 199.80, 1198.80, 'a_emettre'::statut_facture, false,
+       (SELECT id FROM societes_emettrices WHERE code = 'SOL') FROM _ctx;
+
+-- Avoirs emis : F3 (-30, origine F1) et F9 (-80, origine F8, solde F8 a 0).
 INSERT INTO factures (projet_id, client_id, date_emission, date_echeance, mois_concerne,
                       montant_ht, taux_tva, montant_tva, montant_ttc, statut, est_avoir,
                       avoir_motif, facture_origine_id, ref, numero_seq, societe_emettrice_id)
 SELECT projet_id, client_id, '2031-03-10'::date, '2031-04-30'::date, '2031-03',
-       -30, 20, -6, -36, 'avoir', true, 'Avoir test agregats', f1_id,
-       'FAC-TG1-9103', 991103,
+       -30, 20, -6, -36, 'avoir'::statut_facture, true, 'Avoir test agregats',
+       f1_id, 'FAC-TG1-9103', 991103,
+       (SELECT id FROM societes_emettrices WHERE code = 'SOL') FROM _ctx
+UNION ALL
+SELECT projet_id, client_id, '2031-03-11'::date, '2031-04-30'::date, '2031-03',
+       -80, 20, -16, -96, 'avoir'::statut_facture, true, 'Avoir solde totale',
+       f8_id, 'FAC-TG1-9109', 991109,
        (SELECT id FROM societes_emettrices WHERE code = 'SOL') FROM _ctx;
 
 -- Paiements :
@@ -159,17 +188,18 @@ SELECT is(
   1::bigint,
   'formats mixtes bucketises ensemble + fenetre : 1 seule ligne pour 2031-03');
 
--- ----- 12. facture : 100 + 50 + 0 = 150 (avoir / demo / archive exclus) -----
+-- ----- 12. facture NETTE : 100 + 50 + 0 + 80 - 30 - 80 = 120 -----
+-- Avoirs emis deduits, brouillon a_emettre (999) exclu, demo/archive exclus.
 SELECT is(
   (SELECT facture FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
-  150::numeric,
-  'facture = 150 (formats mixtes sommes ; est_avoir, client demo et client archive exclus)');
+  120::numeric,
+  'facture = 120 (nette des avoirs emis ; brouillons, client demo et client archive exclus)');
 
--- ----- 13. en_retard : seule F2 (50) -----
+-- ----- 13. en_retard NET : F2 (50) seule ; F8 soldee par avoir -> 0 -----
 SELECT is(
   (SELECT en_retard FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
   50::numeric,
-  'en_retard = 50 (FILTER statut=en_retard)');
+  'en_retard = 50 (solde apres avoirs lies : F8 soldee par F9 ne pese plus)');
 
 -- ----- 14. encaisse : prorata HT 50 + 25 + 30 (ttc=0 => ratio 1), demo exclu -----
 SELECT is(

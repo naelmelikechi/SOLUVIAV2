@@ -53,8 +53,11 @@ export interface ContratInput {
 }
 
 export interface FactureInput {
+  id: string;
   montant_ht: number;
   statut: string;
+  est_avoir: boolean;
+  facture_origine_id: string | null;
   projet: ProjetInfo | null;
 }
 
@@ -150,11 +153,29 @@ export function aggregateMonthByProjet(
     }
   }
 
+  // Avoirs emis indexes par facture d'origine : le "facture" du projet est
+  // net (avoirs negatifs sommes tels quels), et le solde en retard d'une
+  // facture deduit ses avoirs (soldee par avoir => plus en retard).
+  const avoirByOrigine = new Map<string, number>();
+  for (const f of factures) {
+    if (f.est_avoir && f.statut === 'avoir' && f.facture_origine_id) {
+      avoirByOrigine.set(
+        f.facture_origine_id,
+        (avoirByOrigine.get(f.facture_origine_id) ?? 0) + f.montant_ht,
+      );
+    }
+  }
+
   for (const f of factures) {
     if (!f.projet) continue;
     const entry = ensureProjet(f.projet);
     entry.facture += f.montant_ht;
-    if (f.statut === 'en_retard') entry.enRetard += f.montant_ht;
+    if (f.statut === 'en_retard') {
+      entry.enRetard += Math.max(
+        0,
+        f.montant_ht + (avoirByOrigine.get(f.id) ?? 0),
+      );
+    }
   }
 
   for (const p of paiements) {

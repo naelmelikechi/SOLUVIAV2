@@ -39,8 +39,9 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 //   TEXT a formats mixtes ('YYYY-MM' event-based, 'YYYY-MM-01' echeancier) ;
 //   des bornes 'YYYY-MM-01' excluent lexicographiquement les factures
 //   'YYYY-MM' de leur propre mois. Voir nextMonthKey().
-// - est_avoir=false : exclut les avoirs y compris en brouillon (statut encore
-//   'a_emettre'), que .neq('statut','avoir') laissait passer en negatif.
+// - statut <> 'a_emettre' : brouillons exclus, avoirs emis inclus en negatif
+//   (le "Facture" du drill-down est net des avoirs, aligne sur la RPC
+//   production_month_sums) ; le solde en retard deduit les avoirs lies.
 // - clientId optionnel pousse le filtre cote SQL (pas de filtrage JS sur la
 //   table entiere).
 // - fetchAllRows + .order('id') : PostgREST tronque silencieusement a
@@ -82,10 +83,12 @@ async function fetchMonthProduction(
     fetchAllRows((from, to) => {
       let q = supabase
         .from('factures')
-        .select(`montant_ht, statut, ${PROJET_EMBED}`)
+        .select(
+          `id, montant_ht, statut, est_avoir, facture_origine_id, ${PROJET_EMBED}`,
+        )
         .gte('mois_concerne', monthStart)
         .lt('mois_concerne', monthEnd)
-        .eq('est_avoir', false)
+        .neq('statut', 'a_emettre')
         .eq('projet.client.is_demo', false)
         .eq('projet.client.archive', false);
       if (clientId) q = q.eq('projet.client_id', clientId);

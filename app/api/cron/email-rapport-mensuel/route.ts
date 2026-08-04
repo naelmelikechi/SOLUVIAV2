@@ -7,6 +7,7 @@ import { logger } from '@/lib/utils/logger';
 import { sendRapportMensuelEmail } from '@/lib/email/notifications';
 import { withEmailLock } from '@/lib/email/send-log';
 import { encaisseHt } from '@/lib/utils/montant-ht';
+import { soldeNetHt } from '@/lib/utils/avoir-netting';
 import { computeContractSchedule } from '@/lib/queries/production';
 import { getContratsActifs } from '@/lib/queries/production-aggregates';
 
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
             supabase
               .from('factures')
               .select(
-                'montant_ht, statut, est_avoir, date_emission, client:clients!factures_client_id_fkey!inner(is_demo, archive)',
+                'id, montant_ht, statut, est_avoir, facture_origine_id, date_emission, avoirs:factures!facture_origine_id(montant_ht, statut), client:clients!factures_client_id_fkey!inner(is_demo, archive)',
               )
               .gte('date_emission', prevStartStr)
               .lte('date_emission', prevEndStr)
@@ -72,11 +73,12 @@ export async function GET(request: Request) {
         const paiements = paiementsRes.data ?? [];
         const admins = adminsRes.data;
 
+        // Net des avoirs emis dans le mois (montants negatifs), aligne sur le
+        // KPI "Facture (mois)" de /facturation. Les avoirs brouillon restent
+        // exclus par le .neq('a_emettre') de la requete.
         const factureHt =
           Math.round(
-            factures
-              .filter((f) => !f.est_avoir)
-              .reduce((s, f) => s + (f.montant_ht ?? 0), 0) * 100,
+            factures.reduce((s, f) => s + (f.montant_ht ?? 0), 0) * 100,
           ) / 100;
 
         const encaisseHtTotal =
@@ -117,8 +119,10 @@ export async function GET(request: Request) {
         productionHt = Math.round(productionHt * 100) / 100;
 
         const nbFacturesEmises = factures.filter((f) => !f.est_avoir).length;
+        // Une facture totalement soldee par avoir n'est plus un retard reel.
         const nbFacturesRetard = factures.filter(
-          (f) => f.statut === 'en_retard',
+          (f) =>
+            f.statut === 'en_retard' && soldeNetHt(f.montant_ht, f.avoirs) > 0,
         ).length;
 
         const kpis = {

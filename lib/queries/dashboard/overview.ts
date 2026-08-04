@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { logger } from '@/lib/utils/logger';
 import { groupContratsByType } from '@/lib/utils/kpi-computations';
+import { soldeNetHt, type AvoirsEmbed } from '@/lib/utils/avoir-netting';
 import { format } from 'date-fns';
 import { ACTIVE_STATES_ARRAY } from './shared';
 
@@ -31,26 +32,34 @@ export async function getDashboardData() {
       .eq('client.is_demo', false)
       .eq('client.archive', false)
       .eq('est_libre', false),
-    // Head-counts (pas de rapatriement de lignes) : on ne veut que le nombre
-    // de factures en_retard / emises, avec les memes filtres demo/archive.
-    supabase
-      .from('factures')
-      .select(
-        'id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-        { count: 'exact', head: true },
-      )
-      .eq('statut', 'en_retard')
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
-    supabase
-      .from('factures')
-      .select(
-        'id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-        { count: 'exact', head: true },
-      )
-      .eq('statut', 'emise')
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
+    // Lignes legeres (montant + avoirs lies) plutot que head-count : les
+    // compteurs ne doivent inclure que les factures avec un solde encore du
+    // apres avoirs emis (facture soldee par avoir = ni en retard ni en attente).
+    // fetchAllRows + .order('id') : PostgREST tronque a max_rows (1000).
+    fetchAllRows((from, to) =>
+      supabase
+        .from('factures')
+        .select(
+          'id, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        )
+        .eq('statut', 'en_retard')
+        .eq('projet.client.is_demo', false)
+        .eq('projet.client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('factures')
+        .select(
+          'id, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        )
+        .eq('statut', 'emise')
+        .eq('projet.client.is_demo', false)
+        .eq('projet.client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
     // Echeances "pretes" = deja arrivees a date (<= aujourd'hui), aligne sur
     // le montant "A facturer" du chip (financials.ts) : pas d'echeances futures.
     supabase
@@ -159,10 +168,15 @@ export async function getDashboardData() {
   const contratsSansProgression = contratsWithNoEduviaActivity.length;
 
   const activeContratsList = contratsRes.data ?? [];
+  const countSoldeDu = (
+    rows: { montant_ht: number | null; avoirs: AvoirsEmbed }[] | null,
+  ) =>
+    (rows ?? []).filter((f) => soldeNetHt(f.montant_ht, f.avoirs) > 0).length;
+
   return {
     projetsActifs: projetsRes.data?.length ?? 0,
-    facturesEnRetard: facturesRetardRes.count ?? 0,
-    facturesEmises: facturesEmisesRes.count ?? 0,
+    facturesEnRetard: countSoldeDu(facturesRetardRes.data),
+    facturesEmises: countSoldeDu(facturesEmisesRes.data),
     echeancesAFacturer: echeancesRes.data?.length ?? 0,
     contratsActifs: activeContratsList.length,
     contratsSansProgression,

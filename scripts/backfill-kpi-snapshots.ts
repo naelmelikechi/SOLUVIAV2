@@ -129,19 +129,21 @@ async function computeGlobalForMonth(mois: string): Promise<SnapshotRow[]> {
         .eq('client.is_demo', false)
         .eq('client.archive', false),
 
+      // Avoirs emis inclus (statut 'avoir', montants negatifs) : total net,
+      // meme regle que le CRON snapshot.
       supabase
         .from('factures')
         .select(
-          'montant_ht, statut, est_avoir, projet_id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive), cdp_id, backup_cdp_id)',
+          'id, montant_ht, statut, est_avoir, facture_origine_id, projet_id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive), cdp_id, backup_cdp_id)',
         )
-        .in('statut', ['emise', 'payee', 'en_retard'])
+        .in('statut', ['emise', 'payee', 'en_retard', 'avoir'])
         .eq('projet.client.is_demo', false)
         .eq('projet.client.archive', false),
 
       supabase
         .from('paiements')
         .select(
-          'montant, facture:factures!paiements_facture_id_fkey!inner(projet_id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive), cdp_id, backup_cdp_id))',
+          'montant, facture:factures!paiements_facture_id_fkey!inner(projet_id, montant_ht, montant_ttc, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive), cdp_id, backup_cdp_id))',
         )
         .eq('facture.projet.client.is_demo', false)
         .eq('facture.projet.client.archive', false),
@@ -161,17 +163,40 @@ async function computeGlobalForMonth(mois: string): Promise<SnapshotRow[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const contrats: any[] = contratsRes.data ?? [];
 
-  const facturesEmises = factures.length;
-  const facturesEnRetard = factures.filter(
-    (f: { statut: string }) => f.statut === 'en_retard',
+  // Avoirs emis indexes par facture d'origine (netting du "en retard").
+  const avoirByOrigine = new Map<string, number>();
+  for (const f of factures) {
+    if (f.est_avoir && f.statut === 'avoir' && f.facture_origine_id) {
+      avoirByOrigine.set(
+        f.facture_origine_id,
+        (avoirByOrigine.get(f.facture_origine_id) ?? 0) + (f.montant_ht ?? 0),
+      );
+    }
+  }
+  const facturesEmises = factures.filter(
+    (f: { est_avoir: boolean }) => !f.est_avoir,
   ).length;
-  const totalFactureHt = factures
-    .filter((f: { est_avoir: boolean }) => !f.est_avoir)
-    .reduce((s: number, f: { montant_ht: number }) => s + f.montant_ht, 0);
-  const totalEncaisse = (paiementsRes.data ?? []).reduce(
-    (s: number, p: { montant: number }) => s + p.montant,
+  const facturesEnRetard = factures.filter(
+    (f: { statut: string; montant_ht: number; id: string }) =>
+      f.statut === 'en_retard' &&
+      (f.montant_ht ?? 0) + (avoirByOrigine.get(f.id) ?? 0) > 0,
+  ).length;
+  // Net des avoirs : les avoirs emis (montants negatifs) sont dans la liste.
+  const totalFactureHt = factures.reduce(
+    (s: number, f: { montant_ht: number }) => s + (f.montant_ht ?? 0),
     0,
   );
+  // Encaisse HT (paiements stockes en TTC, prorata HT/TTC de la facture),
+  // aligne sur le CRON snapshot - l'ancien backfill sommait le TTC brut.
+  const paiements = (paiementsRes.data ?? []) as unknown as {
+    montant: number;
+    facture: { montant_ht: number; montant_ttc: number } | null;
+  }[];
+  const totalEncaisse = paiements.reduce((s, p) => {
+    const ht = p.facture?.montant_ht ?? 0;
+    const ttc = p.facture?.montant_ttc ?? 0;
+    return s + (ttc > 0 ? (p.montant * ht) / ttc : p.montant);
+  }, 0);
 
   const contratsActifs = contrats.filter((c: { contract_state: string }) =>
     ACTIVE_CONTRACT_STATES.has(c.contract_state),
@@ -289,10 +314,17 @@ async function computeGlobalForMonth(mois: string): Promise<SnapshotRow[]> {
   return rows;
 }
 
-const nbMois = Number(process.argv[2] ?? 12);
+// Usage : npx tsx scripts/backfill-kpi-snapshots.ts [nombre_mois] [--force]
+// --force : recalcule et REMPLACE les snapshots globaux deja presents
+// (necessaire apres un fix de formule, ex. netting des avoirs 2026-08).
+const args = process.argv.slice(2).filter((a) => a !== '--force');
+const force = process.argv.includes('--force');
+const nbMois = Number(args[0] ?? 12);
 
 async function main() {
-  console.log(`Backfill kpi_snapshots sur ${nbMois} mois (scope=global)...`);
+  console.log(
+    `Backfill kpi_snapshots sur ${nbMois} mois (scope=global)${force ? ' [FORCE]' : ''}...`,
+  );
 
   const today = new Date();
   let skipped = 0;
@@ -310,10 +342,24 @@ async function main() {
       .eq('scope', 'global')
       .is('scope_id', null);
 
-    if ((count ?? 0) > 0) {
+    if ((count ?? 0) > 0 && !force) {
       console.log(`SKIP (${count} KPIs deja presents)`);
       skipped++;
       continue;
+    }
+
+    if ((count ?? 0) > 0 && force) {
+      const { error: delError } = await supabase
+        .from('kpi_snapshots')
+        .delete()
+        .eq('mois', mois)
+        .eq('scope', 'global')
+        .is('scope_id', null);
+      if (delError) {
+        console.error(`\nErreur delete ${mois}:`, delError.message);
+        process.exit(1);
+      }
+      process.stdout.write(`(remplace ${count} existants) `);
     }
 
     const rows = await computeGlobalForMonth(mois);

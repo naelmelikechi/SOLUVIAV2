@@ -170,9 +170,25 @@ describe('getDashboardData', () => {
     const mock = buildSupabase({
       projets: { data: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }] },
       factures: [
-        // head-counts : premier appel = en_retard, second = emise
-        { count: 2 },
-        { count: 1 },
+        // premier appel = en_retard, second = emise. Les compteurs ne
+        // gardent que les factures au solde net > 0 : la facture f3,
+        // totalement soldee par un avoir emis, ne compte pas.
+        {
+          data: [
+            { id: 'f1', montant_ht: 1000, avoirs: [] },
+            {
+              id: 'f2',
+              montant_ht: 500,
+              avoirs: [{ montant_ht: -200, statut: 'avoir' }],
+            },
+            {
+              id: 'f3',
+              montant_ht: 800,
+              avoirs: [{ montant_ht: -800, statut: 'avoir' }],
+            },
+          ],
+        },
+        { data: [{ id: 'f4', montant_ht: 300, avoirs: [] }] },
       ],
       echeances: { data: [{ id: 'e1' }, { id: 'e2' }] },
       contrats: [

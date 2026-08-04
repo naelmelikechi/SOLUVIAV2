@@ -10,6 +10,7 @@ import {
   businessDaysElapsedThisWeek,
 } from '@/lib/utils/dates';
 import { logger } from '@/lib/utils/logger';
+import { soldeNetHt } from '@/lib/utils/avoir-netting';
 
 export interface BadgeCounts {
   facturesEnRetard: number;
@@ -37,10 +38,14 @@ const supabaseClient = () => createClient();
 
 async function fetchFacturesCount(): Promise<number> {
   // Exclut les clients démo/archivés pour s'aligner sur dashboard + accueil
-  // (même définition de « factures en retard » partout).
+  // (même définition de « factures en retard » partout). Le solde net des
+  // avoirs émis liés doit rester dû : une facture totalement soldée par
+  // avoir garde le statut en_retard en base mais ne compte plus ici.
   const res = await supabaseClient()
     .from('factures')
-    .select('id, projet:projets!inner(client:clients!inner(is_demo, archive))')
+    .select(
+      'id, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut), projet:projets!inner(client:clients!inner(is_demo, archive))',
+    )
     .eq('statut', 'en_retard');
   let count = 0;
   for (const f of res.data ?? []) {
@@ -48,7 +53,13 @@ async function fetchFacturesCount(): Promise<number> {
     const client =
       projet &&
       (Array.isArray(projet.client) ? projet.client[0] : projet.client);
-    if (client && !client.is_demo && !client.archive) count++;
+    if (
+      client &&
+      !client.is_demo &&
+      !client.archive &&
+      soldeNetHt(f.montant_ht, f.avoirs) > 0
+    )
+      count++;
   }
   return count;
 }

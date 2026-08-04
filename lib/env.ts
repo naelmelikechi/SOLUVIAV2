@@ -92,13 +92,9 @@ const serverSchema = z
     // (ai_status = 'skipped').
     OPENAI_API_KEY: z.string().min(1).optional(),
 
-    // Claude (Anthropic) - moteur du "cerveau" (ingestion + réponses assistant).
-    // Optionnel : si absent, le cerveau est désactivé et l'assistant retombe
-    // sur le RAG OpenAI existant.
-    ANTHROPIC_API_KEY: z.string().min(1).optional(),
-
-    // Coffre Obsidian du cerveau (dépôt GitHub). Optionnels : sans eux, l'écriture
-    // GitHub est un no-op (le miroir Postgres reste la vérité runtime).
+    // Coffre Obsidian du cerveau (dépôt GitHub). Utilisés UNIQUEMENT par le
+    // script d'ingestion local (Claude Code / Agent SDK sur abonnement Max),
+    // jamais par l'app Vercel. Optionnels.
     BRAIN_GITHUB_REPO: z.string().min(1).optional(), // 'owner/repo'
     BRAIN_GITHUB_TOKEN: z.string().min(1).optional(),
     BRAIN_GITHUB_BRANCH: z.string().min(1).optional(),
@@ -212,7 +208,6 @@ function parseEnv(): Env {
     RESEND_API_KEY: process.env.RESEND_API_KEY?.trim(),
     EMAIL_OVERRIDE: process.env.EMAIL_OVERRIDE?.trim(),
     OPENAI_API_KEY: process.env.OPENAI_API_KEY?.trim(),
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY?.trim(),
     BRAIN_GITHUB_REPO: process.env.BRAIN_GITHUB_REPO?.trim(),
     BRAIN_GITHUB_TOKEN: process.env.BRAIN_GITHUB_TOKEN?.trim(),
     BRAIN_GITHUB_BRANCH: process.env.BRAIN_GITHUB_BRANCH?.trim(),

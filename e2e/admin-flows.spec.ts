@@ -43,8 +43,9 @@ test.describe('Admin flows (necessite storageState)', () => {
     page,
   }) => {
     await page.goto('/facturation');
+    // h1 renomme "Factures" par la simplification UX (PR #87).
     await expect(
-      page.getByRole('heading', { name: /^facturation$/i }),
+      page.getByRole('heading', { name: /^factures$/i }),
     ).toBeVisible();
     // Sur base totalement vide (CI avant le flux facture), la page rend un
     // empty state "Aucune facture" A LA PLACE des onglets : deux etats valides.

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { resolveTauxCommission } from '@/lib/utils/commission';
+import { soldeNetHt } from '@/lib/utils/avoir-netting';
 import type { Database } from '@/types/database';
 
 type FactureRow = Database['public']['Tables']['factures']['Row'];
@@ -438,9 +439,13 @@ export async function getFacturationKpis(): Promise<FacturationKpis> {
   const moisDebut = `${new Date().toISOString().slice(0, 7)}-01`;
 
   const [encoursRes, moisRes] = await Promise.all([
+    // Avoirs lies embarques : l'encours (en attente / en retard) est le solde
+    // net apres avoirs emis - une facture soldee par avoir sort des KPIs.
     supabase
       .from('factures')
-      .select('statut, montant_ht')
+      .select(
+        'statut, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut)',
+      )
       .in('statut', ['emise', 'en_retard']),
     supabase
       .from('factures')
@@ -454,16 +459,26 @@ export async function getFacturationKpis(): Promise<FacturationKpis> {
     });
   }
 
-  const encours = encoursRes.data ?? [];
+  // Solde net par facture (avoirs emis deduits), et compte des seules
+  // factures avec un solde encore du.
+  const encours = (encoursRes.data ?? []).map((f) => ({
+    statut: f.statut,
+    solde: soldeNetHt(f.montant_ht, f.avoirs),
+  }));
+  const kpiEncours = (statut: string) => {
+    const rows = encours.filter((f) => f.statut === statut && f.solde > 0);
+    return {
+      count: rows.length,
+      montantHt: rows.reduce((s, r) => s + r.solde, 0),
+    };
+  };
   const sum = (rows: { montant_ht: number | null }[]) =>
     rows.reduce((s, r) => s + Number(r.montant_ht ?? 0), 0);
-  const emises = encours.filter((f) => f.statut === 'emise');
-  const retard = encours.filter((f) => f.statut === 'en_retard');
   const mois = moisRes.data ?? [];
 
   return {
-    enAttente: { count: emises.length, montantHt: sum(emises) },
-    enRetard: { count: retard.length, montantHt: sum(retard) },
+    enAttente: kpiEncours('emise'),
+    enRetard: kpiEncours('en_retard'),
     factureMois: {
       count: mois.filter((f) => !f.est_avoir).length,
       montantHt: sum(mois),

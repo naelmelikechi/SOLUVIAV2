@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { encaisseHt } from '@/lib/utils/montant-ht';
+import { soldeNetHt } from '@/lib/utils/avoir-netting';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -91,10 +92,13 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
       .in('projet_id', projetIds)
       .eq('archive', false),
 
-    // 2. Factures en retard par projet (with paiements for net calculation)
+    // 2. Factures en retard par projet (paiements + avoirs lies pour le net :
+    // une facture totalement soldee par avoir sort du compteur et du montant)
     supabase
       .from('factures')
-      .select('id, projet_id, montant_ht, montant_ttc, paiements(montant)')
+      .select(
+        'id, projet_id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut)',
+      )
       .in('projet_id', projetIds)
       .eq('statut', 'en_retard'),
 
@@ -118,18 +122,21 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
   const encaissementsRetardMap = new Map<string, number>();
   for (const f of facturesRes.data ?? []) {
     if (!f.projet_id) continue;
+    // Solde apres avoirs emis lies : une facture soldee par avoir n'est plus
+    // reellement en retard (statut DB inchange, pas de statut 'annulee').
+    const solde = soldeNetHt(f.montant_ht, f.avoirs);
+    if (solde <= 0) continue;
     facturesRetardMap.set(
       f.projet_id,
       (facturesRetardMap.get(f.projet_id) ?? 0) + 1,
     );
-    // Net overdue HT = montant_ht - encaissé HT (paiements TTC ramenés au prorata HT/TTC)
+    // Net overdue HT = solde - encaissé HT (paiements TTC ramenés au prorata HT/TTC)
     const paiementsSum = (
       (f as unknown as { paiements: Array<{ montant: number }> }).paiements ??
       []
     ).reduce((s: number, p: { montant: number }) => s + (p.montant ?? 0), 0);
     const net =
-      (f.montant_ht ?? 0) -
-      encaisseHt(paiementsSum, f.montant_ht ?? 0, f.montant_ttc ?? 0);
+      solde - encaisseHt(paiementsSum, f.montant_ht ?? 0, f.montant_ttc ?? 0);
     if (net > 0) {
       encaissementsRetardMap.set(
         f.projet_id,
@@ -304,11 +311,15 @@ export async function getProjetFinance(projetId: string) {
       .from('contrats')
       .select('id, npec_amount, archive')
       .eq('projet_id', projetId),
+    // Avoirs emis inclus (statut 'avoir', montants negatifs) : le "Facture"
+    // SOLUVIA est net des avoirs ; les brouillons (a_emettre) restent exclus.
     supabase
       .from('factures')
-      .select('id, montant_ht, montant_ttc, statut')
+      .select(
+        'id, montant_ht, montant_ttc, statut, est_avoir, facture_origine_id',
+      )
       .eq('projet_id', projetId)
-      .in('statut', ['emise', 'payee', 'en_retard']),
+      .in('statut', ['emise', 'payee', 'en_retard', 'avoir']),
     supabase
       .from('projets')
       .select('taux_commission')
@@ -325,11 +336,24 @@ export async function getProjetFinance(projetId: string) {
     .reduce((sum, c) => sum + (c.npec_amount ?? 0), 0);
 
   // Les factures SOLUVIA sont des factures de commission (base = NPEC x taux) :
-  // ce sont des montants cote SOLUVIA, pas cote OPCO.
+  // ce sont des montants cote SOLUVIA, pas cote OPCO. Les avoirs emis sont
+  // dans la liste avec un montant negatif -> la somme est nette.
   const facture_soluvia = (factures ?? []).reduce(
     (sum, f) => sum + (f.montant_ht ?? 0),
     0,
   );
+
+  // Avoirs emis indexes par facture d'origine, pour le solde "en retard" :
+  // une facture totalement soldee par avoir ne doit plus peser dans le retard.
+  const avoirByOrigine = new Map<string, number>();
+  for (const f of factures ?? []) {
+    if (f.est_avoir && f.statut === 'avoir' && f.facture_origine_id) {
+      avoirByOrigine.set(
+        f.facture_origine_id,
+        (avoirByOrigine.get(f.facture_origine_id) ?? 0) + (f.montant_ht ?? 0),
+      );
+    }
+  }
 
   const factureIds = (factures ?? []).map((f) => f.id);
   // Ratio HT/TTC par facture pour ramener les paiements (TTC) en HT.
@@ -364,7 +388,8 @@ export async function getProjetFinance(projetId: string) {
           }[],
         }),
     // Split engagement / echeances du "Facturé" SOLUVIA (memes factures que
-    // facture_soluvia : emise/payee/en_retard, avoirs exclus par le statut).
+    // facture_soluvia, avoirs inclus ; leurs lignes n'ont pas d'event_type
+    // donc elles ne tombent dans aucun des deux buckets types).
     factureIds.length > 0
       ? supabase
           .from('facture_lignes')
@@ -391,7 +416,12 @@ export async function getProjetFinance(projetId: string) {
 
   const en_retard_soluvia = (factures ?? [])
     .filter((f) => f.statut === 'en_retard')
-    .reduce((sum, f) => sum + (f.montant_ht ?? 0), 0);
+    .reduce(
+      (sum, f) =>
+        sum +
+        Math.max(0, (f.montant_ht ?? 0) + (avoirByOrigine.get(f.id) ?? 0)),
+      0,
+    );
 
   // Repartition du facture SOLUVIA par type d'event (facturation a
   // l'engagement) : etape 1 vs echeances OPCO. Les lignes sans event_type

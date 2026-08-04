@@ -6,6 +6,7 @@ import { computeContractSchedule } from '@/lib/queries/production';
 import { getContratsActifs } from '@/lib/queries/production-aggregates';
 import type { Periode } from '@/lib/utils/dashboard-periode';
 import { encaisseHt } from '@/lib/utils/montant-ht';
+import { soldeNetHt } from '@/lib/utils/avoir-netting';
 import {
   format,
   startOfMonth,
@@ -86,12 +87,13 @@ export async function getDashboardFinancials(
     facturesQuery,
     // Paiements pour totalEncaisse (exclut clients demo/archives via facture) - filtre periode optionnel
     paiementsQuery,
-    // Factures en retard avec leurs paiements pour calculer le vrai net non encaisse
+    // Factures en retard avec leurs paiements ET avoirs lies pour calculer le
+    // vrai net non encaisse (facture soldee par avoir = plus en retard).
     // Note: pas de filtre date - cumul a date, encours non-periodise
     supabase
       .from('factures')
       .select(
-        'id, montant_ht, montant_ttc, paiements(montant), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        'id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
       )
       .eq('statut', 'en_retard')
       .eq('projet.client.is_demo', false)
@@ -312,17 +314,20 @@ export async function getDashboardFinancials(
   }
   totalProduction = Math.round(totalProduction * 100) / 100;
 
-  // totalEnRetard = somme des factures statut=en_retard moins les paiements
-  // partiels deja recus sur ces factures (le solde reellement en retard).
+  // totalEnRetard = solde des factures statut=en_retard apres deduction des
+  // avoirs emis lies ET des paiements partiels deja recus (le solde
+  // reellement en retard ; une facture soldee par avoir pese 0).
   let totalEnRetard = 0;
   for (const f of facturesRetardRes.data ?? []) {
+    const solde = soldeNetHt(f.montant_ht, f.avoirs);
+    if (solde <= 0) continue;
     const paiements = Array.isArray(f.paiements) ? f.paiements : [];
     const encaisseTtc = paiements.reduce(
       (s: number, p: { montant: number }) => s + p.montant,
       0,
     );
     const encaisse = encaisseHt(encaisseTtc, f.montant_ht, f.montant_ttc);
-    totalEnRetard += Math.max(0, f.montant_ht - encaisse);
+    totalEnRetard += Math.max(0, solde - encaisse);
   }
   totalEnRetard = Math.round(totalEnRetard * 100) / 100;
 

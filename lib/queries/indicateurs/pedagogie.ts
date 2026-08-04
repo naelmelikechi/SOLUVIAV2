@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
 import { computeQualiopiCompletionForClients } from '@/lib/queries/qualiopi-stats';
+import { soldeNetHt } from '@/lib/utils/avoir-netting';
 import { startOfWeek, startOfMonth, addWeeks } from 'date-fns';
 import {
   type IndicateursScope,
@@ -268,9 +269,13 @@ async function computeFacturation(
       .gte('date_emission_prevue', isoDate(range.start))
       .lte('date_emission_prevue', isoDate(range.end))
       .in('projet_id', projetIds),
+    // Avoirs lies embarques : une facture totalement soldee par avoir garde
+    // le statut en_retard en base mais ne compte plus comme retard reel.
     supabase
       .from('factures')
-      .select('projet_id')
+      .select(
+        'projet_id, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut)',
+      )
       .eq('statut', 'en_retard')
       .lt('date_echeance', today)
       .in('projet_id', projetIds),
@@ -291,7 +296,13 @@ async function computeFacturation(
 
   const emises = (emisesRes.data ?? []) as { projet_id: string }[];
   const echeances = (echeancesRes.data ?? []) as { projet_id: string }[];
-  const retards = (retardRes.data ?? []) as { projet_id: string }[];
+  const retards = (
+    (retardRes.data ?? []) as {
+      projet_id: string;
+      montant_ht: number | null;
+      avoirs: { montant_ht: number | null; statut: string }[];
+    }[]
+  ).filter((f) => soldeNetHt(f.montant_ht, f.avoirs) > 0);
 
   for (const e of emises) {
     const clientId = projetToClient.get(e.projet_id);

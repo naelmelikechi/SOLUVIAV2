@@ -27,6 +27,12 @@ function toNote(r: Row): BrainNote {
 /**
  * Retrouve les notes pertinentes : graines pg_trgm + expansion 1 saut via les
  * liens sortants. Utilise le client admin (RLS brain_notes = admin only).
+ *
+ * DETTE Phase 2/3 : ce chemin sert les notes à TOUT utilisateur authentifié
+ * (pas seulement admin), car l'appelant (route `ask`) n'exige qu'une session.
+ * Acceptable en Phase 1 : brain_notes ne contient que des fiches finalisées,
+ * déjà lisibles par tous. Dès qu'on indexera des notes `livrable`/`conversation`
+ * (contenu non public), il FAUDRA gater par rôle ou filtrer par `type` ici.
  */
 export async function retrieveNotes(
   question: string,

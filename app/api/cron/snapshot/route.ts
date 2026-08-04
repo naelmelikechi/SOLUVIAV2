@@ -155,9 +155,12 @@ async function computeKpisForScope(
   let facturesQ: any = supabase
     .from('factures')
     .select(
-      'montant_ht, statut, est_avoir, projet_id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive), cdp_id, backup_cdp_id)',
+      'id, montant_ht, statut, est_avoir, facture_origine_id, projet_id, projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive), cdp_id, backup_cdp_id)',
     )
-    .in('statut', ['emise', 'payee', 'en_retard'])
+    // Avoirs emis inclus (statut 'avoir', montants negatifs) : le total
+    // facture est NET des avoirs, et le compte "en retard" ignore les
+    // factures totalement soldees par un avoir.
+    .in('statut', ['emise', 'payee', 'en_retard', 'avoir'])
     .eq('projet.client.is_demo', false)
     .eq('projet.client.archive', false);
 
@@ -217,17 +220,35 @@ async function computeKpisForScope(
   const contrats = contratsRes.data ?? [];
 
   // Aggregations factures
-  const factures = facturesRes.data ?? [];
-  const facturesEmises = factures.length;
+  type SnapshotFacture = {
+    id: string;
+    montant_ht: number;
+    statut: string;
+    est_avoir: boolean;
+    facture_origine_id: string | null;
+  };
+  const factures = (facturesRes.data ?? []) as SnapshotFacture[];
+  // Avoirs emis indexes par facture d'origine (netting du "en retard").
+  const avoirByOrigine = new Map<string, number>();
+  for (const f of factures) {
+    if (f.est_avoir && f.statut === 'avoir' && f.facture_origine_id) {
+      avoirByOrigine.set(
+        f.facture_origine_id,
+        (avoirByOrigine.get(f.facture_origine_id) ?? 0) + (f.montant_ht ?? 0),
+      );
+    }
+  }
+  const facturesEmises = factures.filter((f) => !f.est_avoir).length;
   const facturesEnRetard = factures.filter(
-    (f: { statut: string }) => f.statut === 'en_retard',
+    (f) =>
+      f.statut === 'en_retard' &&
+      (f.montant_ht ?? 0) + (avoirByOrigine.get(f.id) ?? 0) > 0,
   ).length;
-  const totalFactureHt = factures
-    .filter((f: { est_avoir: boolean }) => !f.est_avoir)
-    .reduce(
-      (s: number, f: { montant_ht: number }) => s + (f.montant_ht ?? 0),
-      0,
-    );
+  // Net des avoirs : les avoirs emis (montants negatifs) sont dans la liste.
+  const totalFactureHt = factures.reduce(
+    (s: number, f) => s + (f.montant_ht ?? 0),
+    0,
+  );
   // Encaissé en HT (prorata HT/TTC de chaque facture), cohérent avec total_facture_ht.
   const totalEncaisse = (paiementsRes.data ?? []).reduce(
     (

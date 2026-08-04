@@ -28,11 +28,14 @@ export async function GET(request: Request) {
       async () => {
         // Fetch overdue invoices + admins en parallele : independants.
         const [facturesRes, adminsRes] = await Promise.all([
+          // Avoirs lies embarques : une facture totalement soldee par avoir
+          // sort du digest, un avoir partiel reduit le montant relance (TTC).
           supabase
             .from('factures')
             .select(
               `
         ref, montant_ttc, date_echeance,
+        avoirs:factures!factures_facture_origine_id_fkey(montant_ttc, statut),
         client:clients!factures_client_id_fkey(raison_sociale)
       `,
             )
@@ -54,21 +57,27 @@ export async function GET(request: Request) {
           return { sent: 0, message: 'Aucune facture en retard' };
         }
 
-        const items: FactureRetardItem[] = factures.flatMap((f) =>
-          f.ref && f.date_echeance
-            ? [
-                {
-                  ref: f.ref,
-                  client: f.client?.raison_sociale ?? 'Client',
-                  montantTtc: f.montant_ttc,
-                  joursRetard: differenceInDays(
-                    today,
-                    new Date(f.date_echeance),
-                  ),
-                },
-              ]
-            : [],
-        );
+        const items: FactureRetardItem[] = factures.flatMap((f) => {
+          if (!f.ref || !f.date_echeance) return [];
+          // Solde TTC net des avoirs emis (montants avoirs negatifs).
+          const avoirTtc = (f.avoirs ?? [])
+            .filter((a) => a.statut === 'avoir')
+            .reduce((s, a) => s + (a.montant_ttc ?? 0), 0);
+          const soldeTtc = Math.max(0, (f.montant_ttc ?? 0) + avoirTtc);
+          if (soldeTtc <= 0) return [];
+          return [
+            {
+              ref: f.ref,
+              client: f.client?.raison_sociale ?? 'Client',
+              montantTtc: soldeTtc,
+              joursRetard: differenceInDays(today, new Date(f.date_echeance)),
+            },
+          ];
+        });
+
+        if (items.length === 0) {
+          return { sent: 0, message: 'Aucune facture en retard (soldes nets)' };
+        }
 
         const { data: admins } = adminsRes;
         if (!admins || admins.length === 0) {

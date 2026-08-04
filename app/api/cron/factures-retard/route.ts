@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyCronAuth } from '@/lib/utils/cron-auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
+import { soldeNetHt } from '@/lib/utils/avoir-netting';
 import { format } from 'date-fns';
 
 export const maxDuration = 60;
@@ -18,17 +19,24 @@ export async function GET(request: Request) {
     // 1. Find factures that are emise and past due date.
     // Skip est_avoir : un avoir ne se paie pas, donc jamais "en retard"
     // - notification parasite sinon (cf. FAC-HED-0002 flag a tort).
-    const { data: overdueFactures, error: fetchError } = await supabase
+    // Skip aussi les factures totalement soldees par un avoir emis (solde
+    // net <= 0) : rien a relancer, les basculer en retard serait du bruit.
+    const { data: overdueRaw, error: fetchError } = await supabase
       .from('factures')
       .select(
         `
-        id, ref, date_echeance,
+        id, ref, date_echeance, montant_ht,
+        avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut),
         projet:projets!factures_projet_id_fkey(cdp_id)
       `,
       )
       .eq('statut', 'emise')
       .eq('est_avoir', false)
       .lt('date_echeance', today);
+
+    const overdueFactures = (overdueRaw ?? []).filter(
+      (f) => soldeNetHt(f.montant_ht, f.avoirs) > 0,
+    );
 
     if (fetchError) {
       logger.error('cron.factures-retard', fetchError);

@@ -17,7 +17,10 @@
     "doctor": "npx react-doctor@latest",
     "db:migrate": "tsx scripts/migrate-supavia.ts --apply",
     "db:migrate:dry": "tsx scripts/migrate-supavia.ts --dry-run",
-    "db:migrate:baseline": "tsx scripts/migrate-supavia.ts --baseline"
+    "db:migrate:baseline": "tsx scripts/migrate-supavia.ts --baseline",
+    "brain:ingest": "tsx scripts/brain-ingest.ts",
+    "brain:ingest:dry": "tsx scripts/brain-ingest.ts --dry-run",
+    "brain:vault": "tsx scripts/brain-vault-sync.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.63",

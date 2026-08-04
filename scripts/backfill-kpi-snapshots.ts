@@ -91,16 +91,14 @@ function groupContratsByType(
 ): { app: number; pdc: number; poe: number } {
   const counts = { app: 0, pdc: 0, poe: 0 };
   for (const c of contratsActifs) {
-    switch (c.contract_type) {
-      case 'APP':
-        counts.app++;
-        break;
-      case 'PDC':
-        counts.pdc++;
-        break;
-      case 'POE':
-        counts.poe++;
-        break;
+    // Codes CERFA numeriques Eduvia = apprentissage (cf. kpi-computations.ts).
+    const type = c.contract_type?.trim() ?? '';
+    if (type === 'APP' || /^\d+$/.test(type)) {
+      counts.app++;
+    } else if (type === 'PDC') {
+      counts.pdc++;
+    } else if (type === 'POE') {
+      counts.poe++;
     }
   }
   return counts;

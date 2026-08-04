@@ -3,6 +3,7 @@ import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { encaisseHt } from '@/lib/utils/montant-ht';
 import { soldeNetHt } from '@/lib/utils/avoir-netting';
+import { ACTIVE_STATES_ARRAY } from '@/lib/queries/dashboard/shared';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -85,12 +86,15 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
 
   // Run all aggregate queries in parallel
   const [contratsRes, facturesRes, tempsRes] = await Promise.all([
-    // 1. Contrats actifs par projet
+    // 1. Contrats ACTIFS par projet (meme definition que la fiche projet :
+    // contract_state actif - avant, tous les contrats non archives etaient
+    // comptes, ruptures et annules inclus, d'ou 83 vs 73 sur HEOL).
     supabase
       .from('contrats')
       .select('projet_id')
       .in('projet_id', projetIds)
-      .eq('archive', false),
+      .eq('archive', false)
+      .in('contract_state', ACTIVE_STATES_ARRAY),
 
     // 2. Factures en retard par projet (paiements + avoirs lies pour le net :
     // une facture totalement soldee par avoir sort du compteur et du montant)

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import {
   getDashboardData,
   getDashboardFinancials,
+  getPreviousPeriodFinancials,
   getKpiSnapshots,
   getMonthlyTrend,
   getInvoiceStatusBreakdown,
@@ -32,7 +33,7 @@ import {
   type PilotageTab,
 } from '@/components/pilotage/pilotage-tabs';
 import { resolvePeriode, type PeriodeKey } from '@/lib/utils/dashboard-periode';
-import { format, startOfMonth, addMonths } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 
 export const metadata: Metadata = { title: 'Pilotage - SOLUVIA' };
 export const revalidate = 30;
@@ -64,7 +65,10 @@ const TAB_DESCRIPTIONS: Record<string, string> = {
 async function VueEnsembleTab({ periodeKey }: { periodeKey: PeriodeKey }) {
   const now = new Date();
   const periode = resolvePeriode(periodeKey, now);
-  const previousMonth = format(startOfMonth(addMonths(now, -1)), 'yyyy-MM-dd');
+  // Snapshot des compteurs (projets/contrats actifs) : celui pris au debut de
+  // la fenetre courante = etat de cloture M-1 (le cron tourne le 1er du mois).
+  // L'ancien code lisait le snapshot du mois PRECEDENT (etat de cloture M-2).
+  const snapshotMonth = format(startOfMonth(periode.from), 'yyyy-MM-dd');
 
   const user = await getUser();
   if (!user) return null;
@@ -75,6 +79,7 @@ async function VueEnsembleTab({ periodeKey }: { periodeKey: PeriodeKey }) {
   const [
     data,
     financials,
+    previousFinancials,
     previousKpis,
     monthlyTrend,
     invoiceBreakdown,
@@ -84,7 +89,8 @@ async function VueEnsembleTab({ periodeKey }: { periodeKey: PeriodeKey }) {
   ] = await Promise.all([
     getDashboardData(),
     getDashboardFinancials(periode),
-    getKpiSnapshots(previousMonth),
+    getPreviousPeriodFinancials(periode),
+    getKpiSnapshots(snapshotMonth),
     getMonthlyTrend(),
     getInvoiceStatusBreakdown(),
     getUserWeekHours(),
@@ -125,6 +131,7 @@ async function VueEnsembleTab({ periodeKey }: { periodeKey: PeriodeKey }) {
       <DashboardPageClient
         data={data}
         financials={financials}
+        previousFinancials={previousFinancials}
         previousKpis={previousKpis}
         monthlyTrend={monthlyTrend}
         invoiceBreakdown={invoiceBreakdown}

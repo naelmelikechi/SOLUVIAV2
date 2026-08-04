@@ -6,6 +6,7 @@ import type {
   KpiSnapshotMap,
   MonthlyTrendRow,
   InvoiceStatusBreakdown,
+  PreviousPeriodFinancials,
 } from '@/lib/queries/dashboard';
 import type { Periode } from '@/lib/utils/dashboard-periode';
 import { useHiddenKpis } from '@/components/dashboard/use-hidden-kpis';
@@ -31,6 +32,7 @@ export type { DashboardData };
 export function DashboardPageClient({
   data,
   financials,
+  previousFinancials,
   previousKpis,
   monthlyTrend,
   invoiceBreakdown,
@@ -41,6 +43,8 @@ export function DashboardPageClient({
 }: {
   data: DashboardData;
   financials: DashboardFinancials;
+  /** Valeurs M-1 calculees en live (fenetre precedente), comparables. */
+  previousFinancials: PreviousPeriodFinancials;
   previousKpis: KpiSnapshotMap;
   monthlyTrend: MonthlyTrendRow[];
   invoiceBreakdown: InvoiceStatusBreakdown;
@@ -68,13 +72,19 @@ export function DashboardPageClient({
   } = financials;
 
   const alerts = buildAlerts(data, joursSansSaisie);
-  const evolutionData = buildEvolutionData(data, financials, previousKpis);
+  const evolutionData = buildEvolutionData(
+    data,
+    financials,
+    previousFinancials,
+    previousKpis,
+  );
 
-  const hasPrevious = Object.keys(previousKpis).length > 0;
+  // Chip "vs M-1" de la Production : production M-1 calculee en live
+  // (avant : proxy snapshot total_facture_ht, comparaison heterogene).
   const productionTrend = computeEvolution(
-    hasPrevious,
+    true,
     totalProduction,
-    previousKpis['total_facture_ht'],
+    previousFinancials.production,
   );
 
   return (

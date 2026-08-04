@@ -45,16 +45,17 @@ export function groupContratsByType(
 ): { app: number; pdc: number; poe: number } {
   const counts = { app: 0, pdc: 0, poe: 0 };
   for (const c of contrats) {
-    switch (c.contract_type) {
-      case 'APP':
-        counts.app++;
-        break;
-      case 'PDC':
-        counts.pdc++;
-        break;
-      case 'POE':
-        counts.poe++;
-        break;
+    // Les contrats Eduvia portent le code CERFA "type de contrat" (nomenclature
+    // DECA : 11, 21-23, 31-38...), tous des contrats d'APPRENTISSAGE - Eduvia
+    // ne gere que de l'apprentissage. Les litteraux APP/PDC/POE restent pour
+    // d'eventuels contrats internes hors Eduvia.
+    const type = c.contract_type?.trim() ?? '';
+    if (type === 'APP' || /^\d+$/.test(type)) {
+      counts.app++;
+    } else if (type === 'PDC') {
+      counts.pdc++;
+    } else if (type === 'POE') {
+      counts.poe++;
     }
   }
   return counts;

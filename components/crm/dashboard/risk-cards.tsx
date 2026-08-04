@@ -4,7 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDateTimeParis } from '@/lib/utils/formatters';
 import type { DashboardRisks } from '@/lib/crm/queries/dashboard';
 
-export function RiskCards({ dormantes, rdvADebriefer }: DashboardRisks) {
+export function RiskCards({
+  dormantes,
+  rdvADebriefer,
+  dormantesTotal,
+  rdvADebrieferTotal,
+}: DashboardRisks) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
@@ -12,9 +17,9 @@ export function RiskCards({ dormantes, rdvADebriefer }: DashboardRisks) {
           <CardTitle className="flex items-center gap-2 text-base">
             <Moon className="text-muted-foreground h-4 w-4" />
             Opportunités dormantes
-            {dormantes.length > 0 && (
+            {dormantesTotal > 0 && (
               <span className="bg-warning/15 text-warning ml-auto rounded-full px-2 py-0.5 text-xs font-medium">
-                {dormantes.length}
+                {dormantesTotal}
               </span>
             )}
           </CardTitle>
@@ -46,9 +51,9 @@ export function RiskCards({ dormantes, rdvADebriefer }: DashboardRisks) {
           <CardTitle className="flex items-center gap-2 text-base">
             <ClipboardList className="text-muted-foreground h-4 w-4" />
             RDV à débriefer
-            {rdvADebriefer.length > 0 && (
+            {rdvADebrieferTotal > 0 && (
               <span className="bg-warning/15 text-warning ml-auto rounded-full px-2 py-0.5 text-xs font-medium">
-                {rdvADebriefer.length}
+                {rdvADebrieferTotal}
               </span>
             )}
           </CardTitle>

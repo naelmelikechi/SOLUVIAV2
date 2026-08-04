@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
+import { fetchAllRows } from '@/lib/supabase/fetch-all';
+import { soldeNetHt } from '@/lib/utils/avoir-netting';
 import { computeContractSchedule } from '@/lib/queries/production';
 import {
   getContratsActifs,
@@ -109,22 +111,53 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
 export async function getInvoiceStatusBreakdown(): Promise<InvoiceStatusBreakdown> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase.rpc('count_factures_by_statut');
+  // Lignes plutot que la RPC de comptage brut : une facture totalement
+  // soldee par un avoir garde son statut DB (emise/en_retard) mais doit
+  // apparaitre dans sa propre tranche "Annulees par avoir" - coherent avec
+  // le compteur "6 en retard" du reste du dashboard. Volume borne (quelques
+  // dizaines de factures emises), fetchAllRows contre le cap PostgREST.
+  const { data, error } = await fetchAllRows((from, to) =>
+    supabase
+      .from('factures')
+      .select(
+        'id, statut, montant_ht, avoirs:factures!facture_origine_id(montant_ht, statut), client:clients!factures_client_id_fkey!inner(is_demo, archive)',
+      )
+      .neq('statut', 'a_emettre')
+      .eq('client.is_demo', false)
+      .eq('client.archive', false)
+      .order('id')
+      .range(from, to),
+  );
 
   if (error)
     logger.error('queries.dashboard', 'getInvoiceStatusBreakdown failed', {
       error,
     });
 
-  const byStatut = new Map<string, number>(
-    (data ?? []).map((r) => [r.statut, Number(r.n)]),
-  );
-  return {
-    emises: byStatut.get('emise') ?? 0,
-    payees: byStatut.get('payee') ?? 0,
-    en_retard: byStatut.get('en_retard') ?? 0,
-    avoirs: byStatut.get('avoir') ?? 0,
+  const breakdown: InvoiceStatusBreakdown = {
+    emises: 0,
+    payees: 0,
+    en_retard: 0,
+    annulees: 0,
+    avoirs: 0,
   };
+  for (const f of data ?? []) {
+    if (f.statut === 'avoir') {
+      breakdown.avoirs += 1;
+    } else if (
+      (f.statut === 'emise' || f.statut === 'en_retard') &&
+      soldeNetHt(f.montant_ht, f.avoirs) <= 0
+    ) {
+      breakdown.annulees += 1;
+    } else if (f.statut === 'emise') {
+      breakdown.emises += 1;
+    } else if (f.statut === 'payee') {
+      breakdown.payees += 1;
+    } else if (f.statut === 'en_retard') {
+      breakdown.en_retard += 1;
+    }
+  }
+  return breakdown;
 }
 
 // ---------------------------------------------------------------------------

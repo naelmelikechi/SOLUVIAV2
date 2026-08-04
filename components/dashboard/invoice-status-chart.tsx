@@ -21,7 +21,8 @@ function ChartSkeleton() {
 }
 
 export function InvoiceStatusChart({ data }: { data: InvoiceStatusBreakdown }) {
-  const total = data.emises + data.payees + data.en_retard + data.avoirs;
+  const total =
+    data.emises + data.payees + data.en_retard + data.annulees + data.avoirs;
 
   if (total === 0) {
     return (

@@ -2,7 +2,9 @@
 
 import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import type { ProjetListEnriched } from '@/lib/queries/projets';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { DataTableColumnHeader } from '@/components/shared/data-table';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ProjectRef } from '@/components/shared/project-ref';
@@ -14,6 +16,32 @@ import {
 import { textFilterFn } from '@/lib/utils/table-filters';
 
 export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
+  {
+    // Acces explicite a la fiche projet : le clic-ligne existe mais rien ne
+    // le signalait, et la colonne Client (lien fiche client) attirait le
+    // clic. Meme pattern que la colonne Apercu de /facturation.
+    id: 'ouvrir',
+    header: () => null,
+    enableSorting: false,
+    enableHiding: false,
+    enableResizing: false,
+    size: 48,
+    cell: ({ row }) => {
+      const ref = row.original.ref;
+      if (!ref) return null;
+      return (
+        <Link
+          href={`/projets/${ref}`}
+          aria-label={`Ouvrir la fiche projet ${ref}`}
+          title="Ouvrir la fiche projet"
+          className={buttonVariants({ variant: 'ghost', size: 'icon-sm' })}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ArrowRight className="size-4" />
+        </Link>
+      );
+    },
+  },
   {
     accessorKey: 'ref',
     enableHiding: false,

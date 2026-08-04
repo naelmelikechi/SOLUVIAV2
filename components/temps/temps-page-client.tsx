@@ -12,6 +12,7 @@ import {
   saveSaisieTempsAxes,
   copyPreviousWeek,
 } from '@/lib/actions/temps';
+import { computeRowTotal } from '@/lib/utils/temps-totals';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { TimeWeekNavigator } from '@/components/temps/time-week-navigator';
@@ -215,11 +216,12 @@ export function TempsPageClient({
       weekdayDates.forEach((date, i) => {
         row[dayLabels[i]!] = s.heures[date] || 0;
       });
-      const total = weekdayDates.reduce(
-        (sum, d) => sum + (s.heures[d] || 0),
-        0,
+      // Meme regle que la colonne Total a l'ecran : les jours bloques
+      // (ferie / absence pleine) sont exclus - l'export ne doit pas
+      // diverger de la grille.
+      row['Total'] = formatHeures(
+        computeRowTotal(s, weekDates, absenceHoursMap, joursFeries),
       );
-      row['Total'] = formatHeures(total);
       return row;
     });
     const ws = XLSX.utils.json_to_sheet(rows);

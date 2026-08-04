@@ -345,28 +345,26 @@ describe('getDashboardData', () => {
 // ---------------------------------------------------------------------------
 
 describe('getInvoiceStatusBreakdown', () => {
-  function mockRpc(result: { data?: unknown; error?: unknown }) {
-    return {
-      rpc: (name: string) => {
-        expect(name).toBe('count_factures_by_statut');
-        return Promise.resolve({
-          data: result.data ?? null,
-          error: result.error ?? null,
-        });
-      },
-    };
-  }
-
-  it('mappe les paires (statut, n) du RPC vers le breakdown', async () => {
-    vi.mocked(createClient).mockResolvedValue(
-      mockRpc({
+  it('repartit par statut avec netting : une facture soldee par avoir devient « annulee »', async () => {
+    const mock = buildSupabase({
+      factures: {
         data: [
-          { statut: 'emise', n: 2 },
-          { statut: 'payee', n: 1 },
-          { statut: 'en_retard', n: 1 },
-          { statut: 'avoir', n: 1 },
+          { id: 'f1', statut: 'emise', montant_ht: 100, avoirs: [] },
+          { id: 'f2', statut: 'emise', montant_ht: 200, avoirs: [] },
+          { id: 'f3', statut: 'payee', montant_ht: 300, avoirs: [] },
+          { id: 'f4', statut: 'en_retard', montant_ht: 400, avoirs: [] },
+          {
+            id: 'f5',
+            statut: 'en_retard',
+            montant_ht: 500,
+            avoirs: [{ montant_ht: -500, statut: 'avoir' }],
+          },
+          { id: 'a1', statut: 'avoir', montant_ht: -500, avoirs: [] },
         ],
-      }) as unknown as Awaited<ReturnType<typeof createClient>>,
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
     );
 
     const { getInvoiceStatusBreakdown } =
@@ -377,35 +375,15 @@ describe('getInvoiceStatusBreakdown', () => {
       emises: 2,
       payees: 1,
       en_retard: 1,
+      annulees: 1,
       avoirs: 1,
     });
   });
 
-  it('statut absent du RPC -> 0 (preserve « 0 si absent »)', async () => {
+  it('aucune facture -> tout a 0', async () => {
+    const mock = buildSupabase({ factures: { data: [] } });
     vi.mocked(createClient).mockResolvedValue(
-      mockRpc({ data: [{ statut: 'emise', n: 5 }] }) as unknown as Awaited<
-        ReturnType<typeof createClient>
-      >,
-    );
-
-    const { getInvoiceStatusBreakdown } =
-      await import('@/lib/queries/dashboard');
-    const breakdown = await getInvoiceStatusBreakdown();
-
-    expect(breakdown).toEqual({
-      emises: 5,
-      payees: 0,
-      en_retard: 0,
-      avoirs: 0,
-    });
-  });
-
-  it('erreur RPC -> tout a 0 (pas de throw)', async () => {
-    vi.mocked(createClient).mockResolvedValue(
-      mockRpc({
-        data: null,
-        error: { message: 'PGRST202' },
-      }) as unknown as Awaited<ReturnType<typeof createClient>>,
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
     );
 
     const { getInvoiceStatusBreakdown } =
@@ -416,6 +394,28 @@ describe('getInvoiceStatusBreakdown', () => {
       emises: 0,
       payees: 0,
       en_retard: 0,
+      annulees: 0,
+      avoirs: 0,
+    });
+  });
+
+  it('erreur query -> tout a 0 (pas de throw)', async () => {
+    const mock = buildSupabase({
+      factures: { data: null, error: { message: 'boom' } },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getInvoiceStatusBreakdown } =
+      await import('@/lib/queries/dashboard');
+    const breakdown = await getInvoiceStatusBreakdown();
+
+    expect(breakdown).toEqual({
+      emises: 0,
+      payees: 0,
+      en_retard: 0,
+      annulees: 0,
       avoirs: 0,
     });
   });

@@ -110,6 +110,8 @@ export default async function DashboardPage() {
       <RiskCards
         dormantes={risks.dormantes}
         rdvADebriefer={risks.rdvADebriefer}
+        dormantesTotal={risks.dormantesTotal}
+        rdvADebrieferTotal={risks.rdvADebrieferTotal}
       />
 
       <Card>

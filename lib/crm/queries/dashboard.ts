@@ -117,6 +117,10 @@ export type DashboardRisks = {
     debut: string;
     compte: string | null;
   }[];
+  // Comptes REELS (les listes ci-dessus sont tronquees a 6 pour l'affichage) :
+  // les badges doivent montrer le vrai total, pas la longueur tronquee.
+  dormantesTotal: number;
+  rdvADebrieferTotal: number;
 };
 
 /** Signaux de risque pour le dashboard (mêmes calculs que le récap). */
@@ -124,14 +128,17 @@ export async function dashboardRisks(): Promise<DashboardRisks> {
   const supabase = await createCrmClient();
   const now = new Date();
   const risks = await fetchRisks(supabase, now.toISOString());
+  const allDormantes = computeDormantes(risks.dormanteInputs, now);
   return {
-    dormantes: computeDormantes(risks.dormanteInputs, now).slice(0, 6),
+    dormantes: allDormantes.slice(0, 6),
     rdvADebriefer: risks.rdvADebriefer.slice(0, 6).map((r) => ({
       id: r.id,
       titre: r.titre,
       debut: r.debut,
       compte: r.compte?.nom ?? null,
     })),
+    dormantesTotal: allDormantes.length,
+    rdvADebrieferTotal: risks.rdvADebriefer.length,
   };
 }
 

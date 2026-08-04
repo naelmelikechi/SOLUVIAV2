@@ -97,8 +97,11 @@ async function getMonthSumsFallback(
   // Exclude clients demo (is_demo=true) et archives : leurs factures gonflent
   // les KPIs sans correspondre a de la production reelle. !inner force la
   // jointure cote SQL pour que le filtre s'applique reellement.
-  // est_avoir=false exclut les avoirs y compris en brouillon (statut encore
-  // 'a_emettre'), que .neq('statut','avoir') laissait passer en negatif.
+  // statut <> 'a_emettre' (memes regles que la RPC) : brouillons exclus,
+  // avoirs emis INCLUS en negatif => "facture" est net des avoirs. Le solde
+  // "en_retard" deduit les avoirs lies (une facture totalement soldee par
+  // avoir ne pese plus dans le retard) : les avoirs heritent du mois_concerne
+  // de leur origine, donc ils sont toujours dans la meme fenetre.
   // fetchAllRows + .order('id') : PostgREST tronque silencieusement a
   // max_rows (1000) sans pagination.
   const [facturesRes, paiementsRes] = await Promise.all([
@@ -106,11 +109,11 @@ async function getMonthSumsFallback(
       supabase
         .from('factures')
         .select(
-          'montant_ht, statut, mois_concerne, client:clients!inner(is_demo, archive)',
+          'id, montant_ht, statut, est_avoir, facture_origine_id, mois_concerne, client:clients!inner(is_demo, archive)',
         )
         .gte('mois_concerne', firstKey)
         .lt('mois_concerne', nextAfterLastKey)
-        .eq('est_avoir', false)
+        .neq('statut', 'a_emettre')
         .eq('client.is_demo', false)
         .eq('client.archive', false)
         .order('id')
@@ -155,11 +158,27 @@ async function getMonthSumsFallback(
     return e;
   };
 
-  for (const f of facturesRes.data ?? []) {
+  const facturesRows = facturesRes.data ?? [];
+  const avoirByOrigine = new Map<string, number>();
+  for (const f of facturesRows) {
+    if (f.est_avoir && f.statut === 'avoir' && f.facture_origine_id) {
+      avoirByOrigine.set(
+        f.facture_origine_id,
+        (avoirByOrigine.get(f.facture_origine_id) ?? 0) + f.montant_ht,
+      );
+    }
+  }
+
+  for (const f of facturesRows) {
     if (!f.mois_concerne) continue;
     const e = entry(f.mois_concerne.slice(0, 7));
     e.facture += f.montant_ht;
-    if (f.statut === 'en_retard') e.en_retard += f.montant_ht;
+    if (f.statut === 'en_retard') {
+      e.en_retard += Math.max(
+        0,
+        f.montant_ht + (avoirByOrigine.get(f.id) ?? 0),
+      );
+    }
   }
 
   for (const p of paiementsRes.data ?? []) {

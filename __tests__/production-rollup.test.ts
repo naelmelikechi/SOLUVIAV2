@@ -35,6 +35,23 @@ function projet(
   };
 }
 
+function facture(
+  id: string,
+  montantHt: number,
+  statut: string,
+  p: ProjetInfo | null,
+  opts: { estAvoir?: boolean; origineId?: string | null } = {},
+): FactureInput {
+  return {
+    id,
+    montant_ht: montantHt,
+    statut,
+    est_avoir: opts.estAvoir ?? false,
+    facture_origine_id: opts.origineId ?? null,
+    projet: p,
+  };
+}
+
 describe('nextMonthKey', () => {
   it('mois suivant simple et passage d annee', () => {
     expect(nextMonthKey('2026-07')).toBe('2026-08');
@@ -78,9 +95,9 @@ describe('aggregateMonthByProjet', () => {
     { date_debut: '2025-01-15', duree_mois: 12, npec_amount: 9000, projet: pC }, // termine avant juillet 2026
   ];
   const factures: FactureInput[] = [
-    { montant_ht: 1000, statut: 'emise', projet: pA },
-    { montant_ht: 500, statut: 'en_retard', projet: pA },
-    { montant_ht: 200, statut: 'payee', projet: pC },
+    facture('f1', 1000, 'emise', pA),
+    facture('f2', 500, 'en_retard', pA),
+    facture('f3', 200, 'payee', pC),
   ];
   const paiements: PaiementInput[] = [
     // Paiement TTC 240 sur une facture HT 200 / TTC 240 -> encaisse HT = 200
@@ -115,6 +132,32 @@ describe('aggregateMonthByProjet', () => {
   it('encaisse HT au prorata HT/TTC de la facture, paiements orphelins ignores', () => {
     expect(agg.get('c')!.encaisse).toBeCloseTo(200, 2);
     expect(agg.has('zz')).toBe(false);
+  });
+
+  it('avoirs emis deduits du facture, facture soldee par avoir sortie du retard', () => {
+    const withAvoirs = aggregateMonthByProjet(
+      '2026-07',
+      [],
+      [
+        // Facture en retard totalement soldee par un avoir emis
+        facture('f10', 4012.8, 'en_retard', pA),
+        facture('a10', -4012.8, 'avoir', pA, {
+          estAvoir: true,
+          origineId: 'f10',
+        }),
+        // Facture en retard avec avoir partiel
+        facture('f11', 1000, 'en_retard', pA),
+        facture('a11', -400, 'avoir', pA, { estAvoir: true, origineId: 'f11' }),
+        // Facture en retard sans avoir
+        facture('f12', 500, 'en_retard', pA),
+      ],
+      [],
+    );
+    const a = withAvoirs.get('a')!;
+    // Facture net : 4012.8 - 4012.8 + 1000 - 400 + 500 = 1100
+    expect(a.facture).toBeCloseTo(1100, 2);
+    // En retard : 0 (soldee) + 600 (partiel) + 500 = 1100
+    expect(a.enRetard).toBeCloseTo(1100, 2);
   });
 
   it('contrats invalides ou sans projet ignores', () => {
@@ -161,10 +204,7 @@ describe('rollupByClient / projectByProjet', () => {
         projet: pB,
       },
     ],
-    [
-      { montant_ht: 1000, statut: 'emise', projet: pA },
-      { montant_ht: 300, statut: 'en_retard', projet: pB },
-    ],
+    [facture('f1', 1000, 'emise', pA), facture('f2', 300, 'en_retard', pB)],
     [],
   );
 

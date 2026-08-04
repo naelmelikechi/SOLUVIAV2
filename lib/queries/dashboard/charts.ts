@@ -55,10 +55,10 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
   const currentMonthKey = format(startOfMonth(now), 'yyyy-MM');
 
   // Sommes factures/paiements et contrats actifs via le module partage
-  // production-aggregates (RPC SQL, fallback fetchAllRows). Deux alignements
-  // volontaires sur getProductionData au passage :
-  // - est_avoir=false remplace .neq('statut','avoir') qui laissait passer
-  //   les avoirs en brouillon (statut 'a_emettre') en negatif ;
+  // production-aggregates (RPC SQL, fallback fetchAllRows). Semantique nette :
+  // - facture = statut <> 'a_emettre' (brouillons exclus), avoirs emis inclus
+  //   en negatif -> coherent avec getDashboardFinancials.totalFacture ;
+  // - en_retard = solde net des avoirs lies (facture soldee par avoir = 0) ;
   // - filtre demo/archive via factures.client_id direct (au lieu du chemin
   //   projet->client, equivalent : client_id de la facture = celui du projet).
   // Bonus : les selects factures/paiements n'etaient pas pagines ici

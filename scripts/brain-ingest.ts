@@ -209,6 +209,18 @@ async function main() {
   const vaultIdx = process.argv.indexOf('--vault');
   const vaultDir = vaultIdx >= 0 ? process.argv[vaultIdx + 1] : undefined;
 
+  // Drive configuré ? Sinon on ingère les fiches et on ignore les livrables
+  // (au lieu de planter au premier téléchargement).
+  let driveOk = false;
+  if (!fichesOnly) {
+    const { driveConfigured } = await import('../lib/process/drive');
+    driveOk = driveConfigured();
+    if (!driveOk)
+      console.log(
+        '⚠ GOOGLE_SERVICE_ACCOUNT_KEY absent → livrables ignorés (fiches seulement).',
+      );
+  }
+
   const seenRows = await pg<{ source_ref: string; source_hash: string }>(
     `select source_ref, source_hash from public.brain_notes where source_ref is not null`,
   );
@@ -254,7 +266,7 @@ async function main() {
       }
 
       // --- livrables de la fiche ---
-      if (fichesOnly) continue;
+      if (fichesOnly || !driveOk) continue;
       const fileIds = [
         ...new Set(
           (row.detail?.taches ?? [])

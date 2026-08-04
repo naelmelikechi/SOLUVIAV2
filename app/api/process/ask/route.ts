@@ -64,9 +64,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'empty_question' }, { status: 400 });
   if (question.length > 2000)
     return NextResponse.json({ error: 'question_too_long' }, { status: 400 });
-  if (!env.OPENAI_API_KEY)
+  // Au moins un moteur IA doit être configuré.
+  if (!env.ANTHROPIC_API_KEY && !env.OPENAI_API_KEY)
     return NextResponse.json({ error: 'ai_not_configured' }, { status: 503 });
 
+  // Chemin CERVEAU (Claude, sans OpenAI) si ANTHROPIC_API_KEY présent.
+  if (env.ANTHROPIC_API_KEY) {
+    const { retrieveNotes } = await import('@/lib/brain/retrieve');
+    const { buildBrainChatMessages, notesToSources } =
+      await import('@/lib/brain/answer');
+    const { anthropic, ANSWER_MODEL } = await import('@/lib/brain/claude');
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+
+    const notes = await retrieveNotes(question, { admin: createAdminClient() });
+    const sources = notesToSources(notes);
+    const { system, messages: modelMsgs } = buildBrainChatMessages(
+      messages,
+      notes,
+    );
+    const result = streamText({
+      model: anthropic()(ANSWER_MODEL),
+      system,
+      messages: modelMsgs,
+      temperature: 0.2,
+    });
+    return result.toTextStreamResponse({
+      headers: {
+        'x-process-sources': encodeURIComponent(JSON.stringify(sources)),
+      },
+    });
+  }
+
+  // Fallback OpenAI (RAG embeddings existant).
   const fiches = await retrieveContext(question, { admin: supabase });
   const sources = fiches.map((f) => ({
     source_fiche_id: f.source_fiche_id,
@@ -74,20 +103,14 @@ export async function POST(req: NextRequest) {
     mission: f.mission,
     url: f.url,
   }));
-
   const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
   const { system, messages: modelMsgs } = buildChatMessages(messages, fiches);
   const result = streamText({
     model: openai('gpt-4o-mini'),
     system,
-    // `ChatMsg` (role/content) est directement assignable à `ModelMessage[]`
-    // côté ai v6 (streamText accepte { role: 'user'|'assistant', content }) :
-    // aucun mapping runtime nécessaire.
     messages: modelMsgs,
     temperature: 0.2,
   });
-
-  // Réponse en flux (corps) + sources (header, encodé pour supporter les accents).
   return result.toTextStreamResponse({
     headers: {
       'x-process-sources': encodeURIComponent(JSON.stringify(sources)),

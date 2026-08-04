@@ -35,22 +35,31 @@ export async function getDashboardData() {
     // Lignes legeres (montant + avoirs lies) plutot que head-count : les
     // compteurs ne doivent inclure que les factures avec un solde encore du
     // apres avoirs emis (facture soldee par avoir = ni en retard ni en attente).
-    supabase
-      .from('factures')
-      .select(
-        'id, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-      )
-      .eq('statut', 'en_retard')
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
-    supabase
-      .from('factures')
-      .select(
-        'id, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
-      )
-      .eq('statut', 'emise')
-      .eq('projet.client.is_demo', false)
-      .eq('projet.client.archive', false),
+    // fetchAllRows + .order('id') : PostgREST tronque a max_rows (1000).
+    fetchAllRows((from, to) =>
+      supabase
+        .from('factures')
+        .select(
+          'id, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        )
+        .eq('statut', 'en_retard')
+        .eq('projet.client.is_demo', false)
+        .eq('projet.client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
+    fetchAllRows((from, to) =>
+      supabase
+        .from('factures')
+        .select(
+          'id, montant_ht, avoirs:factures!factures_facture_origine_id_fkey(montant_ht, statut), projet:projets!factures_projet_id_fkey!inner(client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        )
+        .eq('statut', 'emise')
+        .eq('projet.client.is_demo', false)
+        .eq('projet.client.archive', false)
+        .order('id')
+        .range(from, to),
+    ),
     // Echeances "pretes" = deja arrivees a date (<= aujourd'hui), aligne sur
     // le montant "A facturer" du chip (financials.ts) : pas d'echeances futures.
     supabase

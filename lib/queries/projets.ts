@@ -388,15 +388,19 @@ export async function getProjetFinance(projetId: string) {
           }[],
         }),
     // Split engagement / echeances du "Facturé" SOLUVIA (memes factures que
-    // facture_soluvia, avoirs inclus ; leurs lignes n'ont pas d'event_type
-    // donc elles ne tombent dans aucun des deux buckets types).
+    // facture_soluvia). facture_id sert a re-allouer les avoirs (dont les
+    // lignes n'ont pas d'event_type) aux buckets de leur facture d'origine.
     factureIds.length > 0
       ? supabase
           .from('facture_lignes')
-          .select('event_type, montant_ht')
+          .select('facture_id, event_type, montant_ht')
           .in('facture_id', factureIds)
       : Promise.resolve({
-          data: [] as { event_type: string | null; montant_ht: number }[],
+          data: [] as {
+            facture_id: string;
+            event_type: string | null;
+            montant_ht: number;
+          }[],
         }),
   ]);
 
@@ -427,12 +431,37 @@ export async function getProjetFinance(projetId: string) {
   // l'engagement) : etape 1 vs echeances OPCO. Les lignes sans event_type
   // (manuelles/libres) ne rentrent dans aucun des deux buckets.
   const lignesEvents = lignesRes.data ?? [];
-  const facture_soluvia_engagement = lignesEvents
-    .filter((l) => l.event_type === 'engagement')
-    .reduce((sum, l) => sum + (l.montant_ht ?? 0), 0);
-  const facture_soluvia_echeances = lignesEvents
-    .filter((l) => l.event_type === 'opco_step')
-    .reduce((sum, l) => sum + (l.montant_ht ?? 0), 0);
+  // Sommes typees par facture, pour re-allouer les avoirs (lignes sans
+  // event_type) aux buckets de leur facture d'origine au prorata : sans ca,
+  // "dont engagement + echeances" depasserait le Facture net apres avoir.
+  const typedByFacture = new Map<string, { eng: number; ech: number }>();
+  let facture_soluvia_engagement = 0;
+  let facture_soluvia_echeances = 0;
+  for (const l of lignesEvents) {
+    if (l.event_type !== 'engagement' && l.event_type !== 'opco_step') continue;
+    let t = typedByFacture.get(l.facture_id);
+    if (!t) {
+      t = { eng: 0, ech: 0 };
+      typedByFacture.set(l.facture_id, t);
+    }
+    const m = l.montant_ht ?? 0;
+    if (l.event_type === 'engagement') {
+      t.eng += m;
+      facture_soluvia_engagement += m;
+    } else {
+      t.ech += m;
+      facture_soluvia_echeances += m;
+    }
+  }
+  for (const [origineId, avoirHt] of avoirByOrigine) {
+    const t = typedByFacture.get(origineId);
+    if (!t) continue;
+    const totalTyped = t.eng + t.ech;
+    if (totalTyped <= 0) continue;
+    // avoirHt est negatif : deduction proportionnelle des deux buckets.
+    facture_soluvia_engagement += (avoirHt * t.eng) / totalTyped;
+    facture_soluvia_echeances += (avoirHt * t.ech) / totalTyped;
+  }
 
   return {
     production_opco,

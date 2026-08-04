@@ -45,5 +45,7 @@ export interface InvoiceStatusBreakdown {
   emises: number;
   payees: number;
   en_retard: number;
+  /** Factures totalement soldees par un avoir (statut DB emise/en_retard). */
+  annulees: number;
   avoirs: number;
 }

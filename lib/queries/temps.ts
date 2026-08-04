@@ -6,6 +6,8 @@ import {
   currentFridayLocalISO,
   businessDaysElapsedThisWeek,
 } from '@/lib/utils/dates';
+import { computeAbsenceHoursPerDay } from '@/lib/utils/absences';
+import { isFullyBlocked } from '@/lib/utils/temps-totals';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -328,7 +330,10 @@ export async function getTeamWeekSummary(
 ): Promise<TeamMemberSummary[]> {
   const supabase = await createClient();
 
-  const [saisiesRes, usersRes] = await Promise.all([
+  const weekStart = weekDates[0]!;
+  const weekEnd = weekDates[weekDates.length - 1]!;
+
+  const [saisiesRes, usersRes, absencesRes, feriesRes] = await Promise.all([
     supabase
       .from('saisies_temps')
       .select('user_id, date, heures')
@@ -338,6 +343,18 @@ export async function getTeamWeekSummary(
       .select('id, nom, prenom')
       .eq('actif', true)
       .order('nom'),
+    // Absences chevauchant la semaine (RLS admin = tous les users) : le total
+    // hebdo equipe suit la MEME regle que la grille /temps (computeWeekTotal) -
+    // heures projet des jours non bloques + heures d'absence. Avant, la somme
+    // brute des saisies divergeait de la vue perso (fériés/absences ignorés).
+    supabase
+      .from('absences')
+      .select(
+        'id, user_id, type, date_debut, date_fin, demi_jour_debut, demi_jour_fin',
+      )
+      .lte('date_debut', weekEnd)
+      .gte('date_fin', weekStart),
+    supabase.from('jours_feries').select('date, libelle').in('date', weekDates),
   ]);
 
   const { data: saisies, error: saisiesError } = saisiesRes;
@@ -374,15 +391,50 @@ export async function getTeamWeekSummary(
       (userTotals[s.user_id]![s.date] ?? 0) + s.heures;
   }
 
+  const joursFeries: Record<string, string> = {};
+  for (const f of feriesRes.data ?? []) {
+    if (f.date) joursFeries[f.date] = f.libelle ?? 'ferie';
+  }
+
+  const absencesByUser = new Map<
+    string,
+    {
+      id: string;
+      type: 'conges' | 'maladie';
+      date_debut: string;
+      date_fin: string;
+      demi_jour_debut: boolean;
+      demi_jour_fin: boolean;
+    }[]
+  >();
+  for (const a of absencesRes.data ?? []) {
+    const arr = absencesByUser.get(a.user_id) ?? [];
+    arr.push(a as (typeof arr)[number]);
+    absencesByUser.set(a.user_id, arr);
+  }
+
   const weekdayDates = weekDates.slice(0, 5);
 
   return (users ?? []).map((u) => {
+    // Meme regle que la grille /temps : heures projet des jours non bloques
+    // (ferie ou absence pleine = donnees zombies exclues) + heures d'absence.
+    const absDays = computeAbsenceHoursPerDay(
+      absencesByUser.get(u.id) ?? [],
+      weekdayDates,
+    );
+    const absenceHours: Record<string, number> = {};
+    for (const [date, info] of Object.entries(absDays)) {
+      absenceHours[date] = info.hours;
+    }
+
     const dailyTotals: Record<string, number> = {};
     let weekTotal = 0;
 
     for (const date of weekDates) {
-      const total = userTotals[u.id]?.[date] ?? 0;
-      dailyTotals[date] = total;
+      const projet = isFullyBlocked(date, absenceHours, joursFeries)
+        ? 0
+        : (userTotals[u.id]?.[date] ?? 0);
+      dailyTotals[date] = projet + (absenceHours[date] ?? 0);
     }
     for (const date of weekdayDates) {
       weekTotal += dailyTotals[date] ?? 0;

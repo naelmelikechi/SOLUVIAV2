@@ -23,6 +23,11 @@ export interface QualiopiCompletion {
  *
  * Si le CFA n'a pas de cle API active, retourne { realise: 0, total: 0 }.
  */
+// COHERENCE avec les ecrans /qualiopi (verifiee lors de l'audit 2026-08-04) :
+// les pages campus affichent conform/total PAR CAMPUS (denominateur = nb
+// livrables du referentiel) ; ici le niveau CFA agrege exactement ces ratios
+// (Σ conform tous campus / referentiel x nb campus = Σ numerateurs / Σ
+// denominateurs). Meme regle, deux granularites - pas une divergence.
 async function computeQualiopiCompletion(
   clientId: string,
 ): Promise<QualiopiCompletion> {

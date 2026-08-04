@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/utils/formatters';
 import type {
   DashboardFinancials,
   KpiSnapshotMap,
+  PreviousPeriodFinancials,
 } from '@/lib/queries/dashboard';
 
 // ============================================================
@@ -112,22 +113,18 @@ export function buildEvolutionData(
     DashboardFinancials,
     'totalProduction' | 'totalFacture' | 'totalEncaisse' | 'totalEnRetard'
   >,
+  // Valeurs M-1 calculees en LIVE sur la fenetre precedente (evolution.ts) :
+  // production/facture/encaisse periodises M-1, en retard = stock reconstitue
+  // a la frontiere de la fenetre courante. Comparaison homogene, la ou
+  // l'ancien code comparait des flux mensuels aux cumuls a date des snapshots
+  // (production M-1 etait meme aliasee sur total_facture_ht).
+  previousFinancials: PreviousPeriodFinancials,
   previousKpis: KpiSnapshotMap,
 ): EvolutionRow[] {
   const hasPrevious = Object.keys(previousKpis).length > 0;
 
-  // App passee tout-HT : le snapshot total_facture_ht se compare directement
-  // aux valeurs courantes (HT), sans conversion TTC.
-  const prevTotalFacture = previousKpis['total_facture_ht'];
-  const prevTotalEncaisse = previousKpis['total_encaisse'];
   const prevProjetsActifs = previousKpis['projets_actifs'];
   const prevContratsActifs = previousKpis['contrats_actifs'];
-  const prevProduction = prevTotalFacture;
-
-  const prevEnRetardAmount =
-    prevTotalFacture !== undefined && prevTotalEncaisse !== undefined
-      ? Math.max(0, prevTotalFacture - prevTotalEncaisse)
-      : undefined;
 
   const calc = (current: number, previous: number | undefined) =>
     computeEvolution(hasPrevious, current, previous);
@@ -136,44 +133,48 @@ export function buildEvolutionData(
     {
       label: 'Production',
       current: formatCurrency(financials.totalProduction),
-      previous:
-        hasPrevious && prevProduction !== undefined
-          ? formatCurrency(prevProduction)
-          : '-',
-      change: calc(financials.totalProduction, prevProduction),
+      previous: formatCurrency(previousFinancials.production),
+      change: computeEvolution(
+        true,
+        financials.totalProduction,
+        previousFinancials.production,
+      ),
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'Facturé',
       current: formatCurrency(financials.totalFacture),
-      previous:
-        hasPrevious && prevTotalFacture !== undefined
-          ? formatCurrency(prevTotalFacture)
-          : '-',
-      change: calc(financials.totalFacture, prevTotalFacture),
+      previous: formatCurrency(previousFinancials.facture),
+      change: computeEvolution(
+        true,
+        financials.totalFacture,
+        previousFinancials.facture,
+      ),
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'Encaissé',
       current: formatCurrency(financials.totalEncaisse),
-      previous:
-        hasPrevious && prevTotalEncaisse !== undefined
-          ? formatCurrency(prevTotalEncaisse)
-          : '-',
-      change: calc(financials.totalEncaisse, prevTotalEncaisse),
+      previous: formatCurrency(previousFinancials.encaisse),
+      change: computeEvolution(
+        true,
+        financials.totalEncaisse,
+        previousFinancials.encaisse,
+      ),
       unit: '%',
       positiveIsGood: true,
     },
     {
       label: 'En retard',
       current: formatCurrency(financials.totalEnRetard),
-      previous:
-        hasPrevious && prevEnRetardAmount !== undefined
-          ? formatCurrency(prevEnRetardAmount)
-          : '-',
-      change: calc(financials.totalEnRetard, prevEnRetardAmount),
+      previous: formatCurrency(previousFinancials.enRetard),
+      change: computeEvolution(
+        true,
+        financials.totalEnRetard,
+        previousFinancials.enRetard,
+      ),
       unit: '%',
       positiveIsGood: false,
     },

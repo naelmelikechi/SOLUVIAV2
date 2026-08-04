@@ -7,6 +7,10 @@ export type {
 export { getDashboardData, getUserWeekHours } from './overview';
 export { getDashboardFinancials } from './financials';
 export {
+  getPreviousPeriodFinancials,
+  type PreviousPeriodFinancials,
+} from './evolution';
+export {
   getKpiSnapshots,
   getMonthlyTrend,
   getInvoiceStatusBreakdown,

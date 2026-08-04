@@ -27,6 +27,31 @@ function utcEndOfMonth(year: number, month: number): Date {
  * queries, use `date.toISOString().slice(0, 10)` — NOT `date-fns format()`,
  * which interprets the Date in the local timezone and may shift the day.
  */
+/**
+ * Fenetre precedente comparable a `periode`, pour la colonne M-1 du tableau
+ * d'evolution : mois calendaires decales d'un mois, fenetre 30j decalee de
+ * sa propre longueur. Meme contrat UTC-midnight que resolvePeriode.
+ */
+export function previousPeriode(periode: Periode): Periode {
+  if (periode.key === '30j') {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const to = new Date(periode.from.getTime() - dayMs);
+    const from = new Date(periode.from.getTime() - 31 * dayMs);
+    return { key: '30j', from, to, label: '30 jours precedents' };
+  }
+  const y = periode.from.getUTCFullYear();
+  const m = periode.from.getUTCMonth();
+  const prevYear = m === 0 ? y - 1 : y;
+  const prevMonth = m === 0 ? 11 : m - 1;
+  const from = utcStartOfMonth(prevYear, prevMonth);
+  return {
+    key: periode.key,
+    from,
+    to: utcEndOfMonth(prevYear, prevMonth),
+    label: capitalize(format(from, 'MMMM yyyy', { locale: fr })),
+  };
+}
+
 export function resolvePeriode(
   key: PeriodeKey,
   ref: Date = new Date(),

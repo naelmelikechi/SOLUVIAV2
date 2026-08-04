@@ -28,7 +28,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { extractDriveFileId } from '../lib/process/drive-url';
-import { ficheToBrainNote, slugify, wikilink } from '../lib/brain/note';
+import {
+  ficheToBrainNote,
+  slugify,
+  wikilink,
+  isNonAnswer,
+  conversationToBrainNote,
+  entityToBrainNote,
+} from '../lib/brain/note';
 import type { BrainNote, NoteAnalysis } from '../lib/brain/types';
 import type { FinalizedFiche } from '../lib/process/types';
 
@@ -72,13 +79,14 @@ async function upsertNote(note: BrainNote): Promise<void> {
   await pg(`insert into public.brain_notes
     (path, type, title, aliases, tags, links, body, frontmatter, source_ref, source_hash, updated_at)
     values (${lit(note.path)}, ${lit(note.type)}, ${lit(note.title)}, ${arr(note.aliases)},
-      ${arr(note.tags)}, ${arr(note.links)}, ${lit(note.body)}, '{}'::jsonb,
+      ${arr(note.tags)}, ${arr(note.links)}, ${lit(note.body)},
+      ${lit(JSON.stringify(note.frontmatter ?? {}))}::jsonb,
       ${note.source_ref ? lit(note.source_ref) : 'null'},
       ${note.source_hash ? lit(note.source_hash) : 'null'}, now())
     on conflict (path) do update set
       title=excluded.title, aliases=excluded.aliases, tags=excluded.tags, links=excluded.links,
-      body=excluded.body, source_ref=excluded.source_ref, source_hash=excluded.source_hash,
-      updated_at=now();`);
+      body=excluded.body, frontmatter=excluded.frontmatter, source_ref=excluded.source_ref,
+      source_hash=excluded.source_hash, updated_at=now();`);
 }
 
 // ---------------------------------------------------------------- analyse (Max)
@@ -188,6 +196,220 @@ function livrableToBrainNote(
     source_ref: fileId,
     source_hash: sourceHash,
   };
+}
+
+// ---------------------------------------------------------------- Phase 3
+const titleCase = (s: string) =>
+  s
+    .split('-')
+    .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
+    .join(' ');
+
+interface NoteRow {
+  path: string;
+  type: string;
+  links: string[];
+  source_ref: string | null;
+  source_hash: string | null;
+  frontmatter: {
+    source_hashes?: Record<string, string>;
+    stale?: boolean;
+  } | null;
+  body?: string;
+  title?: string;
+}
+
+/** Capitalise les réponses validées (👍) en notes `conversation`. */
+async function ingestConversations(dryRun: boolean): Promise<number> {
+  const fb = await pg<{
+    id: string;
+    question: string;
+    answer: string;
+    sources: Array<{ source_fiche_id?: string }>;
+  }>(
+    `select id, question, answer, coalesce(sources,'[]'::jsonb) as sources
+     from public.process_qa_feedback where rating = 1`,
+  );
+  const notes = await pg<NoteRow>(
+    `select path, source_ref, source_hash from public.brain_notes where source_ref is not null`,
+  );
+  const byRef = new Map(notes.map((n) => [n.source_ref!, n]));
+  const seen = new Map(notes.map((n) => [n.source_ref!, n.source_hash]));
+
+  let n = 0;
+  for (const f of fb) {
+    if (isNonAnswer(f.answer)) continue;
+    const qaHash = createHash('sha256')
+      .update(`${f.question}|${f.answer}`)
+      .digest('hex');
+    if (seen.get(f.id) === qaHash) continue; // déjà capitalisé, inchangé
+
+    const derivedFrom: string[] = [];
+    const sourceHashes: Record<string, string> = {};
+    for (const s of f.sources ?? []) {
+      const note = s.source_fiche_id ? byRef.get(s.source_fiche_id) : undefined;
+      if (note) {
+        const key = note.path.replace(/\.md$/, '');
+        derivedFrom.push(key);
+        if (note.source_hash) sourceHashes[key] = note.source_hash;
+      }
+    }
+    if (dryRun) {
+      console.log(`conversation À CAPITALISER : ${f.question.slice(0, 60)}`);
+      n++;
+      continue;
+    }
+    await upsertNote(
+      conversationToBrainNote(
+        { id: f.id, question: f.question, answer: f.answer },
+        derivedFrom,
+        qaHash,
+        sourceHashes,
+      ),
+    );
+    console.log(`  ✓ conversation « ${f.question.slice(0, 50)} »`);
+    n++;
+  }
+  return n;
+}
+
+/** Définitions d'entités batchées via `claude -p` (best-effort). */
+function entityDefinitions(
+  shortSlugs: string[],
+): Record<string, { name: string; definition: string }> {
+  try {
+    const prompt = `Contexte : process internes d'un organisme de formation français (SOLUVIA).
+Pour chaque identifiant d'entité ci-dessous, donne un nom d'affichage propre et une définition d'UNE phrase, en français.
+Identifiants : ${shortSlugs.join(', ')}.
+Renvoie UNIQUEMENT un JSON : {"<identifiant>": {"name": "...", "definition": "..."}, ...}`;
+    const out = execFileSync('claude', ['-p', prompt], {
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    const m = out.match(/\{[\s\S]*\}/);
+    return m
+      ? (JSON.parse(m[0]) as Record<
+          string,
+          { name: string; definition: string }
+        >)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Crée les notes-carrefour `entite` manquantes (référencées mais sans note). */
+async function ingestEntities(dryRun: boolean): Promise<number> {
+  const notes = await pg<NoteRow>(
+    `select path, type, links from public.brain_notes`,
+  );
+  const existing = new Set(
+    notes.filter((n) => n.type === 'entite').map((n) => n.path),
+  );
+  const backlinks = new Map<string, string[]>();
+  for (const note of notes) {
+    for (const l of note.links ?? []) {
+      if (l.startsWith('entites/')) {
+        const arr = backlinks.get(l) ?? [];
+        arr.push(note.path.replace(/\.md$/, ''));
+        backlinks.set(l, arr);
+      }
+    }
+  }
+  const missing = [...backlinks.keys()].filter(
+    (link) => !existing.has(`${link}.md`),
+  );
+  if (!missing.length) return 0;
+  if (dryRun) {
+    console.log(`entités À CRÉER : ${missing.length}`);
+    return missing.length;
+  }
+
+  const shorts = missing.map((l) => l.replace(/^entites\//, ''));
+  const defs = entityDefinitions(shorts);
+  let n = 0;
+  for (const link of missing) {
+    const short = link.replace(/^entites\//, '');
+    const bl = backlinks.get(link) ?? [];
+    const d = defs[short] ?? { name: titleCase(short), definition: '' };
+    const hash = createHash('sha256')
+      .update(`${bl.join(',')}|${d.definition}`)
+      .digest('hex');
+    await upsertNote(
+      entityToBrainNote(
+        short,
+        d.name || titleCase(short),
+        bl,
+        d.definition ?? '',
+        hash,
+      ),
+    );
+    n++;
+  }
+  console.log(`  ✓ ${n} entité(s)`);
+  return n;
+}
+
+/** Marque `stale` les conversations dont une source a changé (anti-obsolescence). */
+async function markStaleConversations(dryRun: boolean): Promise<number> {
+  const notes = await pg<Required<NoteRow>>(
+    `select path, type, links, source_ref, source_hash, frontmatter, body, title
+     from public.brain_notes`,
+  );
+  const currentHash = new Map(
+    notes.map((n) => [n.path.replace(/\.md$/, ''), n.source_hash]),
+  );
+  let n = 0;
+  for (const note of notes.filter((x) => x.type === 'conversation')) {
+    const sh = note.frontmatter?.source_hashes ?? {};
+    let stale = false;
+    for (const [p, h] of Object.entries(sh)) {
+      if (currentHash.get(p) !== h) {
+        stale = true;
+        break;
+      }
+    }
+    const already = note.frontmatter?.stale === true;
+    if (stale === already) continue;
+    if (dryRun) {
+      console.log(`conversation ${stale ? '→ STALE' : '→ ok'} : ${note.title}`);
+      n++;
+      continue;
+    }
+    const marker = '> ⚠️ Réponse à revoir : une source a changé.\n\n';
+    const cleanBody = note.body.startsWith('> ⚠️')
+      ? note.body.replace(/^> ⚠️[^\n]*\n\n/, '')
+      : note.body;
+    await pg(
+      `update public.brain_notes set
+         frontmatter = frontmatter || ${lit(JSON.stringify({ stale }))}::jsonb,
+         body = ${lit(stale ? marker + cleanBody : cleanBody)},
+         updated_at = now()
+       where path = ${lit(note.path)};`,
+    );
+    n++;
+  }
+  return n;
+}
+
+/** Rapport des lacunes (👎) écrit dans le coffre (hors brain_notes → pas de bruit en recherche). */
+async function writeGapsReport(vaultDir: string): Promise<number> {
+  const gaps = await pg<{ question: string; answer: string }>(
+    `select question, answer from public.process_qa_feedback where rating = -1`,
+  );
+  const lines = [
+    '# Lacunes du cerveau (retours 👎)',
+    '',
+    'Questions dont la réponse a été jugée insuffisante — contenu à ajouter ou améliorer.',
+    '',
+  ];
+  for (const g of gaps)
+    lines.push(
+      `- **${g.question}**\n  > ${g.answer.replace(/\n/g, ' ').slice(0, 200)}`,
+    );
+  if (!gaps.length) lines.push("_(aucune pour l'instant)_");
+  writeFileSync(join(vaultDir, '_lacunes.md'), `${lines.join('\n')}\n`, 'utf8');
+  return gaps.length;
 }
 
 // ---------------------------------------------------------------- main
@@ -307,8 +529,20 @@ async function main() {
     rmSync(tmp, { recursive: true, force: true });
   }
 
+  // --- Phase 3 : conversations (👍), entités (graphe), anti-obsolescence ---
+  let conversations = 0;
+  let entities = 0;
+  let staled = 0;
+  if (!fichesOnly) {
+    conversations = await ingestConversations(dryRun);
+    entities = await ingestEntities(dryRun);
+    staled = await markStaleConversations(dryRun);
+  }
+
   console.log(
-    `\nFiches: ${analyzedFiches} · Livrables: ${analyzedDeliverables} · Inchangés: ${skipped}`,
+    `\nFiches: ${analyzedFiches} · Livrables: ${analyzedDeliverables} · ` +
+      `Conversations: ${conversations} · Entités: ${entities} · ` +
+      `Stale: ${staled} · Inchangés: ${skipped}`,
   );
 
   if (vaultDir && !dryRun) {
@@ -316,6 +550,8 @@ async function main() {
     execFileSync('tsx', ['scripts/brain-vault-sync.ts', vaultDir], {
       stdio: 'inherit',
     });
+    const gaps = await writeGapsReport(vaultDir);
+    console.log(`Rapport lacunes (👎) : ${gaps} question(s).`);
     try {
       execFileSync('git', ['-C', vaultDir, 'add', '-A']);
       execFileSync(

@@ -55,6 +55,7 @@ import type {
   listProjetsForFacturation,
 } from '@/lib/queries/factures';
 import { fetchFacturesPage } from '@/lib/actions/factures/list';
+import { avoirAnnulation } from '@/lib/utils/avoir-netting';
 import type { AjustementPending } from '@/lib/queries/ajustements';
 import type { ProjetBillableEvents } from '@/lib/queries/billable-events';
 import type { EcheancierDueMois } from '@/lib/queries/echeancier-dues';
@@ -388,6 +389,13 @@ export function FacturationPageClient({
             searchKey="ref"
             searchPlaceholder="Rechercher une facture..."
             onRowClick={handleRowClick}
+            // Factures totalement soldees par un avoir : grisees (le statut
+            // DB reste en_retard/emise, l'etat reel est porte par le badge).
+            rowClassName={(f) =>
+              avoirAnnulation(f.montant_ht, f.avoirs) === 'totale'
+                ? 'opacity-55'
+                : undefined
+            }
             filters={FACTURE_FILTERS}
             serverMode
             onQueryChange={handleQueryChange}

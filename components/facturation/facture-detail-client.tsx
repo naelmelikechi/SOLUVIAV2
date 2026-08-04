@@ -27,10 +27,17 @@ import {
 import { sendFacture } from '@/lib/actions/factures';
 import type { FactureDetail } from '@/lib/queries/factures';
 import { logger } from '@/lib/utils/logger';
+import { avoirAnnulation, soldeNetHt } from '@/lib/utils/avoir-netting';
+import { formatCurrency } from '@/lib/utils/formatters';
 
 interface FactureDetailActionsProps {
   facture: FactureDetail;
-  avoirSurCetteFacture: { id: string; ref: string | null } | null;
+  avoirSurCetteFacture: {
+    id: string;
+    ref: string | null;
+    montant_ht: number;
+    statut: string;
+  } | null;
   contacts: FactureContact[];
 }
 
@@ -189,16 +196,31 @@ export function FactureDetailActions({
         )}
       </div>
 
-      {/* Avoir link */}
+      {/* Avoir link : precise si la facture est annulee totalement ou
+          partiellement (le statut DB ne change pas a l'emission d'un avoir) */}
       {avoirSurCetteFacture && avoirSurCetteFacture.ref && (
         <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm text-orange-700 dark:border-orange-900 dark:bg-orange-950/30 dark:text-orange-400">
-          Un avoir a été émis sur cette facture :{' '}
+          {avoirAnnulation(facture.montant_ht, avoirSurCetteFacture) ===
+          'totale'
+            ? 'Facture annulée totalement par l’avoir '
+            : 'Facture annulée partiellement par l’avoir '}
           <Link
             href={`/facturation/${avoirSurCetteFacture.ref}`}
             className="font-semibold underline underline-offset-2"
           >
             {avoirSurCetteFacture.ref}
           </Link>
+          {avoirAnnulation(facture.montant_ht, avoirSurCetteFacture) ===
+            'partielle' && (
+            <>
+              {' '}
+              (solde restant :{' '}
+              {formatCurrency(
+                soldeNetHt(facture.montant_ht, avoirSurCetteFacture),
+              )}{' '}
+              HT)
+            </>
+          )}
         </div>
       )}
 

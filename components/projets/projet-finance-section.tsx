@@ -48,6 +48,17 @@ export function ProjetFinanceSection({
   const raf_soluvia =
     production_soluvia > 0 ? production_soluvia - finance.facture_soluvia : 0;
   const rae_soluvia = finance.facture_soluvia - finance.encaisse_soluvia;
+  // Equivalents TTC : production = commission contractuelle TTC-native
+  // (taux x base, sans /1.2) ; facture/encaisse = montant_ttc des factures
+  // (valeurs PDF) et paiements bruts ; RAF/RAE derives.
+  const production_soluvia_ttc =
+    finance.production_opco * (finance.taux_commission / 100);
+  const raf_soluvia_ttc =
+    production_soluvia_ttc > 0
+      ? production_soluvia_ttc - finance.facture_soluvia_ttc
+      : 0;
+  const rae_soluvia_ttc =
+    finance.facture_soluvia_ttc - finance.encaisse_soluvia_ttc;
 
   return (
     <Card className="p-6">
@@ -56,7 +67,7 @@ export function ProjetFinanceSection({
           <h3 className="text-sm font-semibold">Finance</h3>
           {finance.en_retard_soluvia > 0 && (
             <StatusBadge
-              label={`Retard ${formatCurrency(finance.en_retard_soluvia)}`}
+              label={`Retard ${formatCurrency(finance.en_retard_soluvia)} HT (${formatCurrency(finance.en_retard_soluvia_ttc)} TTC)`}
               color="red"
             />
           )}
@@ -96,12 +107,21 @@ export function ProjetFinanceSection({
               </td>
               <td className="py-2.5 pl-2 text-right font-semibold tabular-nums">
                 {formatCurrency(production_soluvia)}
+                <span className="text-muted-foreground block text-[10px] leading-tight font-normal">
+                  {formatCurrency(production_soluvia_ttc)} TTC
+                </span>
               </td>
               <td className="py-2.5 pl-2 text-right font-semibold tabular-nums">
                 {formatCurrency(finance.facture_soluvia)}
+                <span className="text-muted-foreground block text-[10px] leading-tight font-normal">
+                  {formatCurrency(finance.facture_soluvia_ttc)} TTC
+                </span>
               </td>
               <td className="text-primary py-2.5 pl-2 text-right font-semibold tabular-nums">
                 {formatCurrency(finance.encaisse_soluvia)}
+                <span className="text-muted-foreground block text-[10px] leading-tight font-normal">
+                  {formatCurrency(finance.encaisse_soluvia_ttc)} TTC
+                </span>
               </td>
             </tr>
             <tr className="border-border text-muted-foreground border-t text-xs">
@@ -142,7 +162,8 @@ export function ProjetFinanceSection({
                 : 'text-muted-foreground'
             }`}
           >
-            {formatCurrency(raf_soluvia)}
+            {formatCurrency(raf_soluvia)} HT ({formatCurrency(raf_soluvia_ttc)}{' '}
+            TTC)
           </span>
         </span>
         <span className="text-muted-foreground">
@@ -154,7 +175,8 @@ export function ProjetFinanceSection({
                 : 'text-muted-foreground'
             }`}
           >
-            {formatCurrency(rae_soluvia)}
+            {formatCurrency(rae_soluvia)} HT ({formatCurrency(rae_soluvia_ttc)}{' '}
+            TTC)
           </span>
         </span>
         <Link

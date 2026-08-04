@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { encaisseHt } from '@/lib/utils/montant-ht';
-import { soldeNetHt } from '@/lib/utils/avoir-netting';
+import { soldeNetHt, soldeNetTtc } from '@/lib/utils/avoir-netting';
 import { ACTIVE_STATES_ARRAY } from '@/lib/queries/dashboard/shared';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -63,6 +63,7 @@ export interface ProjetListEnriched extends ProjetListItem {
   apprentisActifs: number;
   facturesEnRetard: number;
   encaissementsEnRetard: number;
+  encaissementsEnRetardTtc: number;
   tempsMois: number;
 }
 
@@ -101,7 +102,7 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
     supabase
       .from('factures')
       .select(
-        'id, projet_id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!facture_origine_id(montant_ht, statut)',
+        'id, projet_id, montant_ht, montant_ttc, paiements(montant), avoirs:factures!facture_origine_id(montant_ht, montant_ttc, statut)',
       )
       .in('projet_id', projetIds)
       .eq('statut', 'en_retard'),
@@ -124,6 +125,7 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
 
   const facturesRetardMap = new Map<string, number>();
   const encaissementsRetardMap = new Map<string, number>();
+  const encaissementsRetardTtcMap = new Map<string, number>();
   for (const f of facturesRes.data ?? []) {
     if (!f.projet_id) continue;
     // Solde apres avoirs emis lies : une facture soldee par avoir n'est plus
@@ -147,6 +149,14 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
         (encaissementsRetardMap.get(f.projet_id) ?? 0) + net,
       );
     }
+    // TTC : solde net (montant_ttc PDF + avoirs TTC) moins paiements bruts.
+    const netTtc = soldeNetTtc(f.montant_ttc, f.avoirs) - paiementsSum;
+    if (netTtc > 0) {
+      encaissementsRetardTtcMap.set(
+        f.projet_id,
+        (encaissementsRetardTtcMap.get(f.projet_id) ?? 0) + netTtc,
+      );
+    }
   }
 
   const tempsMap = new Map<string, number>();
@@ -163,6 +173,7 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
     apprentisActifs: apprentisMap.get(p.id) ?? 0,
     facturesEnRetard: facturesRetardMap.get(p.id) ?? 0,
     encaissementsEnRetard: encaissementsRetardMap.get(p.id) ?? 0,
+    encaissementsEnRetardTtc: encaissementsRetardTtcMap.get(p.id) ?? 0,
     tempsMois: tempsMap.get(p.id) ?? 0,
   }));
 }
@@ -346,16 +357,25 @@ export async function getProjetFinance(projetId: string) {
     (sum, f) => sum + (f.montant_ht ?? 0),
     0,
   );
+  // TTC = somme des montant_ttc factures (valeurs PDF), avoirs negatifs inclus.
+  const facture_soluvia_ttc = (factures ?? []).reduce(
+    (sum, f) => sum + (f.montant_ttc ?? 0),
+    0,
+  );
 
   // Avoirs emis indexes par facture d'origine, pour le solde "en retard" :
   // une facture totalement soldee par avoir ne doit plus peser dans le retard.
-  const avoirByOrigine = new Map<string, number>();
+  const avoirByOrigine = new Map<string, { ht: number; ttc: number }>();
   for (const f of factures ?? []) {
     if (f.est_avoir && f.statut === 'avoir' && f.facture_origine_id) {
-      avoirByOrigine.set(
-        f.facture_origine_id,
-        (avoirByOrigine.get(f.facture_origine_id) ?? 0) + (f.montant_ht ?? 0),
-      );
+      const prev = avoirByOrigine.get(f.facture_origine_id) ?? {
+        ht: 0,
+        ttc: 0,
+      };
+      avoirByOrigine.set(f.facture_origine_id, {
+        ht: prev.ht + (f.montant_ht ?? 0),
+        ttc: prev.ttc + (f.montant_ttc ?? 0),
+      });
     }
   }
 
@@ -412,6 +432,11 @@ export async function getProjetFinance(projetId: string) {
     const r = ratioByFacture.get(p.facture_id as string);
     return sum + encaisseHt(p.montant ?? 0, r?.ht ?? 0, r?.ttc ?? 0);
   }, 0);
+  // Encaisse TTC = paiements bruts (deja stockes en TTC).
+  const encaisse_soluvia_ttc = (paiementsRes.data ?? []).reduce(
+    (sum, p) => sum + (p.montant ?? 0),
+    0,
+  );
 
   // Cote OPCO reel : bordereaux Eduvia emis (TRANSMIS/REGLE) et regles.
   const steps = stepsRes.data ?? [];
@@ -422,14 +447,14 @@ export async function getProjetFinance(projetId: string) {
     .reduce((sum, s) => sum + (s.total_amount ?? 0), 0);
   const encaisse_opco = steps.reduce((sum, s) => sum + stepEncaisseOpco(s), 0);
 
-  const en_retard_soluvia = (factures ?? [])
-    .filter((f) => f.statut === 'en_retard')
-    .reduce(
-      (sum, f) =>
-        sum +
-        Math.max(0, (f.montant_ht ?? 0) + (avoirByOrigine.get(f.id) ?? 0)),
-      0,
-    );
+  let en_retard_soluvia = 0;
+  let en_retard_soluvia_ttc = 0;
+  for (const f of factures ?? []) {
+    if (f.statut !== 'en_retard') continue;
+    const av = avoirByOrigine.get(f.id);
+    en_retard_soluvia += Math.max(0, (f.montant_ht ?? 0) + (av?.ht ?? 0));
+    en_retard_soluvia_ttc += Math.max(0, (f.montant_ttc ?? 0) + (av?.ttc ?? 0));
+  }
 
   // Repartition du facture SOLUVIA par type d'event (facturation a
   // l'engagement) : etape 1 vs echeances OPCO. Les lignes sans event_type
@@ -457,14 +482,14 @@ export async function getProjetFinance(projetId: string) {
       facture_soluvia_echeances += m;
     }
   }
-  for (const [origineId, avoirHt] of avoirByOrigine) {
+  for (const [origineId, avoir] of avoirByOrigine) {
     const t = typedByFacture.get(origineId);
     if (!t) continue;
     const totalTyped = t.eng + t.ech;
     if (totalTyped <= 0) continue;
-    // avoirHt est negatif : deduction proportionnelle des deux buckets.
-    facture_soluvia_engagement += (avoirHt * t.eng) / totalTyped;
-    facture_soluvia_echeances += (avoirHt * t.ech) / totalTyped;
+    // avoir.ht est negatif : deduction proportionnelle des deux buckets.
+    facture_soluvia_engagement += (avoir.ht * t.eng) / totalTyped;
+    facture_soluvia_echeances += (avoir.ht * t.ech) / totalTyped;
   }
 
   return {
@@ -472,10 +497,13 @@ export async function getProjetFinance(projetId: string) {
     facture_opco,
     encaisse_opco,
     facture_soluvia,
+    facture_soluvia_ttc,
     facture_soluvia_engagement,
     facture_soluvia_echeances,
     encaisse_soluvia,
+    encaisse_soluvia_ttc,
     en_retard_soluvia,
+    en_retard_soluvia_ttc,
     taux_commission: projet?.taux_commission ?? 0,
   };
 }

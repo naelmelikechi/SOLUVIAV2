@@ -10,8 +10,11 @@ describe('TrinityFunnel', () => {
     render(
       <TrinityFunnel
         production={42580}
+        productionTtc={51096}
         facture={38200}
+        factureTtc={45840}
         encaisse={31100}
+        encaisseTtc={37320}
         productionTrend={12}
       />,
     );
@@ -24,8 +27,11 @@ describe('TrinityFunnel', () => {
     render(
       <TrinityFunnel
         production={1000}
+        productionTtc={1200}
         facture={900}
+        factureTtc={1080}
         encaisse={450}
+        encaisseTtc={540}
         productionTrend={0}
       />,
     );
@@ -36,8 +42,11 @@ describe('TrinityFunnel', () => {
     render(
       <TrinityFunnel
         production={1000}
+        productionTtc={1200}
         facture={4000}
+        factureTtc={4800}
         encaisse={0}
+        encaisseTtc={0}
         productionTrend={0}
       />,
     );
@@ -49,8 +58,11 @@ describe('TrinityFunnel', () => {
     render(
       <TrinityFunnel
         production={0}
+        productionTtc={0}
         facture={0}
+        factureTtc={0}
         encaisse={0}
+        encaisseTtc={0}
         productionTrend={0}
       />,
     );
@@ -62,8 +74,11 @@ describe('TrinityFunnel', () => {
     render(
       <TrinityFunnel
         production={100}
+        productionTtc={120}
         facture={100}
+        factureTtc={120}
         encaisse={100}
+        encaisseTtc={120}
         productionTrend={0}
       />,
     );
@@ -75,8 +90,11 @@ describe('TrinityFunnel', () => {
     render(
       <TrinityFunnel
         production={1000}
+        productionTtc={1200}
         facture={800}
+        factureTtc={960}
         encaisse={800}
+        encaisseTtc={960}
         productionTrend={0}
       />,
     );
@@ -87,8 +105,11 @@ describe('TrinityFunnel', () => {
     render(
       <TrinityFunnel
         production={100}
+        productionTtc={120}
         facture={100}
+        factureTtc={120}
         encaisse={100}
+        encaisseTtc={120}
         productionTrend={0}
         periodeLabel="Mai 2026"
       />,
@@ -100,8 +121,11 @@ describe('TrinityFunnel', () => {
     render(
       <TrinityFunnel
         production={100}
+        productionTtc={120}
         facture={100}
+        factureTtc={120}
         encaisse={100}
+        encaisseTtc={120}
         productionTrend={0}
       />,
     );
@@ -113,8 +137,11 @@ describe('TrinityFunnel', () => {
     render(
       <TrinityFunnel
         production={100}
+        productionTtc={120}
         facture={100}
+        factureTtc={120}
         encaisse={100}
+        encaisseTtc={120}
         productionTrend={0}
         editMode
         onHide={onHide}

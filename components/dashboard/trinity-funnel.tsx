@@ -7,6 +7,11 @@ export interface TrinityFunnelProps {
   production: number;
   facture: number;
   encaisse: number;
+  // Equivalents TTC (montant_ttc des factures = valeurs PDF, paiements bruts,
+  // TTC contractuel pour la production theorique).
+  productionTtc: number;
+  factureTtc: number;
+  encaisseTtc: number;
   productionTrend: number;
   editMode?: boolean;
   onHide?: () => void;
@@ -17,13 +22,18 @@ export function TrinityFunnel({
   production,
   facture,
   encaisse,
+  productionTtc,
+  factureTtc,
+  encaisseTtc,
   productionTrend,
   editMode,
   onHide,
   periodeLabel,
 }: TrinityFunnelProps) {
   const resteAFacturer = Math.max(0, production - facture);
+  const resteAFacturerTtc = Math.max(0, productionTtc - factureTtc);
   const enAttentePaiement = Math.max(0, facture - encaisse);
+  const enAttentePaiementTtc = Math.max(0, factureTtc - encaisseTtc);
   const tauxRecouvrement =
     facture > 0 ? Math.round((encaisse / facture) * 100) : 0;
   const trendUp = productionTrend > 0;
@@ -54,6 +64,9 @@ export function TrinityFunnel({
           </div>
           <div className="num mt-2 text-3xl font-bold tracking-tight">
             {formatCurrency(production)}
+          </div>
+          <div className="text-muted-foreground num text-xs tabular-nums">
+            {formatCurrency(productionTtc)} TTC
           </div>
           <div
             className={cn(
@@ -94,9 +107,12 @@ export function TrinityFunnel({
           <div className="num mt-2 text-3xl font-bold tracking-tight">
             {formatCurrency(facture)}
           </div>
+          <div className="text-muted-foreground num text-xs tabular-nums">
+            {formatCurrency(factureTtc)} TTC
+          </div>
           <div className="text-muted-foreground mt-1 h-4 text-xs">
             {resteAFacturer > 0
-              ? `${formatCurrency(resteAFacturer)} reste à facturer`
+              ? `${formatCurrency(resteAFacturer)} HT (${formatCurrency(resteAFacturerTtc)} TTC) reste à facturer`
               : 'tout est facturé'}
           </div>
           <Link
@@ -123,9 +139,12 @@ export function TrinityFunnel({
               </span>
             )}
           </div>
+          <div className="text-muted-foreground num text-xs tabular-nums">
+            {formatCurrency(encaisseTtc)} TTC
+          </div>
           <div className="text-muted-foreground mt-1 h-4 text-xs">
             {enAttentePaiement > 0
-              ? `${formatCurrency(enAttentePaiement)} en attente de paiement`
+              ? `${formatCurrency(enAttentePaiement)} HT (${formatCurrency(enAttentePaiementTtc)} TTC) en attente de paiement`
               : facture > 0
                 ? 'tout est encaissé'
                 : ''}

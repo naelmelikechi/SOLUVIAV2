@@ -3,16 +3,20 @@ import { formatCurrency, formatMoisConcerne } from '@/lib/utils/formatters';
 import { cn } from '@/lib/utils';
 import type { FacturationKpis } from '@/lib/queries/factures';
 
-// Bandeau d'état de la facturation : 4 cellules simples et parlantes,
-// montants en HT (convention). Même pattern que le bandeau de l'accueil.
+// Bandeau d'état de la facturation : 4 cellules simples et parlantes.
+// Chaque montant porte le HT (valeur principale, convention) ET le TTC
+// (valeurs PDF des factures, sommées telles quelles - zéro recalcul).
 function KpiCell({
   label,
   value,
+  ttc,
   hint,
   accent,
 }: {
   label: string;
   value: string;
+  /** Équivalent TTC (déjà formaté), affiché en ligne secondaire. */
+  ttc?: string;
   hint: string;
   accent?: string;
 }) {
@@ -28,7 +32,15 @@ function KpiCell({
         )}
       >
         {value}
+        <span className="text-muted-foreground ml-1 text-[11px] font-normal">
+          HT
+        </span>
       </p>
+      {ttc && (
+        <p className="text-muted-foreground text-[11px] tabular-nums">
+          {ttc} TTC
+        </p>
+      )}
       <p className="text-muted-foreground text-[11px]">{hint}</p>
     </div>
   );
@@ -38,10 +50,12 @@ export function FacturationKpisStrip({
   kpis,
   aEmettreCount,
   aEmettreMontantHt,
+  aEmettreMontantTtc,
 }: {
   kpis: FacturationKpis;
   aEmettreCount: number;
   aEmettreMontantHt: number;
+  aEmettreMontantTtc: number;
 }) {
   const moisLabel = formatMoisConcerne(new Date().toISOString().slice(0, 7));
   return (
@@ -49,16 +63,19 @@ export function FacturationKpisStrip({
       <KpiCell
         label={`Facturé en ${moisLabel.toLowerCase()}`}
         value={formatCurrency(kpis.factureMois.montantHt)}
-        hint={`${kpis.factureMois.count} facture${kpis.factureMois.count > 1 ? 's' : ''} émise${kpis.factureMois.count > 1 ? 's' : ''} (HT, avoirs déduits)`}
+        ttc={formatCurrency(kpis.factureMois.montantTtc)}
+        hint={`${kpis.factureMois.count} facture${kpis.factureMois.count > 1 ? 's' : ''} émise${kpis.factureMois.count > 1 ? 's' : ''} (avoirs déduits)`}
       />
       <KpiCell
         label="En attente de paiement"
         value={formatCurrency(kpis.enAttente.montantHt)}
+        ttc={formatCurrency(kpis.enAttente.montantTtc)}
         hint={`${kpis.enAttente.count} facture${kpis.enAttente.count > 1 ? 's' : ''} émise${kpis.enAttente.count > 1 ? 's' : ''} non payée${kpis.enAttente.count > 1 ? 's' : ''}`}
       />
       <KpiCell
         label="En retard"
         value={formatCurrency(kpis.enRetard.montantHt)}
+        ttc={formatCurrency(kpis.enRetard.montantTtc)}
         hint={
           kpis.enRetard.count > 0
             ? `${kpis.enRetard.count} facture${kpis.enRetard.count > 1 ? 's' : ''} à relancer`
@@ -71,6 +88,7 @@ export function FacturationKpisStrip({
       <KpiCell
         label="À émettre"
         value={formatCurrency(aEmettreMontantHt)}
+        ttc={formatCurrency(aEmettreMontantTtc)}
         hint={
           aEmettreCount > 0
             ? `${aEmettreCount} facture${aEmettreCount > 1 ? 's' : ''} en préparation`

@@ -8,6 +8,15 @@ export interface DashboardFinancials {
   totalEncaisse: number; // HT - paiements TTC ramenes au prorata HT/TTC de chaque facture
   totalEnRetard: number; // HT - sum factures.montant_ht en retard moins encaisse HT partiel recu
   totalAFacturer: number; // HT - sum montant_prevu_ht des echeances pretes a emettre
+  // Equivalents TTC. Regle : sommes des montant_ttc factures (valeurs PDF) et
+  // paiements bruts pour tout ce qui est adossé a des factures ; regime TVA
+  // client (resolveTvaRegime) uniquement pour le theorique (production,
+  // echeances futures) ou aucune facture n'existe encore.
+  totalProductionTtc: number;
+  totalFactureTtc: number;
+  totalEncaisseTtc: number;
+  totalEnRetardTtc: number;
+  totalAFacturerTtc: number;
   nbApprenantsActifs: number; // count of active contrats
   nbFormationsEnCours: number; // count distinct formations sur contrats actifs
   nbAbandons: number; // count contrats resilie ou ANNULE (synced)

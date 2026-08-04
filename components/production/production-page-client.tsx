@@ -136,6 +136,8 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
   const kpis: {
     label: string;
     value: number;
+    /** Equivalent TTC (absent en perspective OPCO : montants bordereaux). */
+    valueTtc?: number;
     icon: typeof TrendingUp;
     color: string;
     valueColor?: string;
@@ -165,24 +167,28 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
           {
             label: 'Production du mois',
             value: currentMonth?.production ?? 0,
+            valueTtc: currentMonth?.productionTtc ?? 0,
             icon: TrendingUp,
             color: 'text-emerald-600',
           },
           {
             label: 'Facturé du mois',
             value: currentMonth?.facture ?? 0,
+            valueTtc: currentMonth?.factureTtc ?? 0,
             icon: FileText,
             color: 'text-blue-600',
           },
           {
             label: 'Encaissé du mois',
             value: currentMonth?.encaisse ?? 0,
+            valueTtc: currentMonth?.encaisseTtc ?? 0,
             icon: Check,
             color: 'text-muted-foreground',
           },
           {
             label: 'En retard',
             value: currentMonth?.en_retard ?? 0,
+            valueTtc: currentMonth?.enRetardTtc ?? 0,
             icon: AlertTriangle,
             color: 'text-red-600',
             valueColor: 'text-red-600',
@@ -303,7 +309,17 @@ function ProductionPageClientInner({ data }: { data: ProductionRow[] }) {
               )}
             >
               {formatCurrency(kpi.value)}
+              {kpi.valueTtc !== undefined && (
+                <span className="text-muted-foreground ml-1 text-[11px] font-normal">
+                  HT
+                </span>
+              )}
             </div>
+            {kpi.valueTtc !== undefined && (
+              <div className="text-muted-foreground text-[11px] tabular-nums">
+                {formatCurrency(kpi.valueTtc)} TTC
+              </div>
+            )}
           </Card>
         ))}
       </div>

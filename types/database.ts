@@ -898,6 +898,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      brain_notes: {
+        Row: {
+          aliases: string[];
+          body: string;
+          frontmatter: Json;
+          id: string;
+          links: string[];
+          path: string;
+          source_hash: string | null;
+          source_ref: string | null;
+          tags: string[];
+          title: string;
+          type: string;
+          updated_at: string;
+        };
+        Insert: {
+          aliases?: string[];
+          body: string;
+          frontmatter?: Json;
+          id?: string;
+          links?: string[];
+          path: string;
+          source_hash?: string | null;
+          source_ref?: string | null;
+          tags?: string[];
+          title: string;
+          type: string;
+          updated_at?: string;
+        };
+        Update: {
+          aliases?: string[];
+          body?: string;
+          frontmatter?: Json;
+          id?: string;
+          links?: string[];
+          path?: string;
+          source_hash?: string | null;
+          source_ref?: string | null;
+          tags?: string[];
+          title?: string;
+          type?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       bug_reports: {
         Row: {
           ai_category: string | null;
@@ -4189,14 +4234,40 @@ export type Database = {
         Args: { p_first: string; p_next: string };
         Returns: {
           en_retard: number;
+          en_retard_ttc: number;
           encaisse: number;
+          encaisse_ttc: number;
           facture: number;
+          facture_ttc: number;
           mois: string;
         }[];
       };
       refuse_devis_public: {
         Args: { p_motif: string; p_token: string };
         Returns: Json;
+      };
+      search_brain_trgm: {
+        Args: { k?: number; q: string };
+        Returns: {
+          aliases: string[];
+          body: string;
+          frontmatter: Json;
+          id: string;
+          links: string[];
+          path: string;
+          source_hash: string | null;
+          source_ref: string | null;
+          tags: string[];
+          title: string;
+          type: string;
+          updated_at: string;
+        }[];
+        SetofOptions: {
+          from: '*';
+          to: 'brain_notes';
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
       };
       search_process_trgm: {
         Args: { q: string };

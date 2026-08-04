@@ -19,7 +19,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(15);
+SELECT plan(18);
 
 -- ----- Fixtures -----
 CREATE TEMP TABLE _ctx (
@@ -206,6 +206,23 @@ SELECT is(
   (SELECT encaisse FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
   105::numeric,
   'encaisse = 105 (60*100/120 + 30*50/60 + 30*1 ; paiement client demo exclu)');
+
+-- ----- 15bis-15quater. Equivalents TTC (migration 20260804160000) -----
+-- facture_ttc = 120 + 60 + 0 + 96 - 36 - 96 = 144 (montant_ttc PDF, net avoirs)
+SELECT is(
+  (SELECT facture_ttc FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
+  144::numeric,
+  'facture_ttc = 144 (sommes des montant_ttc, nettes des avoirs emis)');
+-- en_retard_ttc : F2 (60) seule ; F8 (96) soldee par F9 (-96)
+SELECT is(
+  (SELECT en_retard_ttc FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
+  60::numeric,
+  'en_retard_ttc = 60 (solde TTC apres avoirs lies)');
+-- encaisse_ttc = paiements bruts : 60 + 30 + 30 (paiement demo exclu)
+SELECT is(
+  (SELECT encaisse_ttc FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
+  120::numeric,
+  'encaisse_ttc = 120 (paiements bruts, demo exclu)');
 
 -- ----- 15. Fenetre contrats : seuls 222222 (a cheval) et 333333 (+2 OPCO) -----
 SELECT set_eq(

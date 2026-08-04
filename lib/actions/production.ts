@@ -84,7 +84,7 @@ async function fetchMonthProduction(
       let q = supabase
         .from('factures')
         .select(
-          `id, montant_ht, statut, est_avoir, facture_origine_id, ${PROJET_EMBED}`,
+          `id, montant_ht, montant_ttc, statut, est_avoir, facture_origine_id, ${PROJET_EMBED}`,
         )
         .gte('mois_concerne', monthStart)
         .lt('mois_concerne', monthEnd)

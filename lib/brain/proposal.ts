@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { BrainNote } from './types';
-import { slugify, wikilink } from './note';
+import { conversationPath, wikilink } from './note';
 
 export type ProposalKind =
   | 'conversation'
@@ -55,20 +55,38 @@ export function noteToProposal(note: BrainNote): BrainProposal {
   if (!note.source_hash) {
     throw new Error(`note sans source_hash : ${note.path}`);
   }
+  if (!note.source_ref) {
+    throw new Error(`note sans source_ref : ${note.path}`);
+  }
   return {
     kind: note.type,
     target_path: note.path,
     payload: note as unknown as Record<string, unknown>,
-    source_ref: note.source_ref ?? note.path,
+    source_ref: note.source_ref,
     source_hash: note.source_hash,
   };
 }
 
 /**
  * payload d'une proposition → note prête à upsert. `editedBody` = corps corrigé
- * par l'admin dans la page de revue. Ne concerne que `conversation` et `entite`,
+ * par l'admin dans la page de revue : absent, on garde le corps proposé ; défini
+ * mais blanc après trim, on lève — un admin qui vide le champ dit « ce texte ne
+ * convient pas », republier le texte de l'IA serait le pire mode de défaillance
+ * pour une boucle de contrôle humain. Ne concerne que `conversation` et `entite`,
  * dont le payload EST une note : `lacune` passe par `gapToBrainNote`, et
- * `obsolescence` ne produit pas de note (arbitrage sur une note existante). Pur.
+ * `obsolescence` ne produit pas de note (arbitrage sur une note existante).
+ *
+ * `payload` est une colonne jsonb libre écrite par le script (potentiellement
+ * une version antérieure) : on vérifie qu'elle porte un `path` exploitable et
+ * que son `type` correspond au `kind` de la proposition avant de la bénir en
+ * `BrainNote`.
+ *
+ * Quand un corps édité est fourni, `links` et `frontmatter.source_hashes` sont
+ * re-dérivés de ce corps (les wikilinks qu'il cite réellement) — sinon un lien
+ * retiré par l'admin resterait dans `links`, l'expansion de graphe le suivrait
+ * quand même, et `markStaleConversations` marquerait la note obsolète pour une
+ * source qu'elle ne cite plus. Le titre, lui, n'est PAS re-dérivé du corps :
+ * c'est la question posée, pas le titre markdown. Pur.
  */
 export function applyProposal(
   p: BrainProposal,
@@ -78,8 +96,38 @@ export function applyProposal(
     throw new Error(`proposition non applicable directement : ${p.kind}`);
   }
   const note = p.payload as unknown as BrainNote;
-  const body = editedBody?.trim();
-  return body ? { ...note, body } : note;
+  if (typeof note.path !== 'string' || !note.path) {
+    throw new Error('payload sans path exploitable');
+  }
+  if (note.type !== p.kind) {
+    throw new Error(
+      `payload incohérent : type ${note.type} pour un kind ${p.kind}`,
+    );
+  }
+  if (editedBody === undefined) return note;
+  const body = editedBody.trim();
+  if (!body) {
+    throw new Error('corps vidé : rien à publier');
+  }
+  const liens = [...body.matchAll(/\[\[([^\]]+)\]\]/g)].map(
+    (m) => m[1] as string,
+  );
+  const uniques = [...new Set(liens)];
+  const hashes = Object.fromEntries(
+    Object.entries(
+      (note.frontmatter?.source_hashes ?? {}) as Record<string, string>,
+    ).filter(([k]) => uniques.includes(k)),
+  );
+  return {
+    ...note,
+    body,
+    links: uniques,
+    frontmatter: {
+      ...note.frontmatter,
+      derived_from: uniques,
+      source_hashes: hashes,
+    },
+  };
 }
 
 export interface GapInput {
@@ -91,8 +139,9 @@ export interface GapInput {
 /**
  * Lacune (👎) + réponse rédigée par un admin → note `conversation`. La mauvaise
  * réponse n'entre PAS dans la note : elle ne sert qu'à contextualiser l'arbitrage
- * dans la page de revue. Le path est celui d'une note de conversation classique,
- * donc l'upsert écrase une éventuelle note issue de la même question. Pur.
+ * dans la page de revue. Le path vient de `conversationPath`, partagé avec
+ * `conversationToBrainNote` : l'upsert écrase donc une éventuelle note issue de
+ * la même question, dans un sens comme dans l'autre. Pur.
  */
 export function gapToBrainNote(
   gap: GapInput,
@@ -101,6 +150,8 @@ export function gapToBrainNote(
   sourceHashes: Record<string, string>,
 ): BrainNote {
   const answer = humanAnswer.trim();
+  if (!gap.question.trim()) throw new Error('lacune sans question');
+  if (!answer) throw new Error('réponse vide : rien à capitaliser');
   const links = [...new Set(derivedFrom.map((p) => p.replace(/\.md$/, '')))];
   const body = [
     `# ${gap.question}`,
@@ -113,7 +164,7 @@ export function gapToBrainNote(
       : []),
   ].join('\n');
   return {
-    path: `conversations/${slugify(gap.question).slice(0, 80)}.md`,
+    path: conversationPath(gap.question),
     type: 'conversation',
     title: gap.question,
     aliases: [],

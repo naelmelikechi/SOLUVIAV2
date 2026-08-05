@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { BrainNote, BrainNoteType, NoteAnalysis } from './types';
 import type { FinalizedFiche } from '@/lib/process/types';
 import { extractDriveFileId } from '@/lib/process/drive-url';
@@ -21,6 +22,26 @@ export function slugify(input: string): string {
 
 export function notePath(type: BrainNoteType, key: string): string {
   return `${FOLDER[type]}/${slugify(key)}.md`;
+}
+
+/**
+ * Path d'une note de conversation. Partagé par les deux constructeurs
+ * (`conversationToBrainNote`, automatique, et `gapToBrainNote`, corrigé à la
+ * main) : ils écrivent dans le MÊME espace de noms, où `path` est unique en
+ * base. Si leur façon de fabriquer le path divergeait, deux notes cesseraient
+ * de se dédupliquer là où elles le devaient, ou entreraient en collision
+ * ailleurs — d'où une seule implémentation.
+ *
+ * Le suffixe de hash rend le path injectif : la troncature à 72 caractères
+ * seule faisait collisionner deux questions distinctes partageant un préfixe.
+ * Même question → même suffixe, donc la déduplication voulue est préservée. Pur.
+ */
+export function conversationPath(question: string): string {
+  const empreinte = createHash('sha256')
+    .update(question)
+    .digest('hex')
+    .slice(0, 8);
+  return `conversations/${slugify(question).slice(0, 72)}-${empreinte}.md`;
 }
 
 export function linkTarget(path: string): string {
@@ -156,7 +177,7 @@ export function conversationToBrainNote(
       : []),
   ].join('\n');
   return {
-    path: `conversations/${slugify(fb.question).slice(0, 80)}.md`,
+    path: conversationPath(fb.question),
     type: 'conversation',
     title: fb.question,
     aliases: [],

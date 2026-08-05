@@ -80,10 +80,18 @@ describe('noteToProposal', () => {
       /source_hash/,
     );
   });
+
+  it('refuse une note sans source_ref', () => {
+    // Même principe que source_hash : pas de repli sur note.path, qui changerait
+    // silencieusement la clé d'idempotence (unique (kind, source_ref) en base).
+    expect(() => noteToProposal({ ...note, source_ref: null })).toThrow(
+      /source_ref/,
+    );
+  });
 });
 
 describe('applyProposal', () => {
-  it('rend la note du payload', () => {
+  it('rend la note du payload quand editedBody est absent', () => {
     expect(applyProposal(noteToProposal(note))).toEqual(note);
   });
 
@@ -99,6 +107,38 @@ describe('applyProposal', () => {
   it('refuse une proposition qui ne porte pas de note', () => {
     const lacune = { ...noteToProposal(note), kind: 'lacune' as const };
     expect(() => applyProposal(lacune)).toThrow(/non applicable/);
+  });
+
+  it('refuse un payload dont le type ne correspond pas au kind', () => {
+    const incoherente = noteToProposal(note);
+    incoherente.payload = { ...note, type: 'entite' };
+    expect(() => applyProposal(incoherente)).toThrow(/incohérent/);
+  });
+
+  it('refuse un corps édité vidé plutôt que de republier le texte proposé', () => {
+    expect(() => applyProposal(noteToProposal(note), '   ')).toThrow(/vidé/);
+  });
+
+  it('corps édité : réaligne links et source_hashes', () => {
+    const deuxLiens: BrainNote = {
+      ...note,
+      links: ['fiches/lancement-a-1', 'fiches/qualite-g-2'],
+      frontmatter: {
+        derived_from: ['fiches/lancement-a-1', 'fiches/qualite-g-2'],
+        source_hashes: {
+          'fiches/lancement-a-1': 'h1',
+          'fiches/qualite-g-2': 'h2',
+        },
+      },
+    };
+    const applied = applyProposal(
+      noteToProposal(deuxLiens),
+      '# Comment facturer un OPCO ?\n\nRéponse. [[fiches/lancement-a-1]]',
+    );
+    expect(applied.links).toEqual(['fiches/lancement-a-1']);
+    expect(applied.frontmatter.source_hashes).toEqual({
+      'fiches/lancement-a-1': 'h1',
+    });
   });
 });
 
@@ -117,11 +157,12 @@ describe('gapToBrainNote', () => {
       { 'fiches/qualite-g-2': 'h1' },
     );
     expect(n.type).toBe('conversation');
-    expect(n.path).toBe('conversations/quel-delai-pour-transmettre-le-bpf.md');
+    expect(n.path).toMatch(
+      /^conversations\/quel-delai-pour-transmettre-le-bpf-[0-9a-f]{8}\.md$/,
+    );
     expect(n.title).toBe(gap.question);
     expect(n.body).toContain('Avant le 31 mai de chaque année.');
     expect(n.body).toContain('[[fiches/qualite-g-2]]');
-    expect(n.body).not.toContain('Je ne trouve pas');
     expect(n.links).toEqual(['fiches/qualite-g-2']);
     expect(n.frontmatter).toMatchObject({
       derived_from: ['fiches/qualite-g-2'],
@@ -139,9 +180,48 @@ describe('gapToBrainNote', () => {
     expect(a.source_hash).not.toBe(c.source_hash);
   });
 
+  it('le hash dépend aussi de la question', () => {
+    const a = gapToBrainNote(gap, 'Même réponse.', [], {}).source_hash;
+    const b = gapToBrainNote(
+      { ...gap, question: 'Une autre question ?' },
+      'Même réponse.',
+      [],
+      {},
+    ).source_hash;
+    expect(a).not.toBe(b);
+  });
+
   it('tronque le path des questions très longues', () => {
     const longue = { ...gap, question: 'a'.repeat(200) };
     const n = gapToBrainNote(longue, 'Réponse.', [], {});
-    expect(n.path.length).toBeLessThanOrEqual('conversations/'.length + 80 + 3);
+    expect(n.path.length).toBeLessThanOrEqual(
+      'conversations/'.length + 72 + 1 + 8 + 3,
+    );
+  });
+
+  it('deux questions longues distinctes donnent deux paths distincts', () => {
+    const a =
+      "Quelles sont les modalités de prise en charge d'une formation par un OPCO pour un salarié en CDI ?";
+    const b =
+      "Quelles sont les modalités de prise en charge d'une formation par un OPCO pour un intérimaire ?";
+    expect(gapToBrainNote({ ...gap, question: a }, 'R.', [], {}).path).not.toBe(
+      gapToBrainNote({ ...gap, question: b }, 'R.', [], {}).path,
+    );
+  });
+
+  it('la même question donne le même path (déduplication voulue)', () => {
+    const p1 = gapToBrainNote(gap, 'Une réponse.', [], {}).path;
+    const p2 = gapToBrainNote(gap, 'Une autre réponse.', [], {}).path;
+    expect(p1).toBe(p2);
+  });
+
+  it('refuse une lacune sans question', () => {
+    expect(() =>
+      gapToBrainNote({ ...gap, question: '  ' }, 'R.', [], {}),
+    ).toThrow(/question/);
+  });
+
+  it('refuse une réponse vide', () => {
+    expect(() => gapToBrainNote(gap, '   ', [], {})).toThrow(/vide/);
   });
 });

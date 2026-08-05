@@ -3,6 +3,7 @@ import {
   shouldPropose,
   noteToProposal,
   applyProposal,
+  gapToBrainNote,
   type BrainProposal,
 } from '@/lib/brain/proposal';
 import type { BrainNote } from '@/lib/brain/types';
@@ -98,5 +99,49 @@ describe('applyProposal', () => {
   it('refuse une proposition qui ne porte pas de note', () => {
     const lacune = { ...noteToProposal(note), kind: 'lacune' as const };
     expect(() => applyProposal(lacune)).toThrow(/non applicable/);
+  });
+});
+
+describe('gapToBrainNote', () => {
+  const gap = {
+    id: 'feedback-9',
+    question: 'Quel délai pour transmettre le BPF ?',
+    answer_ko: 'Je ne trouve pas cette information.',
+  };
+
+  it('construit une note conversation depuis la réponse humaine', () => {
+    const n = gapToBrainNote(
+      gap,
+      '  Avant le 31 mai de chaque année.  ',
+      ['fiches/qualite-g-2'],
+      { 'fiches/qualite-g-2': 'h1' },
+    );
+    expect(n.type).toBe('conversation');
+    expect(n.path).toBe('conversations/quel-delai-pour-transmettre-le-bpf.md');
+    expect(n.title).toBe(gap.question);
+    expect(n.body).toContain('Avant le 31 mai de chaque année.');
+    expect(n.body).toContain('[[fiches/qualite-g-2]]');
+    expect(n.body).not.toContain('Je ne trouve pas');
+    expect(n.links).toEqual(['fiches/qualite-g-2']);
+    expect(n.frontmatter).toMatchObject({
+      derived_from: ['fiches/qualite-g-2'],
+      source_hashes: { 'fiches/qualite-g-2': 'h1' },
+      corrige: true,
+    });
+    expect(n.source_ref).toBe('feedback-9');
+  });
+
+  it('hash stable et sensible à la réponse', () => {
+    const a = gapToBrainNote(gap, 'Avant le 31 mai.', [], {});
+    const b = gapToBrainNote(gap, 'Avant le 31 mai.', [], {});
+    const c = gapToBrainNote(gap, 'Avant le 30 juin.', [], {});
+    expect(a.source_hash).toBe(b.source_hash);
+    expect(a.source_hash).not.toBe(c.source_hash);
+  });
+
+  it('tronque le path des questions très longues', () => {
+    const longue = { ...gap, question: 'a'.repeat(200) };
+    const n = gapToBrainNote(longue, 'Réponse.', [], {});
+    expect(n.path.length).toBeLessThanOrEqual('conversations/'.length + 80 + 3);
   });
 });

@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto';
 import type { BrainNote } from './types';
+import { slugify, wikilink } from './note';
 
 export type ProposalKind =
   | 'conversation'
@@ -78,4 +80,54 @@ export function applyProposal(
   const note = p.payload as unknown as BrainNote;
   const body = editedBody?.trim();
   return body ? { ...note, body } : note;
+}
+
+export interface GapInput {
+  id: string;
+  question: string;
+  answer_ko: string;
+}
+
+/**
+ * Lacune (👎) + réponse rédigée par un admin → note `conversation`. La mauvaise
+ * réponse n'entre PAS dans la note : elle ne sert qu'à contextualiser l'arbitrage
+ * dans la page de revue. Le path est celui d'une note de conversation classique,
+ * donc l'upsert écrase une éventuelle note issue de la même question. Pur.
+ */
+export function gapToBrainNote(
+  gap: GapInput,
+  humanAnswer: string,
+  derivedFrom: string[],
+  sourceHashes: Record<string, string>,
+): BrainNote {
+  const answer = humanAnswer.trim();
+  const links = [...new Set(derivedFrom.map((p) => p.replace(/\.md$/, '')))];
+  const body = [
+    `# ${gap.question}`,
+    '',
+    "> Réponse rédigée et validée par un administrateur (correction d'une lacune 👎).",
+    '',
+    answer,
+    ...(links.length
+      ? ['', '## Sources', links.map(wikilink).join(' · ')]
+      : []),
+  ].join('\n');
+  return {
+    path: `conversations/${slugify(gap.question).slice(0, 80)}.md`,
+    type: 'conversation',
+    title: gap.question,
+    aliases: [],
+    tags: ['faq'],
+    links,
+    body,
+    frontmatter: {
+      derived_from: links,
+      source_hashes: sourceHashes,
+      corrige: true,
+    },
+    source_ref: gap.id,
+    source_hash: createHash('sha256')
+      .update(`${gap.question}|${answer}`)
+      .digest('hex'),
+  };
 }

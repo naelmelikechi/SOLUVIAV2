@@ -1867,3 +1867,27 @@ git push -u origin feat/cerveau-semi-auto
 gh pr create --title "Cerveau semi-automatique : le cerveau propose, l'admin valide" \
   --body "Voir docs/plans/2026-08-05-cerveau-semi-auto-design.md"
 ```
+
+## Décisions révisées en cours d'implémentation (2026-08-05)
+
+Le plan ci-dessus reste la trace de ce qui était prévu. Cinq points ont été tranchés autrement
+pendant l'exécution :
+
+- **Notes-entités créées en direct, sans définition.** Une note-carrefour ne fait que relier
+  les notes qui citent l'entité : elle n'invente rien, donc rien à faire valider. Seules les
+  **définitions** d'entités citées par au moins 3 notes sont proposées, et au plus 40 par
+  exécution — le plan initial en faisait proposer 842, iningérables.
+- **« Archiver » marque la note au lieu de la supprimer.** Le plan (et la spec) prescrivaient
+  un `delete` ; il détruisait sans recours la seule copie d'une réponse rédigée à la main.
+  `arbitrateStaleAction` pose `frontmatter.archive = true` : la note sort de la recherche et
+  du coffre Obsidian, reste en base, reste récupérable.
+- **« Régénérer » supprimé.** Pour une note de conversation il n'y a rien à régénérer (la
+  question et la réponse n'ont pas bougé, seule une source a changé) et le statut
+  `a_regenerer` ne menait nulle part. Le panneau d'obsolescence n'offre plus que _garder_ /
+  _archiver_ ; la contrainte `check` en base tolère encore la valeur, plus aucun code ne
+  l'écrit.
+- **Chemin des notes de conversation suffixé d'un hash**, pour être injectif : le slug tronqué
+  faisait collisionner deux questions distinctes sur le même fichier.
+- **Contenu curé à la main protégé.** Une réponse rédigée par un admin (`corrige: true`) et une
+  définition validée (`verified: true`) ne peuvent pas être écrasées par une proposition
+  automatique — le script ne les repropose pas, l'approbation les refuse.

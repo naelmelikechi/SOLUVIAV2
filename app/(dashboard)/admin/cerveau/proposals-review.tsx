@@ -54,6 +54,20 @@ function bodyOf(proposal: ProposalRow | null | undefined): string {
   return typeof body === 'string' ? body : '';
 }
 
+/**
+ * Sources dont l'empreinte a divergé depuis la rédaction de la note
+ * (`obsolescence`). Le champ est écrit par `markStaleConversations` ; les
+ * propositions ouvertes avant qu'il soit fiable peuvent ne rien porter, d'où le
+ * repli sur une liste vide plutôt qu'un rendu cassé.
+ */
+function sourcesModifieesOf(proposal: ProposalRow | null): string[] {
+  const payload: Record<string, unknown> = proposal?.payload ?? {};
+  const sources = payload.sources_modifiees;
+  return Array.isArray(sources)
+    ? sources.filter((s): s is string => typeof s === 'string')
+    : [];
+}
+
 /** Libellé de liste : titre, sinon question, sinon le chemin de la note. */
 function labelOf(proposal: ProposalRow): string {
   const payload: Record<string, unknown> = proposal.payload ?? {};
@@ -137,6 +151,7 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
 
   const payload: Record<string, unknown> = selected?.payload ?? {};
   const noteBody = bodyOf(selected);
+  const sourcesModifiees = sourcesModifieesOf(selected);
 
   return (
     <div className="grid gap-6 md:grid-cols-[320px_1fr]">
@@ -273,10 +288,43 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
 
           {selected.kind === 'obsolescence' && (
             <>
-              <h3 className="font-semibold">{selected.target_path}</h3>
-              <p className="text-muted-foreground text-sm">
-                Une source de cette note a changé. Que faire ?
-              </p>
+              <h3 className="font-semibold">
+                {String(payload.title ?? '') || selected.target_path}
+              </h3>
+              {/* Sans le détail de ce qui a bougé ni le texte concerné,
+                  l'arbitrage se ferait à l'aveugle. Rien n'est éditable ici :
+                  on décide du sort de la note, pas de son contenu. */}
+              {sourcesModifiees.length > 0 ? (
+                <div className="text-sm">
+                  <p className="text-muted-foreground">
+                    {sourcesModifiees.length === 1
+                      ? 'Source modifiée depuis la rédaction de cette réponse :'
+                      : 'Sources modifiées depuis la rédaction de cette réponse :'}
+                  </p>
+                  <ul className="mt-1 space-y-0.5">
+                    {sourcesModifiees.map((source) => (
+                      <li key={source}>
+                        <code className="text-xs">{source}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Une source de cette note a changé.
+                </p>
+              )}
+              {noteBody && (
+                <div>
+                  <p className="text-muted-foreground mb-1 text-xs">
+                    Contenu actuel de la note (lecture seule)
+                  </p>
+                  <pre className="bg-muted max-h-96 overflow-auto rounded p-3 font-mono text-xs whitespace-pre-wrap">
+                    {noteBody}
+                  </pre>
+                </div>
+              )}
+              <p className="text-muted-foreground text-sm">Que faire ?</p>
               {/* Deux choix, pas trois : « Régénérer » n'avait rien à
                   régénérer (la question et la réponse n'ont pas bougé, seule
                   une source a changé) et consommait l'arbitrage pour rien. */}

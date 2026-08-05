@@ -73,13 +73,27 @@ async function main() {
      from public.brain_notes order by path`,
   );
 
-  for (const note of rows) {
+  // Une note archivée par un arbitrage (`frontmatter.archive`, posé par
+  // `arbitrateStaleAction`) est sortie du cerveau : l'assistant ne s'en sert
+  // plus pour répondre, le coffre ne doit donc pas continuer à l'exposer.
+  // Elle reste en base, récupérable — c'est tout l'intérêt du drapeau.
+  const archivees = rows.filter((n) => n.frontmatter?.archive === true);
+  const notes = rows.filter((n) => n.frontmatter?.archive !== true);
+
+  for (const note of notes) {
     const full = join(vaultDir, note.path);
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, buildMarkdown(note), 'utf8');
   }
   writeFileSync(join(vaultDir, 'README.md'), README, 'utf8');
-  console.log(`✓ ${rows.length} note(s) écrite(s) dans ${vaultDir}`);
+  console.log(`✓ ${notes.length} note(s) écrite(s) dans ${vaultDir}`);
+  // Ce script n'efface rien : le fichier d'une note archivée reste sur disque
+  // tant qu'on ne le supprime pas à la main (cf. rapport — sujet distinct).
+  if (archivees.length)
+    console.log(
+      `  ${archivees.length} note(s) archivée(s) non écrite(s) ; ` +
+        `leur .md éventuel reste à supprimer à la main.`,
+    );
 }
 
 main().catch((e) => {

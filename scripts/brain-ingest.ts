@@ -530,15 +530,14 @@ async function markStaleConversations(dryRun: boolean): Promise<number> {
   let n = 0;
   for (const note of notes.filter((x) => x.type === 'conversation')) {
     const sh = note.frontmatter?.source_hashes ?? {};
-    let stale = false;
-    for (const [p, h] of Object.entries(sh)) {
-      if (currentHash.get(p) !== h) {
-        stale = true;
-        break;
-      }
-    }
+    // Les sources RÉELLEMENT divergentes, pas toutes celles de la note : c'est
+    // cette liste que l'admin lit pour arbitrer, et lui servir l'ensemble des
+    // sources ne lui apprend rien sur ce qui a bougé.
+    const changed = Object.entries(sh)
+      .filter(([p, h]) => currentHash.get(p) !== h)
+      .map(([p]) => p);
     const already = note.frontmatter?.stale === true;
-    if (!stale || already) continue;
+    if (!changed.length || already) continue;
     const marker = '> ⚠️ Réponse à revoir : une source a changé.\n\n';
     if (!dryRun) {
       await pg(
@@ -549,7 +548,6 @@ async function markStaleConversations(dryRun: boolean): Promise<number> {
          where path = ${lit(note.path)};`,
       );
     }
-    const changed = Object.keys(note.frontmatter?.source_hashes ?? {});
     await proposeNote(
       {
         kind: 'obsolescence',
@@ -558,6 +556,10 @@ async function markStaleConversations(dryRun: boolean): Promise<number> {
           path: note.path,
           title: note.title,
           sources_modifiees: changed,
+          // Le corps d'ORIGINE (sans la bannière « à revoir » ajoutée
+          // ci-dessus) : le panneau d'arbitrage n'a aucun autre moyen de
+          // montrer ce qu'on demande de garder ou d'archiver.
+          body: note.body ?? '',
         },
         source_ref: note.path,
         source_hash: createHash('sha256')

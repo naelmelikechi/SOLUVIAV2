@@ -71,6 +71,18 @@ describe('isContratRompu', () => {
     expect(isContratRompu(undefined)).toBe(false);
   });
 
+  it('ignore la casse : la prod porte RUPTURE en majuscules', () => {
+    // Regression : avec un Set.has strict, ces contrats n etaient ni actifs ni
+    // rompus -> aucun avoir prorata et production jusqu au terme initial.
+    expect(isContratRompu('RUPTURE')).toBe(true);
+    expect(isContratRompu('annule')).toBe(true);
+    expect(isContratRompu('Resilie')).toBe(true);
+  });
+
+  it('ARCHIVE n est PAS une rupture (fin normale, decision metier 2026-08-05)', () => {
+    expect(isContratRompu('ARCHIVE')).toBe(false);
+  });
+
   it('exposes the canonical Set', () => {
     expect(TERMINATION_CONTRACT_STATES.has('resilie')).toBe(true);
     expect(TERMINATION_CONTRACT_STATES.has('ANNULE')).toBe(true);

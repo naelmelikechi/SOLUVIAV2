@@ -19,7 +19,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(18);
+SELECT plan(21);
 
 -- ----- Fixtures -----
 CREATE TEMP TABLE _ctx (
@@ -230,6 +230,24 @@ SELECT set_eq(
     WHERE npec_amount IN (111111, 222222, 333333, 444444, 555555, 666666, 777777)$$,
   ARRAY[222222, 333333]::numeric[],
   'fenetre contrats : termine avant / demarre apres / demo / archives exclus, a cheval et +2 OPCO inclus');
+
+-- ----- 16-18. Production post-rupture : colonne + expo par la RPC -----
+-- Migration 20260805120000_production_post_rupture.sql. La troncature elle-meme
+-- vit en JS (computeContractSchedule) ; cote base on garantit que la date est
+-- stockable et REMONTE par la RPC, sans quoi le calcul JS ne la verrait jamais.
+SELECT has_column('contrats', 'date_rupture',
+  'contrats.date_rupture existe');
+SELECT col_is_null('contrats', 'date_rupture',
+  'contrats.date_rupture est nullable (NULL = contrat non rompu)');
+
+UPDATE contrats SET date_rupture = '2031-03-15'
+WHERE npec_amount = 222222;
+
+SELECT is(
+  (SELECT date_rupture FROM contrats_actifs_fenetre('2031-06-01', '2031-07-01')
+   WHERE npec_amount = 222222),
+  '2031-03-15'::date,
+  'contrats_actifs_fenetre expose date_rupture (troncature production cote JS)');
 
 SELECT * FROM finish();
 ROLLBACK;

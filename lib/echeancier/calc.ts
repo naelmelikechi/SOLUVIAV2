@@ -82,7 +82,14 @@ export function dateEmissionPrevuePourMois(moisAbsolu: string): string {
  * Nombre de mois (avec fraction) entre deux dates UTC. Utilise pour le pro-rata.
  * Exemple : 2026-01-01 -> 2026-07-01 = 6.0 (exact).
  */
-function monthsBetween(fromIso: string, toIso: string): number {
+/**
+ * Duree en mois (fractionnaire) entre deux dates ISO. Exporte car la
+ * production theorique (lib/queries/production.ts) doit tronquer un contrat
+ * rompu avec EXACTEMENT la meme convention que l'avoir prorata : sinon la
+ * production cumulee d'un contrat rompu ne vaudrait plus le "gagne" servant
+ * de reference a computeProrataRupture.
+ */
+export function monthsBetween(fromIso: string, toIso: string): number {
   const [fy, fm, fd] = fromIso.split('-').map(Number);
   const [ty, tm, td] = toIso.split('-').map(Number);
   if (!fy || !fm || !fd || !ty || !tm || !td) return 0;

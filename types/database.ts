@@ -1405,6 +1405,7 @@ export type Database = {
           creation_mode: string | null;
           date_debut: string | null;
           date_fin: string | null;
+          date_rupture: string | null;
           deleted_in_eduvia_at: string | null;
           duree_mois: number | null;
           eduvia_campus_id: number | null;
@@ -1444,6 +1445,7 @@ export type Database = {
           creation_mode?: string | null;
           date_debut?: string | null;
           date_fin?: string | null;
+          date_rupture?: string | null;
           deleted_in_eduvia_at?: string | null;
           duree_mois?: number | null;
           eduvia_campus_id?: number | null;
@@ -1483,6 +1485,7 @@ export type Database = {
           creation_mode?: string | null;
           date_debut?: string | null;
           date_fin?: string | null;
+          date_rupture?: string | null;
           deleted_in_eduvia_at?: string | null;
           duree_mois?: number | null;
           eduvia_campus_id?: number | null;
@@ -4194,6 +4197,7 @@ export type Database = {
           duree_mois: number;
           npec_amount: number;
           taux_commission: number;
+          date_rupture: string | null;
         }[];
       };
       count_factures_by_statut: {

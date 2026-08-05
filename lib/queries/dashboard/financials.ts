@@ -320,6 +320,7 @@ export async function getDashboardFinancials(
       c.duree_mois,
       c.npec_amount,
       c.taux_commission ?? 0,
+      c.date_rupture,
     );
     for (const e of schedule.soluvia) {
       if (e.month === monthKey) totalProduction += e.amount;

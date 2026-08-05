@@ -305,11 +305,16 @@ describe('getBillableEvents - base engagement', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Avoir compensateur libere le contrat
+// Liberation d'un event : event_libere_le, aligne sur l'index DB
 // ---------------------------------------------------------------------------
+// Regle : seule la colonne event_libere_le (posee en base a l'emission d'un
+// avoir TOTAL) libere un event. La simple presence d'une ligne d'avoir ne
+// suffit PAS : la clause de uq_facture_lignes_event_live ne regarde que
+// est_avoir et event_libere_le, donc proposer l'event sur la foi de l'avoir
+// menait a un 23505 systematique a l'insert.
 
-describe('getBillableEvents - avoir compensateur', () => {
-  it('event est "available" si live + avoir sur meme event_source_id', async () => {
+describe('getBillableEvents - liberation d un event', () => {
+  it('event reste "billed" si la ligne live n est pas liberee, meme avec un avoir', async () => {
     const mock = buildSupabase({
       projets: { data: projet },
       contrats: { data: [contrat()] },
@@ -339,21 +344,84 @@ describe('getBillableEvents - avoir compensateur', () => {
       },
       facture_lignes: {
         data: [
-          // Live engagement
+          // Live engagement, non liberee : c'est elle qui occupe l'index.
           {
             event_type: 'engagement',
             event_source_id: 'ctr-1',
             contrat_id: 'ctr-1',
             est_avoir: false,
+            event_libere_le: null,
             facture: { id: 'fac-A', ref: 'FAC-HEO-0001', statut: 'emise' },
           },
-          // Avoir compensateur
+          // Ligne d'avoir portant le meme event : ne libere rien a elle seule.
           {
             event_type: 'engagement',
             event_source_id: 'ctr-1',
             contrat_id: 'ctr-1',
             est_avoir: true,
-            facture: { id: 'fac-B', ref: 'FAC-HEO-0002', statut: 'emise' },
+            event_libere_le: null,
+            facture: { id: 'fac-B', ref: 'AVR-HEO-0001', statut: 'avoir' },
+          },
+        ],
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    const ev = result!.events.find((e) => e.type === 'engagement')!;
+    expect(ev.status).toBe('billed');
+    expect(ev.billed_on?.facture_ref).toBe('FAC-HEO-0001');
+  });
+
+  it('event redevient "available" quand la ligne live porte event_libere_le', async () => {
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat()] },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 203,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-uuid-203',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 203,
+            including_pedagogie_amount: 2000,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'REGLE',
+          },
+        ],
+      },
+      facture_lignes: {
+        data: [
+          {
+            event_type: 'engagement',
+            event_source_id: 'ctr-1',
+            contrat_id: 'ctr-1',
+            est_avoir: false,
+            event_libere_le: '2026-07-29T00:00:00Z',
+            facture: { id: 'fac-A', ref: 'FAC-HEO-0001', statut: 'emise' },
+          },
+          {
+            event_type: 'engagement',
+            event_source_id: 'ctr-1',
+            contrat_id: 'ctr-1',
+            est_avoir: true,
+            event_libere_le: null,
+            facture: { id: 'fac-B', ref: 'AVR-HEO-0001', statut: 'avoir' },
           },
         ],
       },
@@ -369,6 +437,72 @@ describe('getBillableEvents - avoir compensateur', () => {
     expect(ev.status).toBe('available');
     expect(ev.billed_on).toBeUndefined();
     expect(ev.locked_by).toBeUndefined();
+  });
+
+  it('une refacturation non liberee reprend la main sur la ligne liberee', async () => {
+    // Cas 0016-HEO-APP : FAC-SOL-0015 avoirisee (donc liberee) puis
+    // refacturee sur FAC-SOL-0017. L'event doit etre vu comme facture sur la
+    // NOUVELLE facture, pas comme disponible.
+    const mock = buildSupabase({
+      projets: { data: projet },
+      contrats: { data: [contrat()] },
+      eduvia_invoice_lines: {
+        data: [
+          {
+            eduvia_invoice_id: 204,
+            contrat_id: 'ctr-1',
+            amount: 2000,
+            line_type: 'PEDAGOGIE',
+          },
+        ],
+      },
+      eduvia_invoice_steps: {
+        data: [
+          {
+            id: 'step-uuid-204',
+            contrat_id: 'ctr-1',
+            step_number: 1,
+            eduvia_invoice_id: 204,
+            including_pedagogie_amount: 2000,
+            opening_date: '2026-01-01',
+            paid_at: null,
+            invoice_state: 'REGLE',
+          },
+        ],
+      },
+      facture_lignes: {
+        data: [
+          // Ancienne facture, liberee par l'avoir total.
+          {
+            event_type: 'engagement',
+            event_source_id: 'ctr-1',
+            contrat_id: 'ctr-1',
+            est_avoir: false,
+            event_libere_le: '2026-07-29T00:00:00Z',
+            facture: { id: 'fac-A', ref: 'FAC-SOL-0015', statut: 'en_retard' },
+          },
+          // Refacturation, vivante et non liberee.
+          {
+            event_type: 'engagement',
+            event_source_id: 'ctr-1',
+            contrat_id: 'ctr-1',
+            est_avoir: false,
+            event_libere_le: null,
+            facture: { id: 'fac-C', ref: 'FAC-SOL-0017', statut: 'emise' },
+          },
+        ],
+      },
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      mock.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+
+    const { getBillableEvents } = await import('@/lib/queries/billable-events');
+    const result = await getBillableEvents('pjt-1');
+
+    const ev = result!.events.find((e) => e.type === 'engagement')!;
+    expect(ev.status).toBe('billed');
+    expect(ev.billed_on?.facture_ref).toBe('FAC-SOL-0017');
   });
 
   it('event est "billed" si live sans avoir compensateur', async () => {

@@ -187,56 +187,38 @@ export function assembleProjetBillableEvents(input: {
 
   // 6. Lignes de facture deja existantes pour ces events (idempotence map).
   //
-  // On recupere TOUTES les lignes (live + avoirs) puis on calcule le statut
-  // effectif : un event est "billed" SSI il a une ligne live (est_avoir=false)
-  // ET qu aucun avoir compensateur (meme event_source_id, est_avoir=true)
-  // ne l annule. Sans cette logique, un avoir total ne libere jamais le
-  // contrat pour une refacturation, alors que c est precisement son but.
-  type LineRef = {
-    contrat_id: string | null;
-    event_type: string;
-    facture: { id: string; ref: string | null; statut: string };
-  };
-  const slotsBySource = new Map<string, { live?: LineRef; avoir?: LineRef }>();
-  for (const l of existingLignes) {
-    if (!l.event_type || !l.event_source_id || !l.facture) continue;
-    const slot = slotsBySource.get(l.event_source_id) ?? {};
-    const ref: LineRef = {
-      contrat_id: l.contrat_id,
-      event_type: l.event_type,
-      facture: {
-        id: l.facture.id,
-        ref: l.facture.ref ?? null,
-        statut: l.facture.statut,
-      },
-    };
-    if (l.est_avoir) slot.avoir = ref;
-    else slot.live = ref;
-    slotsBySource.set(l.event_source_id, slot);
-  }
-
-  // Index : event_source_id (clef unique) -> billed ref
+  // Regle STRICTEMENT alignee sur l'index DB uq_facture_lignes_event_live :
+  // une ligne bloque l'event si elle est vivante (est_avoir=false) ET non
+  // liberee (event_libere_le IS NULL). La liberation est posee en base a
+  // l'emission d'un avoir TOTAL sur la facture porteuse (cf. migration
+  // 20260805170000_facture_lignes_event_liberation.sql).
+  //
+  // Historique : on deduisait la liberation de la presence d'une ligne d'avoir
+  // portant le meme event_source_id. La base, elle, ne regardait que
+  // est_avoir : l'UI reproposait donc des events que l'INSERT rejetait
+  // systematiquement en 23505. Toute divergence entre cette fonction et la
+  // clause de l'index reintroduit ce bug.
   const billedByEventSource = new Map<string, BilledRef>();
-  // Index : contrat_id -> set des event_type deja factures live ET non
-  // annules par avoir (regle d'exclusion engagement <-> opco_step).
+  // Index : contrat_id -> event_type deja facture et non libere (regle
+  // d'exclusion engagement <-> opco_step).
   const eventTypesByContrat = new Map<string, Map<EventType, BilledRef>>();
 
-  for (const [eventSourceId, { live, avoir }] of slotsBySource) {
-    // Avoir compensateur sur le meme event = libere le contrat
-    if (!live || avoir) continue;
+  for (const l of existingLignes) {
+    if (!l.event_type || !l.event_source_id || !l.facture) continue;
+    if (l.est_avoir || l.event_libere_le) continue;
     const ref: BilledRef = {
-      facture_id: live.facture.id,
-      facture_ref: live.facture.ref,
-      facture_statut: live.facture.statut,
+      facture_id: l.facture.id,
+      facture_ref: l.facture.ref ?? null,
+      facture_statut: l.facture.statut,
     };
-    billedByEventSource.set(eventSourceId, ref);
-    if (live.contrat_id) {
-      let m = eventTypesByContrat.get(live.contrat_id);
+    billedByEventSource.set(l.event_source_id, ref);
+    if (l.contrat_id) {
+      let m = eventTypesByContrat.get(l.contrat_id);
       if (!m) {
         m = new Map();
-        eventTypesByContrat.set(live.contrat_id, m);
+        eventTypesByContrat.set(l.contrat_id, m);
       }
-      m.set(live.event_type as EventType, ref);
+      m.set(l.event_type as EventType, ref);
     }
   }
 

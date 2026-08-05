@@ -12,7 +12,10 @@ import { getDefaultSocieteEmettriceId } from '@/lib/queries/societes-emettrices'
 import { computeFactureTotauxTtcInclus } from '@/lib/utils/facture-totaux-ttc-inclus';
 import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 import { billingStepLabel } from '@/lib/utils/billing-step-label';
-import { uuidSchema } from '@/lib/actions/factures/brouillons-shared';
+import {
+  uuidSchema,
+  type SupabaseServerClient,
+} from '@/lib/actions/factures/brouillons-shared';
 
 const SelectedEventSchema = z.object({
   type: z.enum(['engagement', 'opco_step']),
@@ -40,9 +43,14 @@ const CreateFactureFromEventsSchema = z.object({
 // l'envoi via sendFacture.
 //
 // Idempotence : la UNIQUE INDEX uq_facture_lignes_event_live garantit qu'un
-// event ne peut etre dans deux lignes "live" en meme temps. Si un autre
-// utilisateur facture le meme event en parallele, l'INSERT echoue, on
-// rollback proprement.
+// event ne peut etre dans deux lignes vivantes non liberees en meme temps
+// (est_avoir = false AND event_libere_le IS NULL). Si l'INSERT echoue en
+// 23505, on rollback proprement et on nomme la facture bloquante.
+//
+// La liberation (event_libere_le) est posee en base a l'emission d'un avoir
+// TOTAL : c'est ce qui autorise une refacturation apres annulation. Elle est
+// lue a l'identique par getBillableEvents ; toute divergence entre les deux
+// fait reapparaitre des events que l'INSERT refusera.
 //
 // Regle d'exclusion engagement <-> opco_step : appliquee cote query
 // (getBillableEvents marque le type oppose comme 'locked' si l'autre est
@@ -334,18 +342,21 @@ export async function createFactureFromEvents(params: {
     .insert(lignes);
 
   if (lignesError) {
-    // Race condition (UNIQUE viole) ou autre : on supprime le brouillon
+    // UNIQUE viole ou autre : on supprime le brouillon
     await supabase.from('factures').delete().eq('id', facture.id);
     logger.error('actions.factures', 'createFactureFromEvents lignes failed', {
       factureId: facture.id,
       error: lignesError,
     });
-    // Detection race condition
+    // 23505 = uq_facture_lignes_event_live : un des events est deja porte par
+    // une ligne vivante non liberee. On nomme la facture bloquante plutot que
+    // d'accuser une race condition : dans les faits c'est presque toujours un
+    // event deja facture que l'ecran proposait a tort (donnees incoherentes),
+    // et un message generique envoie l'utilisateur recharger dans le vide.
     if (lignesError.code === '23505') {
       return {
         success: false,
-        error:
-          'Un événement a été facturé en parallèle par un autre utilisateur. Recharger la page et réessayer.',
+        error: await describeEventConflict(supabase, filteredResolved),
       };
     }
     return { success: false, error: lignesError.message };
@@ -367,4 +378,57 @@ export async function createFactureFromEvents(params: {
   revalidatePath(`/projets/${live.projetRef}`);
 
   return { success: true, id: facture.id };
+}
+
+// ---------------------------------------------------------------------------
+// Message d'erreur sur violation de uq_facture_lignes_event_live
+// ---------------------------------------------------------------------------
+// L'index porte sur (event_type, event_source_id) WHERE est_avoir = false AND
+// event_libere_le IS NULL. Un conflit signifie qu'une facture vivante porte
+// deja l'un des events selectionnes. On la retrouve pour le dire clairement :
+// c'est actionnable (aller voir la facture), contrairement a un "reessayez".
+async function describeEventConflict(
+  supabase: SupabaseServerClient,
+  events: Array<{ type: string; source_id: string }>,
+): Promise<string> {
+  const fallback =
+    'Un des événements sélectionnés est déjà facturé. Rechargez la page : la liste affichée est périmée.';
+  try {
+    const { data } = await supabase
+      .from('facture_lignes')
+      .select(
+        'event_source_id, contrat:contrats!facture_lignes_contrat_id_fkey(ref, apprenant_nom), facture:factures!facture_lignes_facture_id_fkey(ref, statut)',
+      )
+      .in(
+        'event_source_id',
+        events.map((e) => e.source_id),
+      )
+      .eq('est_avoir', false)
+      .is('event_libere_le', null);
+
+    const refs = Array.from(
+      new Set(
+        (data ?? [])
+          .map((l) => l.facture?.ref)
+          .filter((r): r is string => Boolean(r)),
+      ),
+    ).toSorted();
+    if (refs.length === 0) return fallback;
+
+    const apprenants = Array.from(
+      new Set(
+        (data ?? [])
+          .map((l) => l.contrat?.apprenant_nom?.trim())
+          .filter((n): n is string => Boolean(n)),
+      ),
+    ).toSorted();
+
+    const qui =
+      apprenants.length > 0
+        ? ` (${apprenants.slice(0, 3).join(', ')}${apprenants.length > 3 ? '...' : ''})`
+        : '';
+    return `Déjà facturé sur ${refs.join(', ')}${qui}. Rechargez la page : la liste affichée est périmée.`;
+  } catch {
+    return fallback;
+  }
 }

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/types/database';
-import { differenceInMonths } from 'date-fns';
+import { computeDureeMois } from '@/lib/utils/duree-contrat';
 import {
   fetchAllPages,
   fetchOne,
@@ -631,16 +631,13 @@ async function upsertContrats(
     try {
       const learner = learnerById.get(contract.employee_id);
       const formation = formationById.get(contract.formation_id);
-      const dureeRaw =
-        contract.contract_start_date && contract.contract_end_date
-          ? differenceInMonths(
-              new Date(contract.contract_end_date),
-              new Date(contract.contract_start_date),
-            )
-          : null;
-      // Dates Eduvia malformees -> Invalid Date -> differenceInMonths = NaN,
-      // qui ferait echouer l'upsert du contrat. On retombe sur null.
-      const duree_mois = Number.isFinite(dureeRaw) ? dureeRaw : null;
+      // Arrondi au mois le plus proche (cf. lib/utils/duree-contrat.ts) : la
+      // troncature faisait tomber les contrats de 12 mois a 11 et supprimait
+      // silencieusement le jalon M+12 de l'echeancier.
+      const duree_mois = computeDureeMois(
+        contract.contract_start_date,
+        contract.contract_end_date,
+      );
 
       // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { error: upsertError } = await supabase.from('contrats').upsert(

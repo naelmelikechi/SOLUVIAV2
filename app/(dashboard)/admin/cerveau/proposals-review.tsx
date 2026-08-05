@@ -35,6 +35,15 @@ const ORDER: ProposalKind[] = [
 ];
 
 /**
+ * Ordre réellement affiché. Sert aussi bien au rendu qu'à la sélection initiale
+ * et à « la proposition suivante » : sans lui, la sélection de départ serait la
+ * plus ancienne au sens FIFO, qui n'est pas le premier élément que voit l'admin.
+ */
+function ordonner(rows: ProposalRow[]): ProposalRow[] {
+  return ORDER.flatMap((kind) => rows.filter((p) => p.kind === kind));
+}
+
+/**
  * Corps éditable d'une proposition (absent pour lacune / obsolescence).
  * `payload` est `jsonb not null` en base, mais `'null'::jsonb` reste possible :
  * sans le `?? {}`, une seule ligne malformée ferait tomber tout l'écran.
@@ -60,13 +69,13 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
   // après `refresh()` et l'admin approuverait un texte qui n'est plus celui qui
   // sera publié.
   const [selectedId, setSelectedId] = useState<string | null>(
-    proposals[0]?.id ?? null,
+    () => ordonner(proposals)[0]?.id ?? null,
   );
   // Le brouillon est initialisé avec le corps de la proposition sélectionnée
   // dès le premier rendu : l'affichage ne retombe jamais sur le corps d'origine
   // quand l'admin vide le champ (un corps vidé est un vrai vide, et le serveur
   // le refuse explicitement).
-  const [draft, setDraft] = useState(() => bodyOf(proposals[0]));
+  const [draft, setDraft] = useState(() => bodyOf(ordonner(proposals)[0]));
   // Sélection demandée mais suspendue à une confirmation (brouillon non
   // enregistré).
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
@@ -75,10 +84,7 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
 
   const selected = proposals.find((p) => p.id === selectedId) ?? null;
 
-  // Ordre réellement affiché : c'est lui qui définit « la proposition suivante ».
-  const ordered = ORDER.flatMap((kind) =>
-    proposals.filter((p) => p.kind === kind),
-  );
+  const ordered = ordonner(proposals);
   const currentIndex = ordered.findIndex((p) => p.id === selectedId);
   const nextProposal =
     currentIndex === -1
@@ -151,7 +157,7 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
                     <li key={p.id}>
                       <button
                         type="button"
-                        aria-current={selectedId === p.id}
+                        aria-current={selectedId === p.id ? 'true' : undefined}
                         onClick={() => askSelect(p)}
                         className={cn(
                           'hover:bg-muted w-full truncate rounded px-2 py-1 text-left text-sm',

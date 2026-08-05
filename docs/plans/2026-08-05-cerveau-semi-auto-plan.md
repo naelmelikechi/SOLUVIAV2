@@ -36,7 +36,7 @@ guard `checkAuth`). Le plan suit la convention du dépôt.
 - `app/(dashboard)/admin/cerveau/page.tsx` — page server, garde admin
 - `app/(dashboard)/admin/cerveau/loading.tsx`
 - `app/(dashboard)/admin/cerveau/proposals-review.tsx` — composant client (liste + détail + actions)
-- `__tests__/brain-proposals.test.ts`
+- `__tests__/brain-proposal.test.ts`
 
 **Modifiés**
 - `lib/brain/retrieve.ts` — dépendance `admin` → `db` (client de l'utilisateur)
@@ -194,7 +194,7 @@ change (le contenu refusé n'est plus celui qu'on propose).
 
 **Fichiers :**
 - Créer : `lib/brain/proposal.ts`
-- Test : `__tests__/brain-proposals.test.ts`
+- Test : `__tests__/brain-proposal.test.ts`
 
 - [ ] **Étape 1 : écrire le test qui échoue**
 
@@ -234,7 +234,7 @@ describe('shouldPropose', () => {
 
 - [ ] **Étape 2 : lancer le test, vérifier qu'il échoue**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : ÉCHEC — `Failed to resolve import "@/lib/brain/proposal"`.
 
 - [ ] **Étape 3 : implémentation minimale**
@@ -281,13 +281,13 @@ export function hashNote(note: BrainNote): string {
 
 - [ ] **Étape 4 : lancer le test, vérifier qu'il passe**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : 4 tests PASS.
 
 - [ ] **Étape 5 : commit**
 
 ```bash
-git add lib/brain/proposal.ts __tests__/brain-proposals.test.ts
+git add lib/brain/proposal.ts __tests__/brain-proposal.test.ts
 git commit -m "feat(cerveau): shouldPropose — idempotence et rejet durable"
 ```
 
@@ -297,11 +297,11 @@ git commit -m "feat(cerveau): shouldPropose — idempotence et rejet durable"
 
 **Fichiers :**
 - Modifier : `lib/brain/proposal.ts`
-- Test : `__tests__/brain-proposals.test.ts`
+- Test : `__tests__/brain-proposal.test.ts`
 
 - [ ] **Étape 1 : écrire le test qui échoue**
 
-Ajouter à `__tests__/brain-proposals.test.ts` (compléter l'import en tête du fichier avec
+Ajouter à `__tests__/brain-proposal.test.ts` (compléter l'import en tête du fichier avec
 `noteToProposal, applyProposal`) :
 
 ```ts
@@ -321,21 +321,19 @@ const note: BrainNote = {
 };
 
 describe('noteToProposal', () => {
-  it('construit une proposition en attente à partir de la note', () => {
+  it('construit une proposition à partir de la note', () => {
     const p = noteToProposal(note);
     expect(p.kind).toBe('conversation');
-    expect(p.status).toBe('en_attente');
     expect(p.target_path).toBe('conversations/comment-facturer.md');
     expect(p.source_ref).toBe('feedback-1');
     expect(p.source_hash).toBe('hash-qa');
   });
 
-  it('retombe sur un hash de contenu stable si la note n en porte pas', () => {
-    const sans = { ...note, source_hash: null };
-    const a = noteToProposal(sans);
-    const b = noteToProposal(sans);
-    expect(a.source_hash).toBe(b.source_hash);
-    expect(a.source_hash).toHaveLength(64);
+  it('refuse une note sans source_hash', () => {
+    // Pas de repli silencieux : tous les constructeurs de notes renseignent
+    // source_hash. Une note sans hash est un bug d'appelant, pas un cas normal —
+    // un repli inventerait un hash qui ne suivrait pas la source.
+    expect(() => noteToProposal({ ...note, source_hash: null })).toThrow(/source_hash/);
   });
 
   it('refuse un type non dérivé', () => {
@@ -363,7 +361,7 @@ describe('applyProposal', () => {
 
 - [ ] **Étape 2 : lancer le test, vérifier qu'il échoue**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : ÉCHEC — `noteToProposal is not a function`.
 
 - [ ] **Étape 3 : implémenter dans `lib/brain/proposal.ts`**
@@ -379,13 +377,15 @@ export function noteToProposal(note: BrainNote): BrainProposal {
   if (note.type !== 'conversation' && note.type !== 'entite') {
     throw new Error(`type non proposable : ${note.type}`);
   }
+  if (!note.source_hash) {
+    throw new Error(`note sans source_hash : ${note.path}`);
+  }
   return {
     kind: note.type,
-    status: 'en_attente',
     target_path: note.path,
     payload: note as unknown as Record<string, unknown>,
     source_ref: note.source_ref ?? note.path,
-    source_hash: note.source_hash ?? hashNote(note),
+    source_hash: note.source_hash,
   };
 }
 
@@ -407,13 +407,13 @@ export function applyProposal(p: BrainProposal, editedBody?: string): BrainNote 
 
 - [ ] **Étape 4 : lancer le test, vérifier qu'il passe**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : tous PASS.
 
 - [ ] **Étape 5 : commit**
 
 ```bash
-git add lib/brain/proposal.ts __tests__/brain-proposals.test.ts
+git add lib/brain/proposal.ts __tests__/brain-proposal.test.ts
 git commit -m "feat(cerveau): noteToProposal / applyProposal"
 ```
 
@@ -423,7 +423,7 @@ git commit -m "feat(cerveau): noteToProposal / applyProposal"
 
 **Fichiers :**
 - Modifier : `lib/brain/proposal.ts`
-- Test : `__tests__/brain-proposals.test.ts`
+- Test : `__tests__/brain-proposal.test.ts`
 
 - [ ] **Étape 1 : écrire le test qui échoue**
 
@@ -473,7 +473,7 @@ describe('gapToBrainNote', () => {
 
 - [ ] **Étape 2 : lancer le test, vérifier qu'il échoue**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : ÉCHEC — `gapToBrainNote is not a function`.
 
 - [ ] **Étape 3 : implémenter dans `lib/brain/proposal.ts`**
@@ -532,13 +532,13 @@ export function gapToBrainNote(
 
 - [ ] **Étape 4 : lancer le test, vérifier qu'il passe**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : tous PASS.
 
 - [ ] **Étape 5 : commit**
 
 ```bash
-git add lib/brain/proposal.ts __tests__/brain-proposals.test.ts
+git add lib/brain/proposal.ts __tests__/brain-proposal.test.ts
 git commit -m "feat(cerveau): gapToBrainNote — une lacune corrigee devient une note"
 ```
 
@@ -1487,7 +1487,7 @@ est désormais portée par `shouldPropose` face à `brain_proposals` (une conver
 approuvée n'est PAS dans `brain_notes`, donc `seen` ne la connaît pas et elle serait reproposée
 à chaque run).
 
-- [ ] **Étape 3 : `ingestEntities` propose**
+- [ ] **Étape 3 : `ingestEntities` propose, et son hash cesse de suivre les backlinks**
 
 Même transformation : `const known = await loadProposals();` en tête, et remplacer
 `await upsertNote(entityToBrainNote(...)); n++;` par
@@ -1496,6 +1496,27 @@ Même transformation : `const known = await loadProposals();` en tête, et rempl
     const note = entityToBrainNote(short, d.name || titleCase(short), bl, d.definition ?? '', hash);
     if (await proposeNote(noteToProposal(note), known, dryRun)) n++;
 ```
+
+**Et corriger le calcul de `hash` juste au-dessus.** Il vaut aujourd'hui
+`createHash('sha256').update(`${bl.join(',')}|${d.definition}`)` — il inclut les backlinks.
+Or les backlinks bougent dès qu'une note quelconque se met à citer l'entité, ce qui ferait
+changer le hash sans que rien de ce que l'admin a arbitré n'ait changé : une entité rejetée
+réapparaîtrait dans la file quelques runs plus tard, avec la même définition. Le rejet ne
+serait durable que pour les conversations. Le hash ne doit porter que **la partie arbitrée** :
+
+```ts
+    // Le hash ne porte que ce que l'admin arbitre (nom + définition). Les backlinks
+    // sont dérivés mécaniquement du graphe et bougent tout le temps : les inclure
+    // ferait réapparaître une entité rejetée dès qu'une nouvelle note la cite.
+    const hash = createHash('sha256')
+      .update(`${d.name || titleCase(short)}|${d.definition ?? ''}`)
+      .digest('hex');
+```
+
+Conséquence assumée : la section « Notes liées » d'une entité **déjà approuvée** ne se met plus
+à jour toute seule quand le graphe bouge. Ce n'est pas bloquant (l'expansion de recherche
+s'appuie sur `links` des notes sources, pas sur cette section), et c'est à traiter séparément
+si ça gêne à l'usage.
 
 - [ ] **Étape 4 : `markStaleConversations` propose au lieu de modifier**
 
@@ -1519,7 +1540,6 @@ recherche — mais l'arbitrage passe par la file) :
     await proposeNote(
       {
         kind: 'obsolescence',
-        status: 'en_attente',
         target_path: note.path,
         payload: { path: note.path, title: note.title, sources_modifiees: changed },
         source_ref: note.path,
@@ -1535,7 +1555,13 @@ avec `const known = await loadProposals();` en tête de fonction.
 
 - [ ] **Étape 5 : consommer les `a_regenerer`**
 
-Dans `main`, après le bloc Phase 3, ajouter :
+Dans `main`, **avant** le bloc Phase 3 (et non après), ajouter le code ci-dessous.
+
+L'ordre compte : ces demandes doivent être consommées avant que les fonctions Phase 3 ne
+touchent aux propositions. `shouldPropose` protège déjà les lignes `a_regenerer` (elle renvoie
+`skip` même sur hash changé, précisément pour ne pas écraser la demande d'un admin), mais
+consommer d'abord évite de faire reposer la correction sur une seule ligne de garde : la
+réanalyse a lieu, puis les propositions rafraîchies repassent normalement par la file.
 
 ```ts
   // Régénérations demandées depuis /admin/cerveau : l'app ne peut pas appeler
@@ -1580,7 +1606,6 @@ async function syncGaps(vaultDir: string | null, dryRun: boolean): Promise<numbe
     await proposeNote(
       {
         kind: 'lacune',
-        status: 'en_attente',
         target_path: null,
         payload: {
           question: g.question,

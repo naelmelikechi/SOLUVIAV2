@@ -187,4 +187,36 @@ describe('entityToBrainNote', () => {
     expect(note.body).toContain('Opérateur de compétences');
     expect(note.body).toContain('[[fiches/lancement-a-1]]');
   });
+
+  it('persiste la définition en frontmatter, qui survit à la réécriture', () => {
+    const definition = 'Opérateur de compétences finançant la formation.';
+    const note = entityToBrainNote(
+      'opco',
+      'OPCO',
+      ['fiches/a'],
+      definition,
+      'h1',
+    );
+    expect(note.frontmatter).toEqual({ definition });
+
+    // La note est réécrite quand les backlinks bougent : la définition relue
+    // depuis le frontmatter doit traverser l'aller-retour intacte.
+    const relue =
+      (note.frontmatter as { definition?: string }).definition ?? '';
+    const reecrite = entityToBrainNote(
+      'opco',
+      'OPCO',
+      ['fiches/a', 'fiches/b'],
+      relue,
+      'h2',
+    );
+    expect(reecrite.frontmatter).toEqual({ definition });
+    expect(reecrite.body).toContain(definition);
+    expect(reecrite.links).toEqual(['fiches/a', 'fiches/b']);
+  });
+
+  it('sans définition, le frontmatter reste vide', () => {
+    const note = entityToBrainNote('opco', 'OPCO', ['fiches/a'], '', 'h1');
+    expect(note.frontmatter).toEqual({});
+  });
 });

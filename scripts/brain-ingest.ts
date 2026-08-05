@@ -256,6 +256,9 @@ function livrableToBrainNote(
 }
 
 // ---------------------------------------------------------------- Phase 3
+/** Une entité citée par moins de 3 notes ne justifie pas de mobiliser un arbitrage humain. */
+const SEUIL_DEFINITION = 3;
+
 const titleCase = (s: string) =>
   s
     .split('-')
@@ -271,6 +274,7 @@ interface NoteRow {
   frontmatter: {
     source_hashes?: Record<string, string>;
     stale?: boolean;
+    definition?: string;
   } | null;
   body?: string;
   title?: string;
@@ -360,14 +364,50 @@ Renvoie UNIQUEMENT un JSON : {"<identifiant>": {"name": "...", "definition": "..
   }
 }
 
-/** Propose les notes-carrefour `entite` manquantes (référencées mais sans note). */
+/**
+ * Définition portée par une note `entite` existante. `frontmatter.definition`
+ * fait foi ; à défaut on la relit dans le corps, pour les notes écrites avant
+ * que la définition ne soit persistée en frontmatter. Sans ce repli, la
+ * réécriture mécanique des backlinks effacerait une définition déjà validée.
+ */
+function definitionExistante(note: NoteRow | undefined): string {
+  const fm = note?.frontmatter?.definition;
+  if (typeof fm === 'string' && fm.trim()) return fm.trim();
+  const m = (note?.body ?? '').match(/^#[^\n]*\n\n(?!## )([\s\S]*?)\n\n## /);
+  return m?.[1]?.trim() ?? '';
+}
+
+/**
+ * Vrai si la note porte des sections rédigées à la main (autres que « Notes
+ * liées »). `entityToBrainNote` ne sait pas les reconstruire : les réécrire
+ * mécaniquement les supprimerait.
+ */
+function estCuree(note: NoteRow | undefined): boolean {
+  return /\n## (?!Notes liées)/.test(note?.body ?? '');
+}
+
+/**
+ * Entités : deux chemins distincts.
+ *
+ * 1. Toute entité citée reçoit sa note EN DIRECT, sans définition et sans
+ *    arbitrage : une note-carrefour sans définition n'invente rien, son contenu
+ *    se déduit mécaniquement des notes qui la citent. Son `source_hash` porte
+ *    les backlinks — on veut justement qu'elle se rafraîchisse quand le graphe
+ *    bouge.
+ * 2. Seule la DÉFINITION est soumise à l'humain, et seulement là où elle sert :
+ *    entité citée au moins `SEUIL_DEFINITION` fois, sans définition, et sans
+ *    proposition existante quel que soit son statut (sinon un rejet se
+ *    rouvrirait à chaque exécution, la définition étant reformulée par Claude).
+ */
 async function ingestEntities(dryRun: boolean): Promise<number> {
   const notes = await pg<NoteRow>(
     `select path, type, links from public.brain_notes`,
   );
-  const existing = new Set(
-    notes.filter((n) => n.type === 'entite').map((n) => n.path),
+  const entites = await pg<NoteRow>(
+    `select path, type, links, title, body, frontmatter, source_hash
+     from public.brain_notes where type = 'entite'`,
   );
+  const parPath = new Map(entites.map((e) => [e.path, e]));
   const backlinks = new Map<string, string[]>();
   for (const note of notes) {
     for (const l of note.links ?? []) {
@@ -378,43 +418,82 @@ async function ingestEntities(dryRun: boolean): Promise<number> {
       }
     }
   }
-  const missing = [...backlinks.keys()].filter(
-    (link) => !existing.has(`${link}.md`),
-  );
-  if (!missing.length) return 0;
+  const citees = [...backlinks.keys()];
+  if (!citees.length) return 0;
 
-  const known = await loadProposals();
-  // Une entité déjà arbitrée (approuvée comme rejetée) ne doit pas être
-  // redemandée à Claude : sa définition serait reformulée, donc son hash
-  // changerait, donc un rejet serait rouvert à chaque exécution.
-  const aDefinir = missing.filter(
-    (l) => !known.has(`entite:${l.replace(/^entites\//, '')}`),
-  );
-  if (!aDefinir.length) return 0;
-
-  const shorts = aDefinir.map((l) => l.replace(/^entites\//, ''));
-  const defs = entityDefinitions(shorts);
-  let n = 0;
-  for (const link of aDefinir) {
+  // --- Chemin 1 : notes-carrefour écrites en direct (pas de Claude) ---
+  let creees = 0;
+  for (const link of citees) {
     const short = link.replace(/^entites\//, '');
     const bl = backlinks.get(link) ?? [];
-    const d = defs[short] ?? { name: titleCase(short), definition: '' };
-    // Le hash ne porte que ce que l'admin arbitre (nom + définition). Les backlinks
-    // sont dérivés mécaniquement du graphe et bougent tout le temps : les inclure
-    // ferait réapparaître une entité rejetée dès qu'une nouvelle note la cite.
-    const hash = createHash('sha256')
-      .update(`${d.name || titleCase(short)}|${d.definition ?? ''}`)
-      .digest('hex');
+    const existante = parPath.get(`${link}.md`);
+    // Une note curée à la main n'est pas régénérable : on la laisse telle
+    // quelle, sa section « Notes liées » se périmera plutôt que d'emporter le
+    // travail éditorial. Compromis déjà retenu pour les entités approuvées.
+    if (estCuree(existante)) continue;
+    const hash = createHash('sha256').update(bl.join(',')).digest('hex');
+    if (existante?.source_hash === hash) continue; // backlinks inchangés
     const note = entityToBrainNote(
       short,
-      d.name || titleCase(short),
+      existante?.title || titleCase(short),
       bl,
-      d.definition ?? '',
+      definitionExistante(existante),
       hash,
     );
-    if (await proposeNote(noteToProposal(note), known, dryRun)) n++;
+    // Le frontmatter déjà posé sur la note (sources, verified…) ne doit pas
+    // être emporté par une réécriture purement mécanique des backlinks.
+    note.frontmatter = {
+      ...(existante?.frontmatter ?? {}),
+      ...note.frontmatter,
+    };
+    if (!dryRun) await upsertNote(note);
+    creees++;
   }
-  return n;
+
+  // --- Chemin 2 : la définition, elle, s'arbitre ---
+  const known = await loadProposals();
+  const candidates = citees.filter((link) => {
+    const short = link.replace(/^entites\//, '');
+    if ((backlinks.get(link) ?? []).length < SEUIL_DEFINITION) return false;
+    if (definitionExistante(parPath.get(`${link}.md`))) return false;
+    return !known.has(`entite:${short}`);
+  });
+
+  let proposees = 0;
+  if (candidates.length) {
+    const defs = entityDefinitions(
+      candidates.map((l) => l.replace(/^entites\//, '')),
+    );
+    for (const link of candidates) {
+      const short = link.replace(/^entites\//, '');
+      const d = defs[short];
+      // Sans définition rendue par Claude il n'y a rien à arbitrer : proposer
+      // du vide brûlerait le créneau (le filtre `known` ci-dessus l'exclurait
+      // ensuite définitivement). L'entité reste candidate au prochain run.
+      if (!d?.definition?.trim()) continue;
+      const nom = d.name || titleCase(short);
+      // Le hash ne porte que ce que l'admin arbitre (nom + définition) : y
+      // mettre les backlinks ferait réapparaître une entité rejetée dès qu'une
+      // nouvelle note la cite.
+      const hash = createHash('sha256')
+        .update(`${nom}|${d.definition.trim()}`)
+        .digest('hex');
+      const note = entityToBrainNote(
+        short,
+        nom,
+        backlinks.get(link) ?? [],
+        d.definition.trim(),
+        hash,
+      );
+      if (await proposeNote(noteToProposal(note), known, dryRun)) proposees++;
+    }
+  }
+
+  console.log(
+    `  entités écrites en direct : ${creees} · définitions proposées : ${proposees}` +
+      ` (candidates : ${candidates.length})`,
+  );
+  return creees + proposees;
 }
 
 /** Marque `stale` les conversations dont une source a changé, et propose l'arbitrage. */

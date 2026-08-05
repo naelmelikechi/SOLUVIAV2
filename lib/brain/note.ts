@@ -192,7 +192,13 @@ export function conversationToBrainNote(
 
 /**
  * Note `entite` (carrefour du graphe). `backlinks` = paths (sans extension) des
- * notes qui la référencent. `definition` optionnelle (peut venir de Claude). Pur.
+ * notes qui la référencent. `definition` optionnelle (peut venir de Claude).
+ *
+ * La définition est persistée dans le frontmatter en plus d'être rendue dans le
+ * corps : la note est réécrite mécaniquement dès que les backlinks bougent, et
+ * sans cette copie structurée la réécriture effacerait une définition validée
+ * par un admin — le mode de défaillance exact que l'arbitrage existe pour
+ * empêcher. Pur.
  */
 export function entityToBrainNote(
   slug: string,
@@ -217,7 +223,7 @@ export function entityToBrainNote(
     tags: [],
     links: uniq,
     body,
-    frontmatter: {},
+    frontmatter: definition ? { definition } : {},
     source_ref: `entite:${slug}`,
     source_hash: sourceHash,
   };

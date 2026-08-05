@@ -3,12 +3,13 @@ import { shouldPropose, type BrainProposal } from '@/lib/brain/proposal';
 
 const proposal: BrainProposal = {
   kind: 'conversation',
-  status: 'en_attente',
   target_path: 'conversations/comment-facturer.md',
   payload: { path: 'conversations/comment-facturer.md' },
   source_ref: 'feedback-1',
   source_hash: 'hash-a',
 };
+
+const STATUTS = ['en_attente', 'approuvee', 'rejetee', 'a_regenerer'] as const;
 
 describe('shouldPropose', () => {
   it('insère quand rien n existe', () => {
@@ -16,27 +17,22 @@ describe('shouldPropose', () => {
   });
 
   it('ignore un contenu inchangé, quel que soit le statut', () => {
-    for (const status of [
-      'en_attente',
-      'approuvee',
-      'rejetee',
-      'a_regenerer',
-    ] as const) {
+    for (const status of STATUTS) {
       expect(shouldPropose(proposal, { status, source_hash: 'hash-a' })).toBe(
         'skip',
       );
     }
   });
 
-  it('rouvre une proposition rejetée dont le contenu a changé', () => {
-    expect(
-      shouldPropose(proposal, { status: 'rejetee', source_hash: 'hash-b' }),
-    ).toBe('reopen');
-  });
-
-  it('rouvre aussi une proposition déjà approuvée dont la source a changé', () => {
-    expect(
-      shouldPropose(proposal, { status: 'approuvee', source_hash: 'hash-b' }),
-    ).toBe('reopen');
+  // `a_regenerer` fait exception : rouvrir écraserait la demande de
+  // régénération posée par l'admin, sans log ni trace.
+  it('rouvre sur contenu changé, sauf régénération en cours', () => {
+    for (const status of STATUTS) {
+      const verdict = shouldPropose(proposal, {
+        status,
+        source_hash: 'hash-b',
+      });
+      expect(verdict).toBe(status === 'a_regenerer' ? 'skip' : 'reopen');
+    }
   });
 });

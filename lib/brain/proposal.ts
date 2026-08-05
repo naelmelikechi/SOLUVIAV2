@@ -1,6 +1,3 @@
-import { createHash } from 'node:crypto';
-import type { BrainNote } from './types';
-
 export type ProposalKind =
   | 'conversation'
   | 'entite'
@@ -14,7 +11,6 @@ export type ProposalStatus =
 
 export interface BrainProposal {
   kind: ProposalKind;
-  status: ProposalStatus;
   target_path: string | null;
   payload: Record<string, unknown>;
   source_ref: string;
@@ -27,6 +23,10 @@ export interface BrainProposal {
  * `skip` sur hash identique quel que soit le statut : un rejet est DURABLE, on
  * ne repropose pas le même contenu à chaque run. `reopen` dès que le hash change :
  * le contenu refusé n'est plus celui qu'on propose, l'admin doit re-arbitrer.
+ * Exception : `a_regenerer` reste `skip` même si le hash change. Ce statut est
+ * posé par un admin pour demander une régénération que le script consomme en
+ * fin de run ; un `reopen` prématuré le repasserait en `en_attente` et
+ * effacerait la demande sans trace.
  */
 export function shouldPropose(
   next: BrainProposal,
@@ -34,12 +34,6 @@ export function shouldPropose(
 ): 'skip' | 'insert' | 'reopen' {
   if (!existing) return 'insert';
   if (existing.source_hash === next.source_hash) return 'skip';
+  if (existing.status === 'a_regenerer') return 'skip';
   return 'reopen';
-}
-
-/** Hash de repli quand la note ne porte pas de source_hash. Pur. */
-export function hashNote(note: BrainNote): string {
-  return createHash('sha256')
-    .update(`${note.path}|${note.title}|${note.body}`)
-    .digest('hex');
 }

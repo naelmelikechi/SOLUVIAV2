@@ -1,4 +1,14 @@
-export type BrainNoteType = 'fiche' | 'livrable' | 'conversation' | 'entite';
+// `document` = les documents du Drive « SOLUVIA BRAIN », ingérés par
+// `scripts/brain-drive.ts`. Le type existe en base depuis la migration
+// 20260804140000 (186 notes aujourd'hui) mais n'avait jamais été répercuté ici :
+// tout ce qui dérive de cette union — dont la table FOLDER et donc l'élagage du
+// coffre — ignorait silencieusement le dossier `documents/`.
+export type BrainNoteType =
+  | 'fiche'
+  | 'livrable'
+  | 'conversation'
+  | 'entite'
+  | 'document';
 
 export interface BrainNote {
   path: string; // 'fiches/lancement-a-1.md' (avec .md)

@@ -8,6 +8,7 @@ const FOLDER: Record<BrainNoteType, string> = {
   livrable: 'livrables',
   conversation: 'conversations',
   entite: 'entites',
+  document: 'documents',
 };
 
 const NOTE_TYPES = Object.keys(FOLDER) as BrainNoteType[];

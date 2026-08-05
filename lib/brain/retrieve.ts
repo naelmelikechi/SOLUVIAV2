@@ -30,10 +30,18 @@ function toNote(r: Row): BrainNote {
  *
  * Passe par le client de l'UTILISATEUR : la RLS de `brain_notes` (select ouvert
  * à `authenticated` depuis la migration 20260805100000) est la seule source de
- * vérité sur la lecture. Le garde-fou porte sur ce qui ENTRE dans le cerveau —
- * les notes dérivées passent par `brain_proposals` et une validation admin.
- * `search_brain_trgm` n'est pas `security definer`, la RLS s'applique donc bien
- * à l'appelant.
+ * vérité sur la lecture. `search_brain_trgm` n'est pas `security definer`, la
+ * RLS s'applique donc bien à l'appelant.
+ *
+ * Ce qui protège le contenu servi, selon son origine :
+ * - notes DÉRIVÉES (`conversation`, `entite`) : validation admin explicite via
+ *   `brain_proposals` — rien n'entre sans arbitrage humain ;
+ * - notes MIROIR (`fiche`, `livrable`, `document`) : écrites en direct par le
+ *   script d'ingestion. Leur garde-fou est en AMONT et hors dépôt — la curation
+ *   du dossier Drive « SOLUVIA BRAIN » et des livrables rattachés aux fiches.
+ *   Décision assumée : ce contenu est de la documentation interne lisible par
+ *   tout salarié. Si un livrable client nominatif devait y être indexé, il
+ *   faudrait filtrer par `type` ici plutôt que d'ouvrir la policy en grand.
  */
 export async function retrieveNotes(
   question: string,

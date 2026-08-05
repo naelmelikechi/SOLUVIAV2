@@ -33,11 +33,3 @@ export async function getPendingProposals(): Promise<ProposalRow[]> {
   }
   return (data ?? []) as ProposalRow[];
 }
-
-/** Compteurs par kind, pour les titres de section. */
-export async function getPendingCounts(): Promise<Record<string, number>> {
-  const rows = await getPendingProposals();
-  const counts: Record<string, number> = {};
-  for (const r of rows) counts[r.kind] = (counts[r.kind] ?? 0) + 1;
-  return counts;
-}

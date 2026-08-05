@@ -18,8 +18,13 @@ type Result = { success: boolean; error?: string };
 
 type AdminDb = ReturnType<typeof createAdminClient>;
 
+// `sourceHash` = contrôle de concurrence optimiste. Le script réécrit une
+// proposition existante en place (`do update set payload = …`) : la même ligne
+// peut donc changer de contenu entre l'affichage et le clic. Obligatoire sur
+// tout ce qui publie ; inutile pour un rejet, qui vaut pour toute version.
 const ApproveSchema = z.object({
   id: z.string().uuid(),
+  sourceHash: z.string().min(1).max(128),
   editedBody: z.string().max(50000).optional(),
 });
 const RejectSchema = z.object({
@@ -28,10 +33,12 @@ const RejectSchema = z.object({
 });
 const GapSchema = z.object({
   id: z.string().uuid(),
+  sourceHash: z.string().min(1).max(128),
   answer: z.string().min(1).max(20000),
 });
 const StaleSchema = z.object({
   id: z.string().uuid(),
+  sourceHash: z.string().min(1).max(128),
   choix: z.enum(['garder', 'archiver', 'regenerer']),
 });
 
@@ -112,18 +119,29 @@ async function decide(
   return (data ?? []).length > 0;
 }
 
+/**
+ * Charge la proposition en attente, à condition que son `source_hash` soit
+ * encore celui que l'admin avait sous les yeux. Sinon on refuse : publier un
+ * payload réécrit depuis l'affichage reviendrait à mettre dans le cerveau un
+ * texte que personne n'a relu.
+ */
 async function loadPending(
   db: AdminDb,
   id: string,
+  sourceHash: string,
 ): Promise<BrainProposal & { id: string }> {
   const { data, error } = await db
     .from('brain_proposals')
     .select('id, kind, status, target_path, payload, source_ref, source_hash')
     .eq('id', id)
     .eq('status', 'en_attente')
+    .eq('source_hash', sourceHash)
     .single();
-  if (error || !data)
-    throw new Error('Proposition introuvable ou déjà traitée');
+  if (error || !data) {
+    throw new Error(
+      'Proposition déjà traitée, ou modifiée depuis son affichage — recharge la page',
+    );
+  }
   return data as unknown as BrainProposal & { id: string };
 }
 
@@ -137,7 +155,11 @@ export async function approveProposalAction(
   if (!gate.ok) return { success: false, error: gate.error };
 
   try {
-    const proposal = await loadPending(gate.db, parsed.data.id);
+    const proposal = await loadPending(
+      gate.db,
+      parsed.data.id,
+      parsed.data.sourceHash,
+    );
     const note = applyProposal(proposal, parsed.data.editedBody);
     // On écrit AVANT de marquer approuvée : si l'upsert échoue, la proposition
     // reste `en_attente` et l'admin peut réessayer. Rien n'est perdu.
@@ -155,7 +177,7 @@ export async function approveProposalAction(
     return { success: false, error: (e as Error).message };
   }
 
-  revalidatePath('/admin/cerveau', 'layout');
+  revalidatePath('/admin/cerveau');
   return { success: true };
 }
 
@@ -178,9 +200,10 @@ export async function rejectProposalAction(
     );
     if (!moved) return { success: false, error: 'Proposition déjà traitée' };
   } catch (e) {
+    logger.error('actions.brain-proposals', 'reject failed', { error: e });
     return { success: false, error: (e as Error).message };
   }
-  revalidatePath('/admin/cerveau', 'layout');
+  revalidatePath('/admin/cerveau');
   return { success: true };
 }
 
@@ -194,13 +217,42 @@ export async function resolveGapAction(
   if (!gate.ok) return { success: false, error: gate.error };
 
   try {
-    const proposal = await loadPending(gate.db, parsed.data.id);
+    const proposal = await loadPending(
+      gate.db,
+      parsed.data.id,
+      parsed.data.sourceHash,
+    );
     const p = proposal.payload as {
       question?: string;
       answer_ko?: string;
-      derived_from?: string[];
-      source_hashes?: Record<string, string>;
     };
+
+    // Les sources citées lors du 👎 sont résolues ICI (et non à l'ouverture de
+    // la lacune) : elles alimentent frontmatter.source_hashes, sans lequel la
+    // note ne serait jamais revisitée par l'anti-obsolescence.
+    const { data: fb } = await gate.db
+      .from('process_qa_feedback')
+      .select('sources')
+      .eq('id', proposal.source_ref)
+      .maybeSingle();
+    const ids = ((fb?.sources ?? []) as Array<{ source_fiche_id?: string }>)
+      .map((s) => s.source_fiche_id)
+      .filter((v): v is string => !!v);
+    const derivedFrom: string[] = [];
+    const sourceHashes: Record<string, string> = {};
+    if (ids.length) {
+      const { data: notes } = await gate.db
+        .from('brain_notes')
+        .select('path, source_ref, source_hash')
+        .in('source_ref', ids);
+      for (const n of notes ?? []) {
+        const key = n.path.replace(/\.md$/, '');
+        derivedFrom.push(key);
+        if (n.source_hash) sourceHashes[key] = n.source_hash;
+      }
+    }
+    derivedFrom.sort();
+
     const note = gapToBrainNote(
       {
         id: proposal.source_ref,
@@ -208,8 +260,8 @@ export async function resolveGapAction(
         answer_ko: p.answer_ko ?? '',
       },
       parsed.data.answer,
-      p.derived_from ?? [],
-      p.source_hashes ?? {},
+      derivedFrom,
+      sourceHashes,
     );
     const err = await upsertNote(gate.db, note);
     if (err) return { success: false, error: err };
@@ -224,11 +276,11 @@ export async function resolveGapAction(
     logger.error('actions.brain-proposals', 'resolveGap failed', { error: e });
     return { success: false, error: (e as Error).message };
   }
-  revalidatePath('/admin/cerveau', 'layout');
+  revalidatePath('/admin/cerveau');
   return { success: true };
 }
 
-/** Obsolescence : garder (dé-staler) / archiver (supprimer) / régénérer (drapeau). */
+/** Obsolescence : garder (dé-staler) / archiver (drapeau) / régénérer (drapeau). */
 export async function arbitrateStaleAction(
   input: z.infer<typeof StaleSchema>,
 ): Promise<Result> {
@@ -238,7 +290,21 @@ export async function arbitrateStaleAction(
   if (!gate.ok) return { success: false, error: gate.error };
 
   try {
-    const proposal = await loadPending(gate.db, parsed.data.id);
+    const proposal = await loadPending(
+      gate.db,
+      parsed.data.id,
+      parsed.data.sourceHash,
+    );
+    // `noteToProposal` pose `target_path` sur TOUTES les propositions : sans ce
+    // garde, l'identifiant d'une `conversation` passé ici avec `archiver`
+    // suffirait à faire archiver une note approuvée. Une Server Action est un
+    // point d'entrée HTTP — l'interface ne protège rien.
+    if (proposal.kind !== 'obsolescence') {
+      return {
+        success: false,
+        error: "Cette proposition n'est pas un arbitrage d'obsolescence",
+      };
+    }
     const path = proposal.target_path;
     if (!path) return { success: false, error: 'Proposition sans note cible' };
 
@@ -263,25 +329,40 @@ export async function arbitrateStaleAction(
         .eq('path', path);
       if (upErr) return { success: false, error: upErr.message };
     } else if (parsed.data.choix === 'archiver') {
+      // Archiver ≠ supprimer : la note sort de la recherche mais reste en base,
+      // récupérable. C'est souvent la seule copie d'une réponse rédigée à la main.
+      const { data: existante, error: lectErr } = await gate.db
+        .from('brain_notes')
+        .select('frontmatter')
+        .eq('path', path)
+        .maybeSingle();
+      if (lectErr) return { success: false, error: lectErr.message };
+      if (!existante) return { success: false, error: 'Note introuvable' };
       const { error } = await gate.db
         .from('brain_notes')
-        .delete()
+        .update({
+          frontmatter: {
+            ...(existante.frontmatter as Record<string, unknown>),
+            archive: true,
+          } as unknown as Json,
+          updated_at: new Date().toISOString(),
+        })
         .eq('path', path);
       if (error) return { success: false, error: error.message };
     } else {
       // Régénérer : l'app ne peut pas appeler Claude (abonnement Max). On pose
       // le drapeau ; le prochain `npm run brain:ingest` réanalyse et repropose.
-      const { error } = await gate.db
-        .from('brain_proposals')
-        .update({
-          status: 'a_regenerer',
-          decided_by: gate.userId,
-          decided_at: new Date().toISOString(),
-        })
-        .eq('id', parsed.data.id)
-        .eq('status', 'en_attente');
-      if (error) return { success: false, error: error.message };
-      revalidatePath('/admin/cerveau', 'layout');
+      // Via `decide` comme les trois autres chemins : un `update` sans `.select()`
+      // affectant zéro ligne ne lève pas, et annoncerait une régénération qui
+      // n'aurait jamais lieu.
+      const moved = await decide(
+        gate.db,
+        parsed.data.id,
+        'a_regenerer',
+        gate.userId,
+      );
+      if (!moved) return { success: false, error: 'Proposition déjà traitée' };
+      revalidatePath('/admin/cerveau');
       return { success: true };
     }
 
@@ -299,6 +380,6 @@ export async function arbitrateStaleAction(
     });
     return { success: false, error: (e as Error).message };
   }
-  revalidatePath('/admin/cerveau', 'layout');
+  revalidatePath('/admin/cerveau');
   return { success: true };
 }

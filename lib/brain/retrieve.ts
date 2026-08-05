@@ -74,10 +74,17 @@ export async function retrieveNotes(
     }
   }
 
-  // Exclut les notes marquées obsolètes (`frontmatter.stale`) — ex. une réponse
-  // capitalisée dont la fiche/livrable source a changé (cf. anti-obsolescence P3).
+  // Exclut deux cas :
+  // - `frontmatter.stale` : note marquée obsolète — ex. une réponse capitalisée
+  //   dont la fiche/livrable source a changé (cf. anti-obsolescence P3) ;
+  // - `frontmatter.archive` : note archivée par un admin lors d'un arbitrage
+  //   d'obsolescence. Elle sort de la recherche mais reste en base, récupérable.
   return [...byPath.values()]
-    .filter((r) => r.frontmatter?.['stale'] !== true)
+    .filter(
+      (r) =>
+        r.frontmatter?.['stale'] !== true &&
+        r.frontmatter?.['archive'] !== true,
+    )
     .slice(0, MAX_NOTES)
     .map(toNote);
 }

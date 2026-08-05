@@ -33,9 +33,15 @@ import {
   slugify,
   wikilink,
   isNonAnswer,
+  conversationPath,
   conversationToBrainNote,
   entityToBrainNote,
 } from '../lib/brain/note';
+import {
+  shouldPropose,
+  noteToProposal,
+  type BrainProposal,
+} from '../lib/brain/proposal';
 import type { BrainNote, NoteAnalysis } from '../lib/brain/types';
 import type { FinalizedFiche } from '../lib/process/types';
 
@@ -87,6 +93,57 @@ async function upsertNote(note: BrainNote): Promise<void> {
       title=excluded.title, aliases=excluded.aliases, tags=excluded.tags, links=excluded.links,
       body=excluded.body, frontmatter=excluded.frontmatter, source_ref=excluded.source_ref,
       source_hash=excluded.source_hash, updated_at=now();`);
+}
+
+// ---------------------------------------------------------------- propositions
+// Nom distinct de `ProposalRow` (lib/queries/brain-proposals.ts), qui porte la
+// ligne complète pour l'UI : ici on ne lit que de quoi décider.
+interface ProposalState {
+  kind: string;
+  source_ref: string;
+  status: 'en_attente' | 'approuvee' | 'rejetee' | 'a_regenerer';
+  source_hash: string;
+}
+
+/** État des propositions déjà en base, indexé par `kind:source_ref`. */
+async function loadProposals(): Promise<Map<string, ProposalState>> {
+  const rows = await pg<ProposalState>(
+    `select kind, source_ref, status, source_hash from public.brain_proposals`,
+  );
+  return new Map(rows.map((r) => [`${r.kind}:${r.source_ref}`, r]));
+}
+
+/**
+ * Dépose (ou rouvre) une proposition. Renvoie true si quelque chose a été écrit.
+ * `shouldPropose` garantit qu'un rejet reste durable tant que le contenu ne bouge pas.
+ */
+async function proposeNote(
+  p: BrainProposal,
+  known: Map<string, ProposalState>,
+  dryRun: boolean,
+): Promise<boolean> {
+  const existing = known.get(`${p.kind}:${p.source_ref}`) ?? null;
+  const verdict = shouldPropose(p, existing);
+  if (verdict === 'skip') return false;
+  if (dryRun) {
+    console.log(
+      `  proposition (${verdict}) ${p.kind} : ${p.target_path ?? p.source_ref}`,
+    );
+    return true;
+  }
+  await pg(`insert into public.brain_proposals
+    (kind, status, target_path, payload, source_ref, source_hash)
+    values (${lit(p.kind)}, 'en_attente', ${p.target_path ? lit(p.target_path) : 'null'},
+            ${lit(JSON.stringify(p.payload))}::jsonb, ${lit(p.source_ref)}, ${lit(p.source_hash)})
+    on conflict (kind, source_ref) do update set
+      status = 'en_attente',
+      target_path = excluded.target_path,
+      payload = excluded.payload,
+      source_hash = excluded.source_hash,
+      reason = null,
+      decided_by = null,
+      decided_at = null;`);
+  return true;
 }
 
 // ---------------------------------------------------------------- analyse (Max)
@@ -219,8 +276,17 @@ interface NoteRow {
   title?: string;
 }
 
-/** Capitalise les réponses validées (👍) en notes `conversation`. */
+/** Propose les réponses validées (👍) comme notes `conversation` à arbitrer. */
 async function ingestConversations(dryRun: boolean): Promise<number> {
+  const known = await loadProposals();
+  const corrigees = new Set(
+    (
+      await pg<{ path: string }>(
+        `select path from public.brain_notes
+         where type = 'conversation' and frontmatter->>'corrige' = 'true'`,
+      )
+    ).map((r) => r.path),
+  );
   const fb = await pg<{
     id: string;
     question: string;
@@ -234,15 +300,15 @@ async function ingestConversations(dryRun: boolean): Promise<number> {
     `select path, source_ref, source_hash from public.brain_notes where source_ref is not null`,
   );
   const byRef = new Map(notes.map((n) => [n.source_ref!, n]));
-  const seen = new Map(notes.map((n) => [n.source_ref!, n.source_hash]));
 
   let n = 0;
   for (const f of fb) {
     if (isNonAnswer(f.answer)) continue;
+    // L'idempotence est portée par `shouldPropose` face à `brain_proposals` :
+    // une conversation non encore approuvée n'est PAS dans `brain_notes`.
     const qaHash = createHash('sha256')
       .update(`${f.question}|${f.answer}`)
       .digest('hex');
-    if (seen.get(f.id) === qaHash) continue; // déjà capitalisé, inchangé
 
     const derivedFrom: string[] = [];
     const sourceHashes: Record<string, string> = {};
@@ -254,21 +320,17 @@ async function ingestConversations(dryRun: boolean): Promise<number> {
         if (note.source_hash) sourceHashes[key] = note.source_hash;
       }
     }
-    if (dryRun) {
-      console.log(`conversation À CAPITALISER : ${f.question.slice(0, 60)}`);
-      n++;
-      continue;
-    }
-    await upsertNote(
-      conversationToBrainNote(
-        { id: f.id, question: f.question, answer: f.answer },
-        derivedFrom,
-        qaHash,
-        sourceHashes,
-      ),
+    // Une réponse rédigée par un admin fait autorité sur une paraphrase de
+    // l'assistant : on ne repropose pas la même question par-dessus.
+    if (corrigees.has(conversationPath(f.question))) continue;
+
+    const note = conversationToBrainNote(
+      { id: f.id, question: f.question, answer: f.answer },
+      derivedFrom,
+      qaHash,
+      sourceHashes,
     );
-    console.log(`  ✓ conversation « ${f.question.slice(0, 50)} »`);
-    n++;
+    if (await proposeNote(noteToProposal(note), known, dryRun)) n++;
   }
   return n;
 }
@@ -298,7 +360,7 @@ Renvoie UNIQUEMENT un JSON : {"<identifiant>": {"name": "...", "definition": "..
   }
 }
 
-/** Crée les notes-carrefour `entite` manquantes (référencées mais sans note). */
+/** Propose les notes-carrefour `entite` manquantes (référencées mais sans note). */
 async function ingestEntities(dryRun: boolean): Promise<number> {
   const notes = await pg<NoteRow>(
     `select path, type, links from public.brain_notes`,
@@ -320,38 +382,44 @@ async function ingestEntities(dryRun: boolean): Promise<number> {
     (link) => !existing.has(`${link}.md`),
   );
   if (!missing.length) return 0;
-  if (dryRun) {
-    console.log(`entités À CRÉER : ${missing.length}`);
-    return missing.length;
-  }
 
-  const shorts = missing.map((l) => l.replace(/^entites\//, ''));
+  const known = await loadProposals();
+  // Une entité déjà arbitrée (approuvée comme rejetée) ne doit pas être
+  // redemandée à Claude : sa définition serait reformulée, donc son hash
+  // changerait, donc un rejet serait rouvert à chaque exécution.
+  const aDefinir = missing.filter(
+    (l) => !known.has(`entite:${l.replace(/^entites\//, '')}`),
+  );
+  if (!aDefinir.length) return 0;
+
+  const shorts = aDefinir.map((l) => l.replace(/^entites\//, ''));
   const defs = entityDefinitions(shorts);
   let n = 0;
-  for (const link of missing) {
+  for (const link of aDefinir) {
     const short = link.replace(/^entites\//, '');
     const bl = backlinks.get(link) ?? [];
     const d = defs[short] ?? { name: titleCase(short), definition: '' };
+    // Le hash ne porte que ce que l'admin arbitre (nom + définition). Les backlinks
+    // sont dérivés mécaniquement du graphe et bougent tout le temps : les inclure
+    // ferait réapparaître une entité rejetée dès qu'une nouvelle note la cite.
     const hash = createHash('sha256')
-      .update(`${bl.join(',')}|${d.definition}`)
+      .update(`${d.name || titleCase(short)}|${d.definition ?? ''}`)
       .digest('hex');
-    await upsertNote(
-      entityToBrainNote(
-        short,
-        d.name || titleCase(short),
-        bl,
-        d.definition ?? '',
-        hash,
-      ),
+    const note = entityToBrainNote(
+      short,
+      d.name || titleCase(short),
+      bl,
+      d.definition ?? '',
+      hash,
     );
-    n++;
+    if (await proposeNote(noteToProposal(note), known, dryRun)) n++;
   }
-  console.log(`  ✓ ${n} entité(s)`);
   return n;
 }
 
-/** Marque `stale` les conversations dont une source a changé (anti-obsolescence). */
+/** Marque `stale` les conversations dont une source a changé, et propose l'arbitrage. */
 async function markStaleConversations(dryRun: boolean): Promise<number> {
+  const known = await loadProposals();
   const notes = await pg<Required<NoteRow>>(
     `select path, type, links, source_ref, source_hash, frontmatter, body, title
      from public.brain_notes`,
@@ -370,46 +438,100 @@ async function markStaleConversations(dryRun: boolean): Promise<number> {
       }
     }
     const already = note.frontmatter?.stale === true;
-    if (stale === already) continue;
-    if (dryRun) {
-      console.log(`conversation ${stale ? '→ STALE' : '→ ok'} : ${note.title}`);
-      n++;
-      continue;
-    }
+    if (!stale || already) continue;
     const marker = '> ⚠️ Réponse à revoir : une source a changé.\n\n';
-    const cleanBody = note.body.startsWith('> ⚠️')
-      ? note.body.replace(/^> ⚠️[^\n]*\n\n/, '')
-      : note.body;
-    await pg(
-      `update public.brain_notes set
-         frontmatter = frontmatter || ${lit(JSON.stringify({ stale }))}::jsonb,
-         body = ${lit(stale ? marker + cleanBody : cleanBody)},
-         updated_at = now()
-       where path = ${lit(note.path)};`,
+    if (!dryRun) {
+      await pg(
+        `update public.brain_notes set
+           frontmatter = frontmatter || '{"stale":true}'::jsonb,
+           body = ${lit(marker + note.body)},
+           updated_at = now()
+         where path = ${lit(note.path)};`,
+      );
+    }
+    const changed = Object.keys(note.frontmatter?.source_hashes ?? {});
+    await proposeNote(
+      {
+        kind: 'obsolescence',
+        target_path: note.path,
+        payload: {
+          path: note.path,
+          title: note.title,
+          sources_modifiees: changed,
+        },
+        source_ref: note.path,
+        source_hash: createHash('sha256')
+          .update(JSON.stringify(sh))
+          .digest('hex'),
+      },
+      known,
+      dryRun,
     );
     n++;
   }
   return n;
 }
 
-/** Rapport des lacunes (👎) écrit dans le coffre (hors brain_notes → pas de bruit en recherche). */
-async function writeGapsReport(vaultDir: string): Promise<number> {
-  const gaps = await pg<{ question: string; answer: string }>(
-    `select question, answer from public.process_qa_feedback where rating = -1`,
+/**
+ * Ouvre les lacunes (👎) manquantes — rattrapage des échecs best-effort de la
+ * route feedback — et écrit le rapport des lacunes ENCORE OUVERTES dans le coffre
+ * (hors brain_notes → pas de bruit en recherche).
+ */
+async function syncGaps(
+  vaultDir: string | null,
+  dryRun: boolean,
+): Promise<number> {
+  const known = await loadProposals();
+  const gaps = await pg<{ id: string; question: string; answer: string }>(
+    `select id, question, answer from public.process_qa_feedback where rating = -1`,
   );
-  const lines = [
-    '# Lacunes du cerveau (retours 👎)',
-    '',
-    'Questions dont la réponse a été jugée insuffisante — contenu à ajouter ou améliorer.',
-    '',
-  ];
-  for (const g of gaps)
-    lines.push(
-      `- **${g.question}**\n  > ${g.answer.replace(/\n/g, ' ').slice(0, 200)}`,
+  for (const g of gaps) {
+    await proposeNote(
+      {
+        kind: 'lacune',
+        target_path: null,
+        payload: {
+          question: g.question,
+          answer_ko: g.answer,
+          derived_from: [],
+          source_hashes: {},
+        },
+        source_ref: g.id,
+        source_hash: createHash('sha256')
+          .update(`${g.question}|${g.answer}`)
+          .digest('hex'),
+      },
+      known,
+      dryRun,
     );
-  if (!gaps.length) lines.push("_(aucune pour l'instant)_");
-  writeFileSync(join(vaultDir, '_lacunes.md'), `${lines.join('\n')}\n`, 'utf8');
-  return gaps.length;
+  }
+
+  const open = await pg<{ source_ref: string }>(
+    `select source_ref from public.brain_proposals
+     where kind = 'lacune' and status = 'en_attente'`,
+  );
+  const openIds = new Set(open.map((o) => o.source_ref));
+  const encore = gaps.filter((g) => openIds.has(g.id));
+
+  if (vaultDir && !dryRun) {
+    const lines = [
+      '# Lacunes du cerveau (retours 👎)',
+      '',
+      'Questions encore sans réponse satisfaisante — à combler depuis /admin/cerveau.',
+      '',
+    ];
+    for (const g of encore)
+      lines.push(
+        `- **${g.question}**\n  > ${g.answer.replace(/\n/g, ' ').slice(0, 200)}`,
+      );
+    if (!encore.length) lines.push("_(aucune pour l'instant)_");
+    writeFileSync(
+      join(vaultDir, '_lacunes.md'),
+      `${lines.join('\n')}\n`,
+      'utf8',
+    );
+  }
+  return encore.length;
 }
 
 // ---------------------------------------------------------------- main
@@ -529,6 +651,25 @@ async function main() {
     rmSync(tmp, { recursive: true, force: true });
   }
 
+  // Régénérations demandées depuis /admin/cerveau : l'app ne peut pas appeler
+  // Claude, c'est ici qu'on refait l'analyse et qu'on repropose. À consommer
+  // AVANT la Phase 3 : sinon un `reopen` du même run effacerait la demande.
+  const aRegenerer = await pg<{ id: string; target_path: string }>(
+    `select id, target_path from public.brain_proposals
+     where status = 'a_regenerer' and target_path is not null`,
+  );
+  for (const r of aRegenerer) {
+    console.log(`régénération demandée : ${r.target_path}`);
+    if (dryRun) continue;
+    // La note repart du cycle normal : on efface son hash pour forcer la
+    // réanalyse de la source au prochain passage, et on referme la demande.
+    await pg(`update public.brain_notes set source_hash = null
+              where path = ${lit(r.target_path)};`);
+    await pg(`update public.brain_proposals set status = 'approuvee',
+              reason = 'régénérée', decided_at = now() where id = ${lit(r.id)};`);
+  }
+  console.log(`Régénérations traitées : ${aRegenerer.length}`);
+
   // --- Phase 3 : conversations (👍), entités (graphe), anti-obsolescence ---
   let conversations = 0;
   let entities = 0;
@@ -550,8 +691,13 @@ async function main() {
     execFileSync('tsx', ['scripts/brain-vault-sync.ts', vaultDir], {
       stdio: 'inherit',
     });
-    const gaps = await writeGapsReport(vaultDir);
-    console.log(`Rapport lacunes (👎) : ${gaps} question(s).`);
+  }
+
+  // Rattrapage des lacunes (👎) : tourne même sans coffre.
+  const gaps = await syncGaps(vaultDir ?? null, dryRun);
+  console.log(`Lacunes ouvertes : ${gaps} question(s).`);
+
+  if (vaultDir && !dryRun) {
     try {
       execFileSync('git', ['-C', vaultDir, 'add', '-A']);
       execFileSync(

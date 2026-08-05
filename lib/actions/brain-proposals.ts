@@ -222,6 +222,16 @@ export async function resolveGapAction(
       parsed.data.id,
       parsed.data.sourceHash,
     );
+    // Symétrique du garde d'`arbitrateStaleAction`. Sans lui, cette action n'est
+    // sûre qu'incidemment : les payloads des autres kinds n'ont pas de champ
+    // `question`, donc `gapToBrainNote` lève avant d'écrire. Le jour où l'un
+    // d'eux en gagnerait un, une réponse forgée entrerait dans le cerveau.
+    if (proposal.kind !== 'lacune') {
+      return {
+        success: false,
+        error: "Cette proposition n'est pas une lacune",
+      };
+    }
     const p = proposal.payload as {
       question?: string;
       answer_ko?: string;

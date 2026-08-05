@@ -10,6 +10,7 @@ import {
 import { getRdvFormateursByProjetId } from '@/lib/queries/rdv';
 import { listEcheancierTemplates } from '@/lib/queries/echeanciers';
 import { getLancementByProjetId } from '@/lib/queries/projet-lancement';
+import { getApprenantsByProjetId } from '@/lib/queries/apprenants';
 
 export async function generateMetadata({
   params,
@@ -32,6 +33,7 @@ import { getProjetPerformance } from '@/lib/queries/projet-performance';
 import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
 import { ProjetDocumentsSection } from '@/components/projets/projet-documents-section';
 import { ProjetLancementSection } from '@/components/projets/projet-lancement-section';
+import { ProjetApprenantsTable } from '@/components/projets/projet-apprenants-table';
 import { ProjetRdvSection } from '@/components/projets/projet-rdv-section';
 import { EntiteTachesSection } from '@/components/taches/entite-taches-section';
 import { createClient } from '@/lib/supabase/server';
@@ -67,6 +69,7 @@ export default async function ProjetDetailPage({
     performance,
     echeancierTemplates,
     lancement,
+    apprenants,
   ] = await Promise.all([
     authUser
       ? supabase.from('users').select('role').eq('id', authUser.id).single()
@@ -79,6 +82,7 @@ export default async function ProjetDetailPage({
     getProjetPerformance(projet.id),
     listEcheancierTemplates(),
     getLancementByProjetId(projet.id),
+    getApprenantsByProjetId(projet.id),
   ]);
 
   const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
@@ -112,6 +116,7 @@ export default async function ProjetDetailPage({
           { id: 'synthese', label: 'Synthèse' },
           { id: 'lancement', label: 'Lancement' },
           { id: 'finance', label: 'Finance' },
+          { id: 'apprenants', label: 'Apprenants' },
           { id: 'contrats', label: 'Contrats' },
           { id: 'activite', label: 'Activité' },
         ]}
@@ -163,6 +168,10 @@ export default async function ProjetDetailPage({
         <div className="mt-4">
           <ProjetEcheancierManualPlaceholder />
         </div>
+      </section>
+
+      <section id="apprenants" className="mt-8 scroll-mt-16">
+        <ProjetApprenantsTable apprenants={apprenants} />
       </section>
 
       <section id="contrats" className="mt-8 scroll-mt-16">

@@ -712,6 +712,7 @@ export type Database = {
           contrat_id: string | null;
           created_at: string;
           disabled_worker: boolean | null;
+          eduvia_company_id: number | null;
           eduvia_formation_id: number | null;
           eduvia_id: number;
           email: string | null;
@@ -726,6 +727,7 @@ export type Database = {
           phone_number: string | null;
           postcode: string | null;
           prenom: string | null;
+          projet_id: string | null;
           source_client_id: string | null;
           status: string | null;
         };
@@ -736,6 +738,7 @@ export type Database = {
           contrat_id?: string | null;
           created_at?: string;
           disabled_worker?: boolean | null;
+          eduvia_company_id?: number | null;
           eduvia_formation_id?: number | null;
           eduvia_id: number;
           email?: string | null;
@@ -750,6 +753,7 @@ export type Database = {
           phone_number?: string | null;
           postcode?: string | null;
           prenom?: string | null;
+          projet_id?: string | null;
           source_client_id?: string | null;
           status?: string | null;
         };
@@ -760,6 +764,7 @@ export type Database = {
           contrat_id?: string | null;
           created_at?: string;
           disabled_worker?: boolean | null;
+          eduvia_company_id?: number | null;
           eduvia_formation_id?: number | null;
           eduvia_id?: number;
           email?: string | null;
@@ -774,6 +779,7 @@ export type Database = {
           phone_number?: string | null;
           postcode?: string | null;
           prenom?: string | null;
+          projet_id?: string | null;
           source_client_id?: string | null;
           status?: string | null;
         };
@@ -783,6 +789,13 @@ export type Database = {
             columns: ['contrat_id'];
             isOneToOne: false;
             referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'apprenants_projet_id_fkey';
+            columns: ['projet_id'];
+            isOneToOne: false;
+            referencedRelation: 'projets';
             referencedColumns: ['id'];
           },
           {

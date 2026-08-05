@@ -51,6 +51,13 @@ const nextConfig: NextConfig = {
       dynamic: 60,
       static: 300,
     },
+    // Les uploads de documents (fiche projet, timeline de lancement, fiche
+    // client) passent par des Server Actions et autorisent 10 Mo cote appli
+    // (MAX_FILE_SIZE). La limite par defaut de Next est de 1 Mo : sans ce
+    // reglage, tout fichier au-dela echoue avec une erreur opaque cote client.
+    serverActions: {
+      bodySizeLimit: '12mb',
+    },
     // Tree-shake les barrel files lourds (lucide-react: 1k+ icones,
     // date-fns: 200+ helpers). Next.js applique des transforms specifiques
     // qui reduisent significativement le bundle client.

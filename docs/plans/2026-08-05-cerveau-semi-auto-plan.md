@@ -160,7 +160,7 @@ Dans `types/database.ts`, à côté du bloc `brain_notes` (≈ ligne 901), dans
           status?: string;
           target_path?: string | null;
         };
-        Relations: [
+        Relationships: [
           {
             foreignKeyName: 'brain_proposals_decided_by_fkey';
             columns: ['decided_by'];

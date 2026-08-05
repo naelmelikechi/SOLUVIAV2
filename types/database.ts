@@ -943,6 +943,56 @@ export type Database = {
         };
         Relationships: [];
       };
+      brain_proposals: {
+        Row: {
+          created_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          id: string;
+          kind: string;
+          payload: Json;
+          reason: string | null;
+          source_hash: string;
+          source_ref: string;
+          status: string;
+          target_path: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          id?: string;
+          kind: string;
+          payload: Json;
+          reason?: string | null;
+          source_hash: string;
+          source_ref: string;
+          status?: string;
+          target_path?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          id?: string;
+          kind?: string;
+          payload?: Json;
+          reason?: string | null;
+          source_hash?: string;
+          source_ref?: string;
+          status?: string;
+          target_path?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'brain_proposals_decided_by_fkey';
+            columns: ['decided_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       bug_reports: {
         Row: {
           ai_category: string | null;

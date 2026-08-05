@@ -4,6 +4,8 @@ import { logger } from '@/lib/utils/logger';
 import { encaisseHt } from '@/lib/utils/montant-ht';
 import { soldeNetHt, soldeNetTtc } from '@/lib/utils/avoir-netting';
 import { ACTIVE_STATES_ARRAY } from '@/lib/queries/dashboard/shared';
+import { fractionRealisee } from '@/lib/queries/production';
+import { round2 } from '@/lib/utils/number';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -315,6 +317,20 @@ export function stepEncaisseOpco(step: {
   return Math.min(step.opco_settled_amount, pedago);
 }
 
+/** NPEC reellement finance : plein pour un contrat sain, prorata si rompu. */
+function npecRealise(c: {
+  npec_amount: number | null;
+  date_debut: string | null;
+  duree_mois: number | null;
+  date_rupture: string | null;
+}): number {
+  const npec = c.npec_amount ?? 0;
+  if (npec <= 0) return 0;
+  return round2(
+    npec * fractionRealisee(c.date_debut, c.duree_mois, c.date_rupture),
+  );
+}
+
 export async function getProjetFinance(projetId: string) {
   const supabase = await createClient();
 
@@ -328,7 +344,7 @@ export async function getProjetFinance(projetId: string) {
     // gapless - donc l'OPCO doit rester symetrique).
     supabase
       .from('contrats')
-      .select('id, npec_amount, archive')
+      .select('id, npec_amount, archive, date_debut, duree_mois, date_rupture')
       .eq('projet_id', projetId),
     // Avoirs emis inclus (statut 'avoir', montants negatifs) : le "Facture"
     // SOLUVIA est net des avoirs ; les brouillons (a_emettre) restent exclus.
@@ -350,9 +366,13 @@ export async function getProjetFinance(projetId: string) {
   const factures = facturesRes.data;
   const projet = projetRes.data;
 
+  // Production OPCO = NPEC des contrats non archives, PRORATISE pour les
+  // contrats rompus : l'OPCO ne financera jamais la periode posterieure a la
+  // rupture. Meme fraction realisee que la production SOLUVIA et que l'avoir
+  // prorata (computeContractSchedule / computeProrataRupture).
   const production_opco = (contrats ?? [])
     .filter((c) => !c.archive)
-    .reduce((sum, c) => sum + (c.npec_amount ?? 0), 0);
+    .reduce((sum, c) => sum + npecRealise(c), 0);
 
   // Les factures SOLUVIA sont des factures de commission (base = NPEC x taux) :
   // ce sont des montants cote SOLUVIA, pas cote OPCO. Les avoirs emis sont

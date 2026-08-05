@@ -91,10 +91,23 @@ describe('aggregateMonthByProjet', () => {
       date_debut: '2026-01-15',
       duree_mois: 12,
       npec_amount: 10000,
+      date_rupture: null,
       projet: pA,
     },
-    { date_debut: '2026-01-15', duree_mois: 12, npec_amount: 6000, projet: pB },
-    { date_debut: '2025-01-15', duree_mois: 12, npec_amount: 9000, projet: pC }, // termine avant juillet 2026
+    {
+      date_debut: '2026-01-15',
+      duree_mois: 12,
+      npec_amount: 6000,
+      date_rupture: null,
+      projet: pB,
+    },
+    {
+      date_debut: '2025-01-15',
+      duree_mois: 12,
+      npec_amount: 9000,
+      date_rupture: null,
+      projet: pC,
+    }, // termine avant juillet 2026
   ];
   const factures: FactureInput[] = [
     facture('f1', 1000, 'emise', pA),
@@ -166,17 +179,25 @@ describe('aggregateMonthByProjet', () => {
     const bad = aggregateMonthByProjet(
       '2026-07',
       [
-        { date_debut: null, duree_mois: 12, npec_amount: 10000, projet: pA },
+        {
+          date_debut: null,
+          duree_mois: 12,
+          npec_amount: 10000,
+          date_rupture: null,
+          projet: pA,
+        },
         {
           date_debut: '2026-01-15',
           duree_mois: 0,
           npec_amount: 10000,
+          date_rupture: null,
           projet: pA,
         },
         {
           date_debut: '2026-01-15',
           duree_mois: 12,
           npec_amount: 10000,
+          date_rupture: null,
           projet: null,
         },
       ],
@@ -197,12 +218,14 @@ describe('rollupByClient / projectByProjet', () => {
         date_debut: '2026-01-15',
         duree_mois: 12,
         npec_amount: 10000,
+        date_rupture: null,
         projet: pA,
       },
       {
         date_debut: '2026-01-15',
         duree_mois: 12,
         npec_amount: 6000,
+        date_rupture: null,
         projet: pB,
       },
     ],

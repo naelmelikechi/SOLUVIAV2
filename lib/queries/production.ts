@@ -5,6 +5,7 @@ import {
   getContratsActifs,
   getMonthSums,
 } from '@/lib/queries/production-aggregates';
+import { monthsBetween } from '@/lib/echeancier/calc';
 import { ttcToHt } from '@/lib/utils/montant-ht';
 import { round2 } from '@/lib/utils/number';
 import { resolveTauxCommission } from '@/lib/utils/commission';
@@ -24,6 +25,19 @@ import { capitalize } from '@/lib/utils/strings';
 //   - commission TTC = NPEC x tauxCommission / 100, puis HT = TTC / 1.2
 //   - repartie de M+0 (date_debut) a M+(dureeMois-1), chaque mois = commissionHt / dureeMois
 //   - independant de la facturation reelle (qui depend de la societe emettrice)
+//
+// RUPTURE (decision 2026-08-05) : un contrat rompu ne produit plus rien apres
+// sa date de rupture. Les deux echeanciers sont tronques a cette date :
+//   - SOLUVIA : mensualites pleines jusqu'au dernier mois complet, puis une
+//     mensualite fractionnaire le mois de la rupture, puis plus rien. Le cumul
+//     vaut donc commissionHt x (duree_realisee / duree), soit exactement le
+//     "gagne" de computeProrataRupture (l'avoir prorata) - meme convention de
+//     duree realisee (monthsBetween), pour que les deux chiffres se repondent.
+//   - OPCO : total plafonne a NPEC x (duree_realisee / duree), servi sur les
+//     jalons deja ouverts ; ce qui resterait du apres la rupture est regularise
+//     sur le mois de la rupture plutot que verse a une date future.
+// Un contrat rompu avant tout demarrage (duree realisee = 0, cas des ANNULE
+// jamais commences) ne produit rien du tout.
 // -----------------------------------------------------------------------------
 
 export interface ScheduleEntry {
@@ -51,34 +65,108 @@ function addMonthsKey(start: Date, n: number): string {
   return `${y}-${String(m).padStart(2, '0')}`;
 }
 
+/**
+ * Fraction de contrat reellement realisee (0..1). 1 pour un contrat non rompu
+ * ou dont la rupture tombe apres le terme. Sert a prorater tout montant assis
+ * sur la duree du contrat (production OPCO de la fiche projet, notamment).
+ */
+export function fractionRealisee(
+  dateDebutIso: string | null,
+  dureeMois: number | null,
+  dateRuptureIso: string | null | undefined,
+): number {
+  if (!dateRuptureIso || !dateDebutIso || !dureeMois || dureeMois <= 0)
+    return 1;
+  const realisee = Math.max(
+    0,
+    Math.min(dureeMois, monthsBetween(dateDebutIso, dateRuptureIso)),
+  );
+  return realisee / dureeMois;
+}
+
 export function computeContractSchedule(
   dateDebutIso: string,
   dureeMois: number,
   npec: number,
   tauxCommissionPct: number,
+  /** Date de rupture ISO : tronque les deux echeanciers. null = contrat non rompu. */
+  dateRuptureIso?: string | null,
 ): ContractSchedule {
   const start = new Date(dateDebutIso + 'T00:00:00');
   if (isNaN(start.getTime()) || dureeMois <= 0 || npec <= 0) {
     return { opco: [], soluvia: [] };
   }
 
-  const opco: ScheduleEntry[] = [
-    { month: addMonthsKey(start, 1), amount: round2(npec * 0.4) },
-    { month: addMonthsKey(start, 7), amount: round2(npec * 0.3) },
-    { month: addMonthsKey(start, 10), amount: round2(npec * 0.2) },
-    { month: addMonthsKey(start, dureeMois + 1), amount: round2(npec * 0.1) },
-  ];
+  // Duree effectivement realisee. Sans rupture (cas courant) on reste sur le
+  // chemin historique, au centime pres : aucune regression sur les contrats sains.
+  const realiseeMois = dateRuptureIso
+    ? Math.max(
+        0,
+        Math.min(dureeMois, monthsBetween(dateDebutIso, dateRuptureIso)),
+      )
+    : dureeMois;
+  const tronque = realiseeMois < dureeMois;
 
-  // Production SOLUVIA = commission (TTC = taux × NPEC, HT déduit /1.2) répartie
-  // au prorata sur toute la durée du contrat, de date_debut au terme. Indépendant
-  // de la facturation (qui dépend de la société émettrice et du moment d'émission).
+  // Rompu avant tout demarrage : ni production SOLUVIA, ni versement OPCO.
+  if (realiseeMois <= 0) return { opco: [], soluvia: [] };
+
   const totalSoluviaTtc = (npec * tauxCommissionPct) / 100;
   const totalSoluvia = ttcToHt(totalSoluviaTtc);
   const mensualite = round2(totalSoluvia / dureeMois);
+
+  if (!tronque) {
+    const opco: ScheduleEntry[] = [
+      { month: addMonthsKey(start, 1), amount: round2(npec * 0.4) },
+      { month: addMonthsKey(start, 7), amount: round2(npec * 0.3) },
+      { month: addMonthsKey(start, 10), amount: round2(npec * 0.2) },
+      { month: addMonthsKey(start, dureeMois + 1), amount: round2(npec * 0.1) },
+    ];
+    // Production SOLUVIA = commission (TTC = taux × NPEC, HT déduit /1.2) répartie
+    // au prorata sur toute la durée du contrat, de date_debut au terme. Indépendant
+    // de la facturation (qui dépend de la société émettrice et du moment d'émission).
+    const soluvia: ScheduleEntry[] = [];
+    for (let i = 0; i < dureeMois; i++) {
+      soluvia.push({ month: addMonthsKey(start, i), amount: mensualite });
+    }
+    return { opco, soluvia };
+  }
+
+  // ── Contrat rompu : troncature a la date de rupture ────────────────────────
+  const moisPleins = Math.floor(realiseeMois);
+  const fraction = realiseeMois - moisPleins;
+  const moisRupture = addMonthsKey(start, moisPleins);
+
   const soluvia: ScheduleEntry[] = [];
-  for (let i = 0; i < dureeMois; i++) {
+  for (let i = 0; i < moisPleins; i++) {
     soluvia.push({ month: addMonthsKey(start, i), amount: mensualite });
   }
+  if (fraction > 0) {
+    const partiel = round2(mensualite * fraction);
+    if (partiel > 0) soluvia.push({ month: moisRupture, amount: partiel });
+  }
+
+  // OPCO : plafonne au NPEC realise. Les jalons posterieurs a la rupture sont
+  // regularises sur le mois de rupture (l'OPCO ne verse plus au-dela).
+  let reste = round2(npec * (realiseeMois / dureeMois));
+  const opcoByMonth = new Map<string, number>();
+  const jalons: [number, number][] = [
+    [1, 0.4],
+    [7, 0.3],
+    [10, 0.2],
+    [dureeMois + 1, 0.1],
+  ];
+  for (const [offset, pct] of jalons) {
+    if (reste <= 0) break;
+    const amount = Math.min(round2(npec * pct), reste);
+    const month =
+      offset > moisPleins ? moisRupture : addMonthsKey(start, offset);
+    opcoByMonth.set(month, round2((opcoByMonth.get(month) ?? 0) + amount));
+    reste = round2(reste - amount);
+  }
+  const opco: ScheduleEntry[] = [...opcoByMonth].map(([month, amount]) => ({
+    month,
+    amount,
+  }));
 
   return { opco, soluvia };
 }
@@ -159,6 +247,7 @@ export async function getProductionData(): Promise<ProductionRow[]> {
       c.duree_mois,
       c.npec_amount,
       resolveTauxCommission(c.taux_commission),
+      c.date_rupture,
     );
 
     for (const e of schedule.opco) {

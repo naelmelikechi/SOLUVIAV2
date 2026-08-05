@@ -57,6 +57,8 @@ export interface ContratInput {
   date_debut: string | null;
   duree_mois: number | null;
   npec_amount: number | null;
+  /** Tronque la production theorique (contrat rompu). null = non rompu. */
+  date_rupture: string | null;
   projet: ProjetInfo | null;
 }
 
@@ -155,6 +157,7 @@ export function aggregateMonthByProjet(
       c.duree_mois,
       c.npec_amount,
       tauxCommission,
+      c.date_rupture,
     );
     const opco = scheduleAmountForMonth(schedule.opco, monthKey);
     const soluvia = scheduleAmountForMonth(schedule.soluvia, monthKey);

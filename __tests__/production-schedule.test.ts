@@ -65,6 +65,84 @@ describe('computeContractSchedule', () => {
     });
   });
 
+  // ── Rupture : la production s'arrete a la date de rupture (2026-08-05) ────
+  describe('contrat rompu', () => {
+    // Meme contrat que ci-dessus (12 mois, NPEC 10000, 40%), rompu au 15/04.
+    // Duree realisee = 3 mois pile (15/01 -> 15/04).
+    const rompu = computeContractSchedule(
+      '2026-01-15',
+      12,
+      10000,
+      40,
+      '2026-04-15',
+    );
+
+    it('SOLUVIA : mensualites pleines jusqu a la rupture, plus rien apres', () => {
+      expect(rompu.soluvia.map((e) => e.month)).toEqual([
+        '2026-01',
+        '2026-02',
+        '2026-03',
+      ]);
+      expect(rompu.soluvia[0]!.amount).toBeCloseTo(277.78, 2);
+    });
+
+    it('SOLUVIA : le cumul vaut le "gagne" du prorata avoir (3/12 de la commission)', () => {
+      const total = rompu.soluvia.reduce((acc, e) => acc + e.amount, 0);
+      // HT total = 3333.33 ; 3 mois sur 12 = 833.33
+      expect(total).toBeCloseTo(3333.33 * (3 / 12), 1);
+    });
+
+    it('SOLUVIA : rupture en milieu de mois -> mensualite fractionnaire', () => {
+      // 15/01 -> 30/04 = 3.5 mois : 3 pleines + une demi
+      const demi = computeContractSchedule(
+        '2026-01-15',
+        12,
+        10000,
+        40,
+        '2026-04-30',
+      );
+      expect(demi.soluvia).toHaveLength(4);
+      expect(demi.soluvia[3]!.month).toBe('2026-04');
+      expect(demi.soluvia[3]!.amount).toBeCloseTo(277.78 * 0.5, 1);
+    });
+
+    it('OPCO : plafonne au NPEC realise, rien apres la rupture', () => {
+      const total = rompu.opco.reduce((acc, e) => acc + e.amount, 0);
+      expect(total).toBeCloseTo(10000 * (3 / 12), 2);
+      // Le jalon M+7 (aout) est posterieur a la rupture : aucun versement
+      // ne doit tomber apres le mois de rupture (avril).
+      expect(rompu.opco.every((e) => e.month <= '2026-04')).toBe(true);
+    });
+
+    it('rompu avant tout demarrage -> aucune production (cas ANNULE jamais commence)', () => {
+      const jamais = computeContractSchedule(
+        '2026-01-15',
+        12,
+        10000,
+        40,
+        '2026-01-15',
+      );
+      expect(jamais).toEqual({ opco: [], soluvia: [] });
+    });
+
+    it('rupture posterieure au terme -> schedule complet, inchange', () => {
+      const apres = computeContractSchedule(
+        '2026-01-15',
+        12,
+        10000,
+        40,
+        '2027-06-01',
+      );
+      expect(apres).toEqual(s);
+    });
+
+    it('sans date de rupture -> strictement identique a l existant', () => {
+      expect(
+        computeContractSchedule('2026-01-15', 12, 10000, 40, null),
+      ).toEqual(s);
+    });
+  });
+
   it('fin de mois : demarrage un 31 ne deborde pas sur le mois suivant (pas de rollover setMonth)', () => {
     // 31 janvier + 1 mois via setMonth donnerait "31 fevrier" = 3 mars :
     // versement OPCO 40% en mars au lieu de fevrier, et des mois SOLUVIA

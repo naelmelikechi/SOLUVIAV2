@@ -49,6 +49,23 @@ async function upsertNote(
   db: AdminDb,
   note: BrainNote,
 ): Promise<string | null> {
+  // Une réponse rédigée par un admin (corrige: true) fait autorité sur une
+  // paraphrase de l'assistant. Sans ce garde-fou, approuver la capitalisation
+  // d'un 👍 sur la même question écraserait définitivement le texte humain.
+  const { data: existante } = await db
+    .from('brain_notes')
+    .select('frontmatter')
+    .eq('path', note.path)
+    .maybeSingle();
+  const dejaCorrigee =
+    (existante?.frontmatter as Record<string, unknown> | null)?.['corrige'] ===
+    true;
+  const nouvelleCorrigee =
+    (note.frontmatter as Record<string, unknown>)?.['corrige'] === true;
+  if (dejaCorrigee && !nouvelleCorrigee) {
+    return 'Cette question a déjà une réponse rédigée par un administrateur — rejette cette proposition, ou modifie la note existante.';
+  }
+
   const { error } = await db.from('brain_notes').upsert(
     {
       path: note.path,
@@ -103,8 +120,10 @@ async function loadPending(
     .from('brain_proposals')
     .select('id, kind, status, target_path, payload, source_ref, source_hash')
     .eq('id', id)
+    .eq('status', 'en_attente')
     .single();
-  if (error || !data) throw new Error('Proposition introuvable');
+  if (error || !data)
+    throw new Error('Proposition introuvable ou déjà traitée');
   return data as unknown as BrainProposal & { id: string };
 }
 

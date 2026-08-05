@@ -17,8 +17,8 @@ function row(path: string, links: string[] = []) {
   };
 }
 
-// Admin factice : rpc renvoie les graines, .in() renvoie les notes liées.
-function fakeAdmin(seeds: unknown[], linked: unknown[]) {
+// Client factice : rpc renvoie les graines, .in() renvoie les notes liées.
+function fakeDb(seeds: unknown[], linked: unknown[]) {
   return {
     rpc: async () => ({ data: seeds, error: null }),
     from: () => ({
@@ -29,16 +29,16 @@ function fakeAdmin(seeds: unknown[], linked: unknown[]) {
 
 describe('retrieveNotes', () => {
   it('renvoie [] pour une question vide', async () => {
-    const notes = await retrieveNotes('  ', { admin: fakeAdmin([], []) });
+    const notes = await retrieveNotes('  ', { db: fakeDb([], []) });
     expect(notes).toEqual([]);
   });
 
   it('graines + expansion 1 saut, dédupliqué', async () => {
-    const admin = fakeAdmin(
+    const db = fakeDb(
       [row('fiches/a.md', ['entites/opco'])],
       [row('entites/opco.md')],
     );
-    const notes = await retrieveNotes('opco', { admin });
+    const notes = await retrieveNotes('opco', { db });
     const paths = notes.map((n) => n.path);
     expect(paths).toContain('fiches/a.md');
     expect(paths).toContain('entites/opco.md');
@@ -50,10 +50,25 @@ describe('retrieveNotes', () => {
       ...row('conversations/vieux.md'),
       frontmatter: { stale: true },
     };
-    const admin = fakeAdmin([row('fiches/a.md'), stale], []);
-    const notes = await retrieveNotes('x', { admin });
+    const db = fakeDb([row('fiches/a.md'), stale], []);
+    const notes = await retrieveNotes('x', { db });
     const paths = notes.map((n) => n.path);
     expect(paths).toContain('fiches/a.md');
     expect(paths).not.toContain('conversations/vieux.md');
+  });
+
+  it('utilise le client fourni (plus de client admin implicite)', async () => {
+    let called = false;
+    const db = {
+      rpc: async () => {
+        called = true;
+        return { data: [row('fiches/a.md')], error: null };
+      },
+      from: () => ({
+        select: () => ({ in: async () => ({ data: [], error: null }) }),
+      }),
+    } as unknown as SupabaseClient;
+    await retrieveNotes('opco', { db });
+    expect(called).toBe(true);
   });
 });

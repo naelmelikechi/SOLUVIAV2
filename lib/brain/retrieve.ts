@@ -26,23 +26,24 @@ function toNote(r: Row): BrainNote {
 
 /**
  * Retrouve les notes pertinentes : graines pg_trgm + expansion 1 saut via les
- * liens sortants. Utilise le client admin (RLS brain_notes = admin only).
+ * liens sortants.
  *
- * DETTE Phase 2/3 : ce chemin sert les notes à TOUT utilisateur authentifié
- * (pas seulement admin), car l'appelant (route `ask`) n'exige qu'une session.
- * Acceptable en Phase 1 : brain_notes ne contient que des fiches finalisées,
- * déjà lisibles par tous. Dès qu'on indexera des notes `livrable`/`conversation`
- * (contenu non public), il FAUDRA gater par rôle ou filtrer par `type` ici.
+ * Passe par le client de l'UTILISATEUR : la RLS de `brain_notes` (select ouvert
+ * à `authenticated` depuis la migration 20260805100000) est la seule source de
+ * vérité sur la lecture. Le garde-fou porte sur ce qui ENTRE dans le cerveau —
+ * les notes dérivées passent par `brain_proposals` et une validation admin.
+ * `search_brain_trgm` n'est pas `security definer`, la RLS s'applique donc bien
+ * à l'appelant.
  */
 export async function retrieveNotes(
   question: string,
-  deps: { admin: SupabaseClient },
+  deps: { db: SupabaseClient },
 ): Promise<BrainNote[]> {
   const q = question.trim();
   if (!q) return [];
-  const { admin } = deps;
+  const { db } = deps;
 
-  const { data: seeds, error } = await admin.rpc('search_brain_trgm', {
+  const { data: seeds, error } = await db.rpc('search_brain_trgm', {
     q,
     k: SEED_K,
   });
@@ -56,7 +57,7 @@ export async function retrieveNotes(
   const linkTargets = [...new Set(seedRows.flatMap((r) => r.links ?? []))];
   if (linkTargets.length) {
     const targetPaths = linkTargets.map((t) => `${t}.md`);
-    const { data: linked } = await admin
+    const { data: linked } = await db
       .from('brain_notes')
       .select(COLS)
       .in('path', targetPaths);

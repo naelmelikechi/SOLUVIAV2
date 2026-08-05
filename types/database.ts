@@ -2680,6 +2680,7 @@ export type Database = {
           created_at: string;
           description: string;
           est_avoir: boolean;
+          event_libere_le: string | null;
           event_source_id: string | null;
           event_type: string | null;
           facture_id: string;
@@ -2699,6 +2700,7 @@ export type Database = {
           created_at?: string;
           description: string;
           est_avoir?: boolean;
+          event_libere_le?: string | null;
           event_source_id?: string | null;
           event_type?: string | null;
           facture_id: string;
@@ -2718,6 +2720,7 @@ export type Database = {
           created_at?: string;
           description?: string;
           est_avoir?: boolean;
+          event_libere_le?: string | null;
           event_source_id?: string | null;
           event_type?: string | null;
           facture_id?: string;

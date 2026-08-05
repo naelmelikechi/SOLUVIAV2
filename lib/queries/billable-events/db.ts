@@ -89,7 +89,7 @@ export function qExistingLignes(
     .from('facture_lignes')
     .select(
       `
-      event_type, event_source_id, contrat_id, est_avoir,
+      event_type, event_source_id, contrat_id, est_avoir, event_libere_le,
       facture:factures!facture_lignes_facture_id_fkey(id, ref, statut)
     `,
     )

@@ -31,6 +31,11 @@ const RejectSchema = z.object({
   id: z.string().uuid(),
   reason: z.string().max(500).optional(),
 });
+// Pas de `sourceHash` : rouvrir ne publie rien, et vaut donc pour n'importe
+// quelle version du payload — comme le rejet qu'elle annule.
+const ReopenSchema = z.object({
+  id: z.string().uuid(),
+});
 const GapSchema = z.object({
   id: z.string().uuid(),
   sourceHash: z.string().min(1).max(128),
@@ -219,6 +224,57 @@ export async function rejectProposalAction(
     if (!moved) return { success: false, error: 'Proposition déjà traitée' };
   } catch (e) {
     logger.error('actions.brain-proposals', 'reject failed', { error: e });
+    return { success: false, error: (e as Error).message };
+  }
+  revalidatePath('/admin/cerveau');
+  return { success: true };
+}
+
+/**
+ * Rouvre un rejet : la proposition repasse `en_attente` et réapparaît dans la
+ * file. Le rejet est durable par conception (le script ne repropose pas une
+ * ligne rejetée tant que son contenu ne change pas) : sans ce chemin, un rejet
+ * fait par erreur serait définitif.
+ *
+ * Réservé aux rejets. Une proposition APPROUVÉE a déjà écrit sa note dans le
+ * cerveau : la rouvrir laisserait la note en place tout en remettant son
+ * arbitrage en file, un état sans signification claire — on corrige une note
+ * publiée en la modifiant, pas en rejouant sa proposition.
+ */
+export async function reopenProposalAction(
+  input: z.infer<typeof ReopenSchema>,
+): Promise<Result> {
+  const parsed = ReopenSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Données invalides' };
+  const gate = await adminGate();
+  if (!gate.ok) return { success: false, error: gate.error };
+
+  try {
+    // Transition conditionnelle, comme `decide` en sens inverse : `where status
+    // = 'rejetee'` borne la réouverture au seul état d'où elle a un sens, et
+    // rend le double-clic (ou deux onglets) inoffensif — 0 ligne = déjà rouvert.
+    const { data, error } = await gate.db
+      .from('brain_proposals')
+      .update({
+        status: 'en_attente',
+        // La proposition redevient vierge de décision : garder le motif du
+        // rejet la ferait réapparaître dans la file avec une trace d'arbitrage
+        // qui ne vaut plus, et fausserait l'historique au prochain passage.
+        reason: null,
+        decided_by: null,
+        decided_at: null,
+      })
+      .eq('id', parsed.data.id)
+      .eq('status', 'rejetee')
+      .select('id');
+    if (error) throw new Error(error.message);
+    if (!(data ?? []).length)
+      return {
+        success: false,
+        error: 'Seule une proposition rejetée peut être rouverte',
+      };
+  } catch (e) {
+    logger.error('actions.brain-proposals', 'reopen failed', { error: e });
     return { success: false, error: (e as Error).message };
   }
   revalidatePath('/admin/cerveau');

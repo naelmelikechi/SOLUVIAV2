@@ -47,6 +47,7 @@ import {
   rejectProposalAction,
   resolveGapAction,
   arbitrateStaleAction,
+  reopenProposalAction,
 } from '@/lib/actions/brain-proposals';
 
 const PROPOSAL_ID = '11111111-1111-4111-a111-111111111111';
@@ -61,6 +62,7 @@ const ERR_PERIMEE =
 const ERR_DEJA_TRAITEE = 'Proposition déjà traitée';
 const ERR_MAUVAIS_KIND =
   "Cette proposition n'est pas un arbitrage d'obsolescence";
+const ERR_PAS_REJETEE = 'Seule une proposition rejetée peut être rouverte';
 
 // ---------------------------------------------------------------------------
 // Faux client Supabase : enregistre chaque opération (table + verbe + valeurs +
@@ -1388,5 +1390,122 @@ describe('resolveGapAction', () => {
     expect(res.success).toBe(false);
     expect(ecritures(db)).toEqual([]);
     expect(db.deleteSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11. reopenProposalAction — revenir sur un rejet
+// ---------------------------------------------------------------------------
+
+describe('reopenProposalAction', () => {
+  /**
+   * Émule le statut RÉELLEMENT en base : la transition conditionnelle
+   * n'affecte une ligne que si son filtre `status` correspond. C'est ce qui
+   * distingue un rejet rouvrable d'une approbation (ou d'un rejet déjà rouvert
+   * dans l'autre onglet).
+   */
+  const updateSurStatut =
+    (statutEnBase: string): Route =>
+    (op) =>
+      op.filters.some((f) => f.col === 'status' && f.val === statutEnBase)
+        ? { data: [{ id: PROPOSAL_ID }], error: null }
+        : { data: [], error: null };
+
+  it('rouvre un rejet : retour en_attente et décision effacée', async () => {
+    const db = useDb({ 'brain_proposals.update': updateSurStatut('rejetee') });
+
+    const res = await reopenProposalAction({ id: PROPOSAL_ID });
+
+    expect(res).toEqual({ success: true });
+    const maj = opsDe(db, 'brain_proposals', 'update')[0]!;
+    expect(maj.values!.status).toBe('en_attente');
+    // La proposition redevient vierge de décision : sinon elle réapparaîtrait
+    // dans la file en portant encore le motif du rejet annulé.
+    expect(maj.values!.reason).toBeNull();
+    expect(maj.values!.decided_by).toBeNull();
+    expect(maj.values!.decided_at).toBeNull();
+    // Transition conditionnelle, bornée au seul état d'où elle a un sens.
+    expect(maj.filters).toEqual([
+      { kind: 'eq', col: 'id', val: PROPOSAL_ID },
+      { kind: 'eq', col: 'status', val: 'rejetee' },
+    ]);
+    // Rouvrir ne touche jamais au cerveau : c'est une remise en file, pas une
+    // dépublication.
+    expect(db.ops.filter((o) => o.table === 'brain_notes')).toEqual([]);
+    expect(db.deleteSpy).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/cerveau');
+  });
+
+  it('refuse une proposition approuvée : sa note est déjà dans le cerveau', async () => {
+    const db = useDb({
+      'brain_proposals.update': updateSurStatut('approuvee'),
+    });
+
+    const res = await reopenProposalAction({ id: PROPOSAL_ID });
+
+    expect(res).toEqual({ success: false, error: ERR_PAS_REJETEE });
+    expect(db.ops.filter((o) => o.table === 'brain_notes')).toEqual([]);
+    expect(db.deleteSpy).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('zéro ligne affectée (double-clic, deux onglets) -> erreur, pas de faux succès', async () => {
+    const db = useDb({
+      'brain_proposals.update': () => ({ data: [], error: null }),
+    });
+
+    const res = await reopenProposalAction({ id: PROPOSAL_ID });
+
+    expect(res).toEqual({ success: false, error: ERR_PAS_REJETEE });
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(opsDe(db, 'brain_proposals', 'update')).toHaveLength(1);
+  });
+
+  it('guard en échec -> refus sans ouvrir de client admin', async () => {
+    setGuardKo();
+    const db = useDb({ 'brain_proposals.update': updateSurStatut('rejetee') });
+
+    const res = await reopenProposalAction({ id: PROPOSAL_ID });
+
+    expect(res).toEqual({
+      success: false,
+      error: 'Accès refusé - réservé aux admins',
+    });
+    expect(createAdminClient).not.toHaveBeenCalled();
+    expect(db.ops).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('utilisateur authentifié mais non-admin -> refus, aucune écriture', async () => {
+    setAdmin('collaborateur');
+    const db = useDb({ 'brain_proposals.update': updateSurStatut('rejetee') });
+
+    const res = await reopenProposalAction({ id: PROPOSAL_ID });
+
+    expect(res).toEqual({ success: false, error: 'Réservé aux admins' });
+    expect(createAdminClient).not.toHaveBeenCalled();
+    expect(db.ops).toEqual([]);
+  });
+
+  it('ID non-UUID -> Données invalides, sans même vérifier l auth', async () => {
+    const db = useDb();
+    const res = await reopenProposalAction({ id: 'pas-un-uuid' });
+    expect(res).toEqual({ success: false, error: 'Données invalides' });
+    expect(checkAuth).not.toHaveBeenCalled();
+    expect(db.ops).toEqual([]);
+  });
+
+  it('erreur SQL -> refus, message remonté, aucune revalidation', async () => {
+    useDb({
+      'brain_proposals.update': () => ({
+        data: null,
+        error: { message: 'connection reset' },
+      }),
+    });
+
+    const res = await reopenProposalAction({ id: PROPOSAL_ID });
+
+    expect(res).toEqual({ success: false, error: 'connection reset' });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

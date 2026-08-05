@@ -1270,8 +1270,9 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
 - [ ] **Étape 4 : vérifier**
 
 Lancer : `npm run typecheck && npm run lint`
-Attendu : aucune erreur. Si `@/components/ui/textarea` n'existe pas, l'ajouter avec
-`npx shadcn@latest add textarea`.
+Attendu : aucune erreur. `components/ui/{button,badge,textarea}.tsx` existent déjà — ne rien
+ajouter via la CLI shadcn. Rappel `CLAUDE.md` : shadcn/ui est sur **base-ui, pas radix**
+(pas de prop `asChild`).
 
 - [ ] **Étape 5 : commit**
 

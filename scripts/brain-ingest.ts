@@ -85,6 +85,61 @@ async function pg<T>(sql: string): Promise<T[]> {
 const lit = (s: string) => `'${String(s).replace(/'/g, "''")}'`;
 const arr = (a: string[]) =>
   a.length ? `ARRAY[${a.map(lit).join(',')}]::text[]` : `ARRAY[]::text[]`;
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+// ---------------------------------------------------------------- journal du run
+/**
+ * Compteurs d'un run — exactement la ligne de bilan affichée en fin
+ * d'exécution, persistée en jsonb dans `brain_ingest_runs.stats`.
+ */
+interface RunStats {
+  fiches: number;
+  livrables: number;
+  conversations: number;
+  entites: number;
+  stale: number;
+  inchanges: number;
+  lacunes_ouvertes: number;
+}
+
+/**
+ * Ouvre la ligne de journal du run (statut `running`) et renvoie son id.
+ *
+ * BEST-EFFORT de bout en bout : ce script tourne à la main sur la machine d'un
+ * admin, un journal indisponible ne doit JAMAIS faire tomber une ingestion par
+ * ailleurs réussie. En cas d'échec on renvoie null, et la clôture devient un
+ * no-op.
+ */
+async function startRunLog(): Promise<string | null> {
+  try {
+    const rows = await pg<{ id: string }>(
+      `insert into public.brain_ingest_runs (statut) values ('running') returning id;`,
+    );
+    return rows[0]?.id ?? null;
+  } catch (e) {
+    console.error(`⚠ journal : ouverture du run impossible (${errMsg(e)})`);
+    return null;
+  }
+}
+
+/** Clôt la ligne de journal (succès ou échec). Best-effort, cf. startRunLog. */
+async function finishRunLog(
+  runId: string | null,
+  statut: 'success' | 'error',
+  { stats, erreur }: { stats?: RunStats; erreur?: string },
+): Promise<void> {
+  if (!runId) return;
+  try {
+    await pg(`update public.brain_ingest_runs set
+      statut = ${lit(statut)},
+      finished_at = now(),
+      stats = ${stats ? `${lit(JSON.stringify(stats))}::jsonb` : 'null'},
+      erreur = ${erreur ? lit(erreur.slice(0, 2000)) : 'null'}
+      where id = ${lit(runId)};`);
+  } catch (e) {
+    console.error(`⚠ journal : clôture du run impossible (${errMsg(e)})`);
+  }
+}
 
 async function upsertNote(note: BrainNote): Promise<void> {
   await pg(`insert into public.brain_notes
@@ -648,13 +703,17 @@ interface IndexRow {
   detail: FinalizedFiche['detail'];
 }
 
-async function main() {
-  const args = new Set(process.argv.slice(2));
-  const dryRun = args.has('--dry-run');
-  const fichesOnly = args.has('--fiches-only');
-  const vaultIdx = process.argv.indexOf('--vault');
-  const vaultDir = vaultIdx >= 0 ? process.argv[vaultIdx + 1] : undefined;
+interface RunOptions {
+  dryRun: boolean;
+  fichesOnly: boolean;
+  vaultDir: string | undefined;
+}
 
+async function runIngestion({
+  dryRun,
+  fichesOnly,
+  vaultDir,
+}: RunOptions): Promise<RunStats> {
   // Drive configuré ? Sinon on ingère les fiches et on ignore les livrables
   // (au lieu de planter au premier téléchargement).
   let driveOk = false;
@@ -795,9 +854,39 @@ async function main() {
       console.log('(rien à pousser ou dépôt non configuré)');
     }
   }
+
+  return {
+    fiches: analyzedFiches,
+    livrables: analyzedDeliverables,
+    conversations,
+    entites: entities,
+    stale: staled,
+    inchanges: skipped,
+    lacunes_ouvertes: gaps,
+  };
+}
+
+async function main() {
+  const args = new Set(process.argv.slice(2));
+  const dryRun = args.has('--dry-run');
+  const fichesOnly = args.has('--fiches-only');
+  const vaultIdx = process.argv.indexOf('--vault');
+  const vaultDir = vaultIdx >= 0 ? process.argv[vaultIdx + 1] : undefined;
+
+  // --dry-run n'écrit RIEN, journal compris : c'est toute sa raison d'être.
+  const runId = dryRun ? null : await startRunLog();
+  try {
+    const stats = await runIngestion({ dryRun, fichesOnly, vaultDir });
+    await finishRunLog(runId, 'success', { stats });
+  } catch (e) {
+    // L'échec est précisément ce qu'on veut voir dans /admin/syncs : on le
+    // journalise AVANT de relancer (l'appelant fait sortir le process en 1).
+    await finishRunLog(runId, 'error', { erreur: errMsg(e) });
+    throw e;
+  }
 }
 
 main().catch((e) => {
-  console.error(e instanceof Error ? e.message : String(e));
+  console.error(errMsg(e));
   process.exit(1);
 });

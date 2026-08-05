@@ -327,6 +327,165 @@ export async function getOdooSyncHealth(): Promise<OdooSyncHealth> {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Ingestion du cerveau (scripts/brain-ingest.ts).
+//
+// Contrairement a Eduvia/Odoo, ce pipeline n'est PAS un cron : il tourne a la
+// main sur la machine d'un admin (il lui faut la CLI `claude` authentifiee sur
+// un abonnement Max). Il n'y a donc aucun creneau attendu - la seule question
+// utile est "a quand remonte le dernier run REUSSI ?", parce qu'un script
+// jamais relance fait taire l'apprentissage du cerveau sans le moindre signal.
+// ---------------------------------------------------------------------------
+
+/**
+ * Au-dela de cette anciennete (en heures) du dernier run REUSSI, la carte
+ * alerte. 7 jours : le script est manuel et sans rythme impose, il faut donc
+ * un seuil qui tolere le rythme de travail reel (un week-end, un jour ferie,
+ * quelques jours de decalage) sans crier au loup - mais qui ne laisse pas
+ * passer une semaine entiere de silence. Une semaine pleine sans ingestion,
+ * c'est deja une semaine de conversations 👍, d'entites et d'obsolescence non
+ * traitees : c'est le moment ou l'oubli devient couteux, pas avant.
+ */
+export const BRAIN_INGEST_STALE_HOURS = 7 * 24;
+
+/**
+ * - never  : aucun run journalise (le script n'a jamais tourne depuis la mise
+ *            en place du journal)
+ * - failed : le dernier run s'est termine en erreur - a traiter en premier,
+ *            meme si un run reussi plus ancien existe
+ * - stale  : dernier succes plus vieux que BRAIN_INGEST_STALE_HOURS (ou aucun
+ *            succes du tout alors que des runs existent)
+ * - ok     : dernier succes recent
+ */
+export type BrainIngestState = 'ok' | 'stale' | 'failed' | 'never';
+
+/** Forme minimale d'un run pour la derivation d'etat. */
+export interface BrainIngestRunSummary {
+  statut: string;
+  started_at: string;
+}
+
+export interface BrainIngestFreshness {
+  state: BrainIngestState;
+  /** Anciennete du dernier run REUSSI, en heures. null si aucun succes. */
+  successAgeHours: number | null;
+}
+
+/**
+ * Derive l'etat de sante de l'ingestion du cerveau.
+ * Fonction PURE (testee dans __tests__/brain-ingest-health.test.ts) :
+ * l'horloge est injectable via `now`.
+ *
+ * Un run `running` (script tue en cours de route, machine fermee) n'est ni un
+ * succes ni un echec : il ne fait que ne pas rajeunir le dernier succes, donc
+ * l'anciennete finit par declencher `stale`. C'est le comportement voulu - un
+ * run interrompu n'a rien appris au cerveau.
+ */
+export function deriveBrainIngestState(
+  lastRun: BrainIngestRunSummary | null | undefined,
+  lastSuccess: BrainIngestRunSummary | null | undefined,
+  now: Date = new Date(),
+): BrainIngestFreshness {
+  const successAgeHours = lastSuccess
+    ? (now.getTime() - new Date(lastSuccess.started_at).getTime()) / 3_600_000
+    : null;
+  if (!lastRun) return { state: 'never', successAgeHours };
+  if (lastRun.statut === 'error') return { state: 'failed', successAgeHours };
+  if (successAgeHours === null || successAgeHours > BRAIN_INGEST_STALE_HOURS) {
+    return { state: 'stale', successAgeHours };
+  }
+  return { state: 'ok', successAgeHours };
+}
+
+export interface BrainIngestRun {
+  id: string;
+  statut: string;
+  started_at: string;
+  finished_at: string | null;
+  erreur: string | null;
+  stats: BrainIngestStats | null;
+}
+
+/** Compteurs ecrits par le script (cf. RunStats dans scripts/brain-ingest.ts). */
+export interface BrainIngestStats {
+  fiches?: number;
+  livrables?: number;
+  conversations?: number;
+  entites?: number;
+  stale?: number;
+  inchanges?: number;
+  lacunes_ouvertes?: number;
+}
+
+export interface BrainIngestHealth {
+  state: BrainIngestState;
+  successAgeHours: number | null;
+  /** Dernier run, quel que soit son statut. */
+  lastRun: BrainIngestRun | null;
+  /** Dernier run reussi (peut etre le meme que lastRun). */
+  lastSuccess: BrainIngestRun | null;
+}
+
+const BRAIN_RUN_COLUMNS = 'id, statut, started_at, finished_at, erreur, stats';
+
+/**
+ * Sante du script d'ingestion du cerveau : dernier run + dernier run reussi.
+ * Deux lectures ciblees (PostgREST n'expose pas de DISTINCT ON) : le dernier
+ * run donne l'echec eventuel, le dernier succes donne l'anciennete utile.
+ */
+export async function getBrainIngestHealth(): Promise<BrainIngestHealth> {
+  const supabase = await createClient();
+
+  const [last, success] = await Promise.all([
+    supabase
+      .from('brain_ingest_runs')
+      .select(BRAIN_RUN_COLUMNS)
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('brain_ingest_runs')
+      .select(BRAIN_RUN_COLUMNS)
+      .eq('statut', 'success')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const error = last.error ?? success.error;
+  if (error) {
+    logger.error('queries.syncs', 'getBrainIngestHealth failed', { error });
+    throw new AppError(
+      'SYNCS_FETCH_FAILED',
+      "Impossible de charger les runs d'ingestion du cerveau",
+      { cause: error },
+    );
+  }
+
+  const toRun = (
+    row: (typeof last)['data'] | (typeof success)['data'],
+  ): BrainIngestRun | null =>
+    row
+      ? {
+          id: row.id,
+          statut: row.statut,
+          started_at: row.started_at,
+          finished_at: row.finished_at,
+          erreur: row.erreur,
+          stats: row.stats as BrainIngestStats | null,
+        }
+      : null;
+
+  const lastRun = toRun(last.data);
+  const lastSuccess = toRun(success.data);
+  const { state, successAgeHours } = deriveBrainIngestState(
+    lastRun,
+    lastSuccess,
+  );
+
+  return { state, successAgeHours, lastRun, lastSuccess };
+}
+
 export interface RecentSyncRun {
   id: string;
   clientNom: string;

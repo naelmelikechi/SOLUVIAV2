@@ -273,7 +273,7 @@ export async function syncEduviaForClient(
 
     // ── PASS 1 - reference tables ──────────────────────────────────────
     const { learners, formations, companies } = await fetchReferenceData(ctx);
-    await upsertApprenants(ctx, learners);
+    await upsertApprenants(ctx, learners, projetResolution);
     await upsertFormations(ctx, formations);
     await upsertCompanies(ctx, companies);
 
@@ -425,8 +425,10 @@ async function fetchReferenceData(ctx: ClientSyncContext): Promise<{
 async function upsertApprenants(
   ctx: ClientSyncContext,
   learners: EduviaLearner[],
+  projetResolution: ProjetResolution,
 ): Promise<void> {
   const { supabase, clientId, now, result } = ctx;
+  const { resolveProjetId } = projetResolution;
   for (const learner of learners) {
     // formation_id / internal_number / learning_start/end_date ont quitté
     // la réponse employees ; ils sont désormais portés par les contrats.
@@ -436,6 +438,10 @@ async function upsertApprenants(
       {
         eduvia_id: learner.id,
         source_client_id: clientId,
+        // Rattachement au projet : meme resolution que les contrats. Sans
+        // elle, un apprenant sans contrat n'apparait sur aucune fiche projet.
+        eduvia_company_id: learner.company_id,
+        projet_id: resolveProjetId(learner.company_id),
         nom: learner.last_name,
         prenom: learner.first_name,
         gender: learner.gender,

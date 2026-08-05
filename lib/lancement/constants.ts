@@ -21,6 +21,10 @@ export const LANCEMENT_ETAPE_KEYS = LANCEMENT_ETAPES.map(
 export const LANCEMENT_STATUTS = [
   { key: 'non_commence', label: 'Non commencé', color: 'gray' },
   { key: 'en_cours', label: 'En cours', color: 'orange' },
+  // "Depose" = dossier parti chez le tiers instructeur, en attente de sa
+  // reponse. Distinct d'"en_cours" (action encore cote SOLUVIA) et de
+  // "lance" (accepte). Ordre de la liste = ordre d'avancement affiche.
+  { key: 'depose', label: 'Déposé', color: 'blue' },
   { key: 'lance', label: 'Lancé', color: 'green' },
 ] as const satisfies readonly {
   key: string;

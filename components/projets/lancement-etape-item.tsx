@@ -41,6 +41,7 @@ import { LancementUploadButton } from './lancement-upload-button';
 const DOT_STYLES: Record<LancementStatut, string> = {
   non_commence: 'bg-muted text-muted-foreground ring-border',
   en_cours: 'bg-orange-500 text-white ring-orange-500/30',
+  depose: 'bg-blue-600 text-white ring-blue-600/30',
   lance: 'bg-green-600 text-white ring-green-600/30',
 };
 

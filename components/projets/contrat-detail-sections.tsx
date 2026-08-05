@@ -1,5 +1,9 @@
-import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
+import { StatusBadge } from '@/components/shared/status-badge';
 import type { ContratDetail } from '@/lib/queries/contrats';
+import {
+  getContratStateColor,
+  getContratStateLabel,
+} from '@/lib/utils/contrat-states';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import {
   User,
@@ -18,30 +22,6 @@ import {
 
 const fmtDate = (d: string | Date | null | undefined): string | null =>
   d ? formatDate(d) : null;
-
-export const CONTRACT_STATE_LABELS: Record<string, string> = {
-  actif: 'Actif',
-  suspendu: 'Suspendu',
-  resilie: 'Résilié',
-  termine: 'Terminé',
-  NOTSENT: 'Pas envoyé',
-  TRANSMIS: 'Transmis',
-  EN_COURS_INSTRUCTION: "En cours d'instruction",
-  ENGAGE: 'Engagé',
-  ANNULE: 'Annulé',
-};
-
-export const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
-  actif: 'green',
-  suspendu: 'orange',
-  resilie: 'red',
-  termine: 'gray',
-  NOTSENT: 'gray',
-  TRANSMIS: 'blue',
-  EN_COURS_INSTRUCTION: 'orange',
-  ENGAGE: 'green',
-  ANNULE: 'red',
-};
 
 // Nomenclature Eduvia : codes contract_type (article du Code du travail)
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
@@ -155,8 +135,8 @@ function Row({
 export function ContratStateBadge({ state }: { state: string }) {
   return (
     <StatusBadge
-      label={CONTRACT_STATE_LABELS[state] ?? state}
-      color={CONTRACT_STATE_COLORS[state] ?? 'gray'}
+      label={getContratStateLabel(state)}
+      color={getContratStateColor(state)}
     />
   );
 }

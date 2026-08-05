@@ -5,14 +5,37 @@
  * (frontmatter + [[wikilinks]]) d'un vault Obsidian, à commiter dans le dépôt
  * du coffre. Idempotent : réécrit chaque note, écrase le contenu périmé.
  *
- * Usage : tsx scripts/brain-vault-sync.ts <dossier-du-vault>
+ * Usage : tsx scripts/brain-vault-sync.ts <dossier-du-vault> [--prune]
+ *
+ *   (sans drapeau)  n'efface RIEN : liste les fichiers orphelins détectés
+ *                   (notes archivées, anciens chemins, notes supprimées en
+ *                   base) et invite à relancer avec --prune.
+ *   --prune         supprime ces orphelins. Uniquement dans les dossiers de
+ *                   notes (fiches/, livrables/, conversations/, entites/),
+ *                   uniquement les .md portant un `type` de note en
+ *                   frontmatter, et jamais si la base n'a rendu aucune note
+ *                   vivante. Le coffre est un dépôt git : `git restore` /
+ *                   `git checkout` rattrape une suppression de trop.
+ *
  * Env (.env.local) : NEXT_PUBLIC_SUPABASE_URL (ou SUPAVIA_API_URL),
  *                    SUPAVIA_DASHBOARD_USER, SUPAVIA_DASHBOARD_PASSWORD.
  */
 import { config } from 'dotenv';
 import { resolve, join, dirname } from 'node:path';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { buildMarkdown } from '../lib/brain/note';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import {
+  buildMarkdown,
+  fichiersOrphelins,
+  NOTE_FOLDERS,
+  type FichierCoffre,
+} from '../lib/brain/note';
 import type { BrainNote } from '../lib/brain/types';
 
 config({ path: resolve(process.cwd(), '.env.local') });
@@ -61,10 +84,87 @@ Coffre généré depuis \`brain_notes\` (la base de connaissance de l'assistant 
 Ne pas éditer à la main : régénéré par \`scripts/brain-vault-sync.ts\`.
 `;
 
+/**
+ * Les `.md` présents sous les dossiers de notes du coffre. Ne descend que là :
+ * la racine (`_lacunes.md`, `README.md`), `.obsidian/`, `.git/` et tout dossier
+ * créé par l'utilisateur restent hors de vue de l'élagage. Les entrées cachées
+ * sont ignorées, les liens symboliques aussi (ni fichier ni dossier régulier).
+ */
+function listerFichiersNotes(vaultDir: string): FichierCoffre[] {
+  const trouves: FichierCoffre[] = [];
+  const marcher = (abs: string, relatif: string) => {
+    for (const entree of readdirSync(abs, { withFileTypes: true })) {
+      if (entree.name.startsWith('.')) continue;
+      const sousAbs = join(abs, entree.name);
+      const sousRel = `${relatif}/${entree.name}`;
+      if (entree.isDirectory()) marcher(sousAbs, sousRel);
+      else if (entree.isFile() && entree.name.endsWith('.md'))
+        trouves.push({ path: sousRel, content: readFileSync(sousAbs, 'utf8') });
+    }
+  };
+  for (const dossier of NOTE_FOLDERS) {
+    const racine = join(vaultDir, dossier);
+    if (existsSync(racine)) marcher(racine, dossier);
+  }
+  return trouves;
+}
+
+/**
+ * Élagage des fichiers que le coffre ne devrait plus contenir. Opt-in : sans
+ * `--prune` on se contente de les nommer. Supprimer par défaut dans un dossier
+ * que l'utilisateur édite lui-même dans Obsidian serait inacceptable.
+ */
+function elaguer(vaultDir: string, notes: BrainNote[], prune: boolean): void {
+  // Une base injoignable ou vide ne doit JAMAIS se traduire par un coffre vidé.
+  // `fichiersOrphelins` refuse déjà une liste de conservation vide ; on le dit
+  // aussi ici, pour que la sortie explique le non-élagage au lieu de se taire.
+  if (notes.length === 0) {
+    console.log(
+      '⚠ aucune note vivante lue en base : élagage ignoré (une lecture vide ' +
+        'ne doit pas vider le coffre).',
+    );
+    return;
+  }
+
+  const orphelins = fichiersOrphelins(
+    listerFichiersNotes(vaultDir),
+    notes.map((n) => n.path),
+  );
+  if (orphelins.length === 0) {
+    console.log('✓ aucun fichier orphelin.');
+    return;
+  }
+
+  if (!prune) {
+    console.log(`\n${orphelins.length} fichier(s) orphelin(s) détecté(s) :`);
+    for (const path of orphelins) console.log(`  - ${path}`);
+    console.log(
+      `\nRien n'a été supprimé. Relancer avec --prune pour les effacer :\n` +
+        `  npm run brain:vault -- ${vaultDir} --prune`,
+    );
+    return;
+  }
+
+  console.log(`\nÉlagage de ${orphelins.length} fichier(s) orphelin(s) :`);
+  for (const path of orphelins) {
+    rmSync(join(vaultDir, path));
+    console.log(`  supprimé ${path}`);
+  }
+  console.log(
+    `\n✓ ${orphelins.length} fichier(s) supprimé(s). Le coffre est un dépôt ` +
+      `git : en cas de suppression de trop, \`git -C ${vaultDir} restore .\` ` +
+      `(avant commit) ou \`git -C ${vaultDir} revert\` rétablit les fichiers.`,
+  );
+}
+
 async function main() {
-  const vaultDir = process.argv[2];
+  const args = process.argv.slice(2);
+  const prune = args.includes('--prune');
+  const vaultDir = args.find((a) => !a.startsWith('--'));
   if (!vaultDir) {
-    console.error('usage: tsx scripts/brain-vault-sync.ts <dossier-du-vault>');
+    console.error(
+      'usage: tsx scripts/brain-vault-sync.ts <dossier-du-vault> [--prune]',
+    );
     process.exit(1);
   }
 
@@ -87,13 +187,13 @@ async function main() {
   }
   writeFileSync(join(vaultDir, 'README.md'), README, 'utf8');
   console.log(`✓ ${notes.length} note(s) écrite(s) dans ${vaultDir}`);
-  // Ce script n'efface rien : le fichier d'une note archivée reste sur disque
-  // tant qu'on ne le supprime pas à la main (cf. rapport — sujet distinct).
   if (archivees.length)
     console.log(
       `  ${archivees.length} note(s) archivée(s) non écrite(s) ; ` +
-        `leur .md éventuel reste à supprimer à la main.`,
+        `leur .md éventuel est un orphelin (cf. ci-dessous).`,
     );
+
+  elaguer(vaultDir, notes, prune);
 }
 
 main().catch((e) => {

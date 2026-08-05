@@ -12,6 +12,7 @@ import {
   entityToBrainNote,
   entitySourceRef,
   definitionDepuisCorps,
+  fichiersOrphelins,
 } from '@/lib/brain/note';
 import type { BrainNote } from '@/lib/brain/types';
 import type { FinalizedFiche } from '@/lib/process/types';
@@ -243,5 +244,79 @@ describe('entityToBrainNote', () => {
     const note = entityToBrainNote('opco', 'OPCO', ['fiches/a'], '', 'h1');
     expect(definitionDepuisCorps(note.body)).toBe('');
     expect(definitionDepuisCorps('')).toBe('');
+  });
+});
+
+describe('fichiersOrphelins', () => {
+  const genere = (type: string, titre = 'T') =>
+    `---\ntype: ${type}\ntitle: ${JSON.stringify(titre)}\naliases: []\ntags: []\nlinks: []\n---\n\n# ${titre}\n`;
+
+  it('un fichier sans note correspondante est orphelin', () => {
+    expect(
+      fichiersOrphelins(
+        [
+          { path: 'fiches/vivante.md', content: genere('fiche') },
+          { path: 'fiches/archivee.md', content: genere('fiche') },
+          // Ancien chemin de conversation, avant le suffixe de hash.
+          {
+            path: 'conversations/comment-faire.md',
+            content: genere('conversation'),
+          },
+        ],
+        ['fiches/vivante.md', 'conversations/comment-faire-a1b2c3d4.md'],
+      ),
+    ).toEqual(['fiches/archivee.md', 'conversations/comment-faire.md']);
+  });
+
+  it('un fichier hors des dossiers de notes n’est jamais orphelin', () => {
+    expect(
+      fichiersOrphelins(
+        [
+          // Racine du coffre : écrite par brain-ingest, hors périmètre.
+          { path: '_lacunes.md', content: genere('fiche') },
+          { path: 'README.md', content: genere('fiche') },
+          // Dossier créé par l'utilisateur, même avec un frontmatter copié.
+          { path: 'perso/notes.md', content: genere('fiche') },
+          { path: '.obsidian/plugins/x.md', content: genere('fiche') },
+        ],
+        ['fiches/vivante.md'],
+      ),
+    ).toEqual([]);
+  });
+
+  it('un fichier sans frontmatter `type` connu n’est jamais candidat', () => {
+    expect(
+      fichiersOrphelins(
+        [
+          {
+            path: 'entites/a-la-main.md',
+            content: '# Note perso\n\nÉcrite dans Obsidian.\n',
+          },
+          {
+            path: 'entites/sans-type.md',
+            content: '---\ntitle: "X"\n---\n\n# X\n',
+          },
+          { path: 'entites/type-inconnu.md', content: genere('memo') },
+          { path: 'entites/orpheline.md', content: genere('entite') },
+        ],
+        ['entites/vivante.md'],
+      ),
+    ).toEqual(['entites/orpheline.md']);
+  });
+
+  // Le garde-fou : si la lecture de la base échoue ou rend zéro ligne, tout le
+  // coffre passerait pour obsolète. Une liste de conservation vide ne doit
+  // rendre aucun orphelin, sinon un --prune viderait le coffre sur une panne.
+  it('une liste de notes vide ne rend aucun orphelin', () => {
+    expect(
+      fichiersOrphelins(
+        [
+          { path: 'fiches/a.md', content: genere('fiche') },
+          { path: 'entites/opco.md', content: genere('entite') },
+          { path: 'livrables/abc.md', content: genere('livrable') },
+        ],
+        [],
+      ),
+    ).toEqual([]);
   });
 });

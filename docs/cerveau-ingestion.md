@@ -87,7 +87,24 @@ npm run brain:ingest -- --vault /chemin/vers/soluvia-cerveau
 
 # Régénérer le coffre seul depuis brain_notes (sans ré-analyser) :
 npm run brain:vault -- /chemin/vers/soluvia-cerveau
+
+# Idem, en effaçant les fichiers orphelins (cf. ci-dessous) :
+npm run brain:vault -- /chemin/vers/soluvia-cerveau --prune
 ```
+
+## Fichiers orphelins du coffre
+
+La régénération **écrit** les notes vivantes mais n'efface rien par défaut. Des `.md` finissent donc par ne plus correspondre à aucune note : une note **archivée** (plus écrite depuis qu'on exclut `frontmatter.archive`), une conversation dont le chemin a changé (le suffixe de hash de `conversationPath`), une note supprimée ou renommée en base. Obsidian continue de les indexer : ils ressortent dans la recherche en concurrence avec la note à jour.
+
+`npm run brain:vault -- <coffre>` les **liste** et s'arrête là. Ajouter `--prune` pour les supprimer. L'opt-in est volontaire : le coffre est aussi édité à la main dans Obsidian, un effacement par défaut serait inacceptable.
+
+Avec `--prune`, trois conditions cumulatives protègent le contenu qui n'est pas généré :
+
+1. **Périmètre** — seuls les dossiers de notes sont parcourus (`fiches/`, `livrables/`, `conversations/`, `entites/`, dérivés de `lib/brain/note.ts`). Jamais la racine du coffre (où vit `_lacunes.md`), ni `.obsidian/`, ni `.git/`, ni un dossier que tu aurais créé.
+2. **Marque de fichier généré** — le frontmatter doit porter un `type` de note connu. Un `.md` que tu as écrit toi-même dans `entites/` n'en a pas : il est ignoré.
+3. **Base non vide** — si la lecture de `brain_notes` échoue ou ne rend aucune note vivante, **rien n'est élagué** ; sinon une panne de base viderait le coffre. Le cas est verrouillé par un test (`fichiersOrphelins` avec une liste de conservation vide ne rend aucun orphelin).
+
+Chaque suppression est journalisée. Dernier filet : **le coffre est un dépôt git**, donc récupérable — `git -C <coffre> restore .` avant commit, `git revert` après.
 
 ## Cadence
 
@@ -97,5 +114,5 @@ npm run brain:vault -- /chemin/vers/soluvia-cerveau
 
 - Notes lues par l'assistant : `lib/brain/retrieve.ts` → route `app/api/process/ask/route.ts` (OpenAI rédige depuis les notes ; les notes `stale` et `archive` sont exclues).
 - Propositions : `lib/brain/proposal.ts` (formes et empreintes), `lib/queries/brain-proposals.ts` (file), `lib/actions/brain-proposals.ts` (arbitrage), `app/(dashboard)/admin/cerveau/`.
-- Format de note : `lib/brain/note.ts` (`ficheToBrainNote`, `buildMarkdown`).
+- Format de note : `lib/brain/note.ts` (`ficheToBrainNote`, `buildMarkdown`, `fichiersOrphelins`).
 - Cf. specs `docs/plans/2026-08-03-cerveau-phase1-{design,plan}.md` et `docs/plans/2026-08-05-cerveau-semi-auto-{design,plan}.md`.

@@ -10,6 +10,22 @@ const FOLDER: Record<BrainNoteType, string> = {
   entite: 'entites',
 };
 
+const NOTE_TYPES = Object.keys(FOLDER) as BrainNoteType[];
+
+/**
+ * Les seuls dossiers du coffre qu'écrit `brain-vault-sync`. Dérivé de `FOLDER`
+ * pour qu'un nouveau type de note ne puisse pas créer un dossier que l'élagage
+ * ignorerait (ses fichiers deviendraient alors des orphelins invisibles).
+ * Tout le reste du coffre — sa racine (`_lacunes.md`, `README.md`),
+ * `.obsidian/`, `.git/`, un dossier créé par l'utilisateur — est hors périmètre.
+ */
+export const NOTE_FOLDERS: readonly string[] = NOTE_TYPES.map((t) => FOLDER[t]);
+
+/** Vrai si la valeur est un type de note connu (marque d'un fichier généré). Pur. */
+export function estTypeDeNote(value: unknown): value is BrainNoteType {
+  return typeof value === 'string' && (NOTE_TYPES as string[]).includes(value);
+}
+
 export function slugify(input: string): string {
   const s = input
     .normalize('NFD')
@@ -90,6 +106,55 @@ export function parseFrontmatter(md: string): {
     }
   }
   return { frontmatter: fm, body: (m[2] ?? '').trim() };
+}
+
+/** Un `.md` trouvé sur disque dans le coffre. `path` est relatif à sa racine. */
+export interface FichierCoffre {
+  path: string;
+  /** Contenu Markdown tel quel, frontmatter compris. */
+  content: string;
+}
+
+function cheminNormalise(p: string): string {
+  return p.replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+/**
+ * Les fichiers du coffre qui ne correspondent plus à aucune note : notes
+ * archivées (que le script n'écrit plus), anciens chemins de conversation
+ * (avant le suffixe de hash de `conversationPath`), notes supprimées ou
+ * renommées en base. Le coffre étant aussi édité à la main dans Obsidian,
+ * trois conditions cumulatives sont exigées avant de déclarer un orphelin :
+ *
+ * 1. le fichier est dans un dossier de notes (`NOTE_FOLDERS`) — jamais la
+ *    racine, ni `.obsidian/`, ni un dossier de l'utilisateur ;
+ * 2. son frontmatter porte un `type` de note connu — la marque d'un fichier
+ *    généré ; un `.md` écrit à la main dans `entites/` n'en a pas ;
+ * 3. son chemin n'est pas dans `pathsConserves`.
+ *
+ * Garde-fou : une liste `pathsConserves` VIDE ne rend aucun orphelin. Sans lui,
+ * une lecture de base en échec (ou revenue vide) ferait passer tout le coffre
+ * pour obsolète et l'effacerait — exactement l'accident que l'élagage doit
+ * rendre impossible. Pur.
+ */
+export function fichiersOrphelins(
+  fichiers: readonly FichierCoffre[],
+  pathsConserves: readonly string[],
+): string[] {
+  if (pathsConserves.length === 0) return [];
+  const conserves = new Set(pathsConserves.map(cheminNormalise));
+  const orphelins: string[] = [];
+  for (const fichier of fichiers) {
+    const path = cheminNormalise(fichier.path);
+    if (!path.endsWith('.md')) continue;
+    const dossier = path.split('/')[0];
+    if (!dossier || !NOTE_FOLDERS.includes(dossier)) continue;
+    if (conserves.has(path)) continue;
+    if (!estTypeDeNote(parseFrontmatter(fichier.content).frontmatter.type))
+      continue;
+    orphelins.push(path);
+  }
+  return orphelins;
 }
 
 /** Corps Markdown d'une note de fiche, à partir de l'analyse Claude. Pur. */

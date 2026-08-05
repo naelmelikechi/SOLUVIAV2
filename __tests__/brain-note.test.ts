@@ -151,7 +151,11 @@ describe('conversationToBrainNote', () => {
       { 'livrables/FILE42': 'h42' },
     );
     expect(note.type).toBe('conversation');
-    expect(note.path).toBe('conversations/quels-sont-les-3-statuts.md');
+    // Suffixe de hash : le path est injectif (cf. `conversationPath`), deux
+    // questions au préfixe commun ne peuvent plus s'écraser l'une l'autre.
+    expect(note.path).toMatch(
+      /^conversations\/quels-sont-les-3-statuts-[0-9a-f]{8}\.md$/,
+    );
     expect(note.title).toBe('Quels sont les 3 statuts ?');
     expect(note.source_ref).toBe('fb1');
     expect(note.source_hash).toBe('qahash');

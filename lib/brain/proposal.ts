@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { BrainNote } from './types';
-import { conversationPath, wikilink } from './note';
+import { conversationPath, definitionDepuisCorps, wikilink } from './note';
 
 export type ProposalKind =
   | 'conversation'
@@ -19,6 +19,16 @@ export interface BrainProposal {
   payload: Record<string, unknown>;
   source_ref: string;
   source_hash: string;
+}
+
+/**
+ * Clé d'unicité d'une proposition, image de la contrainte `unique (kind, source_ref)`.
+ * Producteur et consommateur DOIVENT passer par ici : la clé a déjà divergé une
+ * fois (`source_ref` des entités valant déjà `entite:<slug>`, la concaténation
+ * manuelle produisait `entite:entite:<slug>` et le garde ne mordait jamais). Pur.
+ */
+export function proposalKey(kind: ProposalKind, sourceRef: string): string {
+  return `${kind}:${sourceRef}`;
 }
 
 /**
@@ -86,7 +96,15 @@ export function noteToProposal(note: BrainNote): BrainProposal {
  * retiré par l'admin resterait dans `links`, l'expansion de graphe le suivrait
  * quand même, et `markStaleConversations` marquerait la note obsolète pour une
  * source qu'elle ne cite plus. Le titre, lui, n'est PAS re-dérivé du corps :
- * c'est la question posée, pas le titre markdown. Pur.
+ * c'est la question posée, pas le titre markdown.
+ *
+ * Pour un `entite`, `frontmatter.definition` est re-dérivé du corps édité par la
+ * règle partagée `definitionDepuisCorps`. Sans cela la copie structurée resterait
+ * au texte proposé par Claude, et la réécriture mécanique des backlinks (qui lit
+ * le frontmatter EN PRIORITÉ sur le corps) écraserait la correction de l'admin au
+ * run suivant — sans proposition, sans trace, sans clic. Corps édité sans
+ * définition lisible → la clé est retirée, comme le fait `entityToBrainNote` :
+ * frontmatter et corps disent alors la même chose, à savoir rien. Pur.
  */
 export function applyProposal(
   p: BrainProposal,
@@ -118,16 +136,17 @@ export function applyProposal(
       (note.frontmatter?.source_hashes ?? {}) as Record<string, string>,
     ).filter(([k]) => uniques.includes(k)),
   );
-  return {
-    ...note,
-    body,
-    links: uniques,
-    frontmatter: {
-      ...note.frontmatter,
-      derived_from: uniques,
-      source_hashes: hashes,
-    },
+  const frontmatter: Record<string, unknown> = {
+    ...note.frontmatter,
+    derived_from: uniques,
+    source_hashes: hashes,
   };
+  if (p.kind === 'entite') {
+    const definition = definitionDepuisCorps(body);
+    if (definition) frontmatter.definition = definition;
+    else delete frontmatter.definition;
+  }
+  return { ...note, body, links: uniques, frontmatter };
 }
 
 export interface GapInput {

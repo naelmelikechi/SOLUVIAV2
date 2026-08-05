@@ -10,6 +10,8 @@ import {
   isNonAnswer,
   conversationToBrainNote,
   entityToBrainNote,
+  entitySourceRef,
+  definitionDepuisCorps,
 } from '@/lib/brain/note';
 import type { BrainNote } from '@/lib/brain/types';
 import type { FinalizedFiche } from '@/lib/process/types';
@@ -181,6 +183,7 @@ describe('entityToBrainNote', () => {
     expect(note.type).toBe('entite');
     expect(note.path).toBe('entites/opco.md');
     expect(note.title).toBe('OPCO');
+    expect(note.source_ref).toBe(entitySourceRef('opco'));
     expect(note.source_ref).toBe('entite:opco');
     // dédupliqué
     expect(note.links).toEqual(['fiches/lancement-a-1', 'livrables/FILE42']);
@@ -218,5 +221,27 @@ describe('entityToBrainNote', () => {
   it('sans définition, le frontmatter reste vide', () => {
     const note = entityToBrainNote('opco', 'OPCO', ['fiches/a'], '', 'h1');
     expect(note.frontmatter).toEqual({});
+  });
+
+  // `definitionDepuisCorps` est la réciproque du corps rendu ici. Règle unique
+  // pour le script (qui relit une définition publiée) et pour `applyProposal`
+  // (qui la re-dérive d'un corps édité) : si elle cessait d'être réciproque, la
+  // copie en frontmatter divergerait du corps.
+  it('definitionDepuisCorps relit la définition rendue dans le corps', () => {
+    const definition = 'Opérateur de compétences finançant la formation.';
+    const note = entityToBrainNote(
+      'opco',
+      'OPCO',
+      ['fiches/a'],
+      definition,
+      'h1',
+    );
+    expect(definitionDepuisCorps(note.body)).toBe(definition);
+  });
+
+  it('definitionDepuisCorps rend vide quand le corps ne porte rien', () => {
+    const note = entityToBrainNote('opco', 'OPCO', ['fiches/a'], '', 'h1');
+    expect(definitionDepuisCorps(note.body)).toBe('');
+    expect(definitionDepuisCorps('')).toBe('');
   });
 });

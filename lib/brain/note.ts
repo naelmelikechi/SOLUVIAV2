@@ -191,6 +191,32 @@ export function conversationToBrainNote(
 }
 
 /**
+ * `source_ref` d'une note d'entité. Producteur (`entityToBrainNote`) et
+ * consommateurs (le filtre des candidats de `brain-ingest`) DOIVENT passer par
+ * ici : la valeur a déjà divergé une fois, le script interrogeant sa map de
+ * propositions avec `opco` là où la base porte `entite:opco`. Pur.
+ */
+export function entitySourceRef(slug: string): string {
+  return `entite:${slug}`;
+}
+
+/**
+ * Définition portée par le CORPS d'une note d'entité : le paragraphe qui suit
+ * immédiatement le titre, avant la première section. C'est l'exacte réciproque
+ * du corps rendu par `entityToBrainNote`.
+ *
+ * Règle unique, partagée par le script (qui relit une définition déjà publiée)
+ * et par `applyProposal` (qui re-dérive `frontmatter.definition` d'un corps
+ * édité par l'admin) : si les deux divergeaient, la copie en frontmatter
+ * cesserait de refléter le corps, et la réécriture mécanique des backlinks
+ * republierait l'ancien texte par-dessus la correction humaine. Pur.
+ */
+export function definitionDepuisCorps(body: string): string {
+  const m = body.match(/^#[^\n]*\n\n(?!## )([\s\S]*?)\n\n## /);
+  return m?.[1]?.trim() ?? '';
+}
+
+/**
  * Note `entite` (carrefour du graphe). `backlinks` = paths (sans extension) des
  * notes qui la référencent. `definition` optionnelle (peut venir de Claude).
  *
@@ -224,7 +250,7 @@ export function entityToBrainNote(
     links: uniq,
     body,
     frontmatter: definition ? { definition } : {},
-    source_ref: `entite:${slug}`,
+    source_ref: entitySourceRef(slug),
     source_hash: sourceHash,
   };
 }

@@ -4,8 +4,14 @@ import {
   noteToProposal,
   applyProposal,
   gapToBrainNote,
+  proposalKey,
   type BrainProposal,
 } from '@/lib/brain/proposal';
+import {
+  entityToBrainNote,
+  entitySourceRef,
+  definitionDepuisCorps,
+} from '@/lib/brain/note';
 import type { BrainNote } from '@/lib/brain/types';
 
 const proposal: BrainProposal = {
@@ -90,6 +96,45 @@ describe('noteToProposal', () => {
   });
 });
 
+describe('proposalKey', () => {
+  const entite = entityToBrainNote(
+    'opco',
+    'OPCO',
+    ['fiches/a', 'fiches/b', 'fiches/c'],
+    'Opérateur de compétences finançant la formation.',
+    'ehash',
+  );
+
+  // Verrou d'accord producteur/consommateur. La clé a déjà divergé : le script
+  // indexait `kind:source_ref` (soit `entite:entite:opco`, `source_ref` valant
+  // déjà `entite:<slug>`) mais interrogeait sa map avec `entite:<slug>` —
+  // jamais de correspondance, donc une définition REJETÉE redevenait candidate
+  // à chaque run, était reformulée par Claude (nouveau hash), et `shouldPropose`
+  // la rouvrait en effaçant motif et décideur.
+  it("la clé d'une proposition d'entité passe par source_ref, sans re-préfixe", () => {
+    const p = noteToProposal(entite);
+    expect(p.source_ref).toBe('entite:opco');
+    expect(proposalKey(p.kind, p.source_ref)).toBe('entite:entite:opco');
+  });
+
+  it('le consommateur reconstruit exactement la clé du producteur', () => {
+    const p = noteToProposal(entite);
+    // Ce que le filtre des candidats de brain-ingest interroge, à partir du
+    // seul slug court dont il dispose.
+    expect(proposalKey('entite', entitySourceRef('opco'))).toBe(
+      proposalKey(p.kind, p.source_ref),
+    );
+    // Et la forme fautive historique n'est PAS la clé stockée.
+    expect(proposalKey(p.kind, p.source_ref)).not.toBe('entite:opco');
+  });
+
+  it('discrimine les kinds partageant un source_ref', () => {
+    expect(proposalKey('conversation', 'x')).not.toBe(
+      proposalKey('obsolescence', 'x'),
+    );
+  });
+});
+
 describe('applyProposal', () => {
   it('rend la note du payload quand editedBody est absent', () => {
     expect(applyProposal(noteToProposal(note))).toEqual(note);
@@ -117,6 +162,59 @@ describe('applyProposal', () => {
 
   it('refuse un corps édité vidé plutôt que de republier le texte proposé', () => {
     expect(() => applyProposal(noteToProposal(note), '   ')).toThrow(/vidé/);
+  });
+
+  // Sans cette re-dérivation, `frontmatter.definition` restait au texte de
+  // Claude ; le run suivant relit ce frontmatter EN PRIORITÉ sur le corps et
+  // republie l'ancienne formulation par-dessus la correction de l'admin.
+  describe('entite : la définition corrigée survit au run suivant', () => {
+    const originale = 'Opérateur de compétences finançant la formation.';
+    const entite = entityToBrainNote(
+      'opco',
+      'OPCO',
+      ['fiches/a', 'fiches/b'],
+      originale,
+      'ehash',
+    );
+
+    it('re-dérive frontmatter.definition depuis le corps édité', () => {
+      const corrigee =
+        "Opérateur de compétences agréé par l'État, qui finance les formations des entreprises adhérentes.";
+      const applied = applyProposal(
+        noteToProposal(entite),
+        `# OPCO\n\n${corrigee}\n\n## Notes liées\n[[fiches/a]] · [[fiches/b]]`,
+      );
+      expect(applied.frontmatter.definition).toBe(corrigee);
+      expect(applied.frontmatter.definition).not.toBe(originale);
+      // La copie structurée doit dire exactement ce que dit le corps : c'est
+      // cette égalité que la réécriture mécanique des backlinks suppose.
+      expect(applied.frontmatter.definition).toBe(
+        definitionDepuisCorps(applied.body),
+      );
+    });
+
+    it('corps édité sans définition lisible : la clé est retirée', () => {
+      const applied = applyProposal(
+        noteToProposal(entite),
+        '# OPCO\n\n## Notes liées\n[[fiches/a]]',
+      );
+      expect(applied.frontmatter.definition).toBeUndefined();
+      expect('definition' in applied.frontmatter).toBe(false);
+    });
+
+    it('sans corps édité, la note du payload est rendue telle quelle', () => {
+      expect(applyProposal(noteToProposal(entite)).frontmatter).toEqual({
+        definition: originale,
+      });
+    });
+
+    it('une conversation éditée ne se voit pas inventer de définition', () => {
+      const applied = applyProposal(
+        noteToProposal(note),
+        '# Comment facturer un OPCO ?\n\nUn paragraphe.\n\n## Sources\n[[fiches/lancement-a-1]]',
+      );
+      expect('definition' in applied.frontmatter).toBe(false);
+    });
   });
 
   it('corps édité : réaligne links et source_hashes', () => {

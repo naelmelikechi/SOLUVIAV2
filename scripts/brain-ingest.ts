@@ -36,11 +36,15 @@ import {
   conversationPath,
   conversationToBrainNote,
   entityToBrainNote,
+  entitySourceRef,
+  definitionDepuisCorps,
 } from '../lib/brain/note';
 import {
   shouldPropose,
   noteToProposal,
+  proposalKey,
   type BrainProposal,
+  type ProposalKind,
 } from '../lib/brain/proposal';
 import type { BrainNote, NoteAnalysis } from '../lib/brain/types';
 import type { FinalizedFiche } from '../lib/process/types';
@@ -99,18 +103,18 @@ async function upsertNote(note: BrainNote): Promise<void> {
 // Nom distinct de `ProposalRow` (lib/queries/brain-proposals.ts), qui porte la
 // ligne complète pour l'UI : ici on ne lit que de quoi décider.
 interface ProposalState {
-  kind: string;
+  kind: ProposalKind;
   source_ref: string;
   status: 'en_attente' | 'approuvee' | 'rejetee' | 'a_regenerer';
   source_hash: string;
 }
 
-/** État des propositions déjà en base, indexé par `kind:source_ref`. */
+/** État des propositions déjà en base, indexé par `proposalKey`. */
 async function loadProposals(): Promise<Map<string, ProposalState>> {
   const rows = await pg<ProposalState>(
     `select kind, source_ref, status, source_hash from public.brain_proposals`,
   );
-  return new Map(rows.map((r) => [`${r.kind}:${r.source_ref}`, r]));
+  return new Map(rows.map((r) => [proposalKey(r.kind, r.source_ref), r]));
 }
 
 /**
@@ -122,7 +126,7 @@ async function proposeNote(
   known: Map<string, ProposalState>,
   dryRun: boolean,
 ): Promise<boolean> {
-  const existing = known.get(`${p.kind}:${p.source_ref}`) ?? null;
+  const existing = known.get(proposalKey(p.kind, p.source_ref)) ?? null;
   const verdict = shouldPropose(p, existing);
   if (verdict === 'skip') return false;
   if (dryRun) {
@@ -259,6 +263,10 @@ function livrableToBrainNote(
 /** Une entité citée par moins de 3 notes ne justifie pas de mobiliser un arbitrage humain. */
 const SEUIL_DEFINITION = 3;
 
+/** Au-delà, un seul appel Claude devient fragile (troncature = lot entier perdu)
+ *  et la file de validation devient inexploitable. Le reste suivra au prochain run. */
+const MAX_DEFINITIONS_PAR_RUN = 40;
+
 const titleCase = (s: string) =>
   s
     .split('-')
@@ -373,8 +381,7 @@ Renvoie UNIQUEMENT un JSON : {"<identifiant>": {"name": "...", "definition": "..
 function definitionExistante(note: NoteRow | undefined): string {
   const fm = note?.frontmatter?.definition;
   if (typeof fm === 'string' && fm.trim()) return fm.trim();
-  const m = (note?.body ?? '').match(/^#[^\n]*\n\n(?!## )([\s\S]*?)\n\n## /);
-  return m?.[1]?.trim() ?? '';
+  return definitionDepuisCorps(note?.body ?? '');
 }
 
 /**
@@ -452,12 +459,17 @@ async function ingestEntities(dryRun: boolean): Promise<number> {
 
   // --- Chemin 2 : la définition, elle, s'arbitre ---
   const known = await loadProposals();
-  const candidates = citees.filter((link) => {
+  const tousCandidats = citees.filter((link) => {
     const short = link.replace(/^entites\//, '');
     if ((backlinks.get(link) ?? []).length < SEUIL_DEFINITION) return false;
     if (definitionExistante(parPath.get(`${link}.md`))) return false;
-    return !known.has(`entite:${short}`);
+    // `entitySourceRef` : la clé interrogée ici DOIT être celle que
+    // `entityToBrainNote` posera, sinon le garde ne mord jamais et une
+    // définition rejetée se rouvre à chaque exécution.
+    return !known.has(proposalKey('entite', entitySourceRef(short)));
   });
+  const candidates = tousCandidats.slice(0, MAX_DEFINITIONS_PAR_RUN);
+  const reportees = tousCandidats.length - candidates.length;
 
   let proposees = 0;
   if (candidates.length) {
@@ -491,8 +503,16 @@ async function ingestEntities(dryRun: boolean): Promise<number> {
 
   console.log(
     `  entités écrites en direct : ${creees} · définitions proposées : ${proposees}` +
-      ` (candidates : ${candidates.length})`,
+      ` (candidates : ${tousCandidats.length}, traitées : ${candidates.length}` +
+      `, reportées : ${reportees})`,
   );
+  // Un plafond silencieux se lirait comme « tout est couvert » : on dit
+  // explicitement ce qui reste, et qu'un run suivant le reprendra.
+  if (reportees)
+    console.log(
+      `  ⚠ plafond ${MAX_DEFINITIONS_PAR_RUN}/run : ${tousCandidats.length} candidates, ` +
+        `${candidates.length} traitées, ${reportees} au prochain run.`,
+    );
   return creees + proposees;
 }
 

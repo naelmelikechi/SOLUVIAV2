@@ -7,11 +7,13 @@ export type ProposalKind =
   | 'entite'
   | 'lacune'
   | 'obsolescence';
-export type ProposalStatus =
-  | 'en_attente'
-  | 'approuvee'
-  | 'rejetee'
-  | 'a_regenerer';
+/**
+ * La contrainte `check` en base tolère encore `a_regenerer`, hérité de l'action
+ * « Régénérer » supprimée : plus aucun code ne l'écrit, et aucune ligne ne la
+ * porte. On ne la déclare plus ici pour que le type reflète ce qui peut
+ * réellement arriver.
+ */
+export type ProposalStatus = 'en_attente' | 'approuvee' | 'rejetee';
 
 export interface BrainProposal {
   kind: ProposalKind;
@@ -37,10 +39,6 @@ export function proposalKey(kind: ProposalKind, sourceRef: string): string {
  * `skip` sur hash identique quel que soit le statut : un rejet est DURABLE, on
  * ne repropose pas le même contenu à chaque run. `reopen` dès que le hash change :
  * le contenu refusé n'est plus celui qu'on propose, l'admin doit re-arbitrer.
- * Exception : `a_regenerer` reste `skip` même si le hash change. Ce statut est
- * posé par un admin pour demander une régénération que le script consomme en
- * fin de run ; un `reopen` prématuré le repasserait en `en_attente` et
- * effacerait la demande sans trace.
  */
 export function shouldPropose(
   next: BrainProposal,
@@ -48,7 +46,6 @@ export function shouldPropose(
 ): 'skip' | 'insert' | 'reopen' {
   if (!existing) return 'insert';
   if (existing.source_hash === next.source_hash) return 'skip';
-  if (existing.status === 'a_regenerer') return 'skip';
   return 'reopen';
 }
 

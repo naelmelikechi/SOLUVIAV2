@@ -36,10 +36,14 @@ const GapSchema = z.object({
   sourceHash: z.string().min(1).max(128),
   answer: z.string().min(1).max(20000),
 });
+// Deux choix seulement. « Régénérer » a été retiré : pour une note de
+// conversation la question et la réponse n'ont pas bougé — seule une source a
+// changé — et l'app ne peut pas appeler Claude. Le chemin ne pouvait donc que
+// dupliquer « Garder », après avoir consommé l'arbitrage.
 const StaleSchema = z.object({
   id: z.string().uuid(),
   sourceHash: z.string().min(1).max(128),
-  choix: z.enum(['garder', 'archiver', 'regenerer']),
+  choix: z.enum(['garder', 'archiver']),
 });
 
 /** Admin + client service-role (la RLS de brain_notes n'ouvre que le select). */
@@ -71,6 +75,20 @@ async function upsertNote(
     (note.frontmatter as Record<string, unknown>)?.['corrige'] === true;
   if (dejaCorrigee && !nouvelleCorrigee) {
     return 'Cette question a déjà une réponse rédigée par un administrateur — rejette cette proposition, ou modifie la note existante.';
+  }
+
+  // Symétrique du garde ci-dessus, pour les entités. `verified: true` est posé à
+  // la main sur les définitions officielles sourcées (23 des 31 entités en
+  // production) ; une proposition ne le porte jamais (`entityToBrainNote` n'écrit
+  // que `definition`). Sans ce garde, approuver une définition de Claude sur une
+  // de ces entités remplacerait tout son corps — sources comprises.
+  const dejaVerifiee =
+    (existante?.frontmatter as Record<string, unknown> | null)?.['verified'] ===
+    true;
+  const nouvelleVerifiee =
+    (note.frontmatter as Record<string, unknown>)?.['verified'] === true;
+  if (dejaVerifiee && !nouvelleVerifiee) {
+    return 'Cette entité a déjà une définition curée à la main (verified) — rejette cette proposition, ou modifie la note existante.';
   }
 
   const { error } = await db.from('brain_notes').upsert(
@@ -290,7 +308,53 @@ export async function resolveGapAction(
   return { success: true };
 }
 
-/** Obsolescence : garder (dé-staler) / archiver (drapeau) / régénérer (drapeau). */
+/**
+ * Relit en base les empreintes COURANTES des notes sources d'une note, à partir
+ * des clés déjà présentes dans son `frontmatter.source_hashes` (des paths sans
+ * `.md`, à confronter à `brain_notes.path`).
+ *
+ * C'est le cœur du « garder telle quelle » : sans ce rafraîchissement, la note
+ * repart avec les empreintes périmées dont `markStaleConversations` a justement
+ * déduit l'obsolescence. Au run suivant elle serait re-marquée, et AUCUNE
+ * proposition ne serait rouverte — le `source_hash` de l'arbitrage est calculé
+ * sur ces mêmes empreintes inchangées, donc `shouldPropose` renvoie `skip`. La
+ * note sortirait définitivement de la recherche.
+ *
+ * Source disparue de `brain_notes` : sa clé est RETIRÉE, pas conservée à `null`.
+ * `markStaleConversations` compare `currentHash.get(p)` (soit `undefined`) à la
+ * valeur stockée : un `null` conservé rouvrirait exactement la boucle qu'on
+ * ferme ici. La provenance, elle, reste tracée par `frontmatter.derived_from` et
+ * par la section « Sources » du corps, que ce chemin ne touche pas. Une source
+ * qui existe mais dont le `source_hash` est `null` garde sa clé à `null` : la
+ * comparaison est alors juste.
+ */
+async function empreintesCourantes(
+  db: AdminDb,
+  frontmatter: Record<string, unknown>,
+): Promise<{ value: Record<string, string | null> } | { error: string }> {
+  const cles = Object.keys(
+    (frontmatter['source_hashes'] ?? {}) as Record<string, unknown>,
+  );
+  if (!cles.length) return { value: {} };
+  const { data, error } = await db
+    .from('brain_notes')
+    .select('path, source_hash')
+    .in(
+      'path',
+      cles.map((k) => `${k}.md`),
+    );
+  if (error) return { error: error.message };
+  const courant = new Map(
+    (data ?? []).map((n) => [n.path.replace(/\.md$/, ''), n.source_hash]),
+  );
+  const value: Record<string, string | null> = {};
+  for (const k of cles) {
+    if (courant.has(k)) value[k] = courant.get(k) ?? null;
+  }
+  return { value };
+}
+
+/** Obsolescence : garder (dé-staler + rafraîchir les empreintes) / archiver (drapeau). */
 export async function arbitrateStaleAction(
   input: z.infer<typeof StaleSchema>,
 ): Promise<Result> {
@@ -325,20 +389,24 @@ export async function arbitrateStaleAction(
         .eq('path', path)
         .single();
       if (error || !rows) return { success: false, error: 'Note introuvable' };
+      const fm = (rows.frontmatter ?? {}) as Record<string, unknown>;
+      const hashes = await empreintesCourantes(gate.db, fm);
+      if ('error' in hashes) return { success: false, error: hashes.error };
       const body = String(rows.body).replace(/^> ⚠️[^\n]*\n\n/, '');
       const { error: upErr } = await gate.db
         .from('brain_notes')
         .update({
           body,
           frontmatter: {
-            ...(rows.frontmatter as Record<string, unknown>),
+            ...fm,
+            source_hashes: hashes.value,
             stale: false,
           } as unknown as Json,
           updated_at: new Date().toISOString(),
         })
         .eq('path', path);
       if (upErr) return { success: false, error: upErr.message };
-    } else if (parsed.data.choix === 'archiver') {
+    } else {
       // Archiver ≠ supprimer : la note sort de la recherche mais reste en base,
       // récupérable. C'est souvent la seule copie d'une réponse rédigée à la main.
       const { data: existante, error: lectErr } = await gate.db
@@ -359,21 +427,6 @@ export async function arbitrateStaleAction(
         })
         .eq('path', path);
       if (error) return { success: false, error: error.message };
-    } else {
-      // Régénérer : l'app ne peut pas appeler Claude (abonnement Max). On pose
-      // le drapeau ; le prochain `npm run brain:ingest` réanalyse et repropose.
-      // Via `decide` comme les trois autres chemins : un `update` sans `.select()`
-      // affectant zéro ligne ne lève pas, et annoncerait une régénération qui
-      // n'aurait jamais lieu.
-      const moved = await decide(
-        gate.db,
-        parsed.data.id,
-        'a_regenerer',
-        gate.userId,
-      );
-      if (!moved) return { success: false, error: 'Proposition déjà traitée' };
-      revalidatePath('/admin/cerveau');
-      return { success: true };
     }
 
     const moved = await decide(

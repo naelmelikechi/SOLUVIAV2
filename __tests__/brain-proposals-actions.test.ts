@@ -16,7 +16,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  * - archiver = drapeau `frontmatter.archive`, JAMAIS un delete (la note est
  *   souvent la seule copie d'une réponse rédigée à la main)
  * - upsertNote : une note `corrige: true` (réponse humaine) n'est jamais
- *   écrasée par une paraphrase de l'assistant
+ *   écrasée par une paraphrase de l'assistant ; idem pour une entité
+ *   `verified: true` (définition officielle curée à la main)
+ * - garder : dé-stale ET rafraîchit `frontmatter.source_hashes` — sans quoi
+ *   markStaleConversations re-marque la note au run suivant sans rouvrir
+ *   d'arbitrage, et elle sort définitivement de la recherche
  * - concurrence : source_hash périmé, proposition déjà arbitrée, transition
  *   affectant zéro ligne (deux onglets) -> erreur, jamais un faux succès
  * - resolveGapAction : la réponse de l'admin devient une note dont le
@@ -50,6 +54,7 @@ const FEEDBACK_ID = '22222222-2222-4222-a222-222222222222';
 const USER_ID = '33333333-3333-4333-a333-333333333333';
 const HASH = 'hash-affiche-a-l-admin';
 const NOTE_PATH = 'conversations/comment-facturer-un-opco-abcd1234.md';
+const ENTITE_PATH = 'entites/afest.md';
 
 const ERR_PERIMEE =
   'Proposition déjà traitée, ou modifiée depuis son affichage — recharge la page';
@@ -246,6 +251,35 @@ function conversationProposal(over: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * Proposition de DÉFINITION d'entité, telle que `entityToBrainNote` la produit :
+ * son frontmatter ne porte que `definition` — jamais `verified`, qui est posé à
+ * la main sur les entités curées.
+ */
+function entiteProposal(over: Record<string, unknown> = {}) {
+  return {
+    id: PROPOSAL_ID,
+    kind: 'entite',
+    status: 'en_attente',
+    target_path: ENTITE_PATH,
+    payload: {
+      path: ENTITE_PATH,
+      type: 'entite',
+      title: 'AFEST',
+      aliases: [],
+      tags: [],
+      links: ['fiches/opco'],
+      body: '# AFEST\n\nDéfinition reformulée par Claude.\n\n## Notes liées\n[[fiches/opco]]',
+      frontmatter: { definition: 'Définition reformulée par Claude.' },
+      source_ref: 'entite:afest',
+      source_hash: HASH,
+    },
+    source_ref: 'entite:afest',
+    source_hash: HASH,
+    ...over,
+  };
+}
+
 function obsolescenceProposal(over: Record<string, unknown> = {}) {
   return {
     id: PROPOSAL_ID,
@@ -403,6 +437,28 @@ describe('validation des entrées', () => {
     expect(checkAuth).not.toHaveBeenCalled();
   });
 
+  it('« regenerer » est un choix retiré : rejeté au schéma, aucune écriture', async () => {
+    // L'action a disparu de l'écran, mais une Server Action reste un point
+    // d'entrée HTTP : l'ancien choix ne doit plus rien déclencher.
+    const db = useDb({
+      'brain_proposals.select': () => ({
+        data: obsolescenceProposal(),
+        error: null,
+      }),
+    });
+
+    const res = await arbitrateStaleAction({
+      id: PROPOSAL_ID,
+      sourceHash: HASH,
+      // @ts-expect-error - `regenerer` ne fait plus partie de l'enum
+      choix: 'regenerer',
+    });
+
+    expect(res).toEqual({ success: false, error: 'Données invalides' });
+    expect(checkAuth).not.toHaveBeenCalled();
+    expect(db.ops).toEqual([]);
+  });
+
   it('réponse de lacune vide -> Réponse manquante', async () => {
     const db = useDb();
     const res = await resolveGapAction({
@@ -421,7 +477,7 @@ describe('validation des entrées', () => {
 
 describe('arbitrateStaleAction — garde de kind', () => {
   for (const kind of ['conversation', 'entite', 'lacune'] as const) {
-    for (const choix of ['garder', 'archiver', 'regenerer'] as const) {
+    for (const choix of ['garder', 'archiver'] as const) {
       it(`refuse une proposition ${kind} avec choix=${choix}, sans rien écrire`, async () => {
         const db = useDb({
           // La proposition porte un target_path valide : seul le `kind` la
@@ -595,17 +651,144 @@ describe('arbitrateStaleAction — archiver', () => {
 // ---------------------------------------------------------------------------
 
 describe('arbitrateStaleAction — garder', () => {
+  const NOTE_STALE = {
+    body: '> ⚠️ Réponse à revoir : une source a changé.\n\n# Titre\n\nCorps.',
+    frontmatter: {
+      stale: true,
+      corrige: true,
+      derived_from: ['fiches/opco', 'fiches/facturation'],
+      // Les empreintes PÉRIMÉES : c'est d'elles que markStaleConversations a
+      // déduit l'obsolescence.
+      source_hashes: {
+        'fiches/opco': 'h-vieux',
+        'fiches/facturation': 'h-fact',
+      },
+    },
+  };
+
+  /** Note obsolète + sources dont on contrôle les empreintes courantes. */
+  const routesGarder = (sources: unknown): Routes => ({
+    'brain_proposals.select': () => ({
+      data: obsolescenceProposal(),
+      error: null,
+    }),
+    'brain_notes.select': (op) =>
+      op.filters.some((f) => f.kind === 'in')
+        ? { data: sources, error: null }
+        : { data: NOTE_STALE, error: null },
+  });
+
   it('retire la bannière ⚠️, pose stale=false et préserve le frontmatter', async () => {
+    const db = useDb(
+      routesGarder([
+        { path: 'fiches/opco.md', source_hash: 'h-neuf' },
+        { path: 'fiches/facturation.md', source_hash: 'h-fact' },
+      ]),
+    );
+
+    const res = await arbitrateStaleAction({
+      id: PROPOSAL_ID,
+      sourceHash: HASH,
+      choix: 'garder',
+    });
+
+    expect(res).toEqual({ success: true });
+    const maj = opsDe(db, 'brain_notes', 'update')[0]!;
+    expect(maj.values!.body).toBe('# Titre\n\nCorps.');
+    const fm = maj.values!.frontmatter as Record<string, unknown>;
+    expect(fm.stale).toBe(false);
+    expect(fm.corrige).toBe(true);
+    expect(fm.derived_from).toEqual(['fiches/opco', 'fiches/facturation']);
+    expect(db.deleteSpy).not.toHaveBeenCalled();
+  });
+
+  it('rafraîchit source_hashes aux empreintes COURANTES des sources', async () => {
+    // Le bug qu'on ne veut plus revoir : sans ce rafraîchissement, le prochain
+    // markStaleConversations relit `h-vieux`, re-marque la note, et ne rouvre
+    // AUCUNE proposition (son source_hash, calculé sur ces mêmes empreintes,
+    // n'a pas changé → shouldPropose renvoie `skip`). La note sort
+    // définitivement de la recherche.
+    const db = useDb(
+      routesGarder([
+        { path: 'fiches/opco.md', source_hash: 'h-neuf' },
+        { path: 'fiches/facturation.md', source_hash: 'h-fact' },
+      ]),
+    );
+
+    await arbitrateStaleAction({
+      id: PROPOSAL_ID,
+      sourceHash: HASH,
+      choix: 'garder',
+    });
+
+    // La relecture interroge bien brain_notes sur les clés + « .md ».
+    const lookup = opsDe(db, 'brain_notes', 'select').find((o) =>
+      o.filters.some((f) => f.kind === 'in'),
+    )!;
+    expect(lookup.filters).toContainEqual({
+      kind: 'in',
+      col: 'path',
+      val: ['fiches/opco.md', 'fiches/facturation.md'],
+    });
+
+    const fm = opsDe(db, 'brain_notes', 'update')[0]!.values!
+      .frontmatter as Record<string, unknown>;
+    expect(fm.source_hashes).toEqual({
+      'fiches/opco': 'h-neuf',
+      'fiches/facturation': 'h-fact',
+    });
+  });
+
+  it('une source disparue perd sa clé (sinon la boucle se rouvre au run suivant)', async () => {
+    // markStaleConversations compare à `currentHash.get(p)`, soit `undefined`
+    // pour une note absente : conserver la clé à `null` la re-marquerait
+    // aussitôt. La provenance reste tracée par derived_from.
+    const db = useDb(
+      routesGarder([{ path: 'fiches/opco.md', source_hash: 'h-neuf' }]),
+    );
+
+    await arbitrateStaleAction({
+      id: PROPOSAL_ID,
+      sourceHash: HASH,
+      choix: 'garder',
+    });
+
+    const fm = opsDe(db, 'brain_notes', 'update')[0]!.values!
+      .frontmatter as Record<string, unknown>;
+    expect(fm.source_hashes).toEqual({ 'fiches/opco': 'h-neuf' });
+    expect(fm.derived_from).toEqual(['fiches/opco', 'fiches/facturation']);
+  });
+
+  it('une source sans empreinte garde sa clé à null (comparaison juste)', async () => {
+    const db = useDb(
+      routesGarder([
+        { path: 'fiches/opco.md', source_hash: null },
+        { path: 'fiches/facturation.md', source_hash: 'h-fact' },
+      ]),
+    );
+
+    await arbitrateStaleAction({
+      id: PROPOSAL_ID,
+      sourceHash: HASH,
+      choix: 'garder',
+    });
+
+    const fm = opsDe(db, 'brain_notes', 'update')[0]!.values!
+      .frontmatter as Record<string, unknown>;
+    expect(fm.source_hashes).toEqual({
+      'fiches/opco': null,
+      'fiches/facturation': 'h-fact',
+    });
+  });
+
+  it('note sans source_hashes : aucune requête in(), rien ne casse', async () => {
     const db = useDb({
       'brain_proposals.select': () => ({
         data: obsolescenceProposal(),
         error: null,
       }),
       'brain_notes.select': () => ({
-        data: {
-          body: '> ⚠️ Réponse à revoir : une source a changé.\n\n# Titre\n\nCorps.',
-          frontmatter: { stale: true, corrige: true, derived_from: ['x'] },
-        },
+        data: { body: '# Titre\n\nCorps.', frontmatter: { stale: true } },
         error: null,
       }),
     });
@@ -617,63 +800,39 @@ describe('arbitrateStaleAction — garder', () => {
     });
 
     expect(res).toEqual({ success: true });
-    const maj = opsDe(db, 'brain_notes', 'update')[0]!;
-    expect(maj.values!.body).toBe('# Titre\n\nCorps.');
-    expect(maj.values!.frontmatter).toEqual({
-      stale: false,
-      corrige: true,
-      derived_from: ['x'],
-    });
-    expect(db.deleteSpy).not.toHaveBeenCalled();
+    expect(
+      opsDe(db, 'brain_notes', 'select').some((o) =>
+        o.filters.some((f) => f.kind === 'in'),
+      ),
+    ).toBe(false);
+    const fm = opsDe(db, 'brain_notes', 'update')[0]!.values!
+      .frontmatter as Record<string, unknown>;
+    expect(fm.source_hashes).toEqual({});
+    expect(fm.stale).toBe(false);
   });
-});
 
-// ---------------------------------------------------------------------------
-// 9. arbitrateStaleAction — regenerer
-// ---------------------------------------------------------------------------
-
-describe('arbitrateStaleAction — regenerer', () => {
-  it('pose le statut a_regenerer sans toucher la note', async () => {
+  it('relecture des sources en échec -> refus, la note n est pas touchée', async () => {
+    // Dé-staler sur des empreintes qu'on n'a pas pu relire republierait la note
+    // avec ses valeurs périmées : exactement le bug corrigé.
     const db = useDb({
       'brain_proposals.select': () => ({
         data: obsolescenceProposal(),
         error: null,
       }),
+      'brain_notes.select': (op) =>
+        op.filters.some((f) => f.kind === 'in')
+          ? { data: null, error: { message: 'connection reset' } }
+          : { data: NOTE_STALE, error: null },
     });
 
     const res = await arbitrateStaleAction({
       id: PROPOSAL_ID,
       sourceHash: HASH,
-      choix: 'regenerer',
+      choix: 'garder',
     });
 
-    expect(res).toEqual({ success: true });
-    expect(opsDe(db, 'brain_proposals', 'update')[0]!.values!.status).toBe(
-      'a_regenerer',
-    );
-    expect(opsDe(db, 'brain_notes', 'update')).toEqual([]);
-    expect(opsDe(db, 'brain_notes', 'upsert')).toEqual([]);
-  });
-
-  it('erreur (et non faux succès) quand la transition n affecte aucune ligne', async () => {
-    // Deux onglets ouverts : le second clic ne doit pas annoncer une
-    // régénération qui n'aura jamais lieu.
-    const db = useDb({
-      'brain_proposals.select': () => ({
-        data: obsolescenceProposal(),
-        error: null,
-      }),
-      'brain_proposals.update': () => ({ data: [], error: null }),
-    });
-
-    const res = await arbitrateStaleAction({
-      id: PROPOSAL_ID,
-      sourceHash: HASH,
-      choix: 'regenerer',
-    });
-
-    expect(res).toEqual({ success: false, error: ERR_DEJA_TRAITEE });
-    expect(ecritures(db).filter((o) => o.table === 'brain_notes')).toEqual([]);
+    expect(res).toEqual({ success: false, error: 'connection reset' });
+    expect(ecritures(db)).toEqual([]);
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
@@ -814,6 +973,127 @@ describe('approveProposalAction — protection des réponses humaines', () => {
     expect(res).toEqual({ success: false, error: 'deadlock detected' });
     expect(opsDe(db, 'brain_proposals', 'update')).toEqual([]);
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Protection des définitions d'entités curées à la main
+// ---------------------------------------------------------------------------
+
+describe('approveProposalAction — protection des entités curées', () => {
+  // 23 des 31 entités en production portent `verified: true` + `sources` : des
+  // définitions officielles rédigées à la main, avec leur URL de référence. Le
+  // script les épargne déjà ; l'approbation n'avait aucun garde équivalent.
+  it('refuse d écraser une entité verified: true, sans upsert ni transition', async () => {
+    const db = useDb({
+      'brain_proposals.select': () => ({ data: entiteProposal(), error: null }),
+      'brain_notes.select': () => ({
+        data: {
+          frontmatter: {
+            verified: true,
+            sources: ['https://www.francetravail.fr/employeur/afest.html'],
+          },
+        },
+        error: null,
+      }),
+    });
+
+    const res = await approveProposalAction({
+      id: PROPOSAL_ID,
+      sourceHash: HASH,
+    });
+
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/définition curée/);
+    // Rien n'entre en base : ni le corps de Claude, ni la décision.
+    expect(opsDe(db, 'brain_notes', 'upsert')).toEqual([]);
+    expect(ecritures(db)).toEqual([]);
+    expect(db.deleteSpy).not.toHaveBeenCalled();
+    // La proposition reste en_attente : l'admin peut encore la rejeter.
+    expect(opsDe(db, 'brain_proposals', 'update')).toEqual([]);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('le garde lit bien la note EXISTANTE, pas le payload proposé', async () => {
+    const db = useDb({
+      'brain_proposals.select': () => ({ data: entiteProposal(), error: null }),
+      'brain_notes.select': () => ({
+        data: { frontmatter: { verified: true } },
+        error: null,
+      }),
+    });
+
+    await approveProposalAction({ id: PROPOSAL_ID, sourceHash: HASH });
+
+    const lecture = opsDe(db, 'brain_notes', 'select')[0]!;
+    expect(lecture.filters).toEqual([
+      { kind: 'eq', col: 'path', val: ENTITE_PATH },
+    ]);
+  });
+
+  it('publie une définition sur une entité non curée', async () => {
+    // Les 8 autres entités : notes-carrefour sans définition, rien à protéger.
+    const db = useDb({
+      'brain_proposals.select': () => ({ data: entiteProposal(), error: null }),
+      'brain_notes.select': () => ({ data: { frontmatter: {} }, error: null }),
+    });
+
+    const res = await approveProposalAction({
+      id: PROPOSAL_ID,
+      sourceHash: HASH,
+    });
+
+    expect(res).toEqual({ success: true });
+    const upsert = opsDe(db, 'brain_notes', 'upsert');
+    expect(upsert).toHaveLength(1);
+    expect(upsert[0]!.values!.path).toBe(ENTITE_PATH);
+    expect(upsert[0]!.values!.type).toBe('entite');
+  });
+
+  it('verified: false ou absent ne bloque pas', async () => {
+    const db = useDb({
+      'brain_proposals.select': () => ({ data: entiteProposal(), error: null }),
+      'brain_notes.select': () => ({
+        data: { frontmatter: { verified: false, definition: 'ancienne' } },
+        error: null,
+      }),
+    });
+
+    const res = await approveProposalAction({
+      id: PROPOSAL_ID,
+      sourceHash: HASH,
+    });
+
+    expect(res).toEqual({ success: true });
+    expect(opsDe(db, 'brain_notes', 'upsert')).toHaveLength(1);
+  });
+
+  it('un corps édité par l admin, marqué verified, peut remplacer une entité curée', async () => {
+    // Le garde bloque l'écrasement PAR une paraphrase de l'assistant, pas la
+    // correction d'une définition curée par une autre — symétrique de `corrige`.
+    const db = useDb({
+      'brain_proposals.select': () => ({
+        data: entiteProposal({
+          payload: {
+            ...entiteProposal().payload,
+            frontmatter: { definition: 'Définition relue.', verified: true },
+          },
+        }),
+        error: null,
+      }),
+      'brain_notes.select': () => ({
+        data: { frontmatter: { verified: true } },
+        error: null,
+      }),
+    });
+
+    const res = await approveProposalAction({
+      id: PROPOSAL_ID,
+      sourceHash: HASH,
+    });
+
+    expect(res).toEqual({ success: true });
+    expect(opsDe(db, 'brain_notes', 'upsert')).toHaveLength(1);
   });
 });
 

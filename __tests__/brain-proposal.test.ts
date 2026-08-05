@@ -22,7 +22,11 @@ const proposal: BrainProposal = {
   source_hash: 'hash-a',
 };
 
-const STATUTS = ['en_attente', 'approuvee', 'rejetee', 'a_regenerer'] as const;
+// Les trois statuts que du code peut encore poser. `a_regenerer` a disparu avec
+// l'action « Régénérer » : plus rien ne l'écrit, `shouldPropose` n'a donc plus
+// de règle à son sujet. (La contrainte `check` en base le tolère toujours ;
+// aucune ligne ne le porte.)
+const STATUTS = ['en_attente', 'approuvee', 'rejetee'] as const;
 
 describe('shouldPropose', () => {
   it('insère quand rien n existe', () => {
@@ -37,15 +41,11 @@ describe('shouldPropose', () => {
     }
   });
 
-  // `a_regenerer` fait exception : rouvrir écraserait la demande de
-  // régénération posée par l'admin, sans log ni trace.
-  it('rouvre sur contenu changé, sauf régénération en cours', () => {
+  it('rouvre sur contenu changé, quel que soit le statut', () => {
     for (const status of STATUTS) {
-      const verdict = shouldPropose(proposal, {
-        status,
-        source_hash: 'hash-b',
-      });
-      expect(verdict).toBe(status === 'a_regenerer' ? 'skip' : 'reopen');
+      expect(shouldPropose(proposal, { status, source_hash: 'hash-b' })).toBe(
+        'reopen',
+      );
     }
   });
 });

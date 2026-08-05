@@ -277,21 +277,18 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
               <p className="text-muted-foreground text-sm">
                 Une source de cette note a changé. Que faire ?
               </p>
+              {/* Deux choix, pas trois : « Régénérer » n'avait rien à
+                  régénérer (la question et la réponse n'ont pas bougé, seule
+                  une source a changé) et consommait l'arbitrage pour rien. */}
               <div className="flex gap-2">
-                {(['garder', 'archiver', 'regenerer'] as const).map((choix) => (
+                {(['garder', 'archiver'] as const).map((choix) => (
                   <Button
                     key={choix}
-                    variant={
-                      choix === 'garder'
-                        ? 'default'
-                        : choix === 'archiver'
-                          ? 'destructive'
-                          : 'outline'
-                    }
+                    variant={choix === 'garder' ? 'default' : 'destructive'}
                     disabled={isPending}
                     onClick={() => {
-                      // Archiver est la plus lourde des trois : elle passe par
-                      // une confirmation, les deux autres non.
+                      // Archiver est la plus lourde des deux : elle passe par
+                      // une confirmation, garder non.
                       if (choix === 'archiver') {
                         setConfirmArchive(true);
                         return;
@@ -303,17 +300,11 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
                             sourceHash: selected.source_hash,
                             choix,
                           }),
-                        choix === 'regenerer'
-                          ? 'Sera régénérée au prochain brain:ingest'
-                          : 'Arbitrage enregistré',
+                        'Arbitrage enregistré',
                       );
                     }}
                   >
-                    {choix === 'garder'
-                      ? 'Garder telle quelle'
-                      : choix === 'archiver'
-                        ? 'Archiver'
-                        : 'Régénérer'}
+                    {choix === 'garder' ? 'Garder telle quelle' : 'Archiver'}
                   </Button>
                 ))}
               </div>

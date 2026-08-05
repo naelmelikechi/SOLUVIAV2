@@ -45,6 +45,7 @@ import {
   proposalKey,
   type BrainProposal,
   type ProposalKind,
+  type ProposalStatus,
 } from '../lib/brain/proposal';
 import type { BrainNote, NoteAnalysis } from '../lib/brain/types';
 import type { FinalizedFiche } from '../lib/process/types';
@@ -105,7 +106,7 @@ async function upsertNote(note: BrainNote): Promise<void> {
 interface ProposalState {
   kind: ProposalKind;
   source_ref: string;
-  status: 'en_attente' | 'approuvee' | 'rejetee' | 'a_regenerer';
+  status: ProposalStatus;
   source_hash: string;
 }
 
@@ -749,25 +750,6 @@ async function main() {
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
-
-  // Régénérations demandées depuis /admin/cerveau : l'app ne peut pas appeler
-  // Claude, c'est ici qu'on refait l'analyse et qu'on repropose. À consommer
-  // AVANT la Phase 3 : sinon un `reopen` du même run effacerait la demande.
-  const aRegenerer = await pg<{ id: string; target_path: string }>(
-    `select id, target_path from public.brain_proposals
-     where status = 'a_regenerer' and target_path is not null`,
-  );
-  for (const r of aRegenerer) {
-    console.log(`régénération demandée : ${r.target_path}`);
-    if (dryRun) continue;
-    // La note repart du cycle normal : on efface son hash pour forcer la
-    // réanalyse de la source au prochain passage, et on referme la demande.
-    await pg(`update public.brain_notes set source_hash = null
-              where path = ${lit(r.target_path)};`);
-    await pg(`update public.brain_proposals set status = 'approuvee',
-              reason = 'régénérée', decided_at = now() where id = ${lit(r.id)};`);
-  }
-  console.log(`Régénérations traitées : ${aRegenerer.length}`);
 
   // --- Phase 3 : conversations (👍), entités (graphe), anti-obsolescence ---
   let conversations = 0;

@@ -155,6 +155,36 @@ export function FacturationPageClient({
   // Anti-course : seule la reponse de la derniere requete emise gagne.
   const requestIdRef = useRef(0);
 
+  // Resynchronisation sur les props apres un refresh RSC (router.refresh()
+  // declenche par une emission, une suppression, un avoir...). Sans elle,
+  // `rows` reste fige sur le SSR du montage : React reconcilie ce composant au
+  // lieu de le remonter, donc la valeur initiale du useState n'est jamais
+  // reappliquee, et une facture qui vient d'etre emise n'apparait dans l'onglet
+  // Factures qu'apres un rechargement complet de la page.
+  // On ne resynchronise que la vue par defaut : des qu'un filtre est actif,
+  // `rows` appartient a fetchFacturesPage et les props SSR (page 1 non filtree)
+  // l'ecraseraient a tort.
+  const hasActiveQuery =
+    Boolean(query.searchRef) ||
+    Boolean(query.filterProjet) ||
+    Boolean(query.filterClient) ||
+    (query.statuts?.length ?? 0) > 0;
+
+  // Ajustement pendant le rendu (pattern React officiel pour « reagir a un
+  // changement de props ») : pas d'effet, donc pas de rendu en cascade.
+  const [pageSource, setPageSource] = useState(facturesPage);
+  if (facturesPage !== pageSource) {
+    setPageSource(facturesPage);
+    // Filtre actif : `rows` appartient a fetchFacturesPage, et les props SSR
+    // (page 1 non filtree) l'ecraseraient a tort. On note quand meme la
+    // nouvelle source pour ne pas rejouer l'ajustement au prochain rendu.
+    if (!hasActiveQuery) {
+      setRows(facturesPage.rows);
+      setNextCursor(facturesPage.nextCursor);
+      setTotal(facturesPage.total);
+    }
+  }
+
   const handleQueryChange = useCallback(async (next: ServerQuery) => {
     setQuery(next);
     const reqId = ++requestIdRef.current;

@@ -34,12 +34,19 @@ SELECT is(
   'policy SELECT authenticated presente'
 );
 
+-- L'ecriture admin est portee par TROIS policies distinctes (INSERT / UPDATE /
+-- DELETE) et non par une seule policy FOR ALL. C'est la forme reellement en
+-- production depuis la consolidation des policies multi-permissives (advisors
+-- Supabase), reproduite dans le repo par
+-- 20260806160000_repair_drift_index_et_policies.sql.
+-- On assert le nombre et non un nom unique : les 4 assertions de comportement
+-- de ce fichier restent la vraie garantie.
 SELECT is(
   (SELECT count(*)::int FROM pg_policies
    WHERE tablename = 'societes_emettrices'
-   AND policyname = 'societes_emettrices_admin_write'),
-  1,
-  'policy admin_write presente'
+   AND cmd IN ('INSERT', 'UPDATE', 'DELETE')),
+  3,
+  'ecriture admin portee par 3 policies (INSERT/UPDATE/DELETE)'
 );
 
 SELECT is(

@@ -16,6 +16,15 @@
  *   NEXT_PUBLIC_SUPABASE_URL    -> sert à dériver l'URL pg-meta
  *   SUPAVIA_DASHBOARD_USER
  *   SUPAVIA_DASHBOARD_PASSWORD
+ *
+ * Env optionnel (garde-fous, cf audit #122 constat 17) :
+ *   MIGRATE_BASELINE_CONFIRM=oui-je-sais-ce-que-je-fais
+ *     Requis par --baseline, qui marque des migrations appliquées SANS exécuter
+ *     leur SQL. Sans cette variable, --baseline refuse de tourner.
+ *   MIGRATE_ALLOW_CHECKSUM_DRIFT=1
+ *     Laisse passer une migration déjà appliquée mais éditée depuis (commentaire,
+ *     reformatage). Sans elle, --apply échoue : le SQL édité ne sera jamais
+ *     rejoué, donc le repo et la base divergent en silence.
  */
 import { config } from 'dotenv';
 import { resolve } from 'node:path';
@@ -193,11 +202,109 @@ async function cmdDryRun(): Promise<void> {
   } else {
     console.log('✓ Base à jour, rien à appliquer.');
   }
+  // Le dry-run est l'endroit naturel pour decouvrir une derive de checksum,
+  // avant de deployer. Il n'echoue pas (lecture seule) : il signale.
+  await reportChecksumDrift();
+}
+
+/**
+ * Compare le checksum stocke au checksum du fichier, pour les migrations DEJA
+ * marquees appliquees.
+ *
+ * Pourquoi (audit #122, constat 17b) : le checksum etait calcule et insere, mais
+ * JAMAIS relu. Editer une migration deja appliquee etait donc un no-op
+ * totalement silencieux - ce qui arrive naturellement lors d'un rebase, d'une
+ * correction de typo, ou d'un passage de prettier. Le fichier du repo et l'etat
+ * reel de la base divergeaient sans que rien ne le signale.
+ *
+ * On echoue plutot que d'avertir : la correction attendue est soit de revenir
+ * sur l'edition, soit d'ecrire une nouvelle migration. `MIGRATE_ALLOW_CHECKSUM_DRIFT=1`
+ * permet de passer outre pour une edition dont on sait qu'elle est sans effet
+ * (commentaire, reformatage).
+ */
+async function computeChecksumDrift(): Promise<string[]> {
+  const rows = await query<{ version: string; checksum: string | null }>(
+    `select version, checksum from supabase_migrations.schema_migrations`,
+  );
+  const stored = new Map(rows.map((r) => [r.version, r.checksum]));
+  const drifted: string[] = [];
+  for (const m of listMigrations()) {
+    const s = stored.get(m.version);
+    // Absent = migration en attente. Vide/null = ligne posee avant le tracking
+    // des checksums (ou par --baseline) : rien a comparer.
+    if (s === undefined || !s) continue;
+    if (s !== m.checksum) drifted.push(`${m.version} (${m.name})`);
+  }
+  return drifted;
+}
+
+/** Variante lecture seule pour le dry-run : signale sans echouer. */
+async function reportChecksumDrift(): Promise<void> {
+  let drifted: string[] = [];
+  try {
+    drifted = await computeChecksumDrift();
+  } catch {
+    return; // table de tracking absente : rien a comparer
+  }
+  if (!drifted.length) return;
+  console.warn(
+    `\n⚠ ${drifted.length} migration(s) deja appliquee(s) ont ete editees depuis :\n  ${drifted.join('\n  ')}\n` +
+      `  Leur SQL ne sera jamais rejoue. --apply refusera de tourner en l'etat.`,
+  );
+}
+
+async function assertChecksumsMatch(): Promise<void> {
+  const drifted = await computeChecksumDrift();
+  if (!drifted.length) return;
+
+  if (process.env.MIGRATE_ALLOW_CHECKSUM_DRIFT === '1') {
+    console.warn(
+      `⚠ ${drifted.length} migration(s) editee(s) apres application, ignore par MIGRATE_ALLOW_CHECKSUM_DRIFT :\n  ${drifted.join('\n  ')}`,
+    );
+    return;
+  }
+
+  console.error(
+    `✗ ${drifted.length} migration(s) deja appliquee(s) ont ete editees depuis :\n  ${drifted.join('\n  ')}\n\n` +
+      `Le SQL de ces fichiers ne sera JAMAIS rejoue : le repo et la base divergent.\n` +
+      `Corriger en revenant sur l'edition, ou en ecrivant une nouvelle migration.\n` +
+      `Si l'edition est sans effet (commentaire, reformatage) : MIGRATE_ALLOW_CHECKSUM_DRIFT=1.`,
+  );
+  process.exit(1);
 }
 
 async function cmdBaseline(): Promise<void> {
+  // Garde (audit #122, constat 17a) : --baseline INSERE dans le tracking sans
+  // jamais lire le corps SQL, et prend TOUTES les migrations du dossier, pas
+  // seulement les anciennes. Le lancer aujourd'hui marquerait les migrations
+  // reellement en attente comme appliquees, sans les executer, et le SQL serait
+  // perdu en silence. Il etait expose en `npm run db:migrate:baseline` sans
+  // aucune confirmation ni garde d'environnement.
+  if (process.env.MIGRATE_BASELINE_CONFIRM !== 'oui-je-sais-ce-que-je-fais') {
+    console.error(
+      `✗ --baseline refuse sans confirmation explicite.\n\n` +
+        `Cette commande marque des migrations comme appliquees SANS executer leur SQL.\n` +
+        `Utilisee par erreur sur une base a jour, elle fait perdre definitivement\n` +
+        `les migrations en attente.\n\n` +
+        `Si c'est bien ce que tu veux (bascule d'instance, reprise de tracking) :\n` +
+        `  MIGRATE_BASELINE_CONFIRM=oui-je-sais-ce-que-je-fais npm run db:migrate:baseline\n\n` +
+        `Pour appliquer normalement les migrations en attente : npm run db:migrate`,
+    );
+    process.exit(1);
+  }
+
   await ensureTracking();
   const migrations = listMigrations();
+
+  // Liste ce qui va etre marque sans etre execute, pour que ce soit visible
+  // dans les logs avant l'insert.
+  const applied = await getAppliedVersionsSafe();
+  const nouvelles = migrations.filter((m) => !applied.has(m.version));
+  console.warn(
+    `⚠ ${nouvelles.length} migration(s) vont etre marquees appliquees SANS execution :`,
+  );
+  for (const m of nouvelles) console.warn(`    ${m.version} (${m.name})`);
+
   const values = migrations
     .map((m) => `(${lit(m.version)}, ${lit(m.name)}, ${lit(m.checksum)})`)
     .join(',\n');
@@ -215,6 +322,10 @@ async function cmdBaseline(): Promise<void> {
 
 async function cmdApply(): Promise<void> {
   await ensureTracking();
+  // Avant d'appliquer quoi que ce soit : verifier que les migrations deja
+  // appliquees n'ont pas ete editees depuis. Une divergence signifie que le
+  // repo ne decrit plus l'etat reel de la base.
+  await assertChecksumsMatch();
   const applied = await getAppliedVersions();
   const pending = listMigrations().filter((m) => !applied.has(m.version));
 

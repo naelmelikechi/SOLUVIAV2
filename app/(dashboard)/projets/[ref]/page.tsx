@@ -12,8 +12,7 @@ import {
   type QualiopiCompletion,
 } from '@/lib/queries/qualiopi-stats';
 import { ProjetSyntheseCards } from '@/components/projets/projet-synthese-cards';
-// TODO(lot0-task10) : reactiver quand projet-suivi-panel.tsx existe.
-// import { ProjetSuiviPanel } from '@/components/projets/projet-suivi-panel';
+import { ProjetSuiviPanel } from '@/components/projets/projet-suivi-panel';
 import { buildSyntheseCards } from '@/lib/projets/synthese';
 import { ttcToHt } from '@/lib/utils/montant-ht';
 import { isContratActif } from '@/lib/utils/contrat-states';
@@ -86,7 +85,7 @@ export default async function ProjetSynthesePage({
   return (
     <div className="space-y-6">
       <ProjetSyntheseCards cartes={cartes} />
-      {/* TODO(lot0-task10) : <ProjetSuiviPanel projetId={projet.id} projetRef={ref} /> */}
+      <ProjetSuiviPanel projetId={projet.id} projetRef={ref} />
     </div>
   );
 }

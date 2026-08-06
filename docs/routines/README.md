@@ -9,6 +9,7 @@ lignes qui demandent de lire le fichier correspondant et de l'executer.
 |---|---|---|
 | `monitoring-quotidien.md` | Monitoring quotidien - SOLUVIAV2 | tous les jours a 04:12 |
 | `audit-hebdomadaire.md` | Audit hebdomadaire profond - SOLUVIAV2 | lundi a 03:23 |
+| `supervision-hebdomadaire.md` | Supervision hebdomadaire des routines (les 8, tous depots) | lundi a 10:30 |
 
 ## Pourquoi ici plutot que dans la routine
 

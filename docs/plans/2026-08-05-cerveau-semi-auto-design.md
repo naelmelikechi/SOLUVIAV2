@@ -9,19 +9,19 @@ Les trois phases du cerveau sont livrées : ≈221 notes (fiches, livrables, doc
 entités, conversations). Mais tout ce que le cerveau **dérive** — ce qu'il invente plutôt que
 ce qu'il reflète — est écrit sans garde-fou :
 
-| Signal | Comportement actuel |
-|---|---|
+| Signal             | Comportement actuel                                                                  |
+| ------------------ | ------------------------------------------------------------------------------------ |
 | 👍 sur une réponse | `ingestConversations` écrit une note `conversation` en direct (filtre `isNonAnswer`) |
-| Entités citées | `ingestEntities` crée les notes-carrefour + définitions Claude en direct |
-| Source modifiée | note dépendante marquée `stale`, exclue de la recherche, sans suite |
-| 👎 sur une réponse | ligne dans `_lacunes.md` dans le coffre — que personne ne lit |
+| Entités citées     | `ingestEntities` crée les notes-carrefour + définitions Claude en direct             |
+| Source modifiée    | note dépendante marquée `stale`, exclue de la recherche, sans suite                  |
+| 👎 sur une réponse | ligne dans `_lacunes.md` dans le coffre — que personne ne lit                        |
 
 Conséquences : le bruit et les approximations deviennent de la connaissance de référence sans
 relecture ; les lacunes signalées ne produisent aucun apprentissage ; les notes obsolètes
 s'accumulent sans arbitrage.
 
-La direction cadrée avec l'utilisateur était une boucle **semi-automatique** : *le cerveau
-propose, l'utilisateur valide*. C'est la brique manquante.
+La direction cadrée avec l'utilisateur était une boucle **semi-automatique** : _le cerveau
+propose, l'utilisateur valide_. C'est la brique manquante.
 
 ## Contrainte structurante
 
@@ -76,6 +76,7 @@ L'insertion vient du script local (pg-meta, superuser) ou de l'app via client ad
 
 **Idempotence.** `unique (kind, source_ref)` garantit une seule ligne vivante par objet
 proposé. `source_hash` porte le contenu : à chaque run, le script compare et
+
 - si une proposition existe avec le même `source_hash` → ne touche à rien, quel que soit
   son statut. **Une proposition rejetée reste rejetée** : pas de reproposition à chaque run.
 - si le hash diffère (la source a changé) → la ligne repasse en `en_attente` avec le nouveau
@@ -84,12 +85,12 @@ proposé. `source_hash` porte le contenu : à chaque run, le script compare et
 
 ## 2. Qui produit quoi
 
-| kind | producteur | payload | approuver = |
-|---|---|---|---|
-| `conversation` | script local (👍) | `BrainNote` complète | upsert `brain_notes` |
-| `entite` | script local | `BrainNote` (définition Claude) | upsert `brain_notes` |
-| `lacune` | **l'app**, à l'instant du 👎 | `{question, answer_ko, sources}` | note `conversation` construite depuis la réponse **saisie par l'admin** |
-| `obsolescence` | script local (stale) | `{path, sources_modifiees}` | arbitrage : *garder* / *archiver* / *régénérer* |
+| kind           | producteur                   | payload                          | approuver =                                                             |
+| -------------- | ---------------------------- | -------------------------------- | ----------------------------------------------------------------------- |
+| `conversation` | script local (👍)            | `BrainNote` complète             | upsert `brain_notes`                                                    |
+| `entite`       | script local                 | `BrainNote` (définition Claude)  | upsert `brain_notes`                                                    |
+| `lacune`       | **l'app**, à l'instant du 👎 | `{question, answer_ko, sources}` | note `conversation` construite depuis la réponse **saisie par l'admin** |
+| `obsolescence` | script local (stale)         | `{path, sources_modifiees}`      | arbitrage : _garder_ / _archiver_ / _régénérer_                         |
 
 Les notes `fiche`, `livrable` et `document` restent écrites **en direct** par le script :
 ce sont des reflets de sources de vérité, il n'y a rien à arbitrer. Seul le dérivé passe
@@ -110,8 +111,16 @@ par la validation humaine.
 **`lib/brain/proposal.ts` (nouveau, pur, testable sans I/O)**
 
 ```ts
-export type ProposalKind = 'conversation' | 'entite' | 'lacune' | 'obsolescence';
-export type ProposalStatus = 'en_attente' | 'approuvee' | 'rejetee' | 'a_regenerer';
+export type ProposalKind =
+  | 'conversation'
+  | 'entite'
+  | 'lacune'
+  | 'obsolescence';
+export type ProposalStatus =
+  | 'en_attente'
+  | 'approuvee'
+  | 'rejetee'
+  | 'a_regenerer';
 
 export interface BrainProposal {
   kind: ProposalKind;
@@ -239,3 +248,26 @@ Commande : `npx vitest run __tests__/brain-*.test.ts && npx tsc --noEmit && npm 
 - Notification (mail/Slack) quand des propositions attendent — à voir à l'usage.
 - Mop-up des ~21 collisions de path du coffre (slug tronqué à 70 caractères) : indépendant.
 - Remplacement d'OpenAI par Claude pour la rédaction des réponses live : hors sujet ici.
+
+## Décisions révisées en cours d'implémentation (2026-08-05)
+
+Ce document reste la trace de ce qui était prévu. Cinq points ont été tranchés autrement
+pendant la mise en œuvre :
+
+- **Notes-entités créées en direct, sans définition.** Une note-carrefour ne fait que relier
+  les notes qui citent l'entité : elle n'invente rien, donc rien à faire valider. Seules les
+  **définitions** d'entités citées par au moins 3 notes sont proposées — la règle initiale en
+  aurait mis 842 dans la file, iningérables.
+- **« Archiver » marque la note au lieu de la supprimer.** Le design prescrivait un `delete` ;
+  il détruisait sans recours la seule copie d'une réponse rédigée à la main. L'arbitrage pose
+  `frontmatter.archive = true` : la note sort de la recherche, reste en base, reste
+  récupérable.
+- **« Régénérer » supprimé.** Pour une note de conversation il n'y a rien à régénérer (la
+  question et la réponse n'ont pas bougé, seule une source a changé) et le statut
+  `a_regenerer` ne menait nulle part. Le panneau d'obsolescence n'offre plus que _garder_ /
+  _archiver_.
+- **Chemin des notes de conversation suffixé d'un hash**, pour être injectif : le slug tronqué
+  faisait collisionner deux questions distinctes sur le même fichier.
+- **Contenu curé à la main protégé.** Une réponse rédigée par un admin (`corrige: true`) et une
+  définition validée (`verified: true`) ne peuvent pas être écrasées par une proposition
+  automatique — le script ne les repropose pas, l'approbation les refuse.

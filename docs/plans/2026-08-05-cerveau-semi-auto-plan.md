@@ -29,6 +29,7 @@ guard `checkAuth`). Le plan suit la convention du dépôt.
 ## Structure des fichiers
 
 **Créés**
+
 - `supabase/migrations/20260805100000_brain_proposals.sql` — table, index, RLS, ouverture de la lecture de `brain_notes`
 - `lib/brain/proposal.ts` — logique pure : décision de proposer, note ↔ proposition, lacune → note
 - `lib/queries/brain-proposals.ts` — lectures de la page admin
@@ -36,9 +37,10 @@ guard `checkAuth`). Le plan suit la convention du dépôt.
 - `app/(dashboard)/admin/cerveau/page.tsx` — page server, garde admin
 - `app/(dashboard)/admin/cerveau/loading.tsx`
 - `app/(dashboard)/admin/cerveau/proposals-review.tsx` — composant client (liste + détail + actions)
-- `__tests__/brain-proposals.test.ts`
+- `__tests__/brain-proposal.test.ts`
 
 **Modifiés**
+
 - `lib/brain/retrieve.ts` — dépendance `admin` → `db` (client de l'utilisateur)
 - `app/api/process/ask/route.ts:76-80` — passe le client de session au lieu du client admin
 - `app/api/process/feedback/route.ts` — sur 👎, crée la proposition `lacune`
@@ -52,6 +54,7 @@ guard `checkAuth`). Le plan suit la convention du dépôt.
 ## Task 1 : Migration `brain_proposals` + ouverture de la lecture du cerveau
 
 **Fichiers :**
+
 - Créer : `supabase/migrations/20260805100000_brain_proposals.sql`
 - Modifier : `types/database.ts`
 
@@ -193,8 +196,9 @@ rejeté (sinon la file se remplit du même refus à chaque run), mais rouvrir d�
 change (le contenu refusé n'est plus celui qu'on propose).
 
 **Fichiers :**
+
 - Créer : `lib/brain/proposal.ts`
-- Test : `__tests__/brain-proposals.test.ts`
+- Test : `__tests__/brain-proposal.test.ts`
 
 - [ ] **Étape 1 : écrire le test qui échoue**
 
@@ -217,24 +221,35 @@ describe('shouldPropose', () => {
   });
 
   it('ignore un contenu inchangé, quel que soit le statut', () => {
-    for (const status of ['en_attente', 'approuvee', 'rejetee', 'a_regenerer'] as const) {
-      expect(shouldPropose(proposal, { status, source_hash: 'hash-a' })).toBe('skip');
+    for (const status of [
+      'en_attente',
+      'approuvee',
+      'rejetee',
+      'a_regenerer',
+    ] as const) {
+      expect(shouldPropose(proposal, { status, source_hash: 'hash-a' })).toBe(
+        'skip',
+      );
     }
   });
 
   it('rouvre une proposition rejetée dont le contenu a changé', () => {
-    expect(shouldPropose(proposal, { status: 'rejetee', source_hash: 'hash-b' })).toBe('reopen');
+    expect(
+      shouldPropose(proposal, { status: 'rejetee', source_hash: 'hash-b' }),
+    ).toBe('reopen');
   });
 
   it('rouvre aussi une proposition déjà approuvée dont la source a changé', () => {
-    expect(shouldPropose(proposal, { status: 'approuvee', source_hash: 'hash-b' })).toBe('reopen');
+    expect(
+      shouldPropose(proposal, { status: 'approuvee', source_hash: 'hash-b' }),
+    ).toBe('reopen');
   });
 });
 ```
 
 - [ ] **Étape 2 : lancer le test, vérifier qu'il échoue**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : ÉCHEC — `Failed to resolve import "@/lib/brain/proposal"`.
 
 - [ ] **Étape 3 : implémentation minimale**
@@ -243,8 +258,16 @@ Attendu : ÉCHEC — `Failed to resolve import "@/lib/brain/proposal"`.
 import { createHash } from 'node:crypto';
 import type { BrainNote } from './types';
 
-export type ProposalKind = 'conversation' | 'entite' | 'lacune' | 'obsolescence';
-export type ProposalStatus = 'en_attente' | 'approuvee' | 'rejetee' | 'a_regenerer';
+export type ProposalKind =
+  | 'conversation'
+  | 'entite'
+  | 'lacune'
+  | 'obsolescence';
+export type ProposalStatus =
+  | 'en_attente'
+  | 'approuvee'
+  | 'rejetee'
+  | 'a_regenerer';
 
 export interface BrainProposal {
   kind: ProposalKind;
@@ -281,13 +304,13 @@ export function hashNote(note: BrainNote): string {
 
 - [ ] **Étape 4 : lancer le test, vérifier qu'il passe**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : 4 tests PASS.
 
 - [ ] **Étape 5 : commit**
 
 ```bash
-git add lib/brain/proposal.ts __tests__/brain-proposals.test.ts
+git add lib/brain/proposal.ts __tests__/brain-proposal.test.ts
 git commit -m "feat(cerveau): shouldPropose — idempotence et rejet durable"
 ```
 
@@ -296,12 +319,13 @@ git commit -m "feat(cerveau): shouldPropose — idempotence et rejet durable"
 ## Task 3 : `noteToProposal` / `applyProposal`
 
 **Fichiers :**
+
 - Modifier : `lib/brain/proposal.ts`
-- Test : `__tests__/brain-proposals.test.ts`
+- Test : `__tests__/brain-proposal.test.ts`
 
 - [ ] **Étape 1 : écrire le test qui échoue**
 
-Ajouter à `__tests__/brain-proposals.test.ts` (compléter l'import en tête du fichier avec
+Ajouter à `__tests__/brain-proposal.test.ts` (compléter l'import en tête du fichier avec
 `noteToProposal, applyProposal`) :
 
 ```ts
@@ -321,25 +345,27 @@ const note: BrainNote = {
 };
 
 describe('noteToProposal', () => {
-  it('construit une proposition en attente à partir de la note', () => {
+  it('construit une proposition à partir de la note', () => {
     const p = noteToProposal(note);
     expect(p.kind).toBe('conversation');
-    expect(p.status).toBe('en_attente');
     expect(p.target_path).toBe('conversations/comment-facturer.md');
     expect(p.source_ref).toBe('feedback-1');
     expect(p.source_hash).toBe('hash-qa');
   });
 
-  it('retombe sur un hash de contenu stable si la note n en porte pas', () => {
-    const sans = { ...note, source_hash: null };
-    const a = noteToProposal(sans);
-    const b = noteToProposal(sans);
-    expect(a.source_hash).toBe(b.source_hash);
-    expect(a.source_hash).toHaveLength(64);
+  it('refuse une note sans source_hash', () => {
+    // Pas de repli silencieux : tous les constructeurs de notes renseignent
+    // source_hash. Une note sans hash est un bug d'appelant, pas un cas normal —
+    // un repli inventerait un hash qui ne suivrait pas la source.
+    expect(() => noteToProposal({ ...note, source_hash: null })).toThrow(
+      /source_hash/,
+    );
   });
 
   it('refuse un type non dérivé', () => {
-    expect(() => noteToProposal({ ...note, type: 'fiche' })).toThrow(/non proposable/);
+    expect(() => noteToProposal({ ...note, type: 'fiche' })).toThrow(
+      /non proposable/,
+    );
   });
 });
 
@@ -349,7 +375,10 @@ describe('applyProposal', () => {
   });
 
   it('remplace le corps quand l admin a édité', () => {
-    const applied = applyProposal(noteToProposal(note), '  # Corrigé\n\nMieux.  ');
+    const applied = applyProposal(
+      noteToProposal(note),
+      '  # Corrigé\n\nMieux.  ',
+    );
     expect(applied.body).toBe('# Corrigé\n\nMieux.');
     expect(applied.title).toBe('Comment facturer un OPCO ?');
   });
@@ -363,7 +392,7 @@ describe('applyProposal', () => {
 
 - [ ] **Étape 2 : lancer le test, vérifier qu'il échoue**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : ÉCHEC — `noteToProposal is not a function`.
 
 - [ ] **Étape 3 : implémenter dans `lib/brain/proposal.ts`**
@@ -379,13 +408,15 @@ export function noteToProposal(note: BrainNote): BrainProposal {
   if (note.type !== 'conversation' && note.type !== 'entite') {
     throw new Error(`type non proposable : ${note.type}`);
   }
+  if (!note.source_hash) {
+    throw new Error(`note sans source_hash : ${note.path}`);
+  }
   return {
     kind: note.type,
-    status: 'en_attente',
     target_path: note.path,
     payload: note as unknown as Record<string, unknown>,
     source_ref: note.source_ref ?? note.path,
-    source_hash: note.source_hash ?? hashNote(note),
+    source_hash: note.source_hash,
   };
 }
 
@@ -395,7 +426,10 @@ export function noteToProposal(note: BrainNote): BrainProposal {
  * dont le payload EST une note : `lacune` passe par `gapToBrainNote`, et
  * `obsolescence` ne produit pas de note (arbitrage sur une note existante). Pur.
  */
-export function applyProposal(p: BrainProposal, editedBody?: string): BrainNote {
+export function applyProposal(
+  p: BrainProposal,
+  editedBody?: string,
+): BrainNote {
   if (p.kind !== 'conversation' && p.kind !== 'entite') {
     throw new Error(`proposition non applicable directement : ${p.kind}`);
   }
@@ -407,13 +441,13 @@ export function applyProposal(p: BrainProposal, editedBody?: string): BrainNote 
 
 - [ ] **Étape 4 : lancer le test, vérifier qu'il passe**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : tous PASS.
 
 - [ ] **Étape 5 : commit**
 
 ```bash
-git add lib/brain/proposal.ts __tests__/brain-proposals.test.ts
+git add lib/brain/proposal.ts __tests__/brain-proposal.test.ts
 git commit -m "feat(cerveau): noteToProposal / applyProposal"
 ```
 
@@ -422,8 +456,9 @@ git commit -m "feat(cerveau): noteToProposal / applyProposal"
 ## Task 4 : `gapToBrainNote` — une lacune 👎 + la réponse de l'admin → une note
 
 **Fichiers :**
+
 - Modifier : `lib/brain/proposal.ts`
-- Test : `__tests__/brain-proposals.test.ts`
+- Test : `__tests__/brain-proposal.test.ts`
 
 - [ ] **Étape 1 : écrire le test qui échoue**
 
@@ -438,8 +473,12 @@ describe('gapToBrainNote', () => {
   };
 
   it('construit une note conversation depuis la réponse humaine', () => {
-    const n = gapToBrainNote(gap, '  Avant le 31 mai de chaque année.  ',
-      ['fiches/qualite-g-2'], { 'fiches/qualite-g-2': 'h1' });
+    const n = gapToBrainNote(
+      gap,
+      '  Avant le 31 mai de chaque année.  ',
+      ['fiches/qualite-g-2'],
+      { 'fiches/qualite-g-2': 'h1' },
+    );
     expect(n.type).toBe('conversation');
     expect(n.path).toBe('conversations/quel-delai-pour-transmettre-le-bpf.md');
     expect(n.title).toBe(gap.question);
@@ -473,7 +512,7 @@ describe('gapToBrainNote', () => {
 
 - [ ] **Étape 2 : lancer le test, vérifier qu'il échoue**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : ÉCHEC — `gapToBrainNote is not a function`.
 
 - [ ] **Étape 3 : implémenter dans `lib/brain/proposal.ts`**
@@ -507,7 +546,9 @@ export function gapToBrainNote(
     "> Réponse rédigée et validée par un administrateur (correction d'une lacune 👎).",
     '',
     answer,
-    ...(links.length ? ['', '## Sources', links.map(wikilink).join(' · ')] : []),
+    ...(links.length
+      ? ['', '## Sources', links.map(wikilink).join(' · ')]
+      : []),
   ].join('\n');
   return {
     path: `conversations/${slugify(gap.question).slice(0, 80)}.md`,
@@ -532,13 +573,13 @@ export function gapToBrainNote(
 
 - [ ] **Étape 4 : lancer le test, vérifier qu'il passe**
 
-Lancer : `npx vitest run __tests__/brain-proposals.test.ts`
+Lancer : `npx vitest run __tests__/brain-proposal.test.ts`
 Attendu : tous PASS.
 
 - [ ] **Étape 5 : commit**
 
 ```bash
-git add lib/brain/proposal.ts __tests__/brain-proposals.test.ts
+git add lib/brain/proposal.ts __tests__/brain-proposal.test.ts
 git commit -m "feat(cerveau): gapToBrainNote — une lacune corrigee devient une note"
 ```
 
@@ -550,6 +591,7 @@ La policy `select` a été ouverte à `authenticated` en Task 1. Il reste à sup
 contournement service-role côté code.
 
 **Fichiers :**
+
 - Modifier : `lib/brain/retrieve.ts`
 - Modifier : `app/api/process/ask/route.ts:76-80`
 - Test : `__tests__/brain-retrieve.test.ts`
@@ -617,14 +659,14 @@ Puis remplacer l'unique autre occurrence, `await admin.from('brain_notes')`, par
 Remplacer les lignes 79-80 :
 
 ```ts
-  const { createAdminClient } = await import('@/lib/supabase/admin');
-  const notes = await retrieveNotes(question, { admin: createAdminClient() });
+const { createAdminClient } = await import('@/lib/supabase/admin');
+const notes = await retrieveNotes(question, { admin: createAdminClient() });
 ```
 
 par :
 
 ```ts
-  const notes = await retrieveNotes(question, { db: supabase });
+const notes = await retrieveNotes(question, { db: supabase });
 ```
 
 Et dans le commentaire juste au-dessus (« 1) CERVEAU d'abord … »), ajouter en fin de bloc :
@@ -649,6 +691,7 @@ git commit -m "fix(cerveau): retrieveNotes passe par la RLS au lieu du service-r
 ## Task 6 : lectures pour la page admin
 
 **Fichiers :**
+
 - Créer : `lib/queries/brain-proposals.ts`
 
 - [ ] **Étape 1 : écrire le module**
@@ -716,6 +759,7 @@ git commit -m "feat(cerveau): lectures des propositions en attente"
 ## Task 7 : Server Actions d'arbitrage
 
 **Fichiers :**
+
 - Créer : `lib/actions/brain-proposals.ts`
 
 - [ ] **Étape 1 : écrire le module**
@@ -728,7 +772,11 @@ import { revalidatePath } from 'next/cache';
 import { checkAuth } from '@/lib/auth/guards';
 import { isAdmin } from '@/lib/utils/roles';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { applyProposal, gapToBrainNote, type BrainProposal } from '@/lib/brain/proposal';
+import {
+  applyProposal,
+  gapToBrainNote,
+  type BrainProposal,
+} from '@/lib/brain/proposal';
 import type { BrainNote } from '@/lib/brain/types';
 import { logger } from '@/lib/utils/logger';
 
@@ -755,7 +803,8 @@ const StaleSchema = z.object({
 async function adminGate() {
   const auth = await checkAuth();
   if (!auth.ok) return { ok: false as const, error: auth.error };
-  if (!isAdmin(auth.role)) return { ok: false as const, error: 'Réservé aux admins' };
+  if (!isAdmin(auth.role))
+    return { ok: false as const, error: 'Réservé aux admins' };
   return { ok: true as const, userId: auth.user.id, db: createAdminClient() };
 }
 
@@ -839,7 +888,12 @@ export async function approveProposalAction(
     // reste `en_attente` et l'admin peut réessayer. Rien n'est perdu.
     const err = await upsertNote(gate.db, note);
     if (err) return { success: false, error: err };
-    const moved = await decide(gate.db, parsed.data.id, 'approuvee', gate.userId);
+    const moved = await decide(
+      gate.db,
+      parsed.data.id,
+      'approuvee',
+      gate.userId,
+    );
     if (!moved) return { success: false, error: 'Proposition déjà traitée' };
   } catch (e) {
     logger.error('actions.brain-proposals', 'approve failed', { error: e });
@@ -861,7 +915,11 @@ export async function rejectProposalAction(
 
   try {
     const moved = await decide(
-      gate.db, parsed.data.id, 'rejetee', gate.userId, parsed.data.reason,
+      gate.db,
+      parsed.data.id,
+      'rejetee',
+      gate.userId,
+      parsed.data.reason,
     );
     if (!moved) return { success: false, error: 'Proposition déjà traitée' };
   } catch (e) {
@@ -900,7 +958,12 @@ export async function resolveGapAction(
     );
     const err = await upsertNote(gate.db, note);
     if (err) return { success: false, error: err };
-    const moved = await decide(gate.db, parsed.data.id, 'approuvee', gate.userId);
+    const moved = await decide(
+      gate.db,
+      parsed.data.id,
+      'approuvee',
+      gate.userId,
+    );
     if (!moved) return { success: false, error: 'Proposition déjà traitée' };
   } catch (e) {
     logger.error('actions.brain-proposals', 'resolveGap failed', { error: e });
@@ -945,7 +1008,10 @@ export async function arbitrateStaleAction(
         .eq('path', path);
       if (upErr) return { success: false, error: upErr.message };
     } else if (parsed.data.choix === 'archiver') {
-      const { error } = await gate.db.from('brain_notes').delete().eq('path', path);
+      const { error } = await gate.db
+        .from('brain_notes')
+        .delete()
+        .eq('path', path);
       if (error) return { success: false, error: error.message };
     } else {
       // Régénérer : l'app ne peut pas appeler Claude (abonnement Max). On pose
@@ -965,11 +1031,17 @@ export async function arbitrateStaleAction(
     }
 
     const moved = await decide(
-      gate.db, parsed.data.id, 'approuvee', gate.userId, parsed.data.choix,
+      gate.db,
+      parsed.data.id,
+      'approuvee',
+      gate.userId,
+      parsed.data.choix,
     );
     if (!moved) return { success: false, error: 'Proposition déjà traitée' };
   } catch (e) {
-    logger.error('actions.brain-proposals', 'arbitrateStale failed', { error: e });
+    logger.error('actions.brain-proposals', 'arbitrateStale failed', {
+      error: e,
+    });
     return { success: false, error: (e as Error).message };
   }
   revalidatePath('/admin/cerveau', 'layout');
@@ -995,6 +1067,7 @@ git commit -m "feat(cerveau): actions d'arbitrage des propositions"
 ## Task 8 : page `/admin/cerveau`
 
 **Fichiers :**
+
 - Créer : `app/(dashboard)/admin/cerveau/page.tsx`
 - Créer : `app/(dashboard)/admin/cerveau/loading.tsx`
 - Créer : `app/(dashboard)/admin/cerveau/proposals-review.tsx`
@@ -1015,7 +1088,10 @@ import { ProposalsReview } from './proposals-review';
 export const metadata: Metadata = { title: 'Cerveau - SOLUVIA' };
 
 export default async function AdminCerveauPage() {
-  const [user, proposals] = await Promise.all([getUser(), getPendingProposals()]);
+  const [user, proposals] = await Promise.all([
+    getUser(),
+    getPendingProposals(),
+  ]);
   if (!isAdmin(user?.role)) redirect('/accueil');
 
   return (
@@ -1038,8 +1114,8 @@ export default async function AdminCerveauPage() {
 export default function Loading() {
   return (
     <div className="space-y-4 p-6">
-      <div className="h-8 w-64 animate-pulse rounded bg-muted" />
-      <div className="h-64 animate-pulse rounded bg-muted" />
+      <div className="bg-muted h-8 w-64 animate-pulse rounded" />
+      <div className="bg-muted h-64 animate-pulse rounded" />
     </div>
   );
 }
@@ -1077,11 +1153,16 @@ const ORDER = ['lacune', 'conversation', 'entite', 'obsolescence'];
 
 export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
   const { refresh } = useRouter();
-  const [selected, setSelected] = useState<ProposalRow | null>(proposals[0] ?? null);
+  const [selected, setSelected] = useState<ProposalRow | null>(
+    proposals[0] ?? null,
+  );
   const [draft, setDraft] = useState('');
   const [isPending, startTransition] = useTransition();
 
-  const run = (fn: () => Promise<{ success: boolean; error?: string }>, ok: string) =>
+  const run = (
+    fn: () => Promise<{ success: boolean; error?: string }>,
+    ok: string,
+  ) =>
     startTransition(async () => {
       const res = await fn();
       if (res.success) {
@@ -1109,55 +1190,59 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
   return (
     <div className="grid gap-6 md:grid-cols-[320px_1fr]">
       <div className="space-y-6">
-        {ORDER.filter((k) => proposals.some((p) => p.kind === k)).map((kind) => (
-          <section key={kind}>
-            <h2 className="mb-2 text-sm font-semibold">
-              {KIND_LABEL[kind]}{' '}
-              <Badge variant="secondary">
-                {proposals.filter((p) => p.kind === kind).length}
-              </Badge>
-            </h2>
-            <ul className="space-y-1">
-              {proposals
-                .filter((p) => p.kind === kind)
-                .map((p) => (
-                  <li key={p.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelected(p);
-                        const b = (p.payload as Record<string, unknown>).body;
-                        setDraft(typeof b === 'string' ? b : '');
-                      }}
-                      className={cn(
-                        'w-full truncate rounded px-2 py-1 text-left text-sm hover:bg-muted',
-                        selected?.id === p.id && 'bg-muted font-medium',
-                      )}
-                    >
-                      {String(
-                        (p.payload as Record<string, unknown>).title ??
-                          (p.payload as Record<string, unknown>).question ??
-                          p.target_path ??
-                          p.source_ref,
-                      )}
-                    </button>
-                  </li>
-                ))}
-            </ul>
-          </section>
-        ))}
+        {ORDER.filter((k) => proposals.some((p) => p.kind === k)).map(
+          (kind) => (
+            <section key={kind}>
+              <h2 className="mb-2 text-sm font-semibold">
+                {KIND_LABEL[kind]}{' '}
+                <Badge variant="secondary">
+                  {proposals.filter((p) => p.kind === kind).length}
+                </Badge>
+              </h2>
+              <ul className="space-y-1">
+                {proposals
+                  .filter((p) => p.kind === kind)
+                  .map((p) => (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelected(p);
+                          const b = (p.payload as Record<string, unknown>).body;
+                          setDraft(typeof b === 'string' ? b : '');
+                        }}
+                        className={cn(
+                          'hover:bg-muted w-full truncate rounded px-2 py-1 text-left text-sm',
+                          selected?.id === p.id && 'bg-muted font-medium',
+                        )}
+                      >
+                        {String(
+                          (p.payload as Record<string, unknown>).title ??
+                            (p.payload as Record<string, unknown>).question ??
+                            p.target_path ??
+                            p.source_ref,
+                        )}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </section>
+          ),
+        )}
       </div>
 
       {selected && (
         <div className="space-y-4 rounded-lg border p-4">
-          <div className="text-xs text-muted-foreground">
+          <div className="text-muted-foreground text-xs">
             {selected.target_path ?? selected.source_ref}
           </div>
 
           {selected.kind === 'lacune' && (
             <>
-              <h3 className="font-semibold">{String(payload.question ?? '')}</h3>
-              <p className="rounded bg-muted p-3 text-sm text-muted-foreground">
+              <h3 className="font-semibold">
+                {String(payload.question ?? '')}
+              </h3>
+              <p className="bg-muted text-muted-foreground rounded p-3 text-sm">
                 Réponse jugée insuffisante : {String(payload.answer_ko ?? '')}
               </p>
               <Textarea
@@ -1171,7 +1256,8 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
                   disabled={isPending || !draft.trim()}
                   onClick={() =>
                     run(
-                      () => resolveGapAction({ id: selected.id, answer: draft }),
+                      () =>
+                        resolveGapAction({ id: selected.id, answer: draft }),
                       'Lacune comblée',
                     )
                   }
@@ -1182,7 +1268,10 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
                   variant="outline"
                   disabled={isPending}
                   onClick={() =>
-                    run(() => rejectProposalAction({ id: selected.id }), 'Lacune écartée')
+                    run(
+                      () => rejectProposalAction({ id: selected.id }),
+                      'Lacune écartée',
+                    )
                   }
                 >
                   Écarter
@@ -1220,7 +1309,10 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
                   variant="outline"
                   disabled={isPending}
                   onClick={() =>
-                    run(() => rejectProposalAction({ id: selected.id }), 'Proposition rejetée')
+                    run(
+                      () => rejectProposalAction({ id: selected.id }),
+                      'Proposition rejetée',
+                    )
                   }
                 >
                   Rejeter
@@ -1232,7 +1324,7 @@ export function ProposalsReview({ proposals }: { proposals: ProposalRow[] }) {
           {selected.kind === 'obsolescence' && (
             <>
               <h3 className="font-semibold">{selected.target_path}</h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Une source de cette note a changé. Que faire ?
               </p>
               <div className="flex gap-2">
@@ -1286,6 +1378,7 @@ git commit -m "feat(cerveau): page /admin/cerveau de revue des propositions"
 ## Task 9 : lien dans la navigation admin
 
 **Fichiers :**
+
 - Modifier : le composant de navigation qui liste `/admin/syncs` et `/admin/bugs`
 
 - [ ] **Étape 1 : localiser**
@@ -1321,6 +1414,7 @@ git commit -m "feat(cerveau): lien Cerveau dans la navigation admin"
 ## Task 10 : un 👎 crée une lacune
 
 **Fichiers :**
+
 - Modifier : `app/api/process/feedback/route.ts`
 
 - [ ] **Étape 1 : modifier la route**
@@ -1328,50 +1422,50 @@ git commit -m "feat(cerveau): lien Cerveau dans la navigation admin"
 Après le bloc `if (error) { … }` et avant le `return NextResponse.json({ ok: true })`, insérer :
 
 ```ts
-  // Un 👎 ouvre une lacune dans la file de revue (/admin/cerveau) : c'est là que
-  // l'admin écrit la bonne réponse, qui devient une note du cerveau. Insertion
-  // via le client admin car la RLS de brain_proposals est admin-only et l'auteur
-  // du 👎 ne l'est pas. Best-effort : un échec ici ne doit pas perdre le feedback,
-  // le prochain `brain:ingest` rattrape les 👎 sans proposition.
-  if (rating === -1) {
-    try {
-      const { createAdminClient } = await import('@/lib/supabase/admin');
-      const { createHash } = await import('node:crypto');
-      const admin = createAdminClient();
-      const { data: fb } = await admin
-        .from('process_qa_feedback')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('question', question)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      if (fb) {
-        await admin.from('brain_proposals').upsert(
-          {
-            kind: 'lacune',
-            status: 'en_attente',
-            target_path: null,
-            payload: {
-              question,
-              answer_ko: answer,
-              derived_from: [],
-              source_hashes: {},
-            } as never,
-            source_ref: fb.id,
-            source_hash: createHash('sha256')
-              .update(`${question}|${answer}`)
-              .digest('hex'),
-          },
-          { onConflict: 'kind,source_ref' },
-        );
-      }
-    } catch (e) {
-      logger.error('process/feedback', 'Ouverture de la lacune échouée', {
-        error: e,
-      });
+// Un 👎 ouvre une lacune dans la file de revue (/admin/cerveau) : c'est là que
+// l'admin écrit la bonne réponse, qui devient une note du cerveau. Insertion
+// via le client admin car la RLS de brain_proposals est admin-only et l'auteur
+// du 👎 ne l'est pas. Best-effort : un échec ici ne doit pas perdre le feedback,
+// le prochain `brain:ingest` rattrape les 👎 sans proposition.
+if (rating === -1) {
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const { createHash } = await import('node:crypto');
+    const admin = createAdminClient();
+    const { data: fb } = await admin
+      .from('process_qa_feedback')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('question', question)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    if (fb) {
+      await admin.from('brain_proposals').upsert(
+        {
+          kind: 'lacune',
+          status: 'en_attente',
+          target_path: null,
+          payload: {
+            question,
+            answer_ko: answer,
+            derived_from: [],
+            source_hashes: {},
+          } as never,
+          source_ref: fb.id,
+          source_hash: createHash('sha256')
+            .update(`${question}|${answer}`)
+            .digest('hex'),
+        },
+        { onConflict: 'kind,source_ref' },
+      );
     }
+  } catch (e) {
+    logger.error('process/feedback', 'Ouverture de la lacune échouée', {
+      error: e,
+    });
   }
+}
 ```
 
 - [ ] **Étape 2 : vérifier**
@@ -1394,6 +1488,7 @@ C'est le basculement : les trois fonctions Phase 3 de `scripts/brain-ingest.ts` 
 d'écrire dans `brain_notes`.
 
 **Fichiers :**
+
 - Modifier : `scripts/brain-ingest.ts`
 
 - [ ] **Étape 1 : ajouter les helpers de proposition**
@@ -1401,7 +1496,11 @@ d'écrire dans `brain_notes`.
 Après la fonction `upsertNote` (≈ ligne 76), ajouter :
 
 ```ts
-import { shouldPropose, noteToProposal, type BrainProposal } from '../lib/brain/proposal';
+import {
+  shouldPropose,
+  noteToProposal,
+  type BrainProposal,
+} from '../lib/brain/proposal';
 
 // Nom distinct de `ProposalRow` (lib/queries/brain-proposals.ts), qui porte la
 // ligne complète pour l'UI : ici on ne lit que de quoi décider.
@@ -1433,7 +1532,9 @@ async function proposeNote(
   const verdict = shouldPropose(p, existing);
   if (verdict === 'skip') return false;
   if (dryRun) {
-    console.log(`  proposition (${verdict}) ${p.kind} : ${p.target_path ?? p.source_ref}`);
+    console.log(
+      `  proposition (${verdict}) ${p.kind} : ${p.target_path ?? p.source_ref}`,
+    );
     return true;
   }
   await pg(`insert into public.brain_proposals
@@ -1473,13 +1574,13 @@ Dans `ingestConversations`, charger l'état des propositions en tête de fonctio
 par
 
 ```ts
-    const note = conversationToBrainNote(
-      { id: f.id, question: f.question, answer: f.answer },
-      derivedFrom,
-      qaHash,
-      sourceHashes,
-    );
-    if (await proposeNote(noteToProposal(note), known, dryRun)) n++;
+const note = conversationToBrainNote(
+  { id: f.id, question: f.question, answer: f.answer },
+  derivedFrom,
+  qaHash,
+  sourceHashes,
+);
+if (await proposeNote(noteToProposal(note), known, dryRun)) n++;
 ```
 
 Supprimer aussi le court-circuit `if (seen.get(f.id) === qaHash) continue;` : l'idempotence
@@ -1487,15 +1588,96 @@ est désormais portée par `shouldPropose` face à `brain_proposals` (une conver
 approuvée n'est PAS dans `brain_notes`, donc `seen` ne la connaît pas et elle serait reproposée
 à chaque run).
 
-- [ ] **Étape 3 : `ingestEntities` propose**
+**Et protéger les réponses rédigées par un humain.** Une note issue d'une lacune corrigée
+(`frontmatter.corrige === true`) et une note issue d'un 👍 sur la **même question** visent le
+même `path` — c'est voulu (déduplication), mais l'upsert ferait alors écraser la réponse écrite
+par un admin par la paraphrase de l'assistant, sans signal et sans copie de secours. Or la
+correction humaine est ce qui a le plus de valeur dans la boucle. `upsertNote` (Server Action)
+porte déjà un garde-fou ; le script doit en plus cesser de proposer. Charger les notes corrigées
+en tête de fonction :
+
+```ts
+const corrigees = new Set(
+  (
+    await pg<{ path: string }>(
+      `select path from public.brain_notes
+         where type = 'conversation' and frontmatter->>'corrige' = 'true'`,
+    )
+  ).map((r) => r.path),
+);
+```
+
+puis, dans la boucle, juste avant de construire la note :
+
+```ts
+// Une réponse rédigée par un admin fait autorité sur une paraphrase de
+// l'assistant : on ne repropose pas la même question par-dessus.
+if (corrigees.has(conversationPath(f.question))) continue;
+```
+
+(`conversationPath` est exporté par `lib/brain/note.ts`.)
+
+- [ ] **Étape 3 : `ingestEntities` propose, et son hash cesse de suivre les backlinks**
 
 Même transformation : `const known = await loadProposals();` en tête, et remplacer
 `await upsertNote(entityToBrainNote(...)); n++;` par
 
 ```ts
-    const note = entityToBrainNote(short, d.name || titleCase(short), bl, d.definition ?? '', hash);
-    if (await proposeNote(noteToProposal(note), known, dryRun)) n++;
+const note = entityToBrainNote(
+  short,
+  d.name || titleCase(short),
+  bl,
+  d.definition ?? '',
+  hash,
+);
+if (await proposeNote(noteToProposal(note), known, dryRun)) n++;
 ```
+
+**Et corriger le calcul de `hash` juste au-dessus.** Il vaut aujourd'hui
+`createHash('sha256').update(`${bl.join(',')}|${d.definition}`)` — il inclut les backlinks.
+Or les backlinks bougent dès qu'une note quelconque se met à citer l'entité, ce qui ferait
+changer le hash sans que rien de ce que l'admin a arbitré n'ait changé : une entité rejetée
+réapparaîtrait dans la file quelques runs plus tard, avec la même définition. Le rejet ne
+serait durable que pour les conversations. Le hash ne doit porter que **la partie arbitrée** :
+
+```ts
+// Le hash ne porte que ce que l'admin arbitre (nom + définition). Les backlinks
+// sont dérivés mécaniquement du graphe et bougent tout le temps : les inclure
+// ferait réapparaître une entité rejetée dès qu'une nouvelle note la cite.
+const hash = createHash('sha256')
+  .update(`${d.name || titleCase(short)}|${d.definition ?? ''}`)
+  .digest('hex');
+```
+
+Conséquence assumée : la section « Notes liées » d'une entité **déjà approuvée** ne se met plus
+à jour toute seule quand le graphe bouge. Ce n'est pas bloquant (l'expansion de recherche
+s'appuie sur `links` des notes sources, pas sur cette section), et c'est à traiter séparément
+si ça gêne à l'usage.
+
+**Et ne plus redemander une définition déjà arbitrée.** Il reste une seconde source de
+réouverture, plus insidieuse : `d.definition` vient de `execFileSync('claude', ['-p', …])`, donc
+reformulée à chaque exécution, et `entityDefinitions` a un `catch { return {} }` qui fait
+retomber sur une définition vide. Or une entité **rejetée** n'entre jamais dans `brain_notes` :
+elle reste donc éternellement dans `missing`, est redéfinie à chaque run, produit un nouveau
+hash, et `shouldPropose` la rouvre — un simple échec réseau de la CLI suffit à relancer le
+cycle. Le rejet ne serait durable pour les entités qu'en apparence.
+
+Correctif : ne demander une définition qu'aux entités **sans proposition existante**, quel que
+soit son statut. Après le calcul de `missing`, et avant l'appel à `entityDefinitions` :
+
+```ts
+const known = await loadProposals();
+// Une entité déjà arbitrée (approuvée comme rejetée) ne doit pas être
+// redemandée à Claude : sa définition serait reformulée, donc son hash
+// changerait, donc un rejet serait rouvert à chaque exécution.
+const aDefinir = missing.filter(
+  (l) => !known.has(`entite:${l.replace(/^entites\//, '')}`),
+);
+if (!aDefinir.length) return 0;
+```
+
+et faire porter la suite (`shorts`, `entityDefinitions`, la boucle de proposition) sur
+`aDefinir` plutôt que sur `missing`. Cela économise aussi des appels Claude à chaque run.
 
 - [ ] **Étape 4 : `markStaleConversations` propose au lieu de modifier**
 
@@ -1504,57 +1686,62 @@ proposition d'arbitrage (la note reste marquée `stale` en base — c'est ce qui
 recherche — mais l'arbitrage passe par la file) :
 
 ```ts
-    if (!stale || already) continue;
-    const marker = '> ⚠️ Réponse à revoir : une source a changé.\n\n';
-    if (!dryRun) {
-      await pg(
-        `update public.brain_notes set
+if (!stale || already) continue;
+const marker = '> ⚠️ Réponse à revoir : une source a changé.\n\n';
+if (!dryRun) {
+  await pg(
+    `update public.brain_notes set
            frontmatter = frontmatter || '{"stale":true}'::jsonb,
            body = ${lit(marker + note.body)},
            updated_at = now()
          where path = ${lit(note.path)};`,
-      );
-    }
-    const changed = Object.keys(note.frontmatter?.source_hashes ?? {});
-    await proposeNote(
-      {
-        kind: 'obsolescence',
-        status: 'en_attente',
-        target_path: note.path,
-        payload: { path: note.path, title: note.title, sources_modifiees: changed },
-        source_ref: note.path,
-        source_hash: createHash('sha256').update(JSON.stringify(sh)).digest('hex'),
-      },
-      known,
-      dryRun,
-    );
-    n++;
+  );
+}
+const changed = Object.keys(note.frontmatter?.source_hashes ?? {});
+await proposeNote(
+  {
+    kind: 'obsolescence',
+    target_path: note.path,
+    payload: { path: note.path, title: note.title, sources_modifiees: changed },
+    source_ref: note.path,
+    source_hash: createHash('sha256').update(JSON.stringify(sh)).digest('hex'),
+  },
+  known,
+  dryRun,
+);
+n++;
 ```
 
 avec `const known = await loadProposals();` en tête de fonction.
 
 - [ ] **Étape 5 : consommer les `a_regenerer`**
 
-Dans `main`, après le bloc Phase 3, ajouter :
+Dans `main`, **avant** le bloc Phase 3 (et non après), ajouter le code ci-dessous.
+
+L'ordre compte : ces demandes doivent être consommées avant que les fonctions Phase 3 ne
+touchent aux propositions. `shouldPropose` protège déjà les lignes `a_regenerer` (elle renvoie
+`skip` même sur hash changé, précisément pour ne pas écraser la demande d'un admin), mais
+consommer d'abord évite de faire reposer la correction sur une seule ligne de garde : la
+réanalyse a lieu, puis les propositions rafraîchies repassent normalement par la file.
 
 ```ts
-  // Régénérations demandées depuis /admin/cerveau : l'app ne peut pas appeler
-  // Claude, c'est ici qu'on refait l'analyse et qu'on repropose.
-  const aRegenerer = await pg<{ id: string; target_path: string }>(
-    `select id, target_path from public.brain_proposals
+// Régénérations demandées depuis /admin/cerveau : l'app ne peut pas appeler
+// Claude, c'est ici qu'on refait l'analyse et qu'on repropose.
+const aRegenerer = await pg<{ id: string; target_path: string }>(
+  `select id, target_path from public.brain_proposals
      where status = 'a_regenerer' and target_path is not null`,
-  );
-  for (const r of aRegenerer) {
-    console.log(`régénération demandée : ${r.target_path}`);
-    if (dryRun) continue;
-    // La note repart du cycle normal : on efface son hash pour forcer la
-    // réanalyse de la source au prochain passage, et on referme la demande.
-    await pg(`update public.brain_notes set source_hash = null
+);
+for (const r of aRegenerer) {
+  console.log(`régénération demandée : ${r.target_path}`);
+  if (dryRun) continue;
+  // La note repart du cycle normal : on efface son hash pour forcer la
+  // réanalyse de la source au prochain passage, et on referme la demande.
+  await pg(`update public.brain_notes set source_hash = null
               where path = ${lit(r.target_path)};`);
-    await pg(`update public.brain_proposals set status = 'approuvee',
+  await pg(`update public.brain_proposals set status = 'approuvee',
               reason = 'régénérée', decided_at = now() where id = ${lit(r.id)};`);
-  }
-  console.log(`Régénérations traitées : ${aRegenerer.length}`);
+}
+console.log(`Régénérations traitées : ${aRegenerer.length}`);
 ```
 
 - [ ] **Étape 6 : rattraper les 👎 sans proposition + assainir `_lacunes.md`**
@@ -1571,7 +1758,10 @@ Remplacer entièrement `writeGapsReport` par :
  * route feedback — et écrit le rapport des lacunes ENCORE OUVERTES dans le coffre
  * (hors brain_notes → pas de bruit en recherche).
  */
-async function syncGaps(vaultDir: string | null, dryRun: boolean): Promise<number> {
+async function syncGaps(
+  vaultDir: string | null,
+  dryRun: boolean,
+): Promise<number> {
   const known = await loadProposals();
   const gaps = await pg<{ id: string; question: string; answer: string }>(
     `select id, question, answer from public.process_qa_feedback where rating = -1`,
@@ -1580,7 +1770,6 @@ async function syncGaps(vaultDir: string | null, dryRun: boolean): Promise<numbe
     await proposeNote(
       {
         kind: 'lacune',
-        status: 'en_attente',
         target_path: null,
         payload: {
           question: g.question,
@@ -1616,8 +1805,12 @@ async function syncGaps(vaultDir: string | null, dryRun: boolean): Promise<numbe
       lines.push(
         `- **${g.question}**\n  > ${g.answer.replace(/\n/g, ' ').slice(0, 200)}`,
       );
-    if (!encore.length) lines.push('_(aucune pour l\'instant)_');
-    writeFileSync(join(vaultDir, '_lacunes.md'), `${lines.join('\n')}\n`, 'utf8');
+    if (!encore.length) lines.push("_(aucune pour l'instant)_");
+    writeFileSync(
+      join(vaultDir, '_lacunes.md'),
+      `${lines.join('\n')}\n`,
+      'utf8',
+    );
   }
   return encore.length;
 }
@@ -1656,7 +1849,7 @@ Attendu : tout PASS, build OK.
 1. `npm run brain:ingest` (sur la machine avec `claude` authentifié Max) → propositions créées.
 2. `npm run dev`, ouvrir `/admin/cerveau` en admin → les propositions apparaissent groupées.
 3. Approuver une `conversation` → vérifier qu'elle est dans `brain_notes` (`select path from
-   public.brain_notes order by updated_at desc limit 3` via le script `prod-sql.mjs`).
+public.brain_notes order by updated_at desc limit 3` via le script `prod-sql.mjs`).
 4. Rejeter une `entite`, relancer `npm run brain:ingest:dry` → elle **ne doit pas** réapparaître.
 5. Poser une question en 👎 dans l'assistant → une lacune apparaît dans `/admin/cerveau` ;
    y répondre → la note est créée et l'assistant la ressort à la même question.
@@ -1674,3 +1867,27 @@ git push -u origin feat/cerveau-semi-auto
 gh pr create --title "Cerveau semi-automatique : le cerveau propose, l'admin valide" \
   --body "Voir docs/plans/2026-08-05-cerveau-semi-auto-design.md"
 ```
+
+## Décisions révisées en cours d'implémentation (2026-08-05)
+
+Le plan ci-dessus reste la trace de ce qui était prévu. Cinq points ont été tranchés autrement
+pendant l'exécution :
+
+- **Notes-entités créées en direct, sans définition.** Une note-carrefour ne fait que relier
+  les notes qui citent l'entité : elle n'invente rien, donc rien à faire valider. Seules les
+  **définitions** d'entités citées par au moins 3 notes sont proposées, et au plus 40 par
+  exécution — le plan initial en faisait proposer 842, iningérables.
+- **« Archiver » marque la note au lieu de la supprimer.** Le plan (et la spec) prescrivaient
+  un `delete` ; il détruisait sans recours la seule copie d'une réponse rédigée à la main.
+  `arbitrateStaleAction` pose `frontmatter.archive = true` : la note sort de la recherche et
+  du coffre Obsidian, reste en base, reste récupérable.
+- **« Régénérer » supprimé.** Pour une note de conversation il n'y a rien à régénérer (la
+  question et la réponse n'ont pas bougé, seule une source a changé) et le statut
+  `a_regenerer` ne menait nulle part. Le panneau d'obsolescence n'offre plus que _garder_ /
+  _archiver_ ; la contrainte `check` en base tolère encore la valeur, plus aucun code ne
+  l'écrit.
+- **Chemin des notes de conversation suffixé d'un hash**, pour être injectif : le slug tronqué
+  faisait collisionner deux questions distinctes sur le même fichier.
+- **Contenu curé à la main protégé.** Une réponse rédigée par un admin (`corrige: true`) et une
+  définition validée (`verified: true`) ne peuvent pas être écrasées par une proposition
+  automatique — le script ne les repropose pas, l'approbation les refuse.

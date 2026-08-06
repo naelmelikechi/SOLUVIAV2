@@ -17,6 +17,7 @@ import {
   Building2,
   Settings,
   Bug,
+  Brain,
   Activity,
   KanbanSquare,
   ListTodo,
@@ -186,6 +187,12 @@ export const navSections: NavSection[] = [
         adminOnly: true,
       },
       { href: '/admin/bugs', label: 'Bugs', icon: Bug, adminOnly: true },
+      {
+        href: '/admin/cerveau',
+        label: 'Cerveau',
+        icon: Brain,
+        adminOnly: true,
+      },
       { href: '/admin/syncs', label: 'Syncs', icon: Activity, adminOnly: true },
       {
         href: '/admin/parametres',

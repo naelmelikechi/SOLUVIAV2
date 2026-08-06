@@ -911,6 +911,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      brain_ingest_runs: {
+        Row: {
+          erreur: string | null;
+          finished_at: string | null;
+          id: string;
+          started_at: string;
+          statut: string;
+          stats: Json | null;
+        };
+        Insert: {
+          erreur?: string | null;
+          finished_at?: string | null;
+          id?: string;
+          started_at?: string;
+          statut?: string;
+          stats?: Json | null;
+        };
+        Update: {
+          erreur?: string | null;
+          finished_at?: string | null;
+          id?: string;
+          started_at?: string;
+          statut?: string;
+          stats?: Json | null;
+        };
+        Relationships: [];
+      };
       brain_notes: {
         Row: {
           aliases: string[];

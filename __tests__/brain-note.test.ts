@@ -10,6 +10,9 @@ import {
   isNonAnswer,
   conversationToBrainNote,
   entityToBrainNote,
+  entitySourceRef,
+  definitionDepuisCorps,
+  fichiersOrphelins,
 } from '@/lib/brain/note';
 import type { BrainNote } from '@/lib/brain/types';
 import type { FinalizedFiche } from '@/lib/process/types';
@@ -151,7 +154,11 @@ describe('conversationToBrainNote', () => {
       { 'livrables/FILE42': 'h42' },
     );
     expect(note.type).toBe('conversation');
-    expect(note.path).toBe('conversations/quels-sont-les-3-statuts.md');
+    // Suffixe de hash : le path est injectif (cf. `conversationPath`), deux
+    // questions au préfixe commun ne peuvent plus s'écraser l'une l'autre.
+    expect(note.path).toMatch(
+      /^conversations\/quels-sont-les-3-statuts-[0-9a-f]{8}\.md$/,
+    );
     expect(note.title).toBe('Quels sont les 3 statuts ?');
     expect(note.source_ref).toBe('fb1');
     expect(note.source_hash).toBe('qahash');
@@ -177,10 +184,139 @@ describe('entityToBrainNote', () => {
     expect(note.type).toBe('entite');
     expect(note.path).toBe('entites/opco.md');
     expect(note.title).toBe('OPCO');
+    expect(note.source_ref).toBe(entitySourceRef('opco'));
     expect(note.source_ref).toBe('entite:opco');
     // dédupliqué
     expect(note.links).toEqual(['fiches/lancement-a-1', 'livrables/FILE42']);
     expect(note.body).toContain('Opérateur de compétences');
     expect(note.body).toContain('[[fiches/lancement-a-1]]');
+  });
+
+  it('persiste la définition en frontmatter, qui survit à la réécriture', () => {
+    const definition = 'Opérateur de compétences finançant la formation.';
+    const note = entityToBrainNote(
+      'opco',
+      'OPCO',
+      ['fiches/a'],
+      definition,
+      'h1',
+    );
+    expect(note.frontmatter).toEqual({ definition });
+
+    // La note est réécrite quand les backlinks bougent : la définition relue
+    // depuis le frontmatter doit traverser l'aller-retour intacte.
+    const relue =
+      (note.frontmatter as { definition?: string }).definition ?? '';
+    const reecrite = entityToBrainNote(
+      'opco',
+      'OPCO',
+      ['fiches/a', 'fiches/b'],
+      relue,
+      'h2',
+    );
+    expect(reecrite.frontmatter).toEqual({ definition });
+    expect(reecrite.body).toContain(definition);
+    expect(reecrite.links).toEqual(['fiches/a', 'fiches/b']);
+  });
+
+  it('sans définition, le frontmatter reste vide', () => {
+    const note = entityToBrainNote('opco', 'OPCO', ['fiches/a'], '', 'h1');
+    expect(note.frontmatter).toEqual({});
+  });
+
+  // `definitionDepuisCorps` est la réciproque du corps rendu ici. Règle unique
+  // pour le script (qui relit une définition publiée) et pour `applyProposal`
+  // (qui la re-dérive d'un corps édité) : si elle cessait d'être réciproque, la
+  // copie en frontmatter divergerait du corps.
+  it('definitionDepuisCorps relit la définition rendue dans le corps', () => {
+    const definition = 'Opérateur de compétences finançant la formation.';
+    const note = entityToBrainNote(
+      'opco',
+      'OPCO',
+      ['fiches/a'],
+      definition,
+      'h1',
+    );
+    expect(definitionDepuisCorps(note.body)).toBe(definition);
+  });
+
+  it('definitionDepuisCorps rend vide quand le corps ne porte rien', () => {
+    const note = entityToBrainNote('opco', 'OPCO', ['fiches/a'], '', 'h1');
+    expect(definitionDepuisCorps(note.body)).toBe('');
+    expect(definitionDepuisCorps('')).toBe('');
+  });
+});
+
+describe('fichiersOrphelins', () => {
+  const genere = (type: string, titre = 'T') =>
+    `---\ntype: ${type}\ntitle: ${JSON.stringify(titre)}\naliases: []\ntags: []\nlinks: []\n---\n\n# ${titre}\n`;
+
+  it('un fichier sans note correspondante est orphelin', () => {
+    expect(
+      fichiersOrphelins(
+        [
+          { path: 'fiches/vivante.md', content: genere('fiche') },
+          { path: 'fiches/archivee.md', content: genere('fiche') },
+          // Ancien chemin de conversation, avant le suffixe de hash.
+          {
+            path: 'conversations/comment-faire.md',
+            content: genere('conversation'),
+          },
+        ],
+        ['fiches/vivante.md', 'conversations/comment-faire-a1b2c3d4.md'],
+      ),
+    ).toEqual(['fiches/archivee.md', 'conversations/comment-faire.md']);
+  });
+
+  it('un fichier hors des dossiers de notes n’est jamais orphelin', () => {
+    expect(
+      fichiersOrphelins(
+        [
+          // Racine du coffre : écrite par brain-ingest, hors périmètre.
+          { path: '_lacunes.md', content: genere('fiche') },
+          { path: 'README.md', content: genere('fiche') },
+          // Dossier créé par l'utilisateur, même avec un frontmatter copié.
+          { path: 'perso/notes.md', content: genere('fiche') },
+          { path: '.obsidian/plugins/x.md', content: genere('fiche') },
+        ],
+        ['fiches/vivante.md'],
+      ),
+    ).toEqual([]);
+  });
+
+  it('un fichier sans frontmatter `type` connu n’est jamais candidat', () => {
+    expect(
+      fichiersOrphelins(
+        [
+          {
+            path: 'entites/a-la-main.md',
+            content: '# Note perso\n\nÉcrite dans Obsidian.\n',
+          },
+          {
+            path: 'entites/sans-type.md',
+            content: '---\ntitle: "X"\n---\n\n# X\n',
+          },
+          { path: 'entites/type-inconnu.md', content: genere('memo') },
+          { path: 'entites/orpheline.md', content: genere('entite') },
+        ],
+        ['entites/vivante.md'],
+      ),
+    ).toEqual(['entites/orpheline.md']);
+  });
+
+  // Le garde-fou : si la lecture de la base échoue ou rend zéro ligne, tout le
+  // coffre passerait pour obsolète. Une liste de conservation vide ne doit
+  // rendre aucun orphelin, sinon un --prune viderait le coffre sur une panne.
+  it('une liste de notes vide ne rend aucun orphelin', () => {
+    expect(
+      fichiersOrphelins(
+        [
+          { path: 'fiches/a.md', content: genere('fiche') },
+          { path: 'entites/opco.md', content: genere('entite') },
+          { path: 'livrables/abc.md', content: genere('livrable') },
+        ],
+        [],
+      ),
+    ).toEqual([]);
   });
 });

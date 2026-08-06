@@ -73,11 +73,11 @@ export async function POST(req: NextRequest) {
   //    Max, via Claude Code / l'Agent SDK), stockées dans `brain_notes`. Ici on
   //    ne fait que les retrouver (pg_trgm + graphe, sans IA) ; OpenAI rédige la
   //    réponse à partir de ces notes plus riches. L'app n'appelle jamais Anthropic.
+  //    Lecture via le client de session : la RLS de brain_notes fait foi.
   const { retrieveNotes } = await import('@/lib/brain/retrieve');
   const { buildBrainChatMessages, notesToSources } =
     await import('@/lib/brain/answer');
-  const { createAdminClient } = await import('@/lib/supabase/admin');
-  const notes = await retrieveNotes(question, { admin: createAdminClient() });
+  const notes = await retrieveNotes(question, { db: supabase });
 
   if (notes.length > 0) {
     const sources = notesToSources(notes);

@@ -33,9 +33,20 @@ import {
   slugify,
   wikilink,
   isNonAnswer,
+  conversationPath,
   conversationToBrainNote,
   entityToBrainNote,
+  entitySourceRef,
+  definitionDepuisCorps,
 } from '../lib/brain/note';
+import {
+  shouldPropose,
+  noteToProposal,
+  proposalKey,
+  type BrainProposal,
+  type ProposalKind,
+  type ProposalStatus,
+} from '../lib/brain/proposal';
 import type { BrainNote, NoteAnalysis } from '../lib/brain/types';
 import type { FinalizedFiche } from '../lib/process/types';
 
@@ -74,6 +85,61 @@ async function pg<T>(sql: string): Promise<T[]> {
 const lit = (s: string) => `'${String(s).replace(/'/g, "''")}'`;
 const arr = (a: string[]) =>
   a.length ? `ARRAY[${a.map(lit).join(',')}]::text[]` : `ARRAY[]::text[]`;
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+// ---------------------------------------------------------------- journal du run
+/**
+ * Compteurs d'un run — exactement la ligne de bilan affichée en fin
+ * d'exécution, persistée en jsonb dans `brain_ingest_runs.stats`.
+ */
+interface RunStats {
+  fiches: number;
+  livrables: number;
+  conversations: number;
+  entites: number;
+  stale: number;
+  inchanges: number;
+  lacunes_ouvertes: number;
+}
+
+/**
+ * Ouvre la ligne de journal du run (statut `running`) et renvoie son id.
+ *
+ * BEST-EFFORT de bout en bout : ce script tourne à la main sur la machine d'un
+ * admin, un journal indisponible ne doit JAMAIS faire tomber une ingestion par
+ * ailleurs réussie. En cas d'échec on renvoie null, et la clôture devient un
+ * no-op.
+ */
+async function startRunLog(): Promise<string | null> {
+  try {
+    const rows = await pg<{ id: string }>(
+      `insert into public.brain_ingest_runs (statut) values ('running') returning id;`,
+    );
+    return rows[0]?.id ?? null;
+  } catch (e) {
+    console.error(`⚠ journal : ouverture du run impossible (${errMsg(e)})`);
+    return null;
+  }
+}
+
+/** Clôt la ligne de journal (succès ou échec). Best-effort, cf. startRunLog. */
+async function finishRunLog(
+  runId: string | null,
+  statut: 'success' | 'error',
+  { stats, erreur }: { stats?: RunStats; erreur?: string },
+): Promise<void> {
+  if (!runId) return;
+  try {
+    await pg(`update public.brain_ingest_runs set
+      statut = ${lit(statut)},
+      finished_at = now(),
+      stats = ${stats ? `${lit(JSON.stringify(stats))}::jsonb` : 'null'},
+      erreur = ${erreur ? lit(erreur.slice(0, 2000)) : 'null'}
+      where id = ${lit(runId)};`);
+  } catch (e) {
+    console.error(`⚠ journal : clôture du run impossible (${errMsg(e)})`);
+  }
+}
 
 async function upsertNote(note: BrainNote): Promise<void> {
   await pg(`insert into public.brain_notes
@@ -87,6 +153,57 @@ async function upsertNote(note: BrainNote): Promise<void> {
       title=excluded.title, aliases=excluded.aliases, tags=excluded.tags, links=excluded.links,
       body=excluded.body, frontmatter=excluded.frontmatter, source_ref=excluded.source_ref,
       source_hash=excluded.source_hash, updated_at=now();`);
+}
+
+// ---------------------------------------------------------------- propositions
+// Nom distinct de `ProposalRow` (lib/queries/brain-proposals.ts), qui porte la
+// ligne complète pour l'UI : ici on ne lit que de quoi décider.
+interface ProposalState {
+  kind: ProposalKind;
+  source_ref: string;
+  status: ProposalStatus;
+  source_hash: string;
+}
+
+/** État des propositions déjà en base, indexé par `proposalKey`. */
+async function loadProposals(): Promise<Map<string, ProposalState>> {
+  const rows = await pg<ProposalState>(
+    `select kind, source_ref, status, source_hash from public.brain_proposals`,
+  );
+  return new Map(rows.map((r) => [proposalKey(r.kind, r.source_ref), r]));
+}
+
+/**
+ * Dépose (ou rouvre) une proposition. Renvoie true si quelque chose a été écrit.
+ * `shouldPropose` garantit qu'un rejet reste durable tant que le contenu ne bouge pas.
+ */
+async function proposeNote(
+  p: BrainProposal,
+  known: Map<string, ProposalState>,
+  dryRun: boolean,
+): Promise<boolean> {
+  const existing = known.get(proposalKey(p.kind, p.source_ref)) ?? null;
+  const verdict = shouldPropose(p, existing);
+  if (verdict === 'skip') return false;
+  if (dryRun) {
+    console.log(
+      `  proposition (${verdict}) ${p.kind} : ${p.target_path ?? p.source_ref}`,
+    );
+    return true;
+  }
+  await pg(`insert into public.brain_proposals
+    (kind, status, target_path, payload, source_ref, source_hash)
+    values (${lit(p.kind)}, 'en_attente', ${p.target_path ? lit(p.target_path) : 'null'},
+            ${lit(JSON.stringify(p.payload))}::jsonb, ${lit(p.source_ref)}, ${lit(p.source_hash)})
+    on conflict (kind, source_ref) do update set
+      status = 'en_attente',
+      target_path = excluded.target_path,
+      payload = excluded.payload,
+      source_hash = excluded.source_hash,
+      reason = null,
+      decided_by = null,
+      decided_at = null;`);
+  return true;
 }
 
 // ---------------------------------------------------------------- analyse (Max)
@@ -199,6 +316,13 @@ function livrableToBrainNote(
 }
 
 // ---------------------------------------------------------------- Phase 3
+/** Une entité citée par moins de 3 notes ne justifie pas de mobiliser un arbitrage humain. */
+const SEUIL_DEFINITION = 3;
+
+/** Au-delà, un seul appel Claude devient fragile (troncature = lot entier perdu)
+ *  et la file de validation devient inexploitable. Le reste suivra au prochain run. */
+const MAX_DEFINITIONS_PAR_RUN = 40;
+
 const titleCase = (s: string) =>
   s
     .split('-')
@@ -214,13 +338,23 @@ interface NoteRow {
   frontmatter: {
     source_hashes?: Record<string, string>;
     stale?: boolean;
+    definition?: string;
   } | null;
   body?: string;
   title?: string;
 }
 
-/** Capitalise les réponses validées (👍) en notes `conversation`. */
+/** Propose les réponses validées (👍) comme notes `conversation` à arbitrer. */
 async function ingestConversations(dryRun: boolean): Promise<number> {
+  const known = await loadProposals();
+  const corrigees = new Set(
+    (
+      await pg<{ path: string }>(
+        `select path from public.brain_notes
+         where type = 'conversation' and frontmatter->>'corrige' = 'true'`,
+      )
+    ).map((r) => r.path),
+  );
   const fb = await pg<{
     id: string;
     question: string;
@@ -234,15 +368,15 @@ async function ingestConversations(dryRun: boolean): Promise<number> {
     `select path, source_ref, source_hash from public.brain_notes where source_ref is not null`,
   );
   const byRef = new Map(notes.map((n) => [n.source_ref!, n]));
-  const seen = new Map(notes.map((n) => [n.source_ref!, n.source_hash]));
 
   let n = 0;
   for (const f of fb) {
     if (isNonAnswer(f.answer)) continue;
+    // L'idempotence est portée par `shouldPropose` face à `brain_proposals` :
+    // une conversation non encore approuvée n'est PAS dans `brain_notes`.
     const qaHash = createHash('sha256')
       .update(`${f.question}|${f.answer}`)
       .digest('hex');
-    if (seen.get(f.id) === qaHash) continue; // déjà capitalisé, inchangé
 
     const derivedFrom: string[] = [];
     const sourceHashes: Record<string, string> = {};
@@ -254,21 +388,17 @@ async function ingestConversations(dryRun: boolean): Promise<number> {
         if (note.source_hash) sourceHashes[key] = note.source_hash;
       }
     }
-    if (dryRun) {
-      console.log(`conversation À CAPITALISER : ${f.question.slice(0, 60)}`);
-      n++;
-      continue;
-    }
-    await upsertNote(
-      conversationToBrainNote(
-        { id: f.id, question: f.question, answer: f.answer },
-        derivedFrom,
-        qaHash,
-        sourceHashes,
-      ),
+    // Une réponse rédigée par un admin fait autorité sur une paraphrase de
+    // l'assistant : on ne repropose pas la même question par-dessus.
+    if (corrigees.has(conversationPath(f.question))) continue;
+
+    const note = conversationToBrainNote(
+      { id: f.id, question: f.question, answer: f.answer },
+      derivedFrom,
+      qaHash,
+      sourceHashes,
     );
-    console.log(`  ✓ conversation « ${f.question.slice(0, 50)} »`);
-    n++;
+    if (await proposeNote(noteToProposal(note), known, dryRun)) n++;
   }
   return n;
 }
@@ -298,14 +428,49 @@ Renvoie UNIQUEMENT un JSON : {"<identifiant>": {"name": "...", "definition": "..
   }
 }
 
-/** Crée les notes-carrefour `entite` manquantes (référencées mais sans note). */
+/**
+ * Définition portée par une note `entite` existante. `frontmatter.definition`
+ * fait foi ; à défaut on la relit dans le corps, pour les notes écrites avant
+ * que la définition ne soit persistée en frontmatter. Sans ce repli, la
+ * réécriture mécanique des backlinks effacerait une définition déjà validée.
+ */
+function definitionExistante(note: NoteRow | undefined): string {
+  const fm = note?.frontmatter?.definition;
+  if (typeof fm === 'string' && fm.trim()) return fm.trim();
+  return definitionDepuisCorps(note?.body ?? '');
+}
+
+/**
+ * Vrai si la note porte des sections rédigées à la main (autres que « Notes
+ * liées »). `entityToBrainNote` ne sait pas les reconstruire : les réécrire
+ * mécaniquement les supprimerait.
+ */
+function estCuree(note: NoteRow | undefined): boolean {
+  return /\n## (?!Notes liées)/.test(note?.body ?? '');
+}
+
+/**
+ * Entités : deux chemins distincts.
+ *
+ * 1. Toute entité citée reçoit sa note EN DIRECT, sans définition et sans
+ *    arbitrage : une note-carrefour sans définition n'invente rien, son contenu
+ *    se déduit mécaniquement des notes qui la citent. Son `source_hash` porte
+ *    les backlinks — on veut justement qu'elle se rafraîchisse quand le graphe
+ *    bouge.
+ * 2. Seule la DÉFINITION est soumise à l'humain, et seulement là où elle sert :
+ *    entité citée au moins `SEUIL_DEFINITION` fois, sans définition, et sans
+ *    proposition existante quel que soit son statut (sinon un rejet se
+ *    rouvrirait à chaque exécution, la définition étant reformulée par Claude).
+ */
 async function ingestEntities(dryRun: boolean): Promise<number> {
   const notes = await pg<NoteRow>(
     `select path, type, links from public.brain_notes`,
   );
-  const existing = new Set(
-    notes.filter((n) => n.type === 'entite').map((n) => n.path),
+  const entites = await pg<NoteRow>(
+    `select path, type, links, title, body, frontmatter, source_hash
+     from public.brain_notes where type = 'entite'`,
   );
+  const parPath = new Map(entites.map((e) => [e.path, e]));
   const backlinks = new Map<string, string[]>();
   for (const note of notes) {
     for (const l of note.links ?? []) {
@@ -316,42 +481,100 @@ async function ingestEntities(dryRun: boolean): Promise<number> {
       }
     }
   }
-  const missing = [...backlinks.keys()].filter(
-    (link) => !existing.has(`${link}.md`),
-  );
-  if (!missing.length) return 0;
-  if (dryRun) {
-    console.log(`entités À CRÉER : ${missing.length}`);
-    return missing.length;
-  }
+  const citees = [...backlinks.keys()];
+  if (!citees.length) return 0;
 
-  const shorts = missing.map((l) => l.replace(/^entites\//, ''));
-  const defs = entityDefinitions(shorts);
-  let n = 0;
-  for (const link of missing) {
+  // --- Chemin 1 : notes-carrefour écrites en direct (pas de Claude) ---
+  let creees = 0;
+  for (const link of citees) {
     const short = link.replace(/^entites\//, '');
     const bl = backlinks.get(link) ?? [];
-    const d = defs[short] ?? { name: titleCase(short), definition: '' };
-    const hash = createHash('sha256')
-      .update(`${bl.join(',')}|${d.definition}`)
-      .digest('hex');
-    await upsertNote(
-      entityToBrainNote(
-        short,
-        d.name || titleCase(short),
-        bl,
-        d.definition ?? '',
-        hash,
-      ),
+    const existante = parPath.get(`${link}.md`);
+    // Une note curée à la main n'est pas régénérable : on la laisse telle
+    // quelle, sa section « Notes liées » se périmera plutôt que d'emporter le
+    // travail éditorial. Compromis déjà retenu pour les entités approuvées.
+    if (estCuree(existante)) continue;
+    const hash = createHash('sha256').update(bl.join(',')).digest('hex');
+    if (existante?.source_hash === hash) continue; // backlinks inchangés
+    const note = entityToBrainNote(
+      short,
+      existante?.title || titleCase(short),
+      bl,
+      definitionExistante(existante),
+      hash,
     );
-    n++;
+    // Le frontmatter déjà posé sur la note (sources, verified…) ne doit pas
+    // être emporté par une réécriture purement mécanique des backlinks.
+    note.frontmatter = {
+      ...(existante?.frontmatter ?? {}),
+      ...note.frontmatter,
+    };
+    if (!dryRun) await upsertNote(note);
+    creees++;
   }
-  console.log(`  ✓ ${n} entité(s)`);
-  return n;
+
+  // --- Chemin 2 : la définition, elle, s'arbitre ---
+  const known = await loadProposals();
+  const tousCandidats = citees.filter((link) => {
+    const short = link.replace(/^entites\//, '');
+    if ((backlinks.get(link) ?? []).length < SEUIL_DEFINITION) return false;
+    if (definitionExistante(parPath.get(`${link}.md`))) return false;
+    // `entitySourceRef` : la clé interrogée ici DOIT être celle que
+    // `entityToBrainNote` posera, sinon le garde ne mord jamais et une
+    // définition rejetée se rouvre à chaque exécution.
+    return !known.has(proposalKey('entite', entitySourceRef(short)));
+  });
+  const candidates = tousCandidats.slice(0, MAX_DEFINITIONS_PAR_RUN);
+  const reportees = tousCandidats.length - candidates.length;
+
+  let proposees = 0;
+  if (candidates.length) {
+    const defs = entityDefinitions(
+      candidates.map((l) => l.replace(/^entites\//, '')),
+    );
+    for (const link of candidates) {
+      const short = link.replace(/^entites\//, '');
+      const d = defs[short];
+      // Sans définition rendue par Claude il n'y a rien à arbitrer : proposer
+      // du vide brûlerait le créneau (le filtre `known` ci-dessus l'exclurait
+      // ensuite définitivement). L'entité reste candidate au prochain run.
+      if (!d?.definition?.trim()) continue;
+      const nom = d.name || titleCase(short);
+      // Le hash ne porte que ce que l'admin arbitre (nom + définition) : y
+      // mettre les backlinks ferait réapparaître une entité rejetée dès qu'une
+      // nouvelle note la cite.
+      const hash = createHash('sha256')
+        .update(`${nom}|${d.definition.trim()}`)
+        .digest('hex');
+      const note = entityToBrainNote(
+        short,
+        nom,
+        backlinks.get(link) ?? [],
+        d.definition.trim(),
+        hash,
+      );
+      if (await proposeNote(noteToProposal(note), known, dryRun)) proposees++;
+    }
+  }
+
+  console.log(
+    `  entités écrites en direct : ${creees} · définitions proposées : ${proposees}` +
+      ` (candidates : ${tousCandidats.length}, traitées : ${candidates.length}` +
+      `, reportées : ${reportees})`,
+  );
+  // Un plafond silencieux se lirait comme « tout est couvert » : on dit
+  // explicitement ce qui reste, et qu'un run suivant le reprendra.
+  if (reportees)
+    console.log(
+      `  ⚠ plafond ${MAX_DEFINITIONS_PAR_RUN}/run : ${tousCandidats.length} candidates, ` +
+        `${candidates.length} traitées, ${reportees} au prochain run.`,
+    );
+  return creees + proposees;
 }
 
-/** Marque `stale` les conversations dont une source a changé (anti-obsolescence). */
+/** Marque `stale` les conversations dont une source a changé, et propose l'arbitrage. */
 async function markStaleConversations(dryRun: boolean): Promise<number> {
+  const known = await loadProposals();
   const notes = await pg<Required<NoteRow>>(
     `select path, type, links, source_ref, source_hash, frontmatter, body, title
      from public.brain_notes`,
@@ -362,54 +585,110 @@ async function markStaleConversations(dryRun: boolean): Promise<number> {
   let n = 0;
   for (const note of notes.filter((x) => x.type === 'conversation')) {
     const sh = note.frontmatter?.source_hashes ?? {};
-    let stale = false;
-    for (const [p, h] of Object.entries(sh)) {
-      if (currentHash.get(p) !== h) {
-        stale = true;
-        break;
-      }
-    }
+    // Les sources RÉELLEMENT divergentes, pas toutes celles de la note : c'est
+    // cette liste que l'admin lit pour arbitrer, et lui servir l'ensemble des
+    // sources ne lui apprend rien sur ce qui a bougé.
+    const changed = Object.entries(sh)
+      .filter(([p, h]) => currentHash.get(p) !== h)
+      .map(([p]) => p);
     const already = note.frontmatter?.stale === true;
-    if (stale === already) continue;
-    if (dryRun) {
-      console.log(`conversation ${stale ? '→ STALE' : '→ ok'} : ${note.title}`);
-      n++;
-      continue;
-    }
+    if (!changed.length || already) continue;
     const marker = '> ⚠️ Réponse à revoir : une source a changé.\n\n';
-    const cleanBody = note.body.startsWith('> ⚠️')
-      ? note.body.replace(/^> ⚠️[^\n]*\n\n/, '')
-      : note.body;
-    await pg(
-      `update public.brain_notes set
-         frontmatter = frontmatter || ${lit(JSON.stringify({ stale }))}::jsonb,
-         body = ${lit(stale ? marker + cleanBody : cleanBody)},
-         updated_at = now()
-       where path = ${lit(note.path)};`,
+    if (!dryRun) {
+      await pg(
+        `update public.brain_notes set
+           frontmatter = frontmatter || '{"stale":true}'::jsonb,
+           body = ${lit(marker + note.body)},
+           updated_at = now()
+         where path = ${lit(note.path)};`,
+      );
+    }
+    await proposeNote(
+      {
+        kind: 'obsolescence',
+        target_path: note.path,
+        payload: {
+          path: note.path,
+          title: note.title,
+          sources_modifiees: changed,
+          // Le corps d'ORIGINE (sans la bannière « à revoir » ajoutée
+          // ci-dessus) : le panneau d'arbitrage n'a aucun autre moyen de
+          // montrer ce qu'on demande de garder ou d'archiver.
+          body: note.body ?? '',
+        },
+        source_ref: note.path,
+        source_hash: createHash('sha256')
+          .update(JSON.stringify(sh))
+          .digest('hex'),
+      },
+      known,
+      dryRun,
     );
     n++;
   }
   return n;
 }
 
-/** Rapport des lacunes (👎) écrit dans le coffre (hors brain_notes → pas de bruit en recherche). */
-async function writeGapsReport(vaultDir: string): Promise<number> {
-  const gaps = await pg<{ question: string; answer: string }>(
-    `select question, answer from public.process_qa_feedback where rating = -1`,
+/**
+ * Ouvre les lacunes (👎) manquantes — rattrapage des échecs best-effort de la
+ * route feedback — et écrit le rapport des lacunes ENCORE OUVERTES dans le coffre
+ * (hors brain_notes → pas de bruit en recherche).
+ */
+async function syncGaps(
+  vaultDir: string | null,
+  dryRun: boolean,
+): Promise<number> {
+  const known = await loadProposals();
+  const gaps = await pg<{ id: string; question: string; answer: string }>(
+    `select id, question, answer from public.process_qa_feedback where rating = -1`,
   );
-  const lines = [
-    '# Lacunes du cerveau (retours 👎)',
-    '',
-    'Questions dont la réponse a été jugée insuffisante — contenu à ajouter ou améliorer.',
-    '',
-  ];
-  for (const g of gaps)
-    lines.push(
-      `- **${g.question}**\n  > ${g.answer.replace(/\n/g, ' ').slice(0, 200)}`,
+  for (const g of gaps) {
+    await proposeNote(
+      {
+        kind: 'lacune',
+        target_path: null,
+        payload: {
+          question: g.question,
+          answer_ko: g.answer,
+          derived_from: [],
+          source_hashes: {},
+        },
+        source_ref: g.id,
+        source_hash: createHash('sha256')
+          .update(`${g.question}|${g.answer}`)
+          .digest('hex'),
+      },
+      known,
+      dryRun,
     );
-  if (!gaps.length) lines.push("_(aucune pour l'instant)_");
-  writeFileSync(join(vaultDir, '_lacunes.md'), `${lines.join('\n')}\n`, 'utf8');
-  return gaps.length;
+  }
+
+  const open = await pg<{ source_ref: string }>(
+    `select source_ref from public.brain_proposals
+     where kind = 'lacune' and status = 'en_attente'`,
+  );
+  const openIds = new Set(open.map((o) => o.source_ref));
+  const encore = gaps.filter((g) => openIds.has(g.id));
+
+  if (vaultDir && !dryRun) {
+    const lines = [
+      '# Lacunes du cerveau (retours 👎)',
+      '',
+      'Questions encore sans réponse satisfaisante — à combler depuis /admin/cerveau.',
+      '',
+    ];
+    for (const g of encore)
+      lines.push(
+        `- **${g.question}**\n  > ${g.answer.replace(/\n/g, ' ').slice(0, 200)}`,
+      );
+    if (!encore.length) lines.push("_(aucune pour l'instant)_");
+    writeFileSync(
+      join(vaultDir, '_lacunes.md'),
+      `${lines.join('\n')}\n`,
+      'utf8',
+    );
+  }
+  return encore.length;
 }
 
 // ---------------------------------------------------------------- main
@@ -424,13 +703,17 @@ interface IndexRow {
   detail: FinalizedFiche['detail'];
 }
 
-async function main() {
-  const args = new Set(process.argv.slice(2));
-  const dryRun = args.has('--dry-run');
-  const fichesOnly = args.has('--fiches-only');
-  const vaultIdx = process.argv.indexOf('--vault');
-  const vaultDir = vaultIdx >= 0 ? process.argv[vaultIdx + 1] : undefined;
+interface RunOptions {
+  dryRun: boolean;
+  fichesOnly: boolean;
+  vaultDir: string | undefined;
+}
 
+async function runIngestion({
+  dryRun,
+  fichesOnly,
+  vaultDir,
+}: RunOptions): Promise<RunStats> {
   // Drive configuré ? Sinon on ingère les fiches et on ignore les livrables
   // (au lieu de planter au premier téléchargement).
   let driveOk = false;
@@ -550,8 +833,13 @@ async function main() {
     execFileSync('tsx', ['scripts/brain-vault-sync.ts', vaultDir], {
       stdio: 'inherit',
     });
-    const gaps = await writeGapsReport(vaultDir);
-    console.log(`Rapport lacunes (👎) : ${gaps} question(s).`);
+  }
+
+  // Rattrapage des lacunes (👎) : tourne même sans coffre.
+  const gaps = await syncGaps(vaultDir ?? null, dryRun);
+  console.log(`Lacunes ouvertes : ${gaps} question(s).`);
+
+  if (vaultDir && !dryRun) {
     try {
       execFileSync('git', ['-C', vaultDir, 'add', '-A']);
       execFileSync(
@@ -566,9 +854,39 @@ async function main() {
       console.log('(rien à pousser ou dépôt non configuré)');
     }
   }
+
+  return {
+    fiches: analyzedFiches,
+    livrables: analyzedDeliverables,
+    conversations,
+    entites: entities,
+    stale: staled,
+    inchanges: skipped,
+    lacunes_ouvertes: gaps,
+  };
+}
+
+async function main() {
+  const args = new Set(process.argv.slice(2));
+  const dryRun = args.has('--dry-run');
+  const fichesOnly = args.has('--fiches-only');
+  const vaultIdx = process.argv.indexOf('--vault');
+  const vaultDir = vaultIdx >= 0 ? process.argv[vaultIdx + 1] : undefined;
+
+  // --dry-run n'écrit RIEN, journal compris : c'est toute sa raison d'être.
+  const runId = dryRun ? null : await startRunLog();
+  try {
+    const stats = await runIngestion({ dryRun, fichesOnly, vaultDir });
+    await finishRunLog(runId, 'success', { stats });
+  } catch (e) {
+    // L'échec est précisément ce qu'on veut voir dans /admin/syncs : on le
+    // journalise AVANT de relancer (l'appelant fait sortir le process en 1).
+    await finishRunLog(runId, 'error', { erreur: errMsg(e) });
+    throw e;
+  }
 }
 
 main().catch((e) => {
-  console.error(e instanceof Error ? e.message : String(e));
+  console.error(errMsg(e));
   process.exit(1);
 });

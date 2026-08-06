@@ -3,6 +3,7 @@ import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import type { Database } from '@/types/database';
 import { withClockSkewRetry } from '@/lib/supabase/clock-skew-retry';
+import { DEFAUT_SEUIL_ENLISEMENT_JOURS } from '@/lib/lancement/constants';
 
 export async function getParametresByCategorie(categorie: string) {
   const supabase = await createClient();
@@ -214,6 +215,20 @@ export async function getDelaiEcheanceJours(
   if (raw == null || raw.trim() === '') return DEFAULT_DELAI_ECHEANCE_JOURS;
   const n = Number(raw);
   return Number.isInteger(n) && n >= 0 ? n : DEFAULT_DELAI_ECHEANCE_JOURS;
+}
+
+/**
+ * Seuil d'enlisement de la timeline de lancement, en jours. Lu depuis le
+ * parametre `lancement.seuil_enlisement_jours` (modifiable dans
+ * /admin/parametres). Fallback sur la constante si le parametre est absent,
+ * vide ou invalide : un parametre mal saisi ne doit jamais faire disparaitre
+ * l'alerte.
+ */
+export async function getSeuilEnlisementJours(): Promise<number> {
+  const raw = await getParametreValeur('lancement.seuil_enlisement_jours');
+  if (raw == null || raw.trim() === '') return DEFAUT_SEUIL_ENLISEMENT_JOURS;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : DEFAUT_SEUIL_ENLISEMENT_JOURS;
 }
 
 export async function getJoursFeries(annee: number) {

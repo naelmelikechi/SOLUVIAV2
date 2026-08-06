@@ -10,7 +10,9 @@ export async function getLancementByProjetId(projetId: string) {
   const [etapesRes, documentsRes, commentairesRes] = await Promise.all([
     supabase
       .from('projet_lancement_etapes')
-      .select('id, etape_key, statut, updated_at')
+      .select(
+        'id, etape_key, statut, updated_at, date_objectif, date_realisation',
+      )
       .eq('projet_id', projetId),
     supabase
       .from('projet_lancement_documents')

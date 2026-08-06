@@ -52,6 +52,17 @@ const SetStatutSchema = z.object({
   statut: statutSchema,
 });
 
+const SetDateObjectifSchema = z.object({
+  projetId: uuidSchema,
+  projetRef: projetRefSchema,
+  etapeKey: etapeKeySchema,
+  // null efface la date. Format ISO court impose : la colonne est un DATE.
+  dateObjectif: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date attendue au format AAAA-MM-JJ')
+    .nullable(),
+});
+
 const UploadDocumentSchema = z.object({
   projetId: uuidSchema,
   projetRef: projetRefSchema,
@@ -149,6 +160,73 @@ export async function setLancementEtapeStatut(
 
   // La timeline vit sur /lancement depuis le lot 0 ; la synthese affiche le
   // compteur d'etapes terminees, donc les deux routes doivent etre invalidees.
+  revalidatePath(`/projets/${parsed.data.projetRef}/lancement`);
+  revalidatePath(`/projets/${parsed.data.projetRef}`);
+
+  return { success: true };
+}
+
+/**
+ * Saisie (ou effacement) de la date d'objectif d'une etape. Memes droits que
+ * le changement de statut : admin, CDP ou backup CDP du projet, applique par
+ * RLS. On n'ecrit QUE date_objectif : date_realisation appartient au trigger.
+ */
+export async function setLancementEtapeDateObjectif(
+  projetId: string,
+  projetRef: string,
+  etapeKey: string,
+  dateObjectif: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  const parsed = SetDateObjectifSchema.safeParse({
+    projetId,
+    projetRef,
+    etapeKey,
+    dateObjectif,
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? 'Données invalides',
+    };
+  }
+
+  const auth = await requireAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
+
+  const { error } = await supabase.from('projet_lancement_etapes').upsert(
+    {
+      projet_id: parsed.data.projetId,
+      etape_key: parsed.data.etapeKey,
+      date_objectif: parsed.data.dateObjectif,
+      updated_by: user.id,
+    },
+    { onConflict: 'projet_id,etape_key' },
+  );
+
+  if (error) {
+    logger.error(
+      'actions.projet-lancement',
+      'setLancementEtapeDateObjectif failed',
+      { error, projetId: parsed.data.projetId, etapeKey: parsed.data.etapeKey },
+    );
+    return {
+      success: false,
+      error: "Erreur lors de l'enregistrement de la date",
+    };
+  }
+
+  logAudit(
+    'lancement_date_objectif_updated',
+    'projet_lancement_etape',
+    parsed.data.projetId,
+    {
+      etape_key: parsed.data.etapeKey,
+      date_objectif: parsed.data.dateObjectif,
+    },
+    user.id,
+  );
+
   revalidatePath(`/projets/${parsed.data.projetRef}/lancement`);
   revalidatePath(`/projets/${parsed.data.projetRef}`);
 

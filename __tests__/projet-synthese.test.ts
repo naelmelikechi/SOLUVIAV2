@@ -42,15 +42,27 @@ describe('buildSyntheseCards', () => {
     const c = buildSyntheseCards(BASE)[0]!;
     expect(c.valeur).toBe('3/7');
     expect(c.contexte).toBe('étapes terminées');
-    expect(c.ton).toBe('attention');
+    expect(c.ton).toBe('neutre');
   });
 
-  it('passe le lancement en neutre quand toutes les etapes sont terminees', () => {
-    const c = buildSyntheseCards({
+  it('reste neutre sur le lancement quelle que soit la fraction terminee (pas encore de notion de retard)', () => {
+    const enCours = buildSyntheseCards({
+      ...BASE,
+      lancement: { terminees: 3, total: 7 },
+    })[0]!;
+    expect(enCours.ton).toBe('neutre');
+
+    const rienFait = buildSyntheseCards({
+      ...BASE,
+      lancement: { terminees: 0, total: 7 },
+    })[0]!;
+    expect(rienFait.ton).toBe('neutre');
+
+    const termine = buildSyntheseCards({
       ...BASE,
       lancement: { terminees: 7, total: 7 },
     })[0]!;
-    expect(c.ton).toBe('neutre');
+    expect(termine.ton).toBe('neutre');
   });
 
   it('colore la production selon la progression', () => {
@@ -71,6 +83,32 @@ describe('buildSyntheseCards', () => {
     expect(mauvais.ton).toBe('alerte');
   });
 
+  it('respecte les bornes de l echelle de couleur de la production (alignee sur lib/queries/projet-performance.ts)', () => {
+    const a80 = buildSyntheseCards({
+      ...BASE,
+      production: { apprentisActifs: 12, progressionPct: 80 },
+    })[1]!;
+    expect(a80.ton).toBe('neutre');
+
+    const a799 = buildSyntheseCards({
+      ...BASE,
+      production: { apprentisActifs: 12, progressionPct: 79.9 },
+    })[1]!;
+    expect(a799.ton).toBe('attention');
+
+    const a50 = buildSyntheseCards({
+      ...BASE,
+      production: { apprentisActifs: 12, progressionPct: 50 },
+    })[1]!;
+    expect(a50.ton).toBe('attention');
+
+    const a499 = buildSyntheseCards({
+      ...BASE,
+      production: { apprentisActifs: 12, progressionPct: 49.9 },
+    })[1]!;
+    expect(a499.ton).toBe('alerte');
+  });
+
   it('reste neutre et affiche un tiret quand la progression est inconnue', () => {
     const c = buildSyntheseCards({
       ...BASE,
@@ -89,12 +127,32 @@ describe('buildSyntheseCards', () => {
     expect(c.contexte).toBe('1 apprenti actif');
   });
 
-  it('alerte sur la finance quand rien n est facture alors qu il y a du produit', () => {
+  it('reste neutre sur la finance quand rien n est facture alors qu il y a du produit (facturation par jalon, pas un retard)', () => {
     const c = buildSyntheseCards({
       ...BASE,
       finance: { produitHt: 24000, factureHt: 0 },
     })[2]!;
-    expect(c.ton).toBe('alerte');
+    expect(c.ton).toBe('neutre');
+  });
+
+  it('reste neutre sur la finance quel que soit le ratio facture/produit (pas encore de notion de retard de facturation)', () => {
+    const rienFacture = buildSyntheseCards({
+      ...BASE,
+      finance: { produitHt: 24000, factureHt: 0 },
+    })[2]!;
+    expect(rienFacture.ton).toBe('neutre');
+
+    const totalementFacture = buildSyntheseCards({
+      ...BASE,
+      finance: { produitHt: 24000, factureHt: 24000 },
+    })[2]!;
+    expect(totalementFacture.ton).toBe('neutre');
+
+    const avoirNegatif = buildSyntheseCards({
+      ...BASE,
+      finance: { produitHt: 24000, factureHt: -500 },
+    })[2]!;
+    expect(avoirNegatif.ton).toBe('neutre');
   });
 
   it('reste neutre sur la finance quand il n y a rien a facturer', () => {
@@ -128,10 +186,38 @@ describe('buildSyntheseCards', () => {
     expect(c.contexte).toBe('12 actifs');
   });
 
-  it('tient la contrainte de densite : une seule ligne de contexte par carte', () => {
-    for (const c of buildSyntheseCards(BASE)) {
-      expect(c.contexte).not.toContain('\n');
-      expect(c.contexte.length).toBeLessThanOrEqual(40);
+  it('n alarme aucune carte quand le projet est entierement vide (donnee absente = pas d alarme)', () => {
+    const vide: SyntheseInput = {
+      projetRef: 'vide',
+      lancement: { terminees: 0, total: 0 },
+      production: { apprentisActifs: 0, progressionPct: null },
+      finance: { produitHt: 0, factureHt: 0 },
+      qualite: { realise: 0, total: 0 },
+      contrats: { total: 0, actifs: 0 },
+    };
+    const cards = buildSyntheseCards(vide);
+    expect(cards.some((c) => c.ton === 'alerte')).toBe(false);
+  });
+
+  it('tient la contrainte de densite : une seule ligne de contexte par carte, et une valeur courte', () => {
+    const vide: SyntheseInput = {
+      projetRef: 'vide',
+      lancement: { terminees: 0, total: 0 },
+      production: { apprentisActifs: 0, progressionPct: null },
+      finance: { produitHt: 0, factureHt: 0 },
+      qualite: { realise: 0, total: 0 },
+      contrats: { total: 0, actifs: 0 },
+    };
+    const grosMontant: SyntheseInput = {
+      ...BASE,
+      finance: { produitHt: 1234567, factureHt: 1234567 },
+    };
+    for (const input of [BASE, vide, grosMontant]) {
+      for (const c of buildSyntheseCards(input)) {
+        expect(c.contexte).not.toContain('\n');
+        expect(c.contexte.length).toBeLessThanOrEqual(40);
+        expect(c.valeur).not.toContain('\n');
+      }
     }
   });
 });

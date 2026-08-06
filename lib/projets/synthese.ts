@@ -36,7 +36,9 @@ export interface SyntheseInput {
 
 /** Vert au-dessus de 80, orange entre 50 et 79, rouge en dessous. Meme echelle
  * que les volets de performance (lib/queries/projet-performance.ts) pour ne pas
- * qu'un CDP apprenne deux codes couleur differents. */
+ * qu'un CDP apprenne deux codes couleur differents. Utilisee uniquement par les
+ * cartes production et qualite : les seules dont on sait aujourd'hui dire si la
+ * valeur est bonne ou mauvaise. */
 function tonDepuisPct(pct: number): TonCarte {
   if (pct >= 80) return 'neutre';
   if (pct >= 50) return 'attention';
@@ -53,7 +55,10 @@ export function buildSyntheseCards(input: SyntheseInput): CarteSynthese[] {
     valeur: `${terminees}/${totalEtapes}`,
     contexte: 'étapes terminées',
     href: `${base}/lancement`,
-    ton: terminees >= totalEtapes ? 'neutre' : 'attention',
+    // Toujours neutre au lot 0 : un lancement en cours n'est pas une anomalie,
+    // et la notion de retard (date d'objectif depassee) n'existe pas encore.
+    // Elle arrive au lot 1, c'est elle qui colorera cette carte.
+    ton: 'neutre',
   };
 
   const { apprentisActifs, progressionPct } = input.production;
@@ -77,9 +82,10 @@ export function buildSyntheseCards(input: SyntheseInput): CarteSynthese[] {
     valeur: formatCurrency(produitHt),
     contexte: `${formatCurrency(factureHt)} facturés`,
     href: `${base}/finance`,
-    // Un projet sans production n'a rien a facturer : ce n'est pas un retard.
-    ton:
-      produitHt <= 0 ? 'neutre' : tonDepuisPct((factureHt / produitHt) * 100),
+    // Toujours neutre au lot 0 : un ratio facture/produit bas est la situation
+    // normale d'un projet qui demarre (facturation par jalon). Le vrai signal,
+    // "en retard de facturation", arrive au lot 3 et colorera cette carte.
+    ton: 'neutre',
   };
 
   const { realise, total: totalLivrables } = input.qualite;
@@ -101,7 +107,7 @@ export function buildSyntheseCards(input: SyntheseInput): CarteSynthese[] {
     cle: 'contrats',
     titre: 'Contrats',
     valeur: String(input.contrats.total),
-    contexte: `${input.contrats.actifs} actifs`,
+    contexte: `${input.contrats.actifs} actif${input.contrats.actifs > 1 ? 's' : ''}`,
     href: `${base}/contrats`,
     ton: 'neutre',
   };

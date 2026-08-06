@@ -1,23 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { buildSyntheseCards, type SyntheseInput } from '@/lib/projets/synthese';
+import {
+  buildSyntheseCards,
+  buildCarteQualite,
+  type SyntheseInput,
+} from '@/lib/projets/synthese';
 
 const BASE: SyntheseInput = {
   projetRef: '0016-HEO-APP',
   lancement: { terminees: 3, total: 7 },
   production: { apprentisActifs: 12, progressionPct: 85 },
   finance: { produitHt: 24000, factureHt: 18000 },
-  qualite: { realise: 18, total: 29 },
   contrats: { total: 15, actifs: 12 },
 };
 
 describe('buildSyntheseCards', () => {
-  it('produit exactement cinq cartes, dans l ordre de la sous-nav', () => {
+  it('produit exactement quatre cartes, dans l ordre de la sous-nav (la qualite est construite a part)', () => {
     const cards = buildSyntheseCards(BASE);
     expect(cards.map((c) => c.cle)).toEqual([
       'lancement',
       'production',
       'finance',
-      'qualite',
       'contrats',
     ]);
   });
@@ -28,7 +30,6 @@ describe('buildSyntheseCards', () => {
       '/projets/0016-HEO-APP/lancement',
       '/projets/0016-HEO-APP/production',
       '/projets/0016-HEO-APP/finance',
-      '/projets/0016-HEO-APP/qualite',
       '/projets/0016-HEO-APP/contrats',
     ]);
   });
@@ -163,25 +164,8 @@ describe('buildSyntheseCards', () => {
     expect(c.ton).toBe('neutre');
   });
 
-  it('affiche la qualite en pourcentage avec le detail des livrables', () => {
-    const c = buildSyntheseCards(BASE)[3]!;
-    expect(c.valeur).toBe('62 %');
-    expect(c.contexte).toBe('18/29 livrables');
-    expect(c.ton).toBe('attention');
-  });
-
-  it('neutralise la qualite quand aucun referentiel n est disponible', () => {
-    const c = buildSyntheseCards({
-      ...BASE,
-      qualite: { realise: 0, total: 0 },
-    })[3]!;
-    expect(c.valeur).toBe('-');
-    expect(c.ton).toBe('neutre');
-    expect(c.contexte).toBe('référentiel non disponible');
-  });
-
   it('resume les contrats', () => {
-    const c = buildSyntheseCards(BASE)[4]!;
+    const c = buildSyntheseCards(BASE)[3]!;
     expect(c.valeur).toBe('15');
     expect(c.contexte).toBe('12 actifs');
   });
@@ -192,10 +176,13 @@ describe('buildSyntheseCards', () => {
       lancement: { terminees: 0, total: 0 },
       production: { apprentisActifs: 0, progressionPct: null },
       finance: { produitHt: 0, factureHt: 0 },
-      qualite: { realise: 0, total: 0 },
       contrats: { total: 0, actifs: 0 },
     };
-    const cards = buildSyntheseCards(vide);
+    const cards = [
+      ...buildSyntheseCards(vide),
+      buildCarteQualite('vide', { realise: 0, total: 0 }),
+    ];
+    expect(cards).toHaveLength(5);
     expect(cards.some((c) => c.ton === 'alerte')).toBe(false);
   });
 
@@ -205,19 +192,61 @@ describe('buildSyntheseCards', () => {
       lancement: { terminees: 0, total: 0 },
       production: { apprentisActifs: 0, progressionPct: null },
       finance: { produitHt: 0, factureHt: 0 },
-      qualite: { realise: 0, total: 0 },
       contrats: { total: 0, actifs: 0 },
     };
     const grosMontant: SyntheseInput = {
       ...BASE,
       finance: { produitHt: 1234567, factureHt: 1234567 },
     };
+    const qualites = [
+      buildCarteQualite('0016-HEO-APP', { realise: 18, total: 29 }),
+      buildCarteQualite('vide', { realise: 0, total: 0 }),
+    ];
     for (const input of [BASE, vide, grosMontant]) {
-      for (const c of buildSyntheseCards(input)) {
+      for (const c of [...buildSyntheseCards(input), ...qualites]) {
         expect(c.contexte).not.toContain('\n');
         expect(c.contexte.length).toBeLessThanOrEqual(40);
         expect(c.valeur).not.toContain('\n');
       }
     }
+  });
+});
+
+describe('buildCarteQualite', () => {
+  it('pointe vers la sous-route qualite en encodant la ref', () => {
+    expect(
+      buildCarteQualite('0016-HEO-APP', { realise: 18, total: 29 }).href,
+    ).toBe('/projets/0016-HEO-APP/qualite');
+    expect(buildCarteQualite('a b', { realise: 0, total: 0 }).href).toBe(
+      '/projets/a%20b/qualite',
+    );
+  });
+
+  it('affiche la qualite en pourcentage avec le detail des livrables', () => {
+    const c = buildCarteQualite('0016-HEO-APP', { realise: 18, total: 29 });
+    expect(c.cle).toBe('qualite');
+    expect(c.titre).toBe('Qualité');
+    expect(c.valeur).toBe('62 %');
+    expect(c.contexte).toBe('18/29 livrables');
+    expect(c.ton).toBe('attention');
+  });
+
+  it('neutralise la qualite quand aucun referentiel n est disponible', () => {
+    const c = buildCarteQualite('0016-HEO-APP', { realise: 0, total: 0 });
+    expect(c.valeur).toBe('-');
+    expect(c.ton).toBe('neutre');
+    expect(c.contexte).toBe('référentiel non disponible');
+  });
+
+  it('suit la meme echelle de couleur que la production', () => {
+    expect(buildCarteQualite('r', { realise: 80, total: 100 }).ton).toBe(
+      'neutre',
+    );
+    expect(buildCarteQualite('r', { realise: 50, total: 100 }).ton).toBe(
+      'attention',
+    );
+    expect(buildCarteQualite('r', { realise: 49, total: 100 }).ton).toBe(
+      'alerte',
+    );
   });
 });

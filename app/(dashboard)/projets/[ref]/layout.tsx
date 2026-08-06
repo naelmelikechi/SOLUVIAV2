@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getProjetByRef } from '@/lib/queries/projets';
-import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
@@ -20,21 +20,16 @@ export default async function ProjetLayout({
   children: React.ReactNode;
   params: Promise<{ ref: string }>;
 }) {
-  const [{ ref }, supabase] = await Promise.all([params, createClient()]);
-  const [projet, authUserRes] = await Promise.all([
-    getProjetByRef(ref),
-    supabase.auth.getUser(),
-  ]);
+  const { ref } = await params;
+  // getUser() est memoise (cache()) et deja resolu par le layout dashboard :
+  // pas d'aller-retour Auth ni de SELECT users supplementaire ici.
+  const [projet, user] = await Promise.all([getProjetByRef(ref), getUser()]);
 
   if (!projet) {
     notFound();
   }
 
-  const authUser = authUserRes.data.user;
-  const currentUserRes = authUser
-    ? await supabase.from('users').select('role').eq('id', authUser.id).single()
-    : null;
-  const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
+  const userIsAdmin = isAdmin(user?.role ?? null);
 
   return (
     <div>

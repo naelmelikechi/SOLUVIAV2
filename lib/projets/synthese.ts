@@ -30,8 +30,14 @@ export interface SyntheseInput {
   lancement: { terminees: number; total: number };
   production: { apprentisActifs: number; progressionPct: number | null };
   finance: { produitHt: number; factureHt: number };
-  qualite: { realise: number; total: number };
   contrats: { total: number; actifs: number };
+}
+
+/** Prefixe d'URL commun a toutes les cartes. Partage par buildSyntheseCards et
+ * buildCarteQualite pour que la carte isolee pointe exactement au meme endroit
+ * que les autres. */
+function baseHref(projetRef: string): string {
+  return `/projets/${encodeURIComponent(projetRef)}`;
 }
 
 /** Vert au-dessus de 80, orange entre 50 et 79, rouge en dessous. Meme echelle
@@ -46,7 +52,7 @@ function tonDepuisPct(pct: number): TonCarte {
 }
 
 export function buildSyntheseCards(input: SyntheseInput): CarteSynthese[] {
-  const base = `/projets/${encodeURIComponent(input.projetRef)}`;
+  const base = baseHref(input.projetRef);
 
   const { terminees, total: totalEtapes } = input.lancement;
   const lancement: CarteSynthese = {
@@ -88,10 +94,34 @@ export function buildSyntheseCards(input: SyntheseInput): CarteSynthese[] {
     ton: 'neutre',
   };
 
-  const { realise, total: totalLivrables } = input.qualite;
+  const contrats: CarteSynthese = {
+    cle: 'contrats',
+    titre: 'Contrats',
+    valeur: String(input.contrats.total),
+    contexte: `${input.contrats.actifs} actif${input.contrats.actifs > 1 ? 's' : ''}`,
+    href: `${base}/contrats`,
+    ton: 'neutre',
+  };
+
+  return [lancement, production, finance, contrats];
+}
+
+/**
+ * Carte Qualite, construite a part : son score vient d'une cascade d'appels
+ * HTTP vers Eduvia, bien plus lente que les requetes SQL des 4 autres cartes.
+ * La synthese la rend dans son propre composant async sous <Suspense> pour ne
+ * pas retenir l'affichage du reste.
+ */
+export function buildCarteQualite(
+  projetRef: string,
+  qualite: { realise: number; total: number },
+): CarteSynthese {
+  const base = baseHref(projetRef);
+  const { realise, total: totalLivrables } = qualite;
   const qualitePct =
     totalLivrables > 0 ? (realise / totalLivrables) * 100 : null;
-  const qualite: CarteSynthese = {
+
+  return {
     cle: 'qualite',
     titre: 'Qualité',
     valeur: qualitePct == null ? '-' : `${Math.round(qualitePct)} %`,
@@ -102,15 +132,4 @@ export function buildSyntheseCards(input: SyntheseInput): CarteSynthese[] {
     href: `${base}/qualite`,
     ton: qualitePct == null ? 'neutre' : tonDepuisPct(qualitePct),
   };
-
-  const contrats: CarteSynthese = {
-    cle: 'contrats',
-    titre: 'Contrats',
-    valeur: String(input.contrats.total),
-    contexte: `${input.contrats.actifs} actif${input.contrats.actifs > 1 ? 's' : ''}`,
-    href: `${base}/contrats`,
-    ton: 'neutre',
-  };
-
-  return [lancement, production, finance, qualite, contrats];
 }

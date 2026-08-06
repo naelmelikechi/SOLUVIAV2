@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getProjetByRef } from '@/lib/queries/projets';
 import { getLancementByProjetId } from '@/lib/queries/projet-lancement';
-import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { ProjetLancementSection } from '@/components/projets/projet-lancement-section';
 
@@ -20,26 +20,18 @@ export default async function ProjetLancementPage({
 }: {
   params: Promise<{ ref: string }>;
 }) {
-  const [{ ref }, supabase] = await Promise.all([params, createClient()]);
-  const [projet, authUserRes] = await Promise.all([
-    getProjetByRef(ref),
-    supabase.auth.getUser(),
-  ]);
+  const { ref } = await params;
+  // getUser() est memoise (cache()) et deja resolu par le layout dashboard.
+  const [projet, user] = await Promise.all([getProjetByRef(ref), getUser()]);
   if (!projet) notFound();
 
-  const authUser = authUserRes.data.user;
-  const [currentUserRes, lancement] = await Promise.all([
-    authUser
-      ? supabase.from('users').select('role').eq('id', authUser.id).single()
-      : Promise.resolve({ data: null as { role: string | null } | null }),
-    getLancementByProjetId(projet.id),
-  ]);
+  const lancement = await getLancementByProjetId(projet.id);
 
-  const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
+  const userIsAdmin = isAdmin(user?.role ?? null);
   const canEdit =
     userIsAdmin ||
-    projet.cdp?.id === authUser?.id ||
-    projet.backup_cdp?.id === authUser?.id;
+    projet.cdp?.id === user?.id ||
+    projet.backup_cdp?.id === user?.id;
 
   return (
     <ProjetLancementSection
@@ -48,7 +40,7 @@ export default async function ProjetLancementPage({
       lancement={lancement}
       canEdit={canEdit}
       userIsAdmin={userIsAdmin}
-      currentUserId={authUser?.id ?? null}
+      currentUserId={user?.id ?? null}
     />
   );
 }

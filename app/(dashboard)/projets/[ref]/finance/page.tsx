@@ -6,7 +6,7 @@ import {
   getProjetTempsStats,
 } from '@/lib/queries/projets';
 import { listEcheancierTemplates } from '@/lib/queries/echeanciers';
-import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { ProjetFinanceSection } from '@/components/projets/projet-finance-section';
 import { ProjetTempsSection } from '@/components/projets/projet-temps-section';
@@ -26,25 +26,18 @@ export default async function ProjetFinancePage({
 }: {
   params: Promise<{ ref: string }>;
 }) {
-  const [{ ref }, supabase] = await Promise.all([params, createClient()]);
-  const [projet, authUserRes] = await Promise.all([
-    getProjetByRef(ref),
-    supabase.auth.getUser(),
-  ]);
+  const { ref } = await params;
+  // getUser() est memoise (cache()) et deja resolu par le layout dashboard.
+  const [projet, user] = await Promise.all([getProjetByRef(ref), getUser()]);
   if (!projet) notFound();
 
-  const authUser = authUserRes.data.user;
-  const [currentUserRes, finance, temps, echeancierTemplates] =
-    await Promise.all([
-      authUser
-        ? supabase.from('users').select('role').eq('id', authUser.id).single()
-        : Promise.resolve({ data: null as { role: string | null } | null }),
-      getProjetFinance(projet.id),
-      getProjetTempsStats(projet.id),
-      listEcheancierTemplates(),
-    ]);
+  const [finance, temps, echeancierTemplates] = await Promise.all([
+    getProjetFinance(projet.id),
+    getProjetTempsStats(projet.id),
+    listEcheancierTemplates(),
+  ]);
 
-  const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
+  const userIsAdmin = isAdmin(user?.role ?? null);
 
   return (
     <div className="space-y-6">

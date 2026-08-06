@@ -1,7 +1,7 @@
 import { getDocumentsByProjetId, getProjetByRef } from '@/lib/queries/projets';
 import { ProjetDocumentsSection } from '@/components/projets/projet-documents-section';
 import { EntiteTachesSection } from '@/components/taches/entite-taches-section';
-import { createClient } from '@/lib/supabase/server';
+import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 
 /**
@@ -17,21 +17,15 @@ export async function ProjetSuiviPanel({
   projetId: string;
   projetRef: string;
 }) {
-  const supabase = await createClient();
-  const [projet, authUserRes] = await Promise.all([
+  // getProjetByRef et getUser sont memoises (cache()) : les deux sont deja
+  // resolus par le layout au moment ou ce panneau se rend.
+  const [projet, user, documents] = await Promise.all([
     getProjetByRef(projetRef),
-    supabase.auth.getUser(),
-  ]);
-
-  const authUser = authUserRes.data.user;
-  const [currentUserRes, documents] = await Promise.all([
-    authUser
-      ? supabase.from('users').select('role').eq('id', authUser.id).single()
-      : Promise.resolve({ data: null as { role: string | null } | null }),
+    getUser(),
     getDocumentsByProjetId(projetId),
   ]);
 
-  const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
+  const userIsAdmin = isAdmin(user?.role ?? null);
 
   return (
     <section className="space-y-6">

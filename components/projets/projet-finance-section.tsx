@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import type { ProjetFinance } from '@/lib/queries/projets';
 import { formatCurrency } from '@/lib/utils/formatters';
-import { ttcToHt } from '@/lib/utils/montant-ht';
+import { productionSoluviaHt } from '@/lib/utils/montant-ht';
 import { Card } from '@/components/ui/card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { CommissionRateBadge } from '@/components/projets/commission-rate-badge';
@@ -37,14 +37,15 @@ export function ProjetFinanceSection({
     );
   }
 
-  // Commission SOLUVIA en HT : taux × base donne le TTC, on en déduit le HT (/1.2).
-  const commSoluvia = ttcToHt(finance.taux_commission / 100);
-
   // Ligne SOLUVIA : cohérente avec l'espace Facturation
   // (les factures en base sont les commissions SOLUVIA, pas les montants OPCO).
   // RAF clampé à 0 quand il n'y a pas de production (projet libre / taux 0) :
   // un reste à facturer négatif n'a pas de sens affiché.
-  const production_soluvia = finance.production_opco * commSoluvia;
+  // Formule partagee avec la carte de synthese (lib/utils/montant-ht.ts).
+  const production_soluvia = productionSoluviaHt(
+    finance.production_opco,
+    finance.taux_commission,
+  );
   const raf_soluvia =
     production_soluvia > 0 ? production_soluvia - finance.facture_soluvia : 0;
   const rae_soluvia = finance.facture_soluvia - finance.encaisse_soluvia;

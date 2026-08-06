@@ -127,7 +127,9 @@ async function fetchMonthProduction(
     fetchAllRows((from, to) => {
       let q = supabase
         .from('contrats')
-        .select(`date_debut, duree_mois, npec_amount, ${PROJET_EMBED}`)
+        .select(
+          `date_debut, duree_mois, npec_amount, date_rupture, ${PROJET_EMBED}`,
+        )
         .eq('archive', false)
         .eq('projet.client.is_demo', false)
         .eq('projet.client.archive', false);

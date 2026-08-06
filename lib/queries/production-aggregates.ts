@@ -45,6 +45,8 @@ export interface ContratActifRow {
   duree_mois: number | null;
   npec_amount: number | null;
   taux_commission: number | null;
+  /** YYYY-MM-DD : tronque la production theorique. null = contrat non rompu. */
+  date_rupture: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -271,7 +273,7 @@ async function getContratsActifsFallback(
     supabase
       .from('contrats')
       .select(
-        'date_debut, duree_mois, npec_amount, projet:projets!contrats_projet_id_fkey!inner(taux_commission, client:clients!projets_client_id_fkey!inner(is_demo, archive))',
+        'date_debut, duree_mois, npec_amount, date_rupture, projet:projets!contrats_projet_id_fkey!inner(taux_commission, client:clients!projets_client_id_fkey!inner(is_demo, archive))',
       )
       .eq('archive', false)
       .eq('projet.client.is_demo', false)
@@ -296,6 +298,7 @@ async function getContratsActifsFallback(
       duree_mois: c.duree_mois,
       npec_amount: c.npec_amount,
       taux_commission: projet.taux_commission,
+      date_rupture: c.date_rupture,
     });
   }
   return rows;

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/types/database';
-import { differenceInMonths } from 'date-fns';
+import { computeDureeMois } from '@/lib/utils/duree-contrat';
 import {
   fetchAllPages,
   fetchOne,
@@ -114,11 +114,18 @@ type ContratSnapshot = {
   npec_amount: number | null;
   contract_state: string | null;
   archive: boolean | null;
+  date_debut: string | null;
   date_fin: string | null;
 };
 
 type NpecChange = { contratId: string; npecActuel: number };
-type Rupture = { contratId: string; dateRupture: string };
+/**
+ * Rupture detectee. La DATE n'est pas connue a ce stade : Eduvia n'expose
+ * aucune date de rupture (verifie 2026-08-05 : contract_end_date conserve la
+ * fin initiale, et aucune sous-ressource ne porte l'information). Elle est
+ * deduite juste apres, en base, par resolveDateRupture.
+ */
+type Rupture = { contratId: string; dateDebut: string | null };
 
 // ---------------------------------------------------------------------------
 // Journal persistant des runs (table eduvia_sync_logs)
@@ -266,7 +273,7 @@ export async function syncEduviaForClient(
 
     // ── PASS 1 - reference tables ──────────────────────────────────────
     const { learners, formations, companies } = await fetchReferenceData(ctx);
-    await upsertApprenants(ctx, learners);
+    await upsertApprenants(ctx, learners, projetResolution);
     await upsertFormations(ctx, formations);
     await upsertCompanies(ctx, companies);
 
@@ -302,9 +309,6 @@ export async function syncEduviaForClient(
 
     await archiveOrphanContrats(ctx, contracts);
 
-    // ── Detection ajustements (NPEC / rupture) post-upsert ─────────────
-    await applyAjustementDetections(supabase, npecChanges, ruptures);
-
     // ── PASS 3 - per-contract progressions ─────────────────────────────
     // Must run AFTER contracts so we can FK contrats_progressions.contrat_id
     // to the freshly-upserted contrats rows.
@@ -316,6 +320,12 @@ export async function syncEduviaForClient(
     // ── PASS 4+5 - per-contract invoice steps / lines / forecast ────────
     // Reuses contratIdByEduviaId from PASS 3.
     await syncInvoiceData(ctx, contracts, contratIdByEduviaId);
+
+    // ── Detection ajustements (NPEC / rupture) ─────────────────────────
+    // APRES les passes 3/4/5 : la date de rupture se deduit des progressions
+    // et des jalons OPCO (resolveDateRupture), qui doivent donc etre a jour
+    // pour le run courant, pas ceux du run precedent.
+    await applyAjustementDetections(supabase, npecChanges, ruptures);
   } catch (err) {
     // Abort this client's sync on any non-404 fetch failure so we don't
     // corrupt denormalised columns with partial data. AuthError gets a
@@ -415,8 +425,10 @@ async function fetchReferenceData(ctx: ClientSyncContext): Promise<{
 async function upsertApprenants(
   ctx: ClientSyncContext,
   learners: EduviaLearner[],
+  projetResolution: ProjetResolution,
 ): Promise<void> {
   const { supabase, clientId, now, result } = ctx;
+  const { resolveProjetId } = projetResolution;
   for (const learner of learners) {
     // formation_id / internal_number / learning_start/end_date ont quitté
     // la réponse employees ; ils sont désormais portés par les contrats.
@@ -426,6 +438,10 @@ async function upsertApprenants(
       {
         eduvia_id: learner.id,
         source_client_id: clientId,
+        // Rattachement au projet : meme resolution que les contrats. Sans
+        // elle, un apprenant sans contrat n'apparait sur aucune fiche projet.
+        eduvia_company_id: learner.company_id,
+        projet_id: resolveProjetId(learner.company_id),
         nom: learner.last_name,
         prenom: learner.first_name,
         gender: learner.gender,
@@ -535,7 +551,9 @@ async function snapshotExistingContrats(
   if (eduviaIds.length === 0) return new Map();
   const { data: existingContrats } = await ctx.supabase
     .from('contrats')
-    .select('id, eduvia_id, npec_amount, contract_state, archive, date_fin')
+    .select(
+      'id, eduvia_id, npec_amount, contract_state, archive, date_debut, date_fin',
+    )
     .in('eduvia_id', eduviaIds)
     .eq('source_client_id', ctx.clientId);
   return new Map(
@@ -572,9 +590,13 @@ export function detectContractChanges(
     !previous.archive && !isContratRompu(previous.contract_state);
   const isInactive = isContratRompu(contract.contract_state);
   if (wasActive && isInactive) {
-    const dateRupture =
-      contract.contract_end_date ?? new Date().toISOString().slice(0, 10);
-    rupture = { contratId: previous.id, dateRupture };
+    // On ne prend PAS contract_end_date comme date de rupture : Eduvia y laisse
+    // la fin initiale du contrat, ce qui donnait une duree realisee complete
+    // (donc un avoir prorata nul et une production courant jusqu'au terme).
+    rupture = {
+      contratId: previous.id,
+      dateDebut: previous.date_debut ?? contract.contract_start_date,
+    };
   }
 
   return { npecChange, rupture };
@@ -615,16 +637,13 @@ async function upsertContrats(
     try {
       const learner = learnerById.get(contract.employee_id);
       const formation = formationById.get(contract.formation_id);
-      const dureeRaw =
-        contract.contract_start_date && contract.contract_end_date
-          ? differenceInMonths(
-              new Date(contract.contract_end_date),
-              new Date(contract.contract_start_date),
-            )
-          : null;
-      // Dates Eduvia malformees -> Invalid Date -> differenceInMonths = NaN,
-      // qui ferait echouer l'upsert du contrat. On retombe sur null.
-      const duree_mois = Number.isFinite(dureeRaw) ? dureeRaw : null;
+      // Arrondi au mois le plus proche (cf. lib/utils/duree-contrat.ts) : la
+      // troncature faisait tomber les contrats de 12 mois a 11 et supprimait
+      // silencieusement le jalon M+12 de l'echeancier.
+      const duree_mois = computeDureeMois(
+        contract.contract_start_date,
+        contract.contract_end_date,
+      );
 
       // oxlint-disable-next-line react-doctor/async-await-in-loop
       const { error: upsertError } = await supabase.from('contrats').upsert(
@@ -785,8 +804,19 @@ async function applyAjustementDetections(
       });
     }
   }
-  for (const { contratId, dateRupture } of ruptures) {
+  for (const { contratId, dateDebut } of ruptures) {
     try {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
+      const dateRupture = await resolveDateRupture(
+        supabase,
+        contratId,
+        dateDebut,
+      );
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
+      await supabase
+        .from('contrats')
+        .update({ date_rupture: dateRupture })
+        .eq('id', contratId);
       // oxlint-disable-next-line react-doctor/async-await-in-loop
       await detectRuptureAjustement(supabase, contratId, dateRupture);
     } catch (err) {
@@ -796,6 +826,51 @@ async function applyAjustementDetections(
       });
     }
   }
+}
+
+/**
+ * Deduit la date d'arret effectif d'un contrat qui vient de passer en etat
+ * rompu. Eduvia ne fournit aucune date de rupture (verifie 2026-08-05 sur
+ * /contracts/{id} et toutes ses sous-ressources), on l'infere donc des signaux
+ * deja synchronises - regle composite validee par le metier le 2026-08-05 :
+ *
+ *   1. aucune activite pedagogique ET aucun jalon OPCO facture -> le contrat
+ *      n'a jamais demarre : on retient date_debut, ce qui donne une duree
+ *      realisee nulle (production 0, avoir prorata integral) ;
+ *   2. sinon -> derniere activite pedagogique connue ;
+ *   3. sinon (jalon facture mais aucune activite tracee) -> date du constat.
+ *
+ * La meme regle est appliquee au backfill de l'existant (migration
+ * 20260805120000_production_post_rupture.sql) : les deux doivent rester
+ * alignees.
+ */
+export async function resolveDateRupture(
+  supabase: SupabaseClient<Database>,
+  contratId: string,
+  dateDebut: string | null,
+): Promise<string> {
+  const constat = new Date().toISOString().slice(0, 10);
+
+  const [progressionRes, stepsRes] = await Promise.all([
+    supabase
+      .from('contrats_progressions')
+      .select('last_activity_at')
+      .eq('contrat_id', contratId)
+      .maybeSingle(),
+    supabase
+      .from('eduvia_invoice_steps')
+      .select('invoice_sent_at, paid_amount')
+      .eq('contrat_id', contratId),
+  ]);
+
+  const lastActivity = progressionRes.data?.last_activity_at ?? null;
+  const aJalonFacture = (stepsRes.data ?? []).some(
+    (s) => s.invoice_sent_at != null || Number(s.paid_amount ?? 0) > 0,
+  );
+
+  if (lastActivity == null && !aJalonFacture) return dateDebut ?? constat;
+  if (lastActivity != null) return lastActivity.slice(0, 10);
+  return constat;
 }
 
 /**

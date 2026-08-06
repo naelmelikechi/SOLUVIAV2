@@ -712,6 +712,7 @@ export type Database = {
           contrat_id: string | null;
           created_at: string;
           disabled_worker: boolean | null;
+          eduvia_company_id: number | null;
           eduvia_formation_id: number | null;
           eduvia_id: number;
           email: string | null;
@@ -726,6 +727,7 @@ export type Database = {
           phone_number: string | null;
           postcode: string | null;
           prenom: string | null;
+          projet_id: string | null;
           source_client_id: string | null;
           status: string | null;
         };
@@ -736,6 +738,7 @@ export type Database = {
           contrat_id?: string | null;
           created_at?: string;
           disabled_worker?: boolean | null;
+          eduvia_company_id?: number | null;
           eduvia_formation_id?: number | null;
           eduvia_id: number;
           email?: string | null;
@@ -750,6 +753,7 @@ export type Database = {
           phone_number?: string | null;
           postcode?: string | null;
           prenom?: string | null;
+          projet_id?: string | null;
           source_client_id?: string | null;
           status?: string | null;
         };
@@ -760,6 +764,7 @@ export type Database = {
           contrat_id?: string | null;
           created_at?: string;
           disabled_worker?: boolean | null;
+          eduvia_company_id?: number | null;
           eduvia_formation_id?: number | null;
           eduvia_id?: number;
           email?: string | null;
@@ -774,6 +779,7 @@ export type Database = {
           phone_number?: string | null;
           postcode?: string | null;
           prenom?: string | null;
+          projet_id?: string | null;
           source_client_id?: string | null;
           status?: string | null;
         };
@@ -783,6 +789,13 @@ export type Database = {
             columns: ['contrat_id'];
             isOneToOne: false;
             referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'apprenants_projet_id_fkey';
+            columns: ['projet_id'];
+            isOneToOne: false;
+            referencedRelation: 'projets';
             referencedColumns: ['id'];
           },
           {
@@ -1482,6 +1495,7 @@ export type Database = {
           creation_mode: string | null;
           date_debut: string | null;
           date_fin: string | null;
+          date_rupture: string | null;
           deleted_in_eduvia_at: string | null;
           duree_mois: number | null;
           eduvia_campus_id: number | null;
@@ -1521,6 +1535,7 @@ export type Database = {
           creation_mode?: string | null;
           date_debut?: string | null;
           date_fin?: string | null;
+          date_rupture?: string | null;
           deleted_in_eduvia_at?: string | null;
           duree_mois?: number | null;
           eduvia_campus_id?: number | null;
@@ -1560,6 +1575,7 @@ export type Database = {
           creation_mode?: string | null;
           date_debut?: string | null;
           date_fin?: string | null;
+          date_rupture?: string | null;
           deleted_in_eduvia_at?: string | null;
           duree_mois?: number | null;
           eduvia_campus_id?: number | null;
@@ -2707,6 +2723,7 @@ export type Database = {
           created_at: string;
           description: string;
           est_avoir: boolean;
+          event_libere_le: string | null;
           event_source_id: string | null;
           event_type: string | null;
           facture_id: string;
@@ -2726,6 +2743,7 @@ export type Database = {
           created_at?: string;
           description: string;
           est_avoir?: boolean;
+          event_libere_le?: string | null;
           event_source_id?: string | null;
           event_type?: string | null;
           facture_id: string;
@@ -2745,6 +2763,7 @@ export type Database = {
           created_at?: string;
           description?: string;
           est_avoir?: boolean;
+          event_libere_le?: string | null;
           event_source_id?: string | null;
           event_type?: string | null;
           facture_id?: string;
@@ -4271,6 +4290,7 @@ export type Database = {
           duree_mois: number;
           npec_amount: number;
           taux_commission: number;
+          date_rupture: string | null;
         }[];
       };
       count_factures_by_statut: {

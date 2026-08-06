@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ContratRow } from '@/lib/queries/projets';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
-import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { Card } from '@/components/ui/card';
 import {
   Tooltip,
@@ -12,36 +12,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { isContratActif } from '@/lib/utils/contrat-states';
+import {
+  getContratStateColor,
+  getContratStateLabel,
+  isContratActif,
+} from '@/lib/utils/contrat-states';
 import {
   DataTable,
   DataTableColumnHeader,
 } from '@/components/shared/data-table';
 import { ContratDetailSheet } from '@/components/projets/contrat-detail-sheet';
-
-const CONTRACT_STATE_LABELS: Record<string, string> = {
-  actif: 'Actif',
-  suspendu: 'Suspendu',
-  resilie: 'Résilié',
-  termine: 'Terminé',
-  NOTSENT: 'Pas envoyé',
-  TRANSMIS: 'Transmis',
-  EN_COURS_INSTRUCTION: "En cours d'instruction",
-  ENGAGE: 'Engagé',
-  ANNULE: 'Annulé',
-};
-
-const CONTRACT_STATE_COLORS: Record<string, BadgeColor> = {
-  actif: 'green',
-  suspendu: 'orange',
-  resilie: 'red',
-  termine: 'gray',
-  NOTSENT: 'gray',
-  TRANSMIS: 'blue',
-  EN_COURS_INSTRUCTION: 'orange',
-  ENGAGE: 'green',
-  ANNULE: 'red',
-};
 
 function computeProgressionTheorique(
   dateDebut: string | null,
@@ -228,18 +208,14 @@ const columns: ColumnDef<ContratRow>[] = [
   },
   {
     id: 'statut',
-    accessorFn: (c) =>
-      CONTRACT_STATE_LABELS[c.contract_state] ?? c.contract_state,
+    accessorFn: (c) => getContratStateLabel(c.contract_state),
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Statut" />
     ),
     cell: ({ row }) => (
       <StatusBadge
-        label={
-          CONTRACT_STATE_LABELS[row.original.contract_state] ??
-          row.original.contract_state
-        }
-        color={CONTRACT_STATE_COLORS[row.original.contract_state] ?? 'gray'}
+        label={getContratStateLabel(row.original.contract_state)}
+        color={getContratStateColor(row.original.contract_state)}
       />
     ),
   },

@@ -111,6 +111,7 @@ export async function GET(request: Request) {
             c.duree_mois,
             c.npec_amount,
             c.taux_commission ?? 0,
+            c.date_rupture,
           );
           for (const e of schedule.soluvia) {
             if (e.month === monthKey) productionHt += e.amount;

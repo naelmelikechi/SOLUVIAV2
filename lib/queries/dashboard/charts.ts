@@ -80,6 +80,7 @@ export async function getMonthlyTrend(): Promise<MonthlyTrendRow[]> {
       c.duree_mois,
       c.npec_amount,
       c.taux_commission ?? 0,
+      c.date_rupture,
     );
     for (const e of schedule.soluvia) {
       productionByMonth.set(

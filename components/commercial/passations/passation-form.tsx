@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Lock, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -70,11 +70,27 @@ export function PassationForm({
   reco,
   locked,
   onSaved,
+  saveRef,
 }: {
   synthese: PassationSynthese;
   reco: PassationReco | null;
   locked: boolean;
   onSaved: () => Promise<void> | void;
+  /**
+   * Expose la sauvegarde au parent, pour qu'il puisse persister les saisies
+   * AVANT de soumettre.
+   *
+   * Pourquoi (audit #122, constat 12b) : soumettreSynthese rend les deux PDF a
+   * partir de la LIGNE EN BASE. Soumettre sans avoir enregistre d'abord
+   * envoyait donc les deux PDF sans les sections 6 et 8, et la recuperation
+   * etait impossible (« Synthese deja soumise »). Accessoirement, la `key`
+   * portee sur ce composant contient `updated_at` : au retour de l'action, il
+   * est remonte avec les valeurs serveur, et la redaction non enregistree
+   * disparaissait de l'ecran.
+   */
+  saveRef?: {
+    current: ((silent?: boolean) => Promise<boolean>) | null;
+  };
 }) {
   const [pointsVigilance, setPointsVigilance] = useState(
     synthese.points_vigilance ?? '',
@@ -94,25 +110,50 @@ export function PassationForm({
   const [notes, setNotes] = useState(reco?.notes_inter_equipe ?? '');
   const [isPending, startTransition] = useTransition();
 
-  const handleSave = () => {
-    const saisies: SaisiesSynthese = {
-      points_vigilance: pointsVigilance.trim() || null,
-      promesses_orales: promessesOrales.trim() || null,
-      typologie_client: (typologie || null) as TypologieClient | null,
-      charge_previsionnelle: (charge || null) as NiveauCharge | null,
-      risque_churn: (churn || null) as NiveauRisque | null,
-      cdp_ideal: cdpIdeal.trim() || null,
-      cdp_a_eviter: cdpAEviter.trim() || null,
-      notes_inter_equipe: notes.trim() || null,
+  const currentSaisies = (): SaisiesSynthese => ({
+    points_vigilance: pointsVigilance.trim() || null,
+    promesses_orales: promessesOrales.trim() || null,
+    typologie_client: (typologie || null) as TypologieClient | null,
+    charge_previsionnelle: (charge || null) as NiveauCharge | null,
+    risque_churn: (churn || null) as NiveauRisque | null,
+    cdp_ideal: cdpIdeal.trim() || null,
+    cdp_a_eviter: cdpAEviter.trim() || null,
+    notes_inter_equipe: notes.trim() || null,
+  });
+
+  /**
+   * `silent` : appelee depuis la soumission du parent, qui affichera son propre
+   * retour et fera son propre reload. On evite ainsi un double toast et un
+   * remount intermediaire.
+   */
+  const persist = async (silent = false): Promise<boolean> => {
+    const r = await enregistrerSaisiesSynthese(synthese.id, currentSaisies());
+    if (!r.success) {
+      toast.error(r.error ?? 'Enregistrement impossible');
+      return false;
+    }
+    if (!silent) {
+      toast.success('Saisies enregistrées');
+      await onSaved();
+    }
+    return true;
+  };
+
+  // Publie `persist` APRES chaque render, sans tableau de dependances : les
+  // valeurs saisies vivent dans des useState, donc une closure figee au mount
+  // enregistrerait le formulaire vide. L'affectation passe par un effet et non
+  // par le corps du render, qu'interdit react-hooks/refs.
+  useEffect(() => {
+    if (!saveRef) return;
+    saveRef.current = persist;
+    return () => {
+      saveRef.current = null;
     };
-    startTransition(async () => {
-      const r = await enregistrerSaisiesSynthese(synthese.id, saisies);
-      if (r.success) {
-        toast.success('Saisies enregistrées');
-        await onSaved();
-      } else {
-        toast.error(r.error ?? 'Enregistrement impossible');
-      }
+  });
+
+  const handleSave = () => {
+    startTransition(() => {
+      void persist();
     });
   };
 

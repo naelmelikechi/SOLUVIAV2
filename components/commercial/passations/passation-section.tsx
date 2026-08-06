@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -66,6 +66,11 @@ export function PassationSection({
   const [isPending, startTransition] = useTransition();
   const [emailOpen, setEmailOpen] = useState(false);
   const { synthese, reco, hasCdpReferent } = state;
+  // Sauvegarde du formulaire, publiee par PassationForm. Permet de persister les
+  // sections 6 et 8 AVANT la soumission, qui rend les PDF depuis la base.
+  const saveFormRef = useRef<((silent?: boolean) => Promise<boolean>) | null>(
+    null,
+  );
 
   // La page ne charge que la ligne synthèse en props : la reco (section 8) et
   // le CDP référent sont récupérés ici, puis rafraîchis après chaque mutation.
@@ -115,6 +120,14 @@ export function PassationSection({
   const handleSoumettre = () => {
     if (!synthese) return;
     startTransition(async () => {
+      // Persister AVANT de soumettre. soumettreSynthese rend les deux PDF a
+      // partir de la ligne en base : soumettre sans enregistrer d'abord les
+      // envoyait sans les sections 6 et 8 (points de vigilance), et la
+      // recuperation etait impossible puisque re-soumettre renvoie
+      // « Synthese deja soumise ». Cf audit #122, constat 12b.
+      const persisted = await saveFormRef.current?.(true);
+      if (persisted === false) return; // le formulaire a deja affiche l'erreur
+
       const r = await soumettreSynthese(synthese.id);
       if (r.success) {
         toast.success(
@@ -225,6 +238,7 @@ export function PassationSection({
           reco={reco}
           locked={!editable || isPending}
           onSaved={reload}
+          saveRef={saveFormRef}
         />
 
         <div className="flex flex-wrap items-center gap-1.5 border-t pt-3">

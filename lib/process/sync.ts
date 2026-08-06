@@ -82,6 +82,16 @@ export async function syncProcessIndex(deps: SyncDeps): Promise<SyncResult> {
     .map((r) => r.source_fiche_id)
     .filter((id) => !sourceIds.has(id));
   let deleted = 0;
+  // Garde anti-wipe, sur le modele de lib/eduvia/sync.ts : une source qui
+  // repond 200 avec zero fiche est indistinguable d'une source cassee. Tant
+  // qu'on a des lignes en base, on refuse de tout supprimer sur cette seule
+  // foi. La suppression legitime du dernier element reste possible en passant
+  // par la source une fois qu'elle en renvoie au moins une.
+  if (sourceIds.size === 0 && toDelete.length > 0) {
+    throw new Error(
+      `garde anti-wipe : la source renvoie 0 fiche alors que l'index en contient ${toDelete.length} - aucune suppression effectuee`,
+    );
+  }
   if (toDelete.length) {
     const { error: delErr } = await admin
       .from('process_index')

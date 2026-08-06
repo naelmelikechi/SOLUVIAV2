@@ -195,11 +195,15 @@ SELECT is(
   120::numeric,
   'facture = 120 (nette des avoirs emis ; brouillons, client demo et client archive exclus)');
 
--- ----- 13. en_retard NET : F2 (50) seule ; F8 soldee par avoir -> 0 -----
+-- ----- 13. en_retard = RESTANT DU : F2 (50 HT) moins son paiement de 30 TTC --
+-- Depuis 20260806180000 (audit #122, constat 13), « En retard » est le restant
+-- du : avoirs ET paiements deduits. F2 porte un paiement de 30 TTC, ramene au HT
+-- au prorata reel de la facture (50/60), soit 25 HT. F8 reste soldee par F9.
+--   50 - 30 x (50/60) = 50 - 25 = 25
 SELECT is(
-  (SELECT en_retard FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
-  50::numeric,
-  'en_retard = 50 (solde apres avoirs lies : F8 soldee par F9 ne pese plus)');
+  (SELECT round(en_retard, 2) FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
+  25::numeric,
+  'en_retard = 25 (restant du : solde apres avoirs, moins le paiement de 30 TTC)');
 
 -- ----- 14. encaisse : prorata HT 50 + 25 + 30 (ttc=0 => ratio 1), demo exclu -----
 SELECT is(
@@ -213,11 +217,12 @@ SELECT is(
   (SELECT facture_ttc FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
   144::numeric,
   'facture_ttc = 144 (sommes des montant_ttc, nettes des avoirs emis)');
--- en_retard_ttc : F2 (60) seule ; F8 (96) soldee par F9 (-96)
+-- en_retard_ttc : F2 (60 TTC) moins son paiement de 30 TTC ; F8 soldee par F9.
+--   60 - 30 = 30
 SELECT is(
-  (SELECT en_retard_ttc FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
-  60::numeric,
-  'en_retard_ttc = 60 (solde TTC apres avoirs lies)');
+  (SELECT round(en_retard_ttc, 2) FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),
+  30::numeric,
+  'en_retard_ttc = 30 (restant du TTC : solde apres avoirs, moins le paiement)');
 -- encaisse_ttc = paiements bruts : 60 + 30 + 30 (paiement demo exclu)
 SELECT is(
   (SELECT encaisse_ttc FROM production_month_sums('2031-03', '2031-04') WHERE mois = '2031-03'),

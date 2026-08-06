@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
@@ -180,7 +181,10 @@ export async function getProjetsListEnriched(): Promise<ProjetListEnriched[]> {
   }));
 }
 
-export async function getProjetByRef(ref: string) {
+// Memoise par requete HTTP : le layout de /projets/[ref] et chacune de ses
+// sous-pages appellent tous getProjetByRef. Sans cache(), afficher une
+// sous-page declencherait deux fois la meme requete Supabase.
+export const getProjetByRef = cache(async (ref: string) => {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -229,7 +233,7 @@ export async function getProjetByRef(ref: string) {
     return null;
   }
   return data;
-}
+});
 
 export type ProjetDetail = NonNullable<
   Awaited<ReturnType<typeof getProjetByRef>>

@@ -180,14 +180,19 @@ export function LancementEtapeItem({
         )}
         {alerte === 'enlise' && (
           <StatusBadge
-            label={`Déposé depuis ${joursDepuisDepot} j`}
+            // "Deposé" figure deja dans le badge de statut et dans la date a
+            // droite : le repeter une troisieme fois noie l'information utile,
+            // qui est la duree d'attente chez le tiers instructeur.
+            label={`En attente ${joursDepuisDepot} j`}
             color="orange"
           />
         )}
         <span className="text-muted-foreground ml-auto flex items-center gap-3 text-xs">
           {dateRealisation ? (
+            // "Realise" et non "Depose" : la meme date sert aux etapes
+            // terminees, et "Contrat signe / Depose le" se lit mal.
             <span className="hidden sm:inline">
-              Déposé le {formatDate(dateRealisation)}
+              Réalisé le {formatDate(dateRealisation)}
             </span>
           ) : (
             dateObjectif && (
@@ -244,7 +249,7 @@ export function LancementEtapeItem({
                 />
                 {savingDate && <Loader2 className="size-3 animate-spin" />}
                 {dateRealisation && (
-                  <span>Déposé le {formatDate(dateRealisation)}</span>
+                  <span>Réalisé le {formatDate(dateRealisation)}</span>
                 )}
               </label>
             </div>

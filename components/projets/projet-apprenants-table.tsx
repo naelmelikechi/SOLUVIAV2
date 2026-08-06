@@ -52,8 +52,8 @@ const columns: ColumnDef<ApprenantProjetRow>[] = [
       return (
         <Tooltip>
           <TooltipTrigger className="flex cursor-default items-center gap-1.5 text-left">
-            <AlertTriangle className="size-3.5 shrink-0 text-[var(--danger)]" />
-            <span className="text-sm font-medium text-[var(--danger)]">
+            <AlertTriangle className="size-3.5 shrink-0 text-[var(--destructive)]" />
+            <span className="text-sm font-medium text-[var(--destructive)]">
               {nom}
             </span>
           </TooltipTrigger>
@@ -111,7 +111,7 @@ const columns: ColumnDef<ApprenantProjetRow>[] = [
         <span
           className={cn(
             'text-sm tabular-nums',
-            enAlerte(a) && 'font-medium text-[var(--danger)]',
+            enAlerte(a) && 'font-medium text-[var(--destructive)]',
           )}
         >
           {a.date_debut ? formatDate(a.date_debut) : '-'}
@@ -167,7 +167,7 @@ export function ProjetApprenantsTable({
           </div>
           <div className="text-muted-foreground flex items-center gap-4 text-sm">
             {nbAlertes > 0 && (
-              <span className="flex items-center gap-1.5 text-[var(--danger)]">
+              <span className="flex items-center gap-1.5 text-[var(--destructive)]">
                 <AlertTriangle className="size-3.5" />
                 {nbAlertes} contrat{nbAlertes > 1 ? 's' : ''} non engagé
                 {nbAlertes > 1 ? 's' : ''} malgré une formation démarrée

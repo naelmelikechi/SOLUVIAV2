@@ -101,7 +101,8 @@ export async function createRdvFormateur(
     undefined,
     user.id,
   );
-  revalidatePath(`/projets/[ref]`, 'page');
+  // Les RDV formateurs vivent sur /production depuis le lot 0.
+  revalidatePath(`/projets/[ref]/production`, 'page');
   return { success: true, id: rdv.id };
 }
 
@@ -145,7 +146,7 @@ export async function updateRdvFormateurStatut(
     { statut },
     user.id,
   );
-  revalidatePath(`/projets/[ref]`, 'page');
+  revalidatePath(`/projets/[ref]/production`, 'page');
   return { success: true };
 }
 
@@ -168,6 +169,6 @@ export async function deleteRdvFormateur(
   const { error } = await supabase.from('rdv_formateurs').delete().eq('id', id);
   if (error) return { success: false, error: error.message };
   logAudit('rdv_formateur_deleted', 'rdv_formateur', id, undefined, user.id);
-  revalidatePath(`/projets/[ref]`, 'page');
+  revalidatePath(`/projets/[ref]/production`, 'page');
   return { success: true };
 }

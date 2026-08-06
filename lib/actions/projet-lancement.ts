@@ -147,6 +147,9 @@ export async function setLancementEtapeStatut(
     user.id,
   );
 
+  // La timeline vit sur /lancement depuis le lot 0 ; la synthese affiche le
+  // compteur d'etapes terminees, donc les deux routes doivent etre invalidees.
+  revalidatePath(`/projets/${parsed.data.projetRef}/lancement`);
   revalidatePath(`/projets/${parsed.data.projetRef}`);
 
   return { success: true };
@@ -244,6 +247,7 @@ export async function uploadLancementDocument(
     user.id,
   );
 
+  revalidatePath(`/projets/${parsed.data.projetRef}/lancement`);
   revalidatePath(`/projets/${parsed.data.projetRef}`);
 
   return { success: true };
@@ -309,6 +313,7 @@ export async function deleteLancementDocument(
     user.id,
   );
 
+  revalidatePath(`/projets/${parsed.data.projetRef}/lancement`);
   revalidatePath(`/projets/${parsed.data.projetRef}`);
 
   return { success: true };
@@ -367,6 +372,7 @@ export async function addLancementCommentaire(
     user.id,
   );
 
+  revalidatePath(`/projets/${parsed.data.projetRef}/lancement`);
   revalidatePath(`/projets/${parsed.data.projetRef}`);
 
   return { success: true };
@@ -413,6 +419,7 @@ export async function deleteLancementCommentaire(
     user.id,
   );
 
+  revalidatePath(`/projets/${parsed.data.projetRef}/lancement`);
   revalidatePath(`/projets/${parsed.data.projetRef}`);
 
   return { success: true };

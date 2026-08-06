@@ -132,6 +132,15 @@ function buildSupabase(rules: Record<string, TableRules>) {
         op.filters.push({ col, val });
         return chain;
       },
+      // Les lectures paginees (fetchAllRows) chainent .order().range(). Le mock
+      // renvoie toujours le jeu complet : comme les fixtures font moins d'une
+      // page, fetchAllRows s'arrete apres le premier appel (data.length < pageSize).
+      order() {
+        return chain;
+      },
+      range() {
+        return chain;
+      },
       maybeSingle() {
         return settle().then((r) => ({
           data: Array.isArray(r.data) ? (r.data[0] ?? null) : (r.data ?? null),
@@ -588,6 +597,44 @@ describe('syncEduviaForClient — multi-tenant isolation', () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it('snapshot contrats en erreur → abandonne la passe 2 au lieu de perdre la détection NPEC/rupture', async () => {
+    // Régression (audit #122, constat 5). snapshotExistingContrats ne
+    // destructurait pas son erreur : sur échec (ou troncature PostgREST à
+    // max_rows), le snapshot revenait vide, detectContractChanges renvoyait
+    // null pour tous les contrats, mais upsertContrats écrivait quand même
+    // npec_amount et contract_state. Au run suivant la comparaison se faisait
+    // contre la base DÉJÀ à jour : la détection était perdue DÉFINITIVEMENT, et
+    // le statut du run restait `success`. On exige donc l'abandon explicite.
+    fetchAllPagesMock.mockImplementation(
+      async (_url: string, _key: string, resource: string) => {
+        if (resource === 'contracts') return [contractFixture({ id: 1 })];
+        return [];
+      },
+    );
+    const supa = buildSupabase({
+      projets: projetsRule(),
+      contrats: {
+        select: () => ({ data: null, error: { message: 'timeout' } }),
+      },
+    });
+
+    const { syncEduviaForClient } = await import('@/lib/eduvia/sync');
+    const res = await syncEduviaForClient(
+      supa.client,
+      'client-X',
+      'cfa.eduvia.app',
+      'key-X',
+    );
+
+    // L'erreur est remontée : le run ne peut pas être considéré comme réussi.
+    expect(res.errors.some((e) => /snapshot/i.test(e))).toBe(true);
+    // Et surtout : aucun upsert de contrats, donc la base n'est pas écrasée
+    // avec un snapshot aveugle et la détection reste rejouable au run suivant.
+    expect(
+      supa.ops.some((o) => o.table === 'contrats' && o.op === 'upsert'),
+    ).toBe(false);
   });
 });
 

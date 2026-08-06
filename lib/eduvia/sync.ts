@@ -29,6 +29,7 @@ import {
 import { isContratRompu } from '@/lib/utils/contrat-states';
 import { mapWithConcurrency } from '@/lib/utils/concurrency';
 import { chunk } from '@/lib/utils/chunk';
+import { fetchAllRows } from '@/lib/supabase/fetch-all';
 
 // Les passes par contrat (progressions, invoice steps/lines/forecast) font
 // chacune des aller-retours réseau. On traite plusieurs contrats à la fois via
@@ -295,8 +296,11 @@ export async function syncEduviaForClient(
       'contracts',
     );
 
-    // Snapshot etat actuel pour detecter changements (NPEC, rupture)
+    // Snapshot etat actuel pour detecter changements (NPEC, rupture).
+    // null = lecture en echec : on abandonne la passe 2 plutot que de perdre
+    // definitivement la detection (meme garde que buildContratIdMap plus bas).
     const existingByEduviaId = await snapshotExistingContrats(ctx, contracts);
+    if (!existingByEduviaId) return result;
 
     // Upsert contrats + collecte des detections (NPEC change / rupture),
     // a appliquer apres les upserts.
@@ -546,19 +550,44 @@ async function upsertCompanies(
 async function snapshotExistingContrats(
   ctx: ClientSyncContext,
   contracts: EduviaContract[],
-): Promise<Map<number, ContratSnapshot>> {
+): Promise<Map<number, ContratSnapshot> | null> {
   const eduviaIds = contracts.map((c) => c.id);
   if (eduviaIds.length === 0) return new Map();
-  const { data: existingContrats } = await ctx.supabase
-    .from('contrats')
-    .select(
-      'id, eduvia_id, npec_amount, contract_state, archive, date_debut, date_fin',
-    )
-    .in('eduvia_id', eduviaIds)
-    .eq('source_client_id', ctx.clientId);
-  return new Map(
-    (existingContrats ?? []).map((c) => [c.eduvia_id, c] as const),
-  );
+
+  // Ce snapshot est la SEULE reference du "avant" pour detecter un changement
+  // de NPEC ou une rupture. S'il revient vide ou tronque, detectContractChanges
+  // renvoie null pour les contrats manquants, alors que upsertContrats ecrit
+  // quand meme npec_amount et contract_state : au run suivant la comparaison se
+  // fait contre la base deja a jour et la detection est perdue DEFINITIVEMENT,
+  // en silence. D'ou l'erreur remontee (abandon de la passe 2) et la pagination
+  // exhaustive : PostgREST tronque a max_rows sans erreur, donc tout client de
+  // plus de 1000 contrats perdait la detection sur l'excedent a chaque run.
+  const CHUNK = 200;
+  const snapshot = new Map<number, ContratSnapshot>();
+  for (let i = 0; i < eduviaIds.length; i += CHUNK) {
+    const chunk = eduviaIds.slice(i, i + CHUNK);
+    const { data, error } = await fetchAllRows<ContratSnapshot>(
+      (from, to) =>
+        ctx.supabase
+          .from('contrats')
+          .select(
+            'id, eduvia_id, npec_amount, contract_state, archive, date_debut, date_fin',
+          )
+          .in('eduvia_id', chunk)
+          .eq('source_client_id', ctx.clientId)
+          .order('id')
+          .range(from, to),
+      1000,
+    );
+    if (error) {
+      ctx.result.errors.push(
+        `Erreur snapshot contrats (detection NPEC/rupture) : ${error.message}`,
+      );
+      return null;
+    }
+    for (const c of data) snapshot.set(c.eduvia_id, c);
+  }
+  return snapshot;
 }
 
 /**

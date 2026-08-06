@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { logger } from '@/lib/utils/logger';
 import { resolveTauxCommission } from '@/lib/utils/commission';
 import { isContratActif } from '@/lib/utils/contrat-states';
@@ -465,10 +466,17 @@ export async function getEcheancierDuesWith(
   if (contrats.length === 0)
     return { hasEcheancierProjets: false, dues: [], upcoming: [] };
 
-  const billedByContrat = await loadBilledByContrat(
-    supabase,
-    contrats.map((c) => c.id),
-  );
+  const { billed: billedByContrat, error: billedError } =
+    await loadBilledByContrat(
+      supabase,
+      contrats.map((c) => c.id),
+    );
+  // Sans le deja-facture complet, `coveredQp` serait sous-estime et des jalons
+  // deja encaisses ressortiraient comme dus (affichage, bouton "preparer les
+  // brouillons" et cron echeancier-retard). Mieux vaut ne rien proposer.
+  if (billedError) {
+    return { hasEcheancierProjets: true, dues: [], upcoming: [] };
+  }
 
   const cutoffMois = currentMoisCutoff();
   const dues = computeEcheancierDues({
@@ -500,24 +508,38 @@ export async function getEcheancierDuesWith(
 async function loadBilledByContrat(
   supabase: AnySupabase,
   contratIds: string[],
-): Promise<Map<string, BilledJalonLine[]>> {
+): Promise<{ billed: Map<string, BilledJalonLine[]>; error: boolean }> {
   const billed = new Map<string, BilledJalonLine[]>();
   const CHUNK = 200;
   for (let i = 0; i < contratIds.length; i += CHUNK) {
     const chunk = contratIds.slice(i, i + CHUNK);
-    const { data, error } = await supabase
-      .from('facture_lignes')
-      .select(
-        'contrat_id, montant_ht, npec_snapshot, taux_commission_snapshot, facture:factures!inner(est_avoir)',
-      )
-      .in('contrat_id', chunk)
-      .is('event_type', null)
-      .gt('mois_relatif', 0);
+    // Pagination exhaustive : sans .range(), PostgREST tronque a max_rows (1000)
+    // SANS erreur. Les contrats absents ressortaient alors avec coveredQp = 0,
+    // donc tous leurs jalons deja factures reproposes comme dus - exactement ce
+    // que l'en-tete de ce module promet de ne jamais faire. L'ordre sur `id` est
+    // obligatoire : sans lui les pages peuvent se chevaucher ou sauter.
+    const { data, error } = await fetchAllRows(
+      (from, to) =>
+        supabase
+          .from('facture_lignes')
+          .select(
+            'contrat_id, montant_ht, npec_snapshot, taux_commission_snapshot, facture:factures!inner(est_avoir)',
+          )
+          .in('contrat_id', chunk)
+          .is('event_type', null)
+          .gt('mois_relatif', 0)
+          .order('id')
+          .range(from, to),
+      1000,
+    );
     if (error) {
+      // `continue` avant : le lot manquant faisait sur-proposer des jalons deja
+      // encaisses. On abandonne le calcul, comme les deux autres erreurs de ce
+      // fichier (:414, :458) qui font un return propre.
       logger.error('queries.echeancier-dues', 'lignes fetch failed', {
         error,
       });
-      continue;
+      return { billed, error: true };
     }
     for (const l of data ?? []) {
       if (!l.contrat_id || l.facture?.est_avoir) continue;
@@ -530,5 +552,5 @@ async function loadBilledByContrat(
       billed.set(l.contrat_id, arr);
     }
   }
-  return billed;
+  return { billed, error: false };
 }

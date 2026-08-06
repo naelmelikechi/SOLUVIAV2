@@ -51,11 +51,26 @@ Seulement si le fix est petit (moins de 30 lignes environ), evident et sans risq
 - Branche `claude/monitoring-<date du jour AAAA-MM-JJ>`. Ce prefixe `claude/` est important : c'est le seul dont le push est toujours accepte, les autres prefixes passent par un controle qui peut rejeter silencieusement.
 - UNE seule PR regroupant toutes les corrections mineures du jour, titre prefixe `fix(monitoring):`.
 - Relance `npm run lint`, `npm run typecheck` et `npm test` avant de pousser. Si un check casse a cause de ta modification, corrige-la ou retire-la.
-- Ne pousse JAMAIS sur `main` directement : la branche main est protegee, la PR est obligatoire, et il n'y a pas d'auto-merge. N'essaie pas de merger toi-meme.
-- Verifie que tu n'as pas laisse dans le commit une modification de manifeste faite pour contourner le blocage `cdn.sheetjs.com` : `package.json` et `package-lock.json` doivent revenir a leur etat d'origine.
+- Ne pousse JAMAIS sur `main` directement : la branche main est protegee et la PR est obligatoire. Ne merge jamais toi-meme non plus, sauf via l'exception encadree plus bas.
+- Si tu as modifie le manifeste pour contourner le blocage `cdn.sheetjs.com`, restaure-le AVANT de committer, sans te fier a ta memoire : `git checkout -- package.json package-lock.json`. Puis verifie avec `git diff --cached --name-only` qu'aucun des deux n'apparait dans le commit. Ce contournement est la seule raison pour laquelle ta PR pourrait embarquer une modification de dependance : si l'un des deux fichiers est la, c'est une erreur, retire-le.
 - NE TOUCHE PAS de ta propre initiative a une formule de facturation, un taux, un arrondi, une policy RLS ou une migration : meme si tu es sur, ca va dans le rapport, pas dans une PR automatique.
 - Corps de PR : un paragraphe par correction, avec le pourquoi et pas seulement le quoi. Cite les fichiers et les lignes, et signale honnetement si une correction porte sur du code aujourd'hui inatteignable.
 - Si tu n'as aucune correction mineure sure a faire : pas de PR. C'est un resultat valable.
+
+### Auto-merge : une exception etroite, et une seule
+
+Tu peux activer l'auto-merge (`gh pr merge --auto --squash`) sur ta PR du jour uniquement si les SIX conditions suivantes sont vraies. Une seule qui manque, ou un seul doute, et tu laisses la PR a relire.
+
+1. La PR ne contient QUE des corrections de la classe triviale : faute d'orthographe ou accent dans un texte d'interface, `alt` manquant, metadata absente, erreur de lint ou de formatage, libelle mal orthographie, texte d'interface en anglais a traduire.
+2. Elle ne touche AUCUN fichier sous `supabase/migrations/`, `lib/echeancier/`, `lib/actions/`, `app/api/`, ni aucun fichier de test, ni `package.json`, ni `package-lock.json`.
+3. Le diff total fait moins de 30 lignes.
+4. Aucune correction ne change une valeur vue par l'utilisateur autrement qu'en corrigeant son orthographe. Un montant, une date, un taux, un statut : jamais.
+5. Le corps de la PR liste chaque fichier touche et dit en une ligne pourquoi il entre dans la classe triviale. Si tu n'arrives pas a l'ecrire pour un fichier, c'est qu'il n'y entre pas.
+6. Tu n'actives l'auto-merge qu'APRES avoir pousse, pour que la CI reste le dernier mot. `--auto` attend qu'elle soit verte, il ne la contourne pas.
+
+Ce que l'auto-merge ne rattrape pas : une CI verte peut porter du code faux. Elle a deja menti sur ce depot, le test e2e de facturation echouant a chaque run en etant rattrape par un retry, sans que personne le voie pendant des semaines. C'est exactement pourquoi la liste ci-dessus exclut tout ce qui touche a un calcul, a une donnee ou a un contrat d'interface : sur la classe triviale, une CI verte est une preuve suffisante ; ailleurs, non.
+
+Tout ce qui ne remplit pas les six conditions part en PR normale, sans auto-merge. C'est le cas par defaut, et c'est tres bien.
 
 ### Gros chantiers : un rapport
 Pour tout ce qui est trop lourd ou trop risque pour une PR automatique (refonte, migration de schema, bug qui demande un arbitrage produit, dette architecturale, composant devenu ingerable) :

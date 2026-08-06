@@ -3565,6 +3565,8 @@ export type Database = {
       projet_lancement_etapes: {
         Row: {
           created_at: string;
+          date_objectif: string | null;
+          date_realisation: string | null;
           etape_key: string;
           id: string;
           projet_id: string;
@@ -3574,6 +3576,8 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          date_objectif?: string | null;
+          date_realisation?: string | null;
           etape_key: string;
           id?: string;
           projet_id: string;
@@ -3583,6 +3587,8 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          date_objectif?: string | null;
+          date_realisation?: string | null;
           etape_key?: string;
           id?: string;
           projet_id?: string;

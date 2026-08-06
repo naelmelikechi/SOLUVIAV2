@@ -62,6 +62,12 @@ export function TimeGrid({
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>(
     {},
   );
+  // Payload de chaque sauvegarde en attente, indexe par la meme cle que son
+  // timer. Sans ca, le cleanup ne pouvait que TUER les timers : il n'avait pas
+  // de quoi rejouer la sauvegarde. Cf le commentaire du cleanup.
+  const pendingPayloads = useRef<
+    Record<string, { projetId: string; date: string; parsed: number }>
+  >({});
   const mountedRef = useRef(true);
 
   // Cleanup au unmount. On lit explicitement `.current` au cleanup (pas une
@@ -76,6 +82,24 @@ export function TimeGrid({
       // eslint-disable-next-line react-hooks/exhaustive-deps
       Object.values(debounceTimers.current).forEach(clearTimeout);
       if (saveStatusTimer.current) clearTimeout(saveStatusTimer.current);
+
+      // FLUSH, et non simple abandon. Avant, on se contentait de tuer les
+      // timers : la derniere cellule saisie etait perdue. Le geste de fin de
+      // saisie normal est « je tape ma valeur puis je clique ailleurs » ; ce
+      // clic sur un lien de navigation declenche le blur (donc la sauvegarde
+      // debouncee a 2 s), puis le demontage tuait la fenetre avant qu'elle
+      // n'expire. Verifie empiriquement : demonte a 1,5 s puis avance de 5 s,
+      // zero appel a saveSaisieTemps.
+      //
+      // On rejoue donc immediatement les sauvegardes en attente. Fire and
+      // forget assume : le composant est demonte, il n'y a plus d'etat a
+      // mettre a jour, et en navigation client Next.js le contexte JS survit
+      // donc la requete aboutit. Le catch evite une rejection non geree.
+      const pending = Object.values(pendingPayloads.current);
+      pendingPayloads.current = {};
+      for (const p of pending) {
+        void saveSaisieTemps(p.projetId, p.date, p.parsed).catch(() => {});
+      }
     };
   }, []);
 
@@ -155,8 +179,12 @@ export function TimeGrid({
     if (debounceTimers.current[key]) {
       clearTimeout(debounceTimers.current[key]);
     }
+    // Memorise le payload AVANT d'armer le timer, pour que le cleanup puisse le
+    // rejouer si le composant est demonte pendant la fenetre de debounce.
+    pendingPayloads.current[key] = { projetId, date, parsed };
     debounceTimers.current[key] = setTimeout(async () => {
       delete debounceTimers.current[key];
+      delete pendingPayloads.current[key];
       if (!mountedRef.current) return;
       setSaveStatus('saving');
       // Le composant a pu unmount pendant le await (navigation). On gate les

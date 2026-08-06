@@ -121,7 +121,12 @@ export function NewDevisDialog({
   function handleOpenChange(next: boolean) {
     if (pending) return;
     setOpen(next);
-    if (!next) reset();
+    // On ne remet PLUS a zero a la fermeture. `reset()` etait appele sur TOUTE
+    // fermeture, y compris une touche Echap ou un clic a l'exterieur : la saisie
+    // etait perdue sans confirmation ni brouillon local, et rouvrir le dialogue
+    // donnait un formulaire vide. Le reset n'a lieu qu'apres une creation
+    // reussie (cf handleSubmit), ce qui est le seul moment ou l'ancienne saisie
+    // n'a plus de valeur.
   }
 
   function addLigne() {

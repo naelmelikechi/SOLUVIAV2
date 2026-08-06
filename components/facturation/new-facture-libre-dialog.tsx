@@ -103,10 +103,13 @@ export function NewFactureLibreDialog({
     );
   }
 
+  // On ne remet PLUS a zero a la fermeture : `reset()` etait appele sur TOUTE
+  // fermeture, y compris Echap ou un clic a l'exterieur, et la saisie etait
+  // perdue sans confirmation ni brouillon local. Le reset n'a lieu qu'apres une
+  // creation reussie, seul moment ou l'ancienne saisie n'a plus de valeur.
   function handleOpenChange(next: boolean) {
     if (isSubmitting) return;
     onOpenChange(next);
-    if (!next) reset();
   }
 
   function addLigne() {

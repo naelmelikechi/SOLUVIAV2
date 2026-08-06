@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { useState } from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
@@ -72,6 +73,45 @@ describe('NewFactureLibreDialog', () => {
       screen.queryByLabelText(/société émettrice/i),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/S\.A\.S\. SOLUVIA/)).toBeInTheDocument();
+  });
+
+  it('la saisie survit a une fermeture accidentelle puis reouverture', () => {
+    // Regression (audit #122, constat 12c). `handleOpenChange` appelait reset()
+    // sur TOUTE fermeture, y compris une touche Echap ou un clic a l'exterieur :
+    // la saisie etait perdue sans confirmation ni brouillon local, et rouvrir le
+    // dialogue donnait un formulaire vide. Le reset ne doit avoir lieu qu'apres
+    // une creation reussie.
+    function Wrapper() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            reouvrir
+          </button>
+          <NewFactureLibreDialog
+            open={open}
+            onOpenChange={setOpen}
+            clients={clients}
+            societes={societesSingle}
+          />
+        </>
+      );
+    }
+    render(<Wrapper />);
+
+    fireEvent.change(
+      screen.getAllByPlaceholderText(/Description ligne 1/)[0]!,
+      { target: { value: 'Prestation a ne pas perdre' } },
+    );
+
+    // Fermeture par le bouton Annuler, qui passe par handleOpenChange(false),
+    // exactement comme Echap et le clic exterieur.
+    fireEvent.click(screen.getByRole('button', { name: /annuler/i }));
+    fireEvent.click(screen.getByRole('button', { name: /reouvrir/i }));
+
+    expect(
+      screen.getAllByPlaceholderText(/Description ligne 1/)[0]!,
+    ).toHaveValue('Prestation a ne pas perdre');
   });
 
   it('submit envoie societeEmettriceId au server action', async () => {

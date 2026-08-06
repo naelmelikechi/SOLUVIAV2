@@ -31,6 +31,12 @@ alter table public.brain_ingest_runs enable row level security;
 -- Lecture admin/superadmin uniquement (même garde que brain_proposals).
 -- Les écritures viennent du script local via pg-meta (supabase_admin) : il
 -- bypasse la RLS, pas de policy insert/update/delete pour `authenticated`.
+-- `drop if exists` d'abord : cette migration a déjà été appliquée en prod sous
+-- un numéro qui entrait en collision avec une autre. Renumérotée, elle sera
+-- rejouée par le runner de prod (qui tracke par nom de fichier) et doit donc
+-- rester idempotente.
+drop policy if exists "runs d'ingestion lisibles par admin"
+  on public.brain_ingest_runs;
 create policy "runs d'ingestion lisibles par admin"
   on public.brain_ingest_runs for select to authenticated
   using ((select public.is_admin()));

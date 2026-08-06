@@ -29,7 +29,7 @@ type Client = SupabaseClient<Database>;
  *  - lignes hors jalon (mois_relatif <= 0 ou quote_part <= 0) : lignes libres/
  *    manuelles qui ne participent pas a la formule.
  */
-async function loadBilledLines(
+export async function loadBilledLines(
   supabase: Client,
   contratId: string,
 ): Promise<BilledLine[]> {

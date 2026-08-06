@@ -95,19 +95,37 @@ export async function GET(request: Request) {
 
     for (const due of dues) {
       try {
-        if (due === 'rappel_dev' && devId) {
+        if (due === 'rappel_dev') {
+          // devId peut etre null (ni genere_par ni apporteur_commercial_id, cas
+          // anticipe plus haut). Avant, la chaine de else if etait alors
+          // traversee sans rien inserer, mais le timestamp d'idempotence etait
+          // pose quand meme : le rappel etait perdu DEFINITIVEMENT et le
+          // compteur final mentait. On retombe sur les admins, seuls a pouvoir
+          // debloquer la situation.
+          const cibles = devId ? [devId] : adminIds;
+          if (cibles.length === 0)
+            throw new Error('aucune cible pour le rappel dev');
           // oxlint-disable-next-line react-doctor/async-await-in-loop
-          await supabase.from('notifications').insert({
-            user_id: devId,
-            type: 'passation_rappel',
-            titre: 'Synthèse de passation en attente',
-            message: `La synthèse de ${nom} attend vos sections 6 et 8 depuis plus de 18h (délai : 48h après signature).`,
-            lien: lienApp,
-          });
+          const { error: notifErr } = await supabase
+            .from('notifications')
+            .insert(
+              cibles.map((uid) => ({
+                user_id: uid,
+                type: 'passation_rappel' as const,
+                titre: 'Synthèse de passation en attente',
+                message: devId
+                  ? `La synthèse de ${nom} attend vos sections 6 et 8 depuis plus de 18h (délai : 48h après signature).`
+                  : `La synthèse de ${nom} attend ses sections 6 et 8 depuis plus de 18h, et aucun Développeur n'est identifié dessus.`,
+                lien: lienApp,
+              })),
+            );
+          if (notifErr) throw notifErr;
         } else if (due === 'escalade_dev') {
           const cibles = new Set([...adminIds, ...(devId ? [devId] : [])]);
-          if (cibles.size > 0) {
-            await supabase.from('notifications').insert(
+          if (cibles.size === 0) throw new Error('aucune cible escalade dev');
+          const { error: notifErr } = await supabase
+            .from('notifications')
+            .insert(
               [...cibles].map((uid) => ({
                 user_id: uid,
                 type: 'passation_rappel' as const,
@@ -116,11 +134,14 @@ export async function GET(request: Request) {
                 lien: lienApp,
               })),
             );
-          }
+          if (notifErr) throw notifErr;
         } else if (due === 'rappel_referent') {
           const cibles = new Set([...referentIds, ...adminIds]);
-          if (cibles.size > 0) {
-            await supabase.from('notifications').insert(
+          if (cibles.size === 0)
+            throw new Error('aucune cible rappel referent');
+          const { error: notifErr } = await supabase
+            .from('notifications')
+            .insert(
               [...cibles].map((uid) => ({
                 user_id: uid,
                 type: 'passation_rappel' as const,
@@ -129,10 +150,13 @@ export async function GET(request: Request) {
                 lien: lienApp,
               })),
             );
-          }
+          if (notifErr) throw notifErr;
         } else if (due === 'escalade_direction') {
-          if (adminIds.length > 0) {
-            await supabase.from('notifications').insert(
+          if (adminIds.length === 0)
+            throw new Error('aucun admin pour escalade direction');
+          const { error: notifErr } = await supabase
+            .from('notifications')
+            .insert(
               adminIds.map((uid) => ({
                 user_id: uid,
                 type: 'passation_rappel' as const,
@@ -141,13 +165,23 @@ export async function GET(request: Request) {
                 lien: lienApp,
               })),
             );
-          }
+          if (notifErr) throw notifErr;
         }
 
+        // L'idempotence de lib/passation/echeances.ts repose ENTIEREMENT sur ce
+        // timestamp. S'il est pose alors que la notification n'est pas partie, le
+        // rappel n'est jamais renvoye ; s'il n'est pas pose alors qu'elle est
+        // partie, la meme notification repart 6 fois par jour ouvre. Les deux
+        // erreurs etaient avalees : supabase-js ne throw pas, donc le catch
+        // ci-dessous etait mort. On leve explicitement pour qu'il redevienne vif.
         const patch: Database['public']['Tables']['document_synthese']['Update'] =
           { updated_at: now.toISOString() };
         patch[ECHEANCE_COLONNE[due]] = now.toISOString();
-        await supabase.from('document_synthese').update(patch).eq('id', doc.id);
+        const { error: stampErr } = await supabase
+          .from('document_synthese')
+          .update(patch)
+          .eq('id', doc.id);
+        if (stampErr) throw stampErr;
         compteurs[due] += 1;
       } catch (err) {
         failed += 1;

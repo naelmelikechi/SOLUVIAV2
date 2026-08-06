@@ -91,6 +91,11 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
   const [bulkPending, startBulkTransition] = useTransition();
   const [rowPendingId, setRowPendingId] = useState<string | null>(null);
   const [rowAction, setRowAction] = useState<'send' | 'delete' | null>(null);
+  // Emission en masse : etape de confirmation obligatoire. sendFacturesBulk
+  // attribue un numero gapless DEFINITIF et envoie le PDF au client par mail,
+  // sans override de destinataires : c'est le geste le moins reversible de
+  // l'ecran, il ne peut pas partir sur un simple clic.
+  const [confirmBulk, setConfirmBulk] = useState<string[] | null>(null);
 
   // Etat du dialog d'envoi pour un brouillon (single send). Contient l'id de
   // la facture, sa ref optionnelle et la liste des contacts du client charges
@@ -241,13 +246,17 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
       <EmptyState
         icon={Inbox}
         title="Aucun brouillon"
-        description="Les brouillons apparaîtront ici après avoir préparé les factures depuis l’onglet Échéances."
+        description="Les brouillons apparaîtront ici après avoir préparé les factures depuis l’onglet Échéancier."
       />
     );
   }
 
   const selectedIdsArray = Array.from(selectedIds);
-  const allIds = brouillons.map((b) => b.id);
+  // `filtered` et non `brouillons` : construit sur la prop brute, "Tout envoyer"
+  // ignorait le champ de recherche. Un admin qui tapait un nom de client, voyait
+  // une seule ligne et cliquait sur le bouton vert emettait TOUS les brouillons,
+  // y compris ceux masques par le filtre a cet instant.
+  const visibleIds = filtered.map((b) => b.id);
 
   return (
     <TooltipProvider delay={200}>
@@ -264,7 +273,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
               variant="outline"
               size="sm"
               disabled={selectedIds.size === 0 || bulkPending}
-              onClick={() => handleSendBulk(selectedIdsArray)}
+              onClick={() => setConfirmBulk(selectedIdsArray)}
             >
               {bulkPending ? (
                 <Loader2 className="mr-1.5 size-4 animate-spin" />
@@ -275,15 +284,19 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
             </Button>
             <Button
               size="sm"
-              disabled={brouillons.length === 0 || bulkPending}
-              onClick={() => handleSendBulk(allIds)}
+              disabled={visibleIds.length === 0 || bulkPending}
+              onClick={() => setConfirmBulk(visibleIds)}
             >
               {bulkPending ? (
                 <Loader2 className="mr-1.5 size-4 animate-spin" />
               ) : (
                 <Send className="mr-1.5 size-4" />
               )}
-              {'Tout envoyer'}
+              {/* Le compteur rend explicite la portee reelle du bouton : avec un
+                  filtre actif il n'envoie que ce qui est visible. */}
+              {search
+                ? `Envoyer les ${visibleIds.length} affichés`
+                : `Tout envoyer (${visibleIds.length})`}
             </Button>
           </div>
         </div>
@@ -595,6 +608,29 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
           confirmLabel="Envoyer"
         />
       )}
+
+      {/* Bulk send confirmation */}
+      <ConfirmDialog
+        open={confirmBulk !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmBulk(null);
+        }}
+        title={
+          confirmBulk && confirmBulk.length === 1
+            ? 'Émettre cette facture ?'
+            : `Émettre ces ${confirmBulk?.length ?? 0} factures ?`
+        }
+        description={
+          'Chaque brouillon reçoit un numéro de facture définitif et son PDF part immédiatement par email au client. Cette action est irréversible : la numérotation est continue par obligation légale, une facture émise ne peut pas être supprimée, seulement annulée par un avoir.'
+        }
+        confirmText="Émettre et envoyer"
+        isPending={bulkPending}
+        onConfirm={() => {
+          const ids = confirmBulk;
+          setConfirmBulk(null);
+          if (ids) handleSendBulk(ids);
+        }}
+      />
 
       {/* Delete confirmation */}
       <ConfirmDialog

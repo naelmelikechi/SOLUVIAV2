@@ -88,14 +88,18 @@ export async function loadBilledLines(
 async function loadAvoirsCredit(
   supabase: Client,
   contratId: string,
-): Promise<number> {
+): Promise<number | null> {
   const { data, error } = await supabase
     .from('facture_lignes')
     .select('montant_ht, factures!inner(est_avoir)')
     .eq('contrat_id', contratId);
   if (error) {
+    // `null` et non `0` : renvoyer 0 serait indistinguable de "aucun avoir",
+    // et la compensation `deltaBrut - creditsExisting` sauterait. L'appelant
+    // doit alors s'abstenir de creer un ajustement plutot que d'en creer un
+    // gonfle de ce qui a deja ete rembourse.
     logger.error(SCOPE, 'load avoirs credit failed', { error, contratId });
-    return 0;
+    return null;
   }
   let total = 0;
   for (const row of data ?? []) {
@@ -133,6 +137,10 @@ export async function detectNpecChangeAjustement(
 
   const { data: contrat, error: contratErr } = contratRes;
   if (contratErr || !contrat) return 0;
+  // creditsExisting null = la lecture des avoirs deja emis a echoue. On
+  // s'abstient : creer l'ajustement ici reviendrait a le calculer sur le delta
+  // BRUT et donc a rembourser une seconde fois ce qui l'a deja ete.
+  if (creditsExisting === null) return 0;
 
   const projet = contrat.projets as { taux_commission: number | null } | null;
   const tauxActuel = Number(projet?.taux_commission ?? 0);
@@ -248,6 +256,9 @@ export async function detectRuptureAjustement(
 
   const { data: contrat, error: contratErr } = contratRes;
   if (contratErr || !contrat) return 0;
+  // Voir detectNpecChangeAjustement : sans le montant deja credite, l'avoir net
+  // serait calcule sur le brut et rembourserait une seconde fois.
+  if (creditsExisting === null) return 0;
   if (!contrat.date_debut || !contrat.duree_mois) return 0;
 
   // 1. Calcule l'avoir : compare le facture au gagne (jalon-aware au niveau

@@ -92,3 +92,52 @@ export function avoirAnnulation(
   if (credit >= -0.005) return null;
   return (montantHt ?? 0) + credit <= 0.005 ? 'totale' : 'partielle';
 }
+
+/**
+ * « En retard » / « Restant du » : DEFINITION UNIQUE (audit #122, constat 13).
+ *
+ * Le rapport a releve TROIS implementations divergentes sous un seul libelle :
+ *   - lib/queries/dashboard/financials.ts deduisait avoirs ET paiements
+ *   - lib/queries/factures.ts (kpiEncours) deduisait les avoirs seuls
+ *   - la RPC production_month_sums et son fallback TS, les avoirs seuls
+ *
+ * Aucune n'etait qualifiee a l'ecran : les trois s'appellent litteralement
+ * « En retard ». Le rapprochement decisif est /pilotage contre /facturation,
+ * deux cumuls a date directement comparables. Sur une facture de 12 000 HT
+ * (14 400 TTC) avec un acompte de 8 000 TTC, le chip du pilotage affichait
+ * 5 333,33 HT et la carte facturation 12 000 HT. Et le chip porte le CTA
+ * « Relancer » vers /facturation : l'utilisateur cliquait sur « En retard
+ * 5 333 » et atterrissait sur un ecran affichant « En retard 12 000 ».
+ *
+ * CONVENTION RETENUE (option 1 du chantier C, recommandee par le rapport) :
+ * le restant du, avoirs ET paiements deduits. C'est la grandeur utile a la
+ * relance, et c'est celle qu'implementait deja financials.ts.
+ *
+ * Ces deux fonctions sont desormais le SEUL endroit ou la regle est ecrite :
+ * changer d'avis se fait ici, et le test pgTAP compare la RPC a ce resultat
+ * pour qu'elles ne puissent plus divergent en silence.
+ */
+export function soldeRestantDuHt(
+  montantHt: number | null | undefined,
+  montantTtc: number | null | undefined,
+  avoirs: AvoirsEmbed,
+  paiementsTtc: number,
+): number {
+  const solde = soldeNetHt(montantHt, avoirs);
+  if (solde <= 0) return 0;
+  // Les paiements sont encaisses en TTC : on les ramene au HT au prorata reel
+  // de la facture, et non a un taux suppose.
+  const ratio =
+    montantTtc && montantTtc !== 0 ? (montantHt ?? 0) / montantTtc : 1;
+  return Math.max(0, solde - paiementsTtc * ratio);
+}
+
+export function soldeRestantDuTtc(
+  montantTtc: number | null | undefined,
+  avoirs: AvoirsTtcEmbed,
+  paiementsTtc: number,
+): number {
+  const soldeTtc = soldeNetTtc(montantTtc, avoirs);
+  if (soldeTtc <= 0) return 0;
+  return Math.max(0, soldeTtc - paiementsTtc);
+}

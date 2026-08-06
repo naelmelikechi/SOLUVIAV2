@@ -32,9 +32,25 @@ test.describe('Facturation - flux critique brouillon -> emission -> PDF', () => 
   test('facture libre -> envoi -> ref gapless + PDF servi', async ({
     page,
   }) => {
+    // ----- 0. Relever les refs deja emises pour le client de test -----
+    // Anti-fuite entre tentatives : `retries: 2` rejoue ce test sur la MEME
+    // base. Sans ce releve, une tentative qui echoue laisse sa facture derriere
+    // elle et la tentative suivante validerait la ligne de la precedente. C'est
+    // exactement ce qui s'est produit : le test remontait "1 flaky" a chaque
+    // run et masquait un vrai bug de rafraichissement de la liste.
+    await page.goto('/facturation');
+    await page.getByRole('tab', { name: /^factures/i }).click();
+    const refsAvant = new Set(
+      (
+        await page
+          .getByRole('row')
+          .filter({ hasText: CLIENT_NAME })
+          .allTextContents()
+      ).flatMap((t) => t.match(/FAC-[A-Z]{3}-\d{4}/g) ?? []),
+    );
+
     // ----- 1. Creer un brouillon de facture libre via le dialog -----
     // CTA unique "Nouvelle facture" -> etape de choix -> "Hors projet".
-    await page.goto('/facturation');
     await page
       .getByRole('button', { name: /nouvelle facture/i })
       .first()
@@ -91,17 +107,32 @@ test.describe('Facturation - flux critique brouillon -> emission -> PDF', () => 
 
     // ----- 3. La facture emise porte une ref gapless (serie unique FAC-SOL-
     // depuis 20260610130000 ; regex tolerante au prefixe pour ne pas coupler
-    // le test a la convention). On cible la LIGNE du client de test pour ne
-    // pas attraper une autre facture.
+    // le test a la convention). On cible les lignes du client de test, et on
+    // exige une ref ABSENTE du releve initial : une facture heritee d'une
+    // tentative precedente ne doit pas valider ce test.
     await page.getByRole('tab', { name: /^factures/i }).click();
-    const emiseRow = page
-      .getByRole('row')
-      .filter({ hasText: CLIENT_NAME })
-      .first();
-    await expect(emiseRow).toBeVisible({ timeout: 15_000 });
-    const rowText = (await emiseRow.textContent()) ?? '';
-    const ref = rowText.match(/FAC-[A-Z]{3}-\d{4}/)?.[0];
-    expect(ref, 'ref gapless extraite de la ligne du client e2e').toBeTruthy();
+    let ref: string | undefined;
+    await expect
+      .poll(
+        async () => {
+          const textes = await page
+            .getByRole('row')
+            .filter({ hasText: CLIENT_NAME })
+            .allTextContents();
+          ref = textes
+            .flatMap((t) => t.match(/FAC-[A-Z]{3}-\d{4}/g) ?? [])
+            .find((r) => !refsAvant.has(r));
+          return ref ?? null;
+        },
+        {
+          timeout: 15_000,
+          message:
+            "la facture emise doit apparaitre dans l'onglet Factures sans rechargement",
+        },
+      )
+      .not.toBeNull();
+    // Retrecit le type pour la suite : le poll ci-dessus a deja echoue si null.
+    if (!ref) throw new Error('ref gapless introuvable apres emission');
 
     // ----- 4. Le PDF est servi et valide (magic bytes %PDF) -----
     const pdfRes = await page.request.get(`/api/factures/${ref}/pdf`);

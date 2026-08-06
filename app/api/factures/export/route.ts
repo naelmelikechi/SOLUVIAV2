@@ -7,6 +7,7 @@ import {
 } from '@/lib/queries/factures';
 import { formatDate } from '@/lib/utils/formatters';
 import { STATUT_FACTURE_LABELS } from '@/lib/utils/constants';
+import { avoirAnnulation } from '@/lib/utils/avoir-netting';
 import { logger } from '@/lib/utils/logger';
 
 export const maxDuration = 60;
@@ -74,7 +75,15 @@ export async function GET(request: Request) {
         Mois: f.mois_concerne,
         'Montant HT': f.montant_ht,
         Échéance: f.date_echeance ? formatDate(f.date_echeance) : '',
-        État: STATUT_FACTURE_LABELS[f.statut] || f.statut,
+        // Meme regle que l'ecran (facture-list-columns) : le statut DB ne change
+        // jamais a l'emission d'un avoir, l'annulation totale doit donc etre
+        // annotee ici aussi. Sans ca l'export affichait "Emise" ou "Payee" pour
+        // une facture que l'ecran presente comme annulee. L'embed `avoirs` est
+        // deja charge par la projection partagee, aucun cout de requete.
+        État:
+          avoirAnnulation(f.montant_ht, f.avoirs) === 'totale'
+            ? 'Annulée par avoir'
+            : STATUT_FACTURE_LABELS[f.statut] || f.statut,
       });
       if (rows.length >= EXPORT_MAX_ROWS) {
         capped = true;

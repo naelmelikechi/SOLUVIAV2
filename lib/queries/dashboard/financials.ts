@@ -6,7 +6,7 @@ import { computeContractSchedule } from '@/lib/queries/production';
 import { getContratsActifs } from '@/lib/queries/production-aggregates';
 import type { Periode } from '@/lib/utils/dashboard-periode';
 import { encaisseHt } from '@/lib/utils/montant-ht';
-import { soldeNetHt, soldeNetTtc } from '@/lib/utils/avoir-netting';
+import { soldeRestantDuHt, soldeRestantDuTtc } from '@/lib/utils/avoir-netting';
 import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 import {
   format,
@@ -337,19 +337,21 @@ export async function getDashboardFinancials(
   let totalEnRetard = 0;
   let totalEnRetardTtc = 0;
   for (const f of facturesRetardRes.data ?? []) {
-    const solde = soldeNetHt(f.montant_ht, f.avoirs);
-    if (solde <= 0) continue;
+    // Definition UNIQUE du restant du (audit #122, constat 13) : cette
+    // implementation etait la bonne des trois, elle passe simplement par le
+    // helper partage pour que les autres ecrans ne puissent plus divergent.
     const paiements = Array.isArray(f.paiements) ? f.paiements : [];
     const encaisseTtc = paiements.reduce(
       (s: number, p: { montant: number }) => s + p.montant,
       0,
     );
-    const encaisse = encaisseHt(encaisseTtc, f.montant_ht, f.montant_ttc);
-    totalEnRetard += Math.max(0, solde - encaisse);
-    // TTC : meme netting sur les montants PDF (montant_ttc facture + avoirs),
-    // moins les paiements bruts.
-    const soldeTtc = soldeNetTtc(f.montant_ttc, f.avoirs);
-    totalEnRetardTtc += Math.max(0, soldeTtc - encaisseTtc);
+    totalEnRetard += soldeRestantDuHt(
+      f.montant_ht,
+      f.montant_ttc,
+      f.avoirs,
+      encaisseTtc,
+    );
+    totalEnRetardTtc += soldeRestantDuTtc(f.montant_ttc, f.avoirs, encaisseTtc);
   }
   totalEnRetard = Math.round(totalEnRetard * 100) / 100;
   totalEnRetardTtc = Math.round(totalEnRetardTtc * 100) / 100;

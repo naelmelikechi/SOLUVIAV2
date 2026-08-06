@@ -4,8 +4,8 @@ import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import { resolveTauxCommission } from '@/lib/utils/commission';
 import {
-  soldeNetHt,
-  soldeNetTtc,
+  soldeRestantDuHt,
+  soldeRestantDuTtc,
   type AvoirsEmbed,
 } from '@/lib/utils/avoir-netting';
 import type { Database } from '@/types/database';
@@ -359,7 +359,7 @@ export async function getFactureByRef(ref: string) {
       societe_emettrice_id, odoo_id, peppol_state,
       projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, siret, adresse, localisation, tva_intracommunautaire),
-      lignes:facture_lignes(id, contrat_id, description, montant_ht, opco_code, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
+      lignes:facture_lignes(id, contrat_id, description, montant_ht, taux_tva_ligne, opco_code, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
     `,
     )
     .eq('ref', ref)
@@ -393,7 +393,7 @@ export async function getFactureById(id: string) {
       societe_emettrice_id, odoo_id, peppol_state,
       projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, siret, adresse, localisation, tva_intracommunautaire),
-      lignes:facture_lignes(id, contrat_id, description, montant_ht, opco_code, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
+      lignes:facture_lignes(id, contrat_id, description, montant_ht, taux_tva_ligne, opco_code, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
     `,
     )
     .eq('id', id)
@@ -453,7 +453,7 @@ export async function getFacturationKpis(): Promise<FacturationKpis> {
     supabase
       .from('factures')
       .select(
-        'statut, montant_ht, montant_ttc, avoirs:factures!facture_origine_id(montant_ht, montant_ttc, statut)',
+        'statut, montant_ht, montant_ttc, avoirs:factures!facture_origine_id(montant_ht, montant_ttc, statut), paiements(montant)',
       )
       .in('statut', ['emise', 'en_retard']),
     supabase
@@ -468,13 +468,28 @@ export async function getFacturationKpis(): Promise<FacturationKpis> {
     });
   }
 
-  // Solde net par facture (avoirs emis deduits), et compte des seules
-  // factures avec un solde encore du.
-  const encours = (encoursRes.data ?? []).map((f) => ({
-    statut: f.statut,
-    solde: soldeNetHt(f.montant_ht, f.avoirs),
-    soldeTtc: soldeNetTtc(f.montant_ttc, f.avoirs),
-  }));
+  // Restant du par facture : avoirs ET paiements deduits, via la definition
+  // unique de lib/utils/avoir-netting (audit #122, constat 13). Avant, ce KPI
+  // ne deduisait que les avoirs, alors que le chip du /pilotage deduisait aussi
+  // les paiements : deux « En retard » directement comparables donnaient deux
+  // chiffres differents, et le CTA « Relancer » menait de l'un a l'autre.
+  const encours = (encoursRes.data ?? []).map((f) => {
+    const paiements = Array.isArray(f.paiements) ? f.paiements : [];
+    const encaisseTtc = paiements.reduce(
+      (s: number, p: { montant: number }) => s + (p.montant ?? 0),
+      0,
+    );
+    return {
+      statut: f.statut,
+      solde: soldeRestantDuHt(
+        f.montant_ht,
+        f.montant_ttc,
+        f.avoirs,
+        encaisseTtc,
+      ),
+      soldeTtc: soldeRestantDuTtc(f.montant_ttc, f.avoirs, encaisseTtc),
+    };
+  });
   const kpiEncours = (statut: string) => {
     const rows = encours.filter((f) => f.statut === statut && f.solde > 0);
     return {

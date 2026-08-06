@@ -108,6 +108,29 @@ describe('syncProcessIndex', () => {
     expect(res.deleted).toBe(1);
   });
 
+  it('garde anti-wipe : source à 0 fiche mais index peuplé → aucune suppression', async () => {
+    // Régression (audit #122, constat 9). Une source qui répond 200 avec
+    // { "fiches": [] } — ou dont le champ `fiches` a été renommé, ce que le
+    // `?? []` avalait — est indistinguable d'une source cassée. La suppression
+    // des fiches absentes vidait alors tout l'index, et le cron répondait
+    // { ok: true }. Coût réel : RAG process vide jusqu'à 24 h et re-paiement
+    // d'un embedding complet.
+    const admin = fakeAdmin([
+      { source_fiche_id: '1', content_hash: 'h1', detail_hash: 'd-1' },
+      { source_fiche_id: '2', content_hash: 'h2', detail_hash: 'd-2' },
+    ]);
+    await expect(
+      syncProcessIndex({
+        fetchSource: async () => [],
+        embedMany: async () => [],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        admin: admin as any,
+        sourceBaseUrl: 'https://process.example.com',
+      }),
+    ).rejects.toThrow(/anti-wipe/i);
+    expect(admin.deleted).toHaveLength(0);
+  });
+
   it("ne supprime rien si la source est injoignable (propage l'erreur avant delete)", async () => {
     const admin = fakeAdmin([
       { source_fiche_id: '1', content_hash: 'h1', detail_hash: 'd-1' },

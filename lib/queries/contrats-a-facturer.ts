@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { getActiveOpcoMapping } from '@/lib/queries/opcos';
 import {
   resolveOpcoFromIdcc,
@@ -292,22 +293,32 @@ async function loadContratStepInputs(opts: {
 }): Promise<LoadedInputs> {
   const supabase = opts.client ?? (await createClient());
 
-  let query = supabase
-    .from('eduvia_invoice_steps')
-    .select(
-      `contrat_id, step_number, opening_date, invoice_state, total_amount,
+  // Pagination exhaustive obligatoire : sur le chemin global
+  // (getContratsNonFacturesGlobal) il n'y a AUCUN filtre de date, donc ce sont
+  // toutes les echeances non transmises, tous CDP confondus. Sans .range(),
+  // PostgREST tronquait a max_rows (1000) sans erreur, et la somme affichee en
+  // supervision superadmin perdait silencieusement des lignes. L'ordre sur `id`
+  // est obligatoire pour que les pages ne se chevauchent pas.
+  const { data, error } = await fetchAllRows<JoinedStepRow>((from, to) => {
+    let query = supabase
+      .from('eduvia_invoice_steps')
+      .select(
+        `contrat_id, step_number, opening_date, invoice_state, total_amount,
        contrats!inner (
          id, ref, contract_number, apprenant_prenom, apprenant_nom,
          formation_titre, contract_state, archive, facturation_verrouillee,
          eduvia_company_id, source_client_id,
          projets!inner ( ref, cdp_id, clients!inner ( raison_sociale ) )
        )`,
-    )
-    .is('invoice_state', null);
-  if (opts.maxOpeningDate)
-    query = query.lte('opening_date', opts.maxOpeningDate);
-
-  const { data, error } = await query;
+      )
+      .is('invoice_state', null);
+    if (opts.maxOpeningDate)
+      query = query.lte('opening_date', opts.maxOpeningDate);
+    return query.order('id').range(from, to) as unknown as PromiseLike<{
+      data: JoinedStepRow[] | null;
+      error: { message: string } | null;
+    }>;
+  }, 1000);
   if (error) {
     logger.error('queries.contrats-a-facturer', 'fetch failed', { error });
     return {

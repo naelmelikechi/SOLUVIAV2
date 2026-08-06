@@ -69,9 +69,12 @@ export default async function FacturationPage() {
     // Clients réels pour le dialog "Nouvelle facture libre" (admin only).
     // Le pseudo-client INT (Interne SOLUVIA) est exclu, ainsi que les
     // clients archivés.
+    // `tva_intracommunautaire` est necessaire au dialog : sans elle, l'apercu
+    // du TTC etait calcule a 20 % en dur et annoncait donc un montant faux
+    // pour un client en autoliquidation intracommunautaire.
     supabase
       .from('clients')
-      .select('id, trigramme, raison_sociale')
+      .select('id, trigramme, raison_sociale, tva_intracommunautaire')
       .eq('archive', false)
       .neq('trigramme', 'INT')
       .order('raison_sociale'),

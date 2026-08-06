@@ -118,6 +118,15 @@ function buildSupabase(rules: Record<string, TableRules>) {
         op.filters.push({ col, val });
         return chain;
       },
+      // Les lectures paginees (fetchAllRows) chainent .order().range(). Le mock
+      // renvoie toujours le jeu complet : les fixtures font moins d'une page,
+      // donc fetchAllRows s'arrete apres le premier appel.
+      order() {
+        return chain;
+      },
+      range() {
+        return chain;
+      },
       maybeSingle() {
         return settle().then((r) => ({
           data: Array.isArray(r.data) ? (r.data[0] ?? null) : (r.data ?? null),

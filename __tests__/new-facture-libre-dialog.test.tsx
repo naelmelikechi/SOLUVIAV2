@@ -28,7 +28,21 @@ beforeEach(() => {
 
 describe('NewFactureLibreDialog', () => {
   const clients = [
-    { id: 'c1', trigramme: 'DUP', raison_sociale: 'Dupont SARL' },
+    {
+      id: 'c1',
+      trigramme: 'DUP',
+      raison_sociale: 'Dupont SARL',
+      tva_intracommunautaire: null,
+    },
+  ];
+  // Client intracommunautaire (belge) : autoliquidation, donc TVA a 0 %.
+  const clientsIntracom = [
+    {
+      id: 'c2',
+      trigramme: 'BEL',
+      raison_sociale: 'Belgique SPRL',
+      tva_intracommunautaire: 'BE0123456789',
+    },
   ];
   const societesMulti = [
     {
@@ -57,6 +71,35 @@ describe('NewFactureLibreDialog', () => {
     );
     // selecteur affiche les 2 options
     expect(screen.getByLabelText(/société émettrice/i)).toBeInTheDocument();
+  });
+
+  it('apercu TVA : 20 % pour un client francais, 0 % en autoliquidation intracom', () => {
+    // Regression (audit #122, constat 20). Le TTC etait calcule avec 1.2 en dur
+    // alors que le brouillon insere resout le regime depuis le client : pour un
+    // client belge a 1 000 HT, le dialogue annoncait 1 200 TTC et le brouillon
+    // valait 1 000.
+    const { unmount } = render(
+      <NewFactureLibreDialog
+        open
+        onOpenChange={() => {}}
+        clients={clients}
+        societes={societesSingle}
+      />,
+    );
+    fireEvent.click(screen.getAllByText('Dupont SARL')[0]!);
+    expect(screen.getByText('TVA 20%')).toBeInTheDocument();
+    unmount();
+
+    render(
+      <NewFactureLibreDialog
+        open
+        onOpenChange={() => {}}
+        clients={clientsIntracom}
+        societes={societesSingle}
+      />,
+    );
+    fireEvent.click(screen.getAllByText('Belgique SPRL')[0]!);
+    expect(screen.getByText(/TVA 0%.*autoliquidation/i)).toBeInTheDocument();
   });
 
   it('affiche un libelle quand exactement 1 societe', () => {

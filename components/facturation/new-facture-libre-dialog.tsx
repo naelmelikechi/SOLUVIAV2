@@ -16,12 +16,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createFreeBrouillon } from '@/lib/actions/factures';
 import { matchesSearch } from '@/lib/utils/search';
+import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 import { cn } from '@/lib/utils';
 
 export interface FreeFactureClientOption {
   id: string;
   trigramme: string;
   raison_sociale: string;
+  /** Necessaire pour l'apercu du TTC : un client intracommunautaire est en
+   *  autoliquidation, donc a 0 % de TVA et non 20 %. */
+  tva_intracommunautaire: string | null;
 }
 
 export interface SocieteOption {
@@ -81,8 +85,14 @@ export function NewFactureLibreDialog({
     }, 0);
   }, [lignes]);
 
-  const totalTtc = totalHt * 1.2;
   const selectedClient = clients.find((c) => c.id === clientId);
+  // Le taux etait code en dur a 1.2, alors que le brouillon insere resout le
+  // regime depuis le client : pour un client intracommunautaire a 1 000 HT, le
+  // dialogue annoncait 1 200 TTC et le brouillon valait 1 000. On resout ici le
+  // meme regime que le serveur (le PDF, lui, gerait deja correctement
+  // l'autoliquidation).
+  const tvaRegime = resolveTvaRegime(selectedClient?.tva_intracommunautaire);
+  const totalTtc = totalHt * (1 + tvaRegime.taux / 100);
 
   const canSubmit =
     !!clientId &&
@@ -309,7 +319,11 @@ export function NewFactureLibreDialog({
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">TVA 20%</span>
+              <span className="text-muted-foreground">
+                {tvaRegime.isAutoliquidation
+                  ? `TVA 0% (autoliquidation ${tvaRegime.countryCode ?? ''})`
+                  : `TVA ${tvaRegime.taux}%`}
+              </span>
               <span className="font-mono tabular-nums">
                 {(totalTtc - totalHt).toFixed(2)} €
               </span>

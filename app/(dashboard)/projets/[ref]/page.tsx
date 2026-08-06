@@ -4,13 +4,20 @@ import {
   getProjetByRef,
   getContratsByProjetId,
   getProjetFinance,
-  getProjetTempsStats,
-  getDocumentsByProjetId,
 } from '@/lib/queries/projets';
-import { getRdvFormateursByProjetId } from '@/lib/queries/rdv';
-import { listEcheancierTemplates } from '@/lib/queries/echeanciers';
 import { getLancementByProjetId } from '@/lib/queries/projet-lancement';
-import { getApprenantsByProjetId } from '@/lib/queries/apprenants';
+import { getProjetPerformance } from '@/lib/queries/projet-performance';
+import {
+  computeQualiopiCompletionForClients,
+  type QualiopiCompletion,
+} from '@/lib/queries/qualiopi-stats';
+import { ProjetSyntheseCards } from '@/components/projets/projet-synthese-cards';
+// TODO(lot0-task10) : reactiver quand projet-suivi-panel.tsx existe.
+// import { ProjetSuiviPanel } from '@/components/projets/projet-suivi-panel';
+import { buildSyntheseCards } from '@/lib/projets/synthese';
+import { ttcToHt } from '@/lib/utils/montant-ht';
+import { isContratActif } from '@/lib/utils/contrat-states';
+import { LANCEMENT_ETAPES } from '@/lib/lancement/constants';
 
 export async function generateMetadata({
   params,
@@ -20,179 +27,66 @@ export async function generateMetadata({
   const { ref } = await params;
   return { title: `${ref} - Projets - SOLUVIA` };
 }
-import { Breadcrumbs } from '@/components/shared/breadcrumbs';
-import { SectionNav } from '@/components/shared/section-nav';
-import { ProjetFinanceSection } from '@/components/projets/projet-finance-section';
-import { ProjetTempsSection } from '@/components/projets/projet-temps-section';
-import { ProjetQualiteSection } from '@/components/projets/projet-qualite-section';
-import { ProjetContratsTable } from '@/components/projets/projet-contrats-table';
-import { ProjetDetailHeader } from '@/components/projets/projet-detail-header';
-import { ProjetEcheancierManualPlaceholder } from '@/components/projets/projet-echeancier-section';
-import { ProjetPerformanceVolets } from '@/components/projets/projet-performance-volets';
-import { getProjetPerformance } from '@/lib/queries/projet-performance';
-import { ProjetDuplicateButton } from '@/components/projets/projet-duplicate-button';
-import { ProjetDocumentsSection } from '@/components/projets/projet-documents-section';
-import { ProjetLancementSection } from '@/components/projets/projet-lancement-section';
-import { ProjetApprenantsTable } from '@/components/projets/projet-apprenants-table';
-import { ProjetRdvSection } from '@/components/projets/projet-rdv-section';
-import { EntiteTachesSection } from '@/components/taches/entite-taches-section';
-import { createClient } from '@/lib/supabase/server';
-import { isAdmin } from '@/lib/utils/roles';
-import { isContratActif } from '@/lib/utils/contrat-states';
 
-export default async function ProjetDetailPage({
+export default async function ProjetSynthesePage({
   params,
 }: {
   params: Promise<{ ref: string }>;
 }) {
-  const [{ ref }, supabase] = await Promise.all([params, createClient()]);
-  // Projet + auth en parallele : independants. notFound n est verifie
-  // qu apres pour ne pas perdre le round-trip auth si projet existe.
-  const [projet, authUserRes] = await Promise.all([
-    getProjetByRef(ref),
-    supabase.auth.getUser(),
-  ]);
+  const { ref } = await params;
+  const projet = await getProjetByRef(ref);
+  if (!projet) notFound();
 
-  if (!projet) {
-    notFound();
-  }
+  const [contrats, finance, performance, lancement, qualiopiParClient] =
+    await Promise.all([
+      getContratsByProjetId(projet.id),
+      getProjetFinance(projet.id),
+      getProjetPerformance(projet.id),
+      getLancementByProjetId(projet.id),
+      projet.client?.id
+        ? computeQualiopiCompletionForClients([projet.client.id])
+        : Promise.resolve(new Map<string, QualiopiCompletion>()),
+    ]);
 
-  const authUser = authUserRes.data.user;
+  const qualite = (projet.client?.id
+    ? qualiopiParClient.get(projet.client.id)
+    : null) ?? { realise: 0, total: 0 };
 
-  const [
-    currentUserRes,
-    contrats,
-    finance,
-    temps,
-    documents,
-    rdvsFormateurs,
-    performance,
-    echeancierTemplates,
-    lancement,
-    apprenants,
-  ] = await Promise.all([
-    authUser
-      ? supabase.from('users').select('role').eq('id', authUser.id).single()
-      : Promise.resolve({ data: null as { role: string | null } | null }),
-    getContratsByProjetId(projet.id),
-    getProjetFinance(projet.id),
-    getProjetTempsStats(projet.id),
-    getDocumentsByProjetId(projet.id),
-    getRdvFormateursByProjetId(projet.id),
-    getProjetPerformance(projet.id),
-    listEcheancierTemplates(),
-    getLancementByProjetId(projet.id),
-    getApprenantsByProjetId(projet.id),
-  ]);
+  // Production SOLUVIA en HT : le taux de commission donne un montant TTC,
+  // ttcToHt en deduit le HT (convention d'affichage du projet).
+  const produitHt = finance
+    ? finance.production_opco * ttcToHt(finance.taux_commission / 100)
+    : 0;
 
-  const userIsAdmin = isAdmin(currentUserRes?.data?.role ?? null);
-  const canEditLancement =
-    userIsAdmin ||
-    projet.cdp?.id === authUser?.id ||
-    projet.backup_cdp?.id === authUser?.id;
   const apprentisActifs = contrats.filter((c) =>
     isContratActif(c.contract_state),
   ).length;
 
-  // 4 zones ancrées + sous-nav sticky scroll-spy : le CDP scanne tout le
-  // projet au scroll, la nav donne l'orientation (pas de tabs qui cachent).
+  const cartes = buildSyntheseCards({
+    projetRef: ref,
+    lancement: {
+      terminees: lancement.etapes.filter((e) => e.statut === 'lance').length,
+      total: LANCEMENT_ETAPES.length,
+    },
+    production: {
+      apprentisActifs,
+      progressionPct: performance.pedagogie.value,
+    },
+    finance: {
+      produitHt,
+      factureHt: finance?.facture_soluvia ?? 0,
+    },
+    qualite,
+    contrats: {
+      total: contrats.length,
+      actifs: apprentisActifs,
+    },
+  });
+
   return (
-    <div>
-      <Breadcrumbs
-        items={[{ label: 'Projets', href: '/projets' }, { label: ref }]}
-      />
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <ProjetDetailHeader projet={projet} />
-        {userIsAdmin && (
-          <ProjetDuplicateButton
-            projetId={projet.id}
-            projetRef={projet.ref ?? ''}
-          />
-        )}
-      </div>
-
-      <SectionNav
-        items={[
-          { id: 'synthese', label: 'Synthèse' },
-          { id: 'lancement', label: 'Lancement' },
-          { id: 'finance', label: 'Finance' },
-          { id: 'apprenants', label: 'Apprenants' },
-          { id: 'contrats', label: 'Contrats' },
-          { id: 'activite', label: 'Activité' },
-        ]}
-      />
-
-      <section id="synthese" className="scroll-mt-16">
-        <ProjetPerformanceVolets
-          data={performance}
-          apprentisActifs={apprentisActifs}
-        />
-      </section>
-
-      <section id="lancement" className="mt-8 scroll-mt-16">
-        <ProjetLancementSection
-          projetId={projet.id}
-          projetRef={ref}
-          lancement={lancement}
-          canEdit={canEditLancement}
-          userIsAdmin={userIsAdmin}
-          currentUserId={authUser?.id ?? null}
-        />
-      </section>
-
-      <section id="finance" className="mt-8 scroll-mt-16">
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ProjetFinanceSection
-            finance={finance}
-            projetId={projet.id}
-            canEdit={userIsAdmin}
-            modeleFacturation={
-              projet.modele_facturation === 'engagement'
-                ? 'engagement'
-                : 'echeancier'
-            }
-            echeancierTemplateId={projet.echeancier_template_id}
-            echeancierTemplates={echeancierTemplates.map((t) => ({
-              id: t.id,
-              nom: t.nom,
-              is_default: t.is_default,
-            }))}
-          />
-          <div className="space-y-6">
-            <ProjetTempsSection temps={temps} />
-            <ProjetQualiteSection
-              clientTrigramme={projet.client?.trigramme ?? null}
-            />
-          </div>
-        </div>
-        <div className="mt-4">
-          <ProjetEcheancierManualPlaceholder />
-        </div>
-      </section>
-
-      <section id="apprenants" className="mt-8 scroll-mt-16">
-        <ProjetApprenantsTable apprenants={apprenants} />
-      </section>
-
-      <section id="contrats" className="mt-8 scroll-mt-16">
-        <ProjetContratsTable contrats={contrats} />
-      </section>
-
-      <section id="activite" className="mt-8 scroll-mt-16 space-y-6">
-        {projet.client && (
-          <EntiteTachesSection
-            clientId={projet.client.id}
-            planeProjectId={projet.client.plane_project_id}
-            canEdit={userIsAdmin}
-          />
-        )}
-        <ProjetRdvSection projetId={projet.id} rdvs={rdvsFormateurs} />
-        <ProjetDocumentsSection
-          projetId={projet.id}
-          projetRef={ref}
-          documents={documents}
-        />
-      </section>
+    <div className="space-y-6">
+      <ProjetSyntheseCards cartes={cartes} />
+      {/* TODO(lot0-task10) : <ProjetSuiviPanel projetId={projet.id} projetRef={ref} /> */}
     </div>
   );
 }

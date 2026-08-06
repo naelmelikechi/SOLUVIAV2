@@ -6,7 +6,7 @@ import {
   getMonthSums,
 } from '@/lib/queries/production-aggregates';
 import { monthsBetween } from '@/lib/echeancier/calc';
-import { ttcToHt } from '@/lib/utils/montant-ht';
+import { commissionSoluviaHt } from '@/lib/utils/convention-commission';
 import { round2 } from '@/lib/utils/number';
 import { resolveTauxCommission } from '@/lib/utils/commission';
 import { capitalize } from '@/lib/utils/strings';
@@ -110,8 +110,14 @@ export function computeContractSchedule(
   // Rompu avant tout demarrage : ni production SOLUVIA, ni versement OPCO.
   if (realiseeMois <= 0) return { opco: [], soluvia: [] };
 
-  const totalSoluviaTtc = (npec * tauxCommissionPct) / 100;
-  const totalSoluvia = ttcToHt(totalSoluviaTtc);
+  // Convention HT/TTC : source unique dans lib/utils/convention-commission.
+  // Ce calcul appliquait `ttcToHt` sans distinguer le modele de facturation, ce
+  // qui generalisait a tout le portefeuille une convention documentee comme
+  // HEOL-specifique, alors que le chemin de FACTURATION lit la meme expression
+  // comme du HT. Cf audit #122, constat 4 : la decision appartient aux contrats
+  // de partenariat non-HEOL, pas au code. Le defaut preserve le comportement
+  // actuel a l'identique, et la bascule se fait dans ce seul module.
+  const totalSoluvia = commissionSoluviaHt(npec, tauxCommissionPct);
   const mensualite = round2(totalSoluvia / dureeMois);
 
   if (!tronque) {

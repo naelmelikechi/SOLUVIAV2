@@ -165,7 +165,7 @@ export function AvoirDialog({
         });
         if (result.success) {
           toast.success(
-            'Brouillon d’avoir créé. À vérifier puis envoyer dans l’onglet Brouillons.',
+            'Brouillon d’avoir créé. À vérifier puis envoyer dans l’onglet À émettre.',
           );
           onOpenChange(false);
           setMotif('');

@@ -16,6 +16,8 @@ interface ProjetLancementSectionProps {
   canEdit: boolean;
   userIsAdmin: boolean;
   currentUserId: string | null;
+  seuilEnlisementJours: number;
+  aujourdHui: string;
 }
 
 export function ProjetLancementSection({
@@ -25,12 +27,12 @@ export function ProjetLancementSection({
   canEdit,
   userIsAdmin,
   currentUserId,
+  seuilEnlisementJours,
+  aujourdHui,
 }: ProjetLancementSectionProps) {
-  const statutByKey = new Map(
-    lancement.etapes.map((e) => [e.etape_key, e.statut as LancementStatut]),
-  );
+  const etapeByKey = new Map(lancement.etapes.map((e) => [e.etape_key, e]));
   const nbLancees = LANCEMENT_ETAPES.filter(
-    (e) => statutByKey.get(e.key) === 'lance',
+    (e) => etapeByKey.get(e.key)?.statut === 'lance',
   ).length;
 
   return (
@@ -40,7 +42,7 @@ export function ProjetLancementSection({
           <Rocket className="size-4" /> Timeline de lancement
         </h3>
         <span className="text-muted-foreground text-xs">
-          {nbLancees}/{LANCEMENT_ETAPES.length} lancées
+          {nbLancees}/{LANCEMENT_ETAPES.length} terminées
         </span>
       </div>
       <ol className="space-y-3">
@@ -53,7 +55,10 @@ export function ProjetLancementSection({
             etapeLabel={etape.label}
             index={index}
             isLast={index === LANCEMENT_ETAPES.length - 1}
-            statut={statutByKey.get(etape.key) ?? 'non_commence'}
+            statut={
+              (etapeByKey.get(etape.key)?.statut as LancementStatut) ??
+              'non_commence'
+            }
             documents={lancement.documents.filter(
               (d) => d.etape_key === etape.key,
             )}
@@ -63,6 +68,12 @@ export function ProjetLancementSection({
             canEdit={canEdit}
             userIsAdmin={userIsAdmin}
             currentUserId={currentUserId}
+            dateObjectif={etapeByKey.get(etape.key)?.date_objectif ?? null}
+            dateRealisation={
+              etapeByKey.get(etape.key)?.date_realisation ?? null
+            }
+            seuilEnlisementJours={seuilEnlisementJours}
+            aujourdHui={aujourdHui}
           />
         ))}
       </ol>

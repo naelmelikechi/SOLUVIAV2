@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getProjetByRef } from '@/lib/queries/projets';
 import { getLancementByProjetId } from '@/lib/queries/projet-lancement';
 import { getUser } from '@/lib/queries/users';
+import { getSeuilEnlisementJours } from '@/lib/queries/parametres';
 import { isAdmin } from '@/lib/utils/roles';
 import { ProjetLancementSection } from '@/components/projets/projet-lancement-section';
 
@@ -25,7 +26,13 @@ export default async function ProjetLancementPage({
   const [projet, user] = await Promise.all([getProjetByRef(ref), getUser()]);
   if (!projet) notFound();
 
-  const lancement = await getLancementByProjetId(projet.id);
+  const [lancement, seuilEnlisementJours] = await Promise.all([
+    getLancementByProjetId(projet.id),
+    getSeuilEnlisementJours(),
+  ]);
+
+  // Calcule cote serveur pour que toutes les etapes partagent la meme reference.
+  const aujourdHui = new Date().toISOString().slice(0, 10);
 
   const userIsAdmin = isAdmin(user?.role ?? null);
   const canEdit =
@@ -41,6 +48,8 @@ export default async function ProjetLancementPage({
       canEdit={canEdit}
       userIsAdmin={userIsAdmin}
       currentUserId={user?.id ?? null}
+      seuilEnlisementJours={seuilEnlisementJours}
+      aujourdHui={aujourdHui}
     />
   );
 }

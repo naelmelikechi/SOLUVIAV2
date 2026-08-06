@@ -23,6 +23,7 @@ import { formatDate, formatDateTimeParis } from '@/lib/utils/formatters';
 import { getDocumentDownloadUrl } from '@/lib/actions/documents';
 import {
   setLancementEtapeStatut,
+  setLancementEtapeDateObjectif,
   deleteLancementDocument,
   addLancementCommentaire,
   deleteLancementCommentaire,
@@ -32,6 +33,7 @@ import {
   getLancementStatutMeta,
   type LancementStatut,
 } from '@/lib/lancement/constants';
+import { alerteEtape } from '@/lib/lancement/alertes';
 import type {
   LancementDocument,
   LancementCommentaire,
@@ -58,6 +60,10 @@ interface LancementEtapeItemProps {
   canEdit: boolean;
   userIsAdmin: boolean;
   currentUserId: string | null;
+  dateObjectif: string | null;
+  dateRealisation: string | null;
+  seuilEnlisementJours: number;
+  aujourdHui: string;
 }
 
 export function LancementEtapeItem({
@@ -73,10 +79,54 @@ export function LancementEtapeItem({
   canEdit,
   userIsAdmin,
   currentUserId,
+  dateObjectif,
+  dateRealisation,
+  seuilEnlisementJours,
+  aujourdHui,
 }: LancementEtapeItemProps) {
   const [expanded, setExpanded] = useState(false);
   const [savingStatut, setSavingStatut] = useState<string | null>(null);
   const statutMeta = getLancementStatutMeta(statut);
+  const [savingDate, setSavingDate] = useState(false);
+  const alerte = alerteEtape({
+    statut,
+    dateObjectif,
+    dateRealisation,
+    aujourdHui,
+    seuilEnlisementJours,
+  });
+  const joursDepuisDepot = dateRealisation
+    ? Math.floor(
+        (Date.parse(`${aujourdHui}T00:00:00Z`) -
+          Date.parse(`${dateRealisation}T00:00:00Z`)) /
+          86_400_000,
+      )
+    : 0;
+
+  async function handleDateObjectif(valeur: string) {
+    setSavingDate(true);
+    try {
+      const result = await setLancementEtapeDateObjectif(
+        projetId,
+        projetRef,
+        etapeKey,
+        valeur === '' ? null : valeur,
+      );
+      if (result.success) {
+        toast.success(
+          valeur === ''
+            ? "Date d'objectif effacée"
+            : "Date d'objectif enregistrée",
+        );
+      } else {
+        toast.error(result.error || "Erreur lors de l'enregistrement");
+      }
+    } catch {
+      toast.error('Erreur inattendue');
+    } finally {
+      setSavingDate(false);
+    }
+  }
 
   async function handleStatut(next: LancementStatut) {
     if (next === statut || savingStatut) return;
@@ -125,7 +175,27 @@ export function LancementEtapeItem({
       >
         <span className="text-sm font-medium">{etapeLabel}</span>
         <StatusBadge label={statutMeta.label} color={statutMeta.color} />
+        {alerte === 'en_retard' && (
+          <StatusBadge label="En retard" color="red" />
+        )}
+        {alerte === 'enlise' && (
+          <StatusBadge
+            label={`Déposé depuis ${joursDepuisDepot} j`}
+            color="orange"
+          />
+        )}
         <span className="text-muted-foreground ml-auto flex items-center gap-3 text-xs">
+          {dateRealisation ? (
+            <span className="hidden sm:inline">
+              Déposé le {formatDate(dateRealisation)}
+            </span>
+          ) : (
+            dateObjectif && (
+              <span className="hidden sm:inline">
+                Objectif {formatDate(dateObjectif)}
+              </span>
+            )
+          )}
           {documents.length > 0 && (
             <span className="flex items-center gap-1">
               <Paperclip className="size-3" /> {documents.length}
@@ -163,6 +233,20 @@ export function LancementEtapeItem({
                   {s.label}
                 </Button>
               ))}
+              <label className="text-muted-foreground mt-2 flex w-full items-center gap-2 text-xs">
+                Date d&apos;objectif
+                <input
+                  type="date"
+                  defaultValue={dateObjectif ?? ''}
+                  disabled={savingDate}
+                  onChange={(e) => handleDateObjectif(e.target.value)}
+                  className="border-input bg-background rounded-md border px-2 py-1 text-xs"
+                />
+                {savingDate && <Loader2 className="size-3 animate-spin" />}
+                {dateRealisation && (
+                  <span>Déposé le {formatDate(dateRealisation)}</span>
+                )}
+              </label>
             </div>
           )}
 

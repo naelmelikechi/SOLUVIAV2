@@ -1329,8 +1329,12 @@ Le point 7 est le critère d'acceptation du lot. Si quelque chose manque, c'est 
 
 - [ ] **Step 7: Commit final et push**
 
+Ne **jamais** utiliser `git add -A` : le dépôt peut porter des modifications d'une session parallèle (par exemple sur `components/facturation/`). N'ajouter que les fichiers de ce lot.
+
 ```bash
-git add -A
+git add lib/projets lib/queries/projets.ts __tests__/projet-synthese.test.ts \
+        components/projets "app/(dashboard)/projets"
+git status --short   # verifier qu'aucun fichier etranger n'est indexe
 git commit -m "chore(projet): verification lot 0 socle navigation"
 git push -u origin HEAD
 ```

@@ -268,7 +268,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
       });
       if (res.success) {
         toast.success(
-          'Brouillon de facture préparé. À vérifier puis envoyer dans l’onglet Brouillons.',
+          'Brouillon de facture préparé. À vérifier puis envoyer dans l’onglet À émettre.',
         );
         setSelected(new Set());
         refresh();
@@ -572,7 +572,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                         {'Verrouillé'} :{' '}
                                         {e.type === 'opco_step'
                                           ? "engagement à facturer d'abord"
-                                          : 'réglements OPCO déjà facturés'}
+                                          : 'règlements OPCO déjà facturés'}
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent
@@ -767,11 +767,11 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   }
                 >
                   {isPending
-                    ? 'Preparation...'
+                    ? 'Préparation...'
                     : opcoCodesFilter.length === 0 &&
                         allAvailableOpcoCodes.length > 0
-                      ? 'Selectionnez au moins un OPCO'
-                      : 'Preparer le brouillon'}
+                      ? 'Sélectionnez au moins un OPCO'
+                      : 'Préparer le brouillon'}
                 </Button>
               </div>
             </div>

@@ -138,7 +138,7 @@ export function NewFactureLibreDialog({
       });
       if (result.success) {
         toast.success(
-          'Brouillon de facture libre créé. À vérifier puis envoyer dans l’onglet Brouillons.',
+          'Brouillon de facture libre créé. À vérifier puis envoyer dans l’onglet À émettre.',
         );
         onOpenChange(false);
         reset();

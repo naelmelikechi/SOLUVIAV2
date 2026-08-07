@@ -301,6 +301,79 @@ export type ContratRow = Awaited<
   ReturnType<typeof getContratsByProjetId>
 >[number];
 
+/**
+ * Variante de getContratsByProjetId qui INCLUT les contrats archives (le
+ * filtre `.eq('archive', false)` de la fonction ci-dessus les exclurait), et
+ * ajoute les colonnes necessaires au classement en 5 categories et a la
+ * tracabilite de l'archivage auto (date_rupture, archive, archive_regle_id,
+ * archive_auto_le). Reservee a la page contrats du projet : les autres
+ * lecteurs de getContratsByProjetId (synthese, production) veulent le
+ * comportement historique - contrats en cours uniquement.
+ */
+export async function getContratsByProjetIdAvecArchives(projetId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('contrats')
+    .select(
+      `
+      id,
+      ref,
+      contract_number,
+      internal_number,
+      apprenant_nom,
+      apprenant_prenom,
+      formation_titre,
+      duree_mois,
+      date_debut,
+      date_fin,
+      date_rupture,
+      npec_amount,
+      contract_state,
+      archive,
+      archive_regle_id,
+      archive_auto_le,
+      progression:contrats_progressions!contrats_progressions_contrat_id_fkey(
+        progression_percentage,
+        total_spent_time_hours,
+        last_activity_at
+      ),
+      invoice_steps:eduvia_invoice_steps(paid_amount, total_amount, invoice_state, paid_at)
+    `,
+    )
+    .eq('projet_id', projetId)
+    .order('ref', { ascending: true });
+
+  if (error) {
+    logger.error(
+      'queries.projets',
+      'getContratsByProjetIdAvecArchives failed',
+      { projetId, error },
+    );
+    throw new AppError(
+      'PROJETS_CONTRATS_FETCH_FAILED',
+      'Impossible de charger les contrats du projet',
+      { cause: error },
+    );
+  }
+  return (data ?? []).map((c) => ({
+    ...c,
+    progression: Array.isArray(c.progression)
+      ? (c.progression[0] ?? null)
+      : (c.progression ?? null),
+    invoice_steps: (c.invoice_steps ?? []) as Array<{
+      paid_amount: number | null;
+      total_amount: number | null;
+      invoice_state: string | null;
+      paid_at: string | null;
+    }>,
+  }));
+}
+
+export type ContratRowCategorise = Awaited<
+  ReturnType<typeof getContratsByProjetIdAvecArchives>
+>[number];
+
 // Montant encaisse cote OPCO pour un bordereau Eduvia, PART PEDAGOGIE
 // uniquement (including_pedagogie_amount) : la ligne OPCO de la fiche
 // Finance se compare a la colonne Production (= NPEC pedagogique pur), le

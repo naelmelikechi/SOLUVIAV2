@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { logger } from '@/lib/utils/logger';
 
 export interface RegleArchivageRow {
@@ -62,4 +63,33 @@ export async function listReglesArchivage(): Promise<RegleArchivageRow[]> {
     ...r,
     nbContratsArchives: counts.get(r.id) ?? 0,
   }));
+}
+
+/**
+ * Nom des regles d'archivage, pour un ensemble d'ids. Utilise le client
+ * service-role : `contrats_regles_archivage` est en SELECT admin-only (une
+ * regle mal reglee sort du chiffre de la production, cf. migration), mais un
+ * CDP doit pouvoir comprendre pourquoi SON contrat a disparu de sa
+ * production. On n'expose ici que le strict minimum (id + nom), jamais
+ * delai_jours/actif/updated_by qui restent reserves a l'ecran d'admin.
+ */
+export async function getRegleNomsParIds(
+  ids: string[],
+): Promise<Map<string, string>> {
+  const uniques = Array.from(new Set(ids)).filter(Boolean);
+  if (uniques.length === 0) return new Map();
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('contrats_regles_archivage')
+    .select('id, nom')
+    .in('id', uniques);
+
+  if (error) {
+    logger.error('queries.contrats-regles', 'getRegleNomsParIds failed', {
+      error,
+    });
+    return new Map();
+  }
+  return new Map(data.map((r) => [r.id, r.nom]));
 }

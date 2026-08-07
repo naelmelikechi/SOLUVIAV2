@@ -231,6 +231,28 @@ export async function getSeuilEnlisementJours(): Promise<number> {
   return Number.isInteger(n) && n > 0 ? n : DEFAUT_SEUIL_ENLISEMENT_JOURS;
 }
 
+/**
+ * Delai de reglement OPCO, en jours. Lu depuis le parametre
+ * `facturation.delai_reglement_opco_jours` (modifiable dans
+ * /admin/parametres).
+ */
+export const DEFAUT_DELAI_REGLEMENT_OPCO_JOURS = 60;
+
+/**
+ * Delai de reglement OPCO, en jours. Fallback sur la constante si le
+ * parametre est absent ou invalide : un parametre mal saisi ne doit jamais
+ * faire disparaitre l'indicateur de retard.
+ */
+export async function getDelaiReglementOpcoJours(): Promise<number> {
+  const raw = await getParametreValeur(
+    'facturation.delai_reglement_opco_jours',
+  );
+  if (raw == null || raw.trim() === '')
+    return DEFAUT_DELAI_REGLEMENT_OPCO_JOURS;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : DEFAUT_DELAI_REGLEMENT_OPCO_JOURS;
+}
+
 export async function getJoursFeries(annee: number) {
   const supabase = await createClient();
   const { data, error } = await supabase

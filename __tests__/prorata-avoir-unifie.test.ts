@@ -208,3 +208,80 @@ describe('computeProrataAvoir : aligne sur le calcul du pipeline', () => {
     expect(loadBilledLinesMock).not.toHaveBeenCalled();
   });
 });
+
+describe('computeProrataAvoir : une facture couvrant DEUX contrats', () => {
+  // Cas nominal d'un projet a plusieurs apprentis : brouillon-echeancier-dues
+  // pousse une ligne par contribution dans une facture unique. Rompre UN
+  // contrat ne doit rembourser QUE celui-la (audit 2026-08-07, constat 3).
+  const CONTRAT_B_ID = '33333333-3333-4333-8333-333333333333';
+  const CONTRAT_B = { ...CONTRAT_12_MOIS, ref: 'CTR-00188', apprenant_nom: 'Martin' };
+
+  function deuxContrats() {
+    setLignes([
+      { montant_ht: 600, contrat_id: CONTRAT_ID, contrat: CONTRAT_12_MOIS },
+      { montant_ht: 600, contrat_id: CONTRAT_B_ID, contrat: CONTRAT_B },
+    ]);
+    loadBilledLinesMock.mockResolvedValue([
+      {
+        montant_ht: 600,
+        npec_snapshot: 12000,
+        taux_commission_snapshot: 10,
+        quote_part: 0.5,
+        mois_relatif: 1,
+        facture_id: FACTURE_ID,
+        facture_ref: 'FAC-DUP-0001',
+      },
+    ]);
+    loadTotalCommissionMock.mockResolvedValue(1200);
+  }
+
+  it('ne rembourse que le contrat rompu quand il est designe', async () => {
+    deuxContrats();
+
+    const r = await computeProrataAvoir({
+      factureOrigineId: FACTURE_ID,
+      dateRupture: '2026-07-15',
+      contratId: CONTRAT_ID,
+    });
+
+    // Une seule entree de breakdown, et un seul chargement : le contrat B, qui
+    // n'est pas rompu, n'est meme pas calcule.
+    expect(r.breakdown).toHaveLength(1);
+    expect(r.breakdown![0]!.contratRef).toBe('CTR-00187');
+    expect(loadBilledLinesMock).toHaveBeenCalledTimes(1);
+    expect(loadBilledLinesMock).toHaveBeenCalledWith(expect.anything(), CONTRAT_ID);
+  });
+
+  it('le montant propose ne double pas : c’est celui du seul contrat rompu', async () => {
+    deuxContrats();
+
+    const unSeul = await computeProrataAvoir({
+      factureOrigineId: FACTURE_ID,
+      dateRupture: '2026-07-15',
+      contratId: CONTRAT_ID,
+    });
+    const sansDesignation = await computeProrataAvoir({
+      factureOrigineId: FACTURE_ID,
+      dateRupture: '2026-07-15',
+    });
+
+    // Sans designation, l'ancien comportement somme les deux contrats : c'est
+    // exactement le sur-remboursement du constat. Avec, on rend la moitie.
+    expect(sansDesignation.suggestedAmount).toBe(unSeul.suggestedAmount! * 2);
+  });
+
+  it('designer le contrat B calcule B, pas A', async () => {
+    deuxContrats();
+
+    const r = await computeProrataAvoir({
+      factureOrigineId: FACTURE_ID,
+      dateRupture: '2026-07-15',
+      contratId: CONTRAT_B_ID,
+    });
+
+    expect(r.breakdown).toHaveLength(1);
+    expect(r.breakdown![0]!.contratRef).toBe('CTR-00188');
+    expect(r.breakdown![0]!.apprenant).toContain('Martin');
+    expect(loadBilledLinesMock).toHaveBeenCalledWith(expect.anything(), CONTRAT_B_ID);
+  });
+});

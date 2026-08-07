@@ -106,6 +106,10 @@ export function AvoirDialog({
         factureOrigineId,
         // oxlint-disable-next-line react-doctor/no-event-handler
         dateRupture,
+        // Le selecteur devient la SOURCE du calcul, plus un simple champ
+        // d'imputation : sans lui, le prorata sommait les contrats non rompus.
+        // oxlint-disable-next-line react-doctor/no-event-handler
+        contratId: contratId || undefined,
       });
       if (!result.success) {
         toast.error(result.error ?? 'Erreur de calcul pro-rata');
@@ -116,7 +120,7 @@ export function AvoirDialog({
       setBreakdown(result.breakdown ?? null);
       setMontantHt(suggested.toFixed(2));
     });
-  }, [motif, dateRupture, factureOrigineId, montantHtDefault]);
+  }, [motif, dateRupture, factureOrigineId, montantHtDefault, contratId]);
 
   const handleConfirm = useCallback(
     function handleConfirm() {

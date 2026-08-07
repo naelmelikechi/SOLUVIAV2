@@ -17,6 +17,13 @@ const ComputeProrataAvoirSchema = z.object({
   dateRupture: z
     .string()
     .regex(ISO_DATE_RE, 'Date au format YYYY-MM-DD requise'),
+  // Contrat REELLEMENT rompu. Sans lui, le calcul appliquait la date de rupture
+  // a TOUS les contrats de la facture d'origine et en sommait les prorata, alors
+  // que createAvoir n'impute l'avoir qu'a un seul contrat : sur une facture
+  // d'echeancier a deux apprentis, rompre l'un rendait le double du du
+  // (audit 2026-08-07, constat 3). Optionnel : une facture mono-contrat n'a rien
+  // a designer.
+  contratId: z.string().uuid('contratId doit être un UUID').optional(),
 });
 
 const CreateAvoirSchema = z.object({
@@ -51,6 +58,8 @@ export type ProrataBreakdownItem = {
 export async function computeProrataAvoir(params: {
   factureOrigineId: string;
   dateRupture: string; // YYYY-MM-DD
+  /** Contrat rompu. Restreint le calcul a celui-la (cf. schema). */
+  contratId?: string;
 }): Promise<{
   success: boolean;
   suggestedAmount?: number;
@@ -67,7 +76,7 @@ export async function computeProrataAvoir(params: {
       error: parsed.error.issues[0]?.message ?? 'Données invalides',
     };
   }
-  const { factureOrigineId, dateRupture } = parsed.data;
+  const { factureOrigineId, dateRupture, contratId: contratRompuId } = parsed.data;
 
   const rupture = new Date(dateRupture);
   if (Number.isNaN(rupture.getTime())) {
@@ -154,6 +163,9 @@ export async function computeProrataAvoir(params: {
   let total = 0;
 
   for (const [contratId, info] of parContrat) {
+    // Un seul contrat est rompu : les autres lignes de la facture couvrent des
+    // contrats toujours en cours, elles ne donnent lieu a aucun avoir.
+    if (contratRompuId && contratId !== contratRompuId) continue;
     // Sans dates, aucun prorata n'est calculable : on propose le remboursement
     // integral pour que le CDP arbitre, comme avant.
     if (!info.dateDebut || !info.dureeMois) {

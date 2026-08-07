@@ -25,15 +25,17 @@ const SCOPE = 'cron.gmail-collecte';
  * juridiquement attaquable en France. Ce n'est pas une commodite de dev.
  */
 export async function GET(request: Request) {
-  // PREMIERE instruction, avant meme l'auth cron : aucune lecture, aucun
-  // appel reseau si l'interrupteur n'est pas explicitement pose. Ne pas
-  // deplacer ce check plus bas dans la fonction.
+  // L'auth d'abord : repondre l'etat de la configuration a un appelant non
+  // authentifie divulguerait inutilement si la collecte est active ou non.
+  const authError = verifyCronAuth(request);
+  if (authError) return authError;
+
+  // Puis l'interrupteur, avant toute lecture et tout appel reseau. Ne pas
+  // deplacer ce check plus bas dans la fonction : c'est lui qui garantit
+  // qu'aucune boite n'est lue tant que l'activation n'est pas deliberee.
   if (env.GMAIL_COLLECTE_ACTIVE !== 'true') {
     return NextResponse.json({ success: true, actif: false, collectes: 0 });
   }
-
-  const authError = verifyCronAuth(request);
-  if (authError) return authError;
 
   if (!gmailConfigured()) {
     logger.error(

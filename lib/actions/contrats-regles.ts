@@ -95,6 +95,55 @@ export async function upsertRegleArchivage(
   return { success: true, id: data.id };
 }
 
+/**
+ * Remet un contrat archive automatiquement dans la production.
+ *
+ * Efface la tracabilite en meme temps que l'archivage : c'est
+ * archive_regle_id qui protege la ligne du desarchivage accidentel (trigger
+ * protege_archivage_auto_contrat). Le laisser en place ferait re-archiver le
+ * contrat par le trigger a l'instruction suivante, et le garder sur une ligne
+ * archive = false raconterait une histoire fausse - c'est exactement l'etat
+ * incoherent que la sync Eduvia produisait avant le correctif.
+ *
+ * Reserve aux admins : desarchiver reinjecte un contrat dans le chiffre de la
+ * production.
+ */
+export async function desarchiverContrat(
+  contratId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const parsedId = z.string().uuid().safeParse(contratId);
+  if (!parsedId.success)
+    return { success: false, error: 'Identifiant invalide' };
+
+  const auth = await checkAuth();
+  if (!auth.ok) return { success: false, error: auth.error };
+  const { supabase, user } = auth;
+
+  const { data, error } = await supabase
+    .from('contrats')
+    .update({
+      archive: false,
+      archive_regle_id: null,
+      archive_auto_le: null,
+    })
+    .eq('id', parsedId.data)
+    .select('id, ref, projet_id')
+    .single();
+
+  if (error) return { success: false, error: error.message };
+
+  logAudit(
+    'contrat_desarchive',
+    'contrats',
+    parsedId.data,
+    { ref: data.ref },
+    user.id,
+  );
+  revalidatePath(PATH);
+  revalidatePath('/projets', 'layout');
+  return { success: true };
+}
+
 export async function deleteRegleArchivage(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {

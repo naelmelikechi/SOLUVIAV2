@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/shared/status-badge';
 import {
   DataTable,
@@ -18,7 +20,9 @@ import {
   CATEGORIES_CONTRAT,
   type CategorieContrat,
 } from '@/lib/contrats/categories';
+import { Undo2 } from 'lucide-react';
 import { ContratDetailSheet } from '@/components/projets/contrat-detail-sheet';
+import { desarchiverContrat } from '@/lib/actions/contrats-regles';
 import type { ContratRowCategorise } from '@/lib/queries/projets';
 
 interface Props {
@@ -27,6 +31,8 @@ interface Props {
   productionAvantRupture: Record<string, number>;
   /** Nom de la regle d'archivage automatique, cle = archive_regle_id. */
   reglesNoms: Record<string, string>;
+  /** Remettre un contrat en production est reserve aux admins. */
+  estAdmin: boolean;
 }
 
 function refCell(c: ContratRowCategorise) {
@@ -129,6 +135,7 @@ function columnsPour(
   cle: CategorieContrat,
   productionAvantRupture: Record<string, number>,
   reglesNoms: Record<string, string>,
+  desarchiver: ((contrat: ContratRowCategorise) => void) | null,
 ): ColumnDef<ContratRowCategorise>[] {
   switch (cle) {
     case 'prevus':
@@ -171,8 +178,8 @@ function columnsPour(
         formationColumn,
         dateColumn('date_debut', 'Début'),
       ];
-    case 'archives':
-      return [
+    case 'archives': {
+      const colonnes: ColumnDef<ContratRowCategorise>[] = [
         refColumn,
         apprenantColumn,
         formationColumn,
@@ -209,6 +216,31 @@ function columnsPour(
           ),
         },
       ];
+      if (desarchiver) {
+        colonnes.push({
+          id: 'desarchiver',
+          header: () => <span className="sr-only">Remettre en production</span>,
+          cell: ({ row }) => (
+            <div className="text-right">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  // La ligne ouvre le detail du contrat : sans cet arret, le
+                  // clic sur le bouton ouvrirait aussi le panneau.
+                  e.stopPropagation();
+                  desarchiver(row.original);
+                }}
+              >
+                <Undo2 className="mr-1 size-3.5" />
+                Remettre en production
+              </Button>
+            </div>
+          ),
+        });
+      }
+      return colonnes;
+    }
   }
 }
 
@@ -216,10 +248,23 @@ export function ProjetContratsCategories({
   contrats,
   productionAvantRupture,
   reglesNoms,
+  estAdmin,
 }: Props) {
   const [selectedContratId, setSelectedContratId] = useState<string | null>(
     null,
   );
+  const [isPending, startTransition] = useTransition();
+
+  function handleDesarchiver(contrat: ContratRowCategorise) {
+    startTransition(async () => {
+      const res = await desarchiverContrat(contrat.id);
+      if (res.success) {
+        toast.success('Contrat remis en production');
+      } else {
+        toast.error(res.error ?? 'Erreur');
+      }
+    });
+  }
 
   const buckets = useMemo(() => {
     const parCle = new Map<CategorieContrat, ContratRowCategorise[]>(
@@ -265,6 +310,7 @@ export function ProjetContratsCategories({
                   categorie.cle,
                   productionAvantRupture,
                   reglesNoms,
+                  estAdmin && !isPending ? handleDesarchiver : null,
                 )}
                 data={rows}
                 searchPlaceholder="Rechercher un contrat..."

@@ -12,6 +12,9 @@ export const maxDuration = 60;
 
 const SCOPE = 'cron.contrats-archivage';
 
+/** Taille des lots d'identifiants passes a `.in()` (limite d'URL PostgREST). */
+const LOT_IDS = 200;
+
 /**
  * CRON quotidien : sort de la production les contrats restes trop longtemps
  * dans un etat sans issue, selon les regles de `contrats_regles_archivage`
@@ -29,7 +32,7 @@ export async function GET(request: Request) {
   const supabase = createAdminClient();
 
   try {
-    const [reglesRes, contratsRes, facturesRes] = await Promise.all([
+    const [reglesRes, contratsRes] = await Promise.all([
       supabase
         .from('contrats_regles_archivage')
         .select('id, nom, etat_source, delai_jours, actif')
@@ -38,14 +41,6 @@ export async function GET(request: Request) {
         .from('contrats')
         .select('id, contract_state, archive, contract_state_changed_at')
         .eq('archive', false),
-      // Garde-fou : tout contrat porte par une ligne de facture emise est
-      // hors de portee du cron. Les brouillons (a_emettre) ne comptent pas,
-      // ils ne sont pas encore des recettes. Jointure verifiee en base locale :
-      // facture_lignes.contrat_id -> contrats.id (index idx_facture_lignes_contrat).
-      supabase
-        .from('facture_lignes')
-        .select('contrat_id, facture:factures!inner(statut)')
-        .neq('facture.statut', 'a_emettre'),
     ]);
 
     const regles = (reglesRes.data ?? []) as RegleArchivage[];
@@ -56,12 +51,6 @@ export async function GET(request: Request) {
         message: 'Aucune regle active',
       });
     }
-
-    const contratsFactures = new Set(
-      (facturesRes.data ?? [])
-        .map((l) => (l as { contrat_id: string | null }).contrat_id)
-        .filter((id): id is string => id != null),
-    );
 
     const contrats: ContratArchivable[] = (contratsRes.data ?? []).map((c) => {
       const row = c as {
@@ -75,12 +64,81 @@ export async function GET(request: Request) {
         contract_state: row.contract_state,
         archive: row.archive,
         contract_state_changed_at: row.contract_state_changed_at,
-        aDesFacturesEmises: contratsFactures.has(row.id),
+        // Renseigne au second passage, une fois les candidats connus.
+        aDesFacturesEmises: false,
       };
     });
 
     const aujourdHui = new Date().toISOString().slice(0, 10);
-    const decisions = contratsAArchiver(contrats, regles, aujourdHui);
+
+    // Deux passages a dessein. Le premier donne les candidats a partir des
+    // seules regles ; le second applique le garde-fou "jamais un contrat
+    // portant une facture emise".
+    //
+    // On interroge facture_lignes APRES avoir les candidats, filtree sur leurs
+    // seuls identifiants. Charger toute la table sans pagination exposait le
+    // garde-fou a une troncature silencieuse (max_rows PostgREST) : au-dela du
+    // seuil, un contrat deja facture serait sorti de la production, sur une
+    // numerotation gapless qu'on ne peut pas corriger apres coup. L'ensemble
+    // est desormais borne par le nombre de candidats, pas par le volume total
+    // de lignes de facture.
+    const candidats = contratsAArchiver(contrats, regles, aujourdHui);
+
+    if (candidats.length === 0) {
+      return NextResponse.json({
+        success: true,
+        archives: 0,
+        message: 'Aucun contrat a archiver',
+      });
+    }
+
+    const idsCandidats = candidats.map((d) => d.contratId);
+    const contratsFactures = new Set<string>();
+
+    // Decoupage : `.in()` passe par l'URL, une liste illimitee finirait par
+    // depasser la taille de requete acceptee par PostgREST.
+    for (let i = 0; i < idsCandidats.length; i += LOT_IDS) {
+      const lot = idsCandidats.slice(i, i + LOT_IDS);
+      // Les brouillons (a_emettre) ne comptent pas, ils ne sont pas encore
+      // des recettes. Jointure verifiee en base locale :
+      // facture_lignes.contrat_id -> contrats.id (idx_facture_lignes_contrat).
+      // oxlint-disable-next-line react-doctor/async-await-in-loop
+      const { data, error } = await supabase
+        .from('facture_lignes')
+        .select('contrat_id, facture:factures!inner(statut)')
+        .in('contrat_id', lot)
+        .neq('facture.statut', 'a_emettre');
+
+      if (error) {
+        // On n'archive RIEN : sans cette liste, le garde-fou ne tient plus.
+        // Mieux vaut ne rien faire qu'archiver a l'aveugle.
+        logger.error(SCOPE, 'lecture facture_lignes echouee, aucun archivage', {
+          error,
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            archives: 0,
+            error: 'Garde-fou facturation indisponible - aucun archivage',
+          },
+          { status: 500 },
+        );
+      }
+
+      for (const ligne of data ?? []) {
+        const id = (ligne as { contrat_id: string | null }).contrat_id;
+        if (id != null) contratsFactures.add(id);
+      }
+    }
+
+    const decisions = contratsAArchiver(
+      contrats.map((c) => ({
+        ...c,
+        aDesFacturesEmises: contratsFactures.has(c.id),
+      })),
+      regles,
+      aujourdHui,
+    );
 
     if (decisions.length === 0) {
       return NextResponse.json({

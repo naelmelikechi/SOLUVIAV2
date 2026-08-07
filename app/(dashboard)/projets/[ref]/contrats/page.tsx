@@ -5,6 +5,8 @@ import {
   getContratsByProjetIdAvecArchives,
 } from '@/lib/queries/projets';
 import { getRegleNomsParIds } from '@/lib/queries/contrats-regles';
+import { getUser } from '@/lib/queries/users';
+import { isAdmin } from '@/lib/utils/roles';
 import { computeContractSchedule } from '@/lib/queries/production';
 import { resolveTauxCommission } from '@/lib/utils/commission';
 import { categorieContrat } from '@/lib/contrats/categories';
@@ -26,7 +28,8 @@ export default async function ProjetContratsPage({
   params: Promise<{ ref: string }>;
 }) {
   const { ref } = await params;
-  const projet = await getProjetByRef(ref);
+  // getUser() est memoise (cache()) et deja resolu par le layout dashboard.
+  const [projet, user] = await Promise.all([getProjetByRef(ref), getUser()]);
   if (!projet) notFound();
 
   const contrats = await getContratsByProjetIdAvecArchives(projet.id);
@@ -71,6 +74,7 @@ export default async function ProjetContratsPage({
       contrats={contrats}
       productionAvantRupture={productionAvantRupture}
       reglesNoms={reglesNoms}
+      estAdmin={isAdmin(user?.role ?? null)}
     />
   );
 }

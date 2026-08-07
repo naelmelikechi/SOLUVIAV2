@@ -76,6 +76,8 @@ export async function sendDevisEmail(p: SendDevisParams): Promise<void> {
     subject,
     html,
     attachments: [{ filename: `${devis.ref}.pdf`, content: pdfBuffer }],
+    clientId: devis.client_id ?? undefined,
+    type: 'devis',
   });
   logger.info('email.devis', 'sendDevisEmail OK', {
     ref: devis.ref,
@@ -209,6 +211,8 @@ export async function sendDevisRelanceEmail(p: RelanceParams): Promise<void> {
     subject,
     html,
     replyTo: devis.societe_emettrice.email_contact,
+    clientId: devis.client_id ?? undefined,
+    type: 'devis-relance',
   });
 
   logger.info('email.devis.relance', `relance ${p.niveau} envoyee`, {

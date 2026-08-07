@@ -312,16 +312,30 @@ export async function createAvoir(params: {
     ),
   ) as string[];
 
+  // Facture SANS aucun contrat : cas nominal d'une facture libre
+  // (`createFreeBrouillon` insere explicitement `contrat_id: null`) ou issue
+  // d'un devis (`devis-to-facture` n'ecrit pas la colonne). L'avoir se cree
+  // alors sans contrat, la colonne etant volontairement nullable en base
+  // (migrations 20260522095000 et 20260630120500).
+  //
+  // Refuser ici enfermait ces factures : une fois emises, l'enum n'a pas de
+  // valeur `annulee`, `deleteBrouillon` refuse tout ce qui n'est pas
+  // `a_emettre`, `forbid_facture_emise_delete` rejette le DELETE meme en
+  // service_role, et `freeze_facture_lignes_after_emission` interdit de
+  // rattacher un contrat apres coup. Il n'existait AUCUNE sortie
+  // (audit 2026-08-07, constat 2), alors que le runbook §4.2 prescrit
+  // exactement cette procedure.
+  let resolvedContratId: string | null;
   if (origineContratIds.length === 0) {
-    return {
-      success: false,
-      error:
-        "Facture origine sans ligne attachee a un contrat - impossible d'emettre l avoir.",
-    };
-  }
-
-  let resolvedContratId: string;
-  if (parsed.data.contratId) {
+    if (parsed.data.contratId) {
+      return {
+        success: false,
+        error:
+          "La facture origine ne porte aucun contrat : l'avoir ne peut pas en designer un.",
+      };
+    }
+    resolvedContratId = null;
+  } else if (parsed.data.contratId) {
     if (!origineContratIds.includes(parsed.data.contratId)) {
       return {
         success: false,
@@ -351,7 +365,7 @@ export async function createAvoir(params: {
     .trim();
   const contratLabel = ligneContrat?.ref
     ? `${ligneContrat.ref}${apprenant ? ` (${apprenant})` : ''}`
-    : apprenant || 'contrat';
+    : apprenant || (resolvedContratId ? 'contrat' : 'hors contrat');
 
   // Calculate amounts (negative)
   const montantHt = -Math.abs(montant);

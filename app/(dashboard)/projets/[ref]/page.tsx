@@ -1,11 +1,8 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import {
-  getProjetByRef,
-  getContratsByProjetId,
-  getProjetFinance,
-} from '@/lib/queries/projets';
+import { getProjetByRef, getContratsByProjetId } from '@/lib/queries/projets';
+import { getProjetFinanceDetail } from '@/lib/queries/projet-finance-detail';
 import { getLancementByProjetId } from '@/lib/queries/projet-lancement';
 import { getProjetPerformance } from '@/lib/queries/projet-performance';
 import {
@@ -16,7 +13,6 @@ import {
 import { ProjetCarteQualite } from '@/components/projets/projet-carte-qualite';
 import { ProjetSuiviPanel } from '@/components/projets/projet-suivi-panel';
 import { buildSyntheseCards } from '@/lib/projets/synthese';
-import { productionSoluviaHt } from '@/lib/utils/montant-ht';
 import { isContratActif } from '@/lib/utils/contrat-states';
 import { LANCEMENT_ETAPES } from '@/lib/lancement/constants';
 
@@ -38,16 +34,12 @@ export default async function ProjetSynthesePage({
   const projet = await getProjetByRef(ref);
   if (!projet) notFound();
 
-  const [contrats, finance, performance, lancement] = await Promise.all([
+  const [contrats, financeDetail, performance, lancement] = await Promise.all([
     getContratsByProjetId(projet.id),
-    getProjetFinance(projet.id),
+    getProjetFinanceDetail(projet.id, projet.ref ?? ref),
     getProjetPerformance(projet.id),
     getLancementByProjetId(projet.id),
   ]);
-
-  const produitHt = finance
-    ? productionSoluviaHt(finance.production_opco, finance.taux_commission)
-    : 0;
 
   const apprentisActifs = contrats.filter((c) =>
     isContratActif(c.contract_state),
@@ -67,8 +59,13 @@ export default async function ProjetSynthesePage({
         progressionPct: performance.pedagogie.value,
       },
       finance: {
-        produitHt,
-        factureHt: finance?.facture_soluvia ?? 0,
+        produitHt: financeDetail.commission.produit,
+        factureHt: financeDetail.commission.facture,
+        retardFacturationHt: financeDetail.commission.retardFacturation,
+        retardEncaissementHt: financeDetail.commission.retardEncaissement,
+        opcoRetard:
+          financeDetail.opco.retardFacturation +
+          financeDetail.opco.retardEncaissement,
       },
       contrats: {
         total: contrats.length,

@@ -4,12 +4,19 @@ import {
   buildCarteQualite,
   type SyntheseInput,
 } from '@/lib/projets/synthese';
+import { formatCurrency } from '@/lib/utils/formatters';
 
 const BASE: SyntheseInput = {
   projetRef: '0016-HEO-APP',
   lancement: { terminees: 3, total: 7 },
   production: { apprentisActifs: 12, progressionPct: 85 },
-  finance: { produitHt: 24000, factureHt: 18000 },
+  finance: {
+    produitHt: 24000,
+    factureHt: 18000,
+    retardFacturationHt: 0,
+    retardEncaissementHt: 0,
+    opcoRetard: 0,
+  },
   contrats: { total: 15, actifs: 12 },
 };
 
@@ -128,30 +135,54 @@ describe('buildSyntheseCards', () => {
     expect(c.contexte).toBe('1 apprenti actif');
   });
 
-  it('reste neutre sur la finance quand rien n est facture alors qu il y a du produit (facturation par jalon, pas un retard)', () => {
+  it('reste neutre sur la finance quand rien n est facture alors qu il y a du produit et aucun retard (facturation par jalon, pas un retard)', () => {
     const c = buildSyntheseCards({
       ...BASE,
-      finance: { produitHt: 24000, factureHt: 0 },
+      finance: {
+        produitHt: 24000,
+        factureHt: 0,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 0,
+        opcoRetard: 0,
+      },
     })[2]!;
     expect(c.ton).toBe('neutre');
   });
 
-  it('reste neutre sur la finance quel que soit le ratio facture/produit (pas encore de notion de retard de facturation)', () => {
+  it('reste neutre sur la finance quel que soit le ratio facture/produit tant qu il n y a aucun retard', () => {
     const rienFacture = buildSyntheseCards({
       ...BASE,
-      finance: { produitHt: 24000, factureHt: 0 },
+      finance: {
+        produitHt: 24000,
+        factureHt: 0,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 0,
+        opcoRetard: 0,
+      },
     })[2]!;
     expect(rienFacture.ton).toBe('neutre');
 
     const totalementFacture = buildSyntheseCards({
       ...BASE,
-      finance: { produitHt: 24000, factureHt: 24000 },
+      finance: {
+        produitHt: 24000,
+        factureHt: 24000,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 0,
+        opcoRetard: 0,
+      },
     })[2]!;
     expect(totalementFacture.ton).toBe('neutre');
 
     const avoirNegatif = buildSyntheseCards({
       ...BASE,
-      finance: { produitHt: 24000, factureHt: -500 },
+      finance: {
+        produitHt: 24000,
+        factureHt: -500,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 0,
+        opcoRetard: 0,
+      },
     })[2]!;
     expect(avoirNegatif.ton).toBe('neutre');
   });
@@ -159,9 +190,102 @@ describe('buildSyntheseCards', () => {
   it('reste neutre sur la finance quand il n y a rien a facturer', () => {
     const c = buildSyntheseCards({
       ...BASE,
-      finance: { produitHt: 0, factureHt: 0 },
+      finance: {
+        produitHt: 0,
+        factureHt: 0,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 0,
+        opcoRetard: 0,
+      },
     })[2]!;
     expect(c.ton).toBe('neutre');
+  });
+
+  it('alarme la finance sur un retard de facturation seul, meme minime (pas de seuil en pourcentage)', () => {
+    const c = buildSyntheseCards({
+      ...BASE,
+      finance: {
+        produitHt: 24000,
+        factureHt: 18000,
+        retardFacturationHt: 1,
+        retardEncaissementHt: 0,
+        opcoRetard: 0,
+      },
+    })[2]!;
+    expect(c.ton).toBe('alerte');
+    expect(c.contexte).toContain('en retard');
+  });
+
+  it('alarme la finance sur un retard d encaissement seul', () => {
+    const c = buildSyntheseCards({
+      ...BASE,
+      finance: {
+        produitHt: 24000,
+        factureHt: 18000,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 500,
+        opcoRetard: 0,
+      },
+    })[2]!;
+    expect(c.ton).toBe('alerte');
+    expect(c.contexte).toContain('en retard');
+  });
+
+  it('alarme la finance et additionne les deux retards dans le contexte quand les deux sont presents', () => {
+    const c = buildSyntheseCards({
+      ...BASE,
+      finance: {
+        produitHt: 24000,
+        factureHt: 18000,
+        retardFacturationHt: 1000,
+        retardEncaissementHt: 500,
+        opcoRetard: 0,
+      },
+    })[2]!;
+    expect(c.ton).toBe('alerte');
+    expect(c.contexte).toBe(`${formatCurrency(1500)} en retard`);
+  });
+
+  it('affiche le facture en contexte uniquement quand il n y a aucun retard', () => {
+    const sansRetard = buildSyntheseCards(BASE)[2]!;
+    expect(sansRetard.contexte).toBe(`${formatCurrency(18000)} facturés`);
+
+    const avecRetard = buildSyntheseCards({
+      ...BASE,
+      finance: {
+        ...BASE.finance,
+        retardFacturationHt: 200,
+      },
+    })[2]!;
+    expect(avecRetard.contexte).not.toContain('facturés');
+  });
+
+  it('ajoute une ligne secondaire OPCO uniquement quand le flux OPCO presente un retard', () => {
+    const sansOpco = buildSyntheseCards(BASE)[2]!;
+    expect(sansOpco.alerteSecondaire).toBeUndefined();
+
+    const avecOpco = buildSyntheseCards({
+      ...BASE,
+      finance: { ...BASE.finance, opcoRetard: 12400 },
+    })[2]!;
+    expect(avecOpco.alerteSecondaire).toBe(
+      `OPCO : ${formatCurrency(12400)} en retard de règlement`,
+    );
+  });
+
+  it('le retard OPCO n influence jamais le ton de la carte (les deux flux se pilotent separement)', () => {
+    const c = buildSyntheseCards({
+      ...BASE,
+      finance: {
+        produitHt: 24000,
+        factureHt: 18000,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 0,
+        opcoRetard: 12400,
+      },
+    })[2]!;
+    expect(c.ton).toBe('neutre');
+    expect(c.alerteSecondaire).toContain('OPCO');
   });
 
   it('resume les contrats', () => {
@@ -175,7 +299,13 @@ describe('buildSyntheseCards', () => {
       projetRef: 'vide',
       lancement: { terminees: 0, total: 0 },
       production: { apprentisActifs: 0, progressionPct: null },
-      finance: { produitHt: 0, factureHt: 0 },
+      finance: {
+        produitHt: 0,
+        factureHt: 0,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 0,
+        opcoRetard: 0,
+      },
       contrats: { total: 0, actifs: 0 },
     };
     const cards = [
@@ -191,12 +321,24 @@ describe('buildSyntheseCards', () => {
       projetRef: 'vide',
       lancement: { terminees: 0, total: 0 },
       production: { apprentisActifs: 0, progressionPct: null },
-      finance: { produitHt: 0, factureHt: 0 },
+      finance: {
+        produitHt: 0,
+        factureHt: 0,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 0,
+        opcoRetard: 0,
+      },
       contrats: { total: 0, actifs: 0 },
     };
     const grosMontant: SyntheseInput = {
       ...BASE,
-      finance: { produitHt: 1234567, factureHt: 1234567 },
+      finance: {
+        produitHt: 1234567,
+        factureHt: 1234567,
+        retardFacturationHt: 0,
+        retardEncaissementHt: 0,
+        opcoRetard: 0,
+      },
     };
     const qualites = [
       buildCarteQualite('0016-HEO-APP', { realise: 18, total: 29 }),

@@ -42,6 +42,11 @@ export function ProjetCarteTile({ carte }: { carte: CarteSynthese }) {
           {carte.valeur}
         </p>
         <p className="text-muted-foreground text-sm">{carte.contexte}</p>
+        {carte.alerteSecondaire && (
+          <p className="text-xs font-medium text-[var(--warning)]">
+            {carte.alerteSecondaire}
+          </p>
+        )}
       </Card>
     </Link>
   );

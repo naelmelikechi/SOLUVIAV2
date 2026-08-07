@@ -268,7 +268,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
       });
       if (res.success) {
         toast.success(
-          'Brouillon de facture préparé. À vérifier puis envoyer dans l’onglet Brouillons.',
+          'Brouillon de facture préparé. À vérifier puis envoyer dans l’onglet À émettre.',
         );
         setSelected(new Set());
         refresh();
@@ -474,7 +474,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                               disabled={disabled}
                               onChange={() => toggleOne(e)}
                               className="border-input size-4 rounded disabled:cursor-not-allowed"
-                              aria-label={`Sélectionner ${e.type === 'engagement' ? 'engagement' : 'réglement OPCO'} ${deca}${stepSuffix}`}
+                              aria-label={`Sélectionner ${e.type === 'engagement' ? 'engagement' : 'règlement OPCO'} ${deca}${stepSuffix}`}
                             />
                           </TableCell>
                           <TableCell>
@@ -572,7 +572,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                         {'Verrouillé'} :{' '}
                                         {e.type === 'opco_step'
                                           ? "engagement à facturer d'abord"
-                                          : 'réglements OPCO déjà facturés'}
+                                          : 'règlements OPCO déjà facturés'}
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent
@@ -582,7 +582,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                       <div className="text-xs">
                                         {e.type === 'opco_step'
                                           ? "Verrouillé car l'engagement de ce contrat a déjà été facturé sur "
-                                          : 'Verrouillé car un réglement OPCO de ce contrat a déjà été facturé sur '}
+                                          : 'Verrouillé car un règlement OPCO de ce contrat a déjà été facturé sur '}
                                         <span className="font-mono">
                                           {e.locked_by.facture_ref ??
                                             'brouillon'}
@@ -767,11 +767,11 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                   }
                 >
                   {isPending
-                    ? 'Preparation...'
+                    ? 'Préparation...'
                     : opcoCodesFilter.length === 0 &&
                         allAvailableOpcoCodes.length > 0
-                      ? 'Selectionnez au moins un OPCO'
-                      : 'Preparer le brouillon'}
+                      ? 'Sélectionnez au moins un OPCO'
+                      : 'Préparer le brouillon'}
                 </Button>
               </div>
             </div>

@@ -131,7 +131,7 @@ export async function sendEmailForFacture(
       societe_emettrice_id, odoo_id, peppol_state,
       projet:projets!factures_projet_id_fkey(id, ref),
       client:clients!factures_client_id_fkey(id, trigramme, raison_sociale, siret, adresse, localisation, tva_intracommunautaire),
-      lignes:facture_lignes(id, contrat_id, description, montant_ht, opco_code, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
+      lignes:facture_lignes(id, contrat_id, description, montant_ht, taux_tva_ligne, opco_code, contrat:contrats!facture_lignes_contrat_id_fkey(ref, contract_number, apprenant_nom, apprenant_prenom))
     `,
     )
     .eq('id', factureId)

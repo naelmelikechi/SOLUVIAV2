@@ -18,6 +18,7 @@ import {
 import { formatClientAddressLines } from '@/lib/utils/fr-address';
 import { buildEInvoicingMentions } from '@/lib/utils/e-invoicing-mentions';
 import { formatEur } from '@/lib/pdf/format';
+import { ttcLigne, ventilerTvaParTaux } from '@/lib/utils/tva-ventilation';
 import { docStyles, createTotalsStyles } from '@/lib/pdf/commercial-doc-styles';
 import { DestinataireBlock, TotalsBlock, PaymentRow } from '@/lib/pdf/blocks';
 
@@ -284,10 +285,10 @@ export function FacturePdf({
             ligne: (typeof lignes)[number],
             numero: number,
           ) => {
-            const ligneTtc =
-              Math.round(
-                ligne.montant_ht * (1 + facture.taux_tva / 100) * 100,
-              ) / 100;
+            // Taux PAR LIGNE quand il est renseigne, sinon le taux d'en-tete.
+            // Cf. lib/utils/tva-ventilation : le taux d'en-tete est un taux
+            // derive et ne doit pas etre applique aux lignes d'une facture mixte.
+            const ligneTtc = ttcLigne(ligne, facture.taux_tva);
             // DECA si renseigne, sinon fallback sur la ref interne du contrat.
             const decaLabel =
               ligne.contrat?.contract_number ?? ligne.contrat?.ref ?? '';
@@ -341,15 +342,35 @@ export function FacturePdf({
           });
         })()}
 
-        {/* Totals */}
+        {/* Totals. La TVA est ventilee PAR TAUX des qu'il y en a plusieurs :
+            `facture.taux_tva` est un taux derive, recalcule par le trigger DB en
+            (tva / ht) * 100. Sur une facture mixte (1 000 HT a 20 % + 500 HT a
+            0 %) il vaut 13,33 %, qui ne correspond a aucun taux legal francais.
+            L'art. 242 nonies A du CGI impose la ventilation par taux distinct. */}
         <TotalsBlock
           styles={totalsStyles}
           rows={[
             { label: 'Sous-total HT', value: formatEur(facture.montant_ht) },
-            {
-              label: `TVA ${facture.taux_tva}%`,
-              value: formatEur(facture.montant_tva),
-            },
+            ...(() => {
+              const ventilation = ventilerTvaParTaux(
+                facture.lignes ?? [],
+                facture.taux_tva,
+              );
+              // Un seul taux : on prefere montant_tva, valeur de reference
+              // calculee par la base, plutot qu'une resomme cote client.
+              if (ventilation.length <= 1) {
+                return [
+                  {
+                    label: `TVA ${facture.taux_tva}%`,
+                    value: formatEur(facture.montant_tva),
+                  },
+                ];
+              }
+              return ventilation.map(({ taux, tva }) => ({
+                label: `TVA ${taux}%`,
+                value: formatEur(tva),
+              }));
+            })(),
           ]}
           ttc={formatEur(facture.montant_ttc)}
         />

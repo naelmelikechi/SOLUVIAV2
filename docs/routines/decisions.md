@@ -1,0 +1,30 @@
+# Decisions sur les constats des routines
+
+Memoire partagee des routines cloud de ce depot. Elles la lisent AVANT de
+remonter quoi que ce soit, et n'y ajoutent que des decisions deja prises.
+
+Sans ce fichier, un constat ecarte revient a chaque execution : la seule
+deduplication dont dispose une routine est "existe-t-il une PR ou une issue
+ouverte ?", et cette question oublie tout ce qui a ete referme. Un constat
+juge non pertinent en aout serait donc re-remonte a l'identique en septembre,
+indefiniment.
+
+## Format
+
+Une ligne par decision, la plus recente en haut. Cite le fichier concerne
+quand le constat est localise, sinon decris-le assez precisement pour qu'il
+soit reconnaissable.
+
+Valeurs de la colonne Decision :
+
+- `wontfix` : ce n'est pas un bug ici, et ca ne le deviendra pas.
+- `acceptee` : c'est un choix assume, documente par la raison.
+- `corrigee` : traitee, ne pas re-remonter.
+- `reportee` : reelle mais pas maintenant. Cite l'issue qui la porte.
+
+| Date | Constat | Decision | Raison |
+|---|---|---|---|
+| 2026-08-07 | `buildContratIdMap` (`lib/eduvia/sync.ts`) lit `contrats` sans pagination ni chunk, contrairement a sa soeur `snapshotExistingContrats` : progressions et jalons de facturation seraient perdus en silence au-dela de 1000 contrats pour un seul client | acceptee | Le fait de code est exact, ses consequences non. Le seuil (plus de 1000 contrats pour UN client) vaut environ 10 fois la base entiere (« 4 contrats rompus sur ~100 », migration `20260805120000`) et 20 fois le plus gros tenant reel (ids Eduvia 1 a 58). Contrairement a `snapshotExistingContrats`, l'erreur EST correctement remontee ici (`result.errors` + abandon du client), et les donnees concernees sont de purs miroirs re-upsertes a chaque run, donc aucune perte definitive. A rouvrir seulement si un client depasse reellement 1000 contrats. |
+| 2026-08-07 | Alertes de saturation CDP (`app/api/cron/passation-echeances/route.ts`) : le palier `cdp_seuil_alerte` est persiste avant l'envoi, donc un echec d'envoi abandonnerait la boucle et perdrait l'alerte DEFINITIVEMENT | wontfix | Les deux affirmations porteuses sont fausses. `sendCdpSaturationEmail` ne leve jamais (toutes les branches d'echec de `lib/email/_send.ts` retournent `{ success: false }`), donc la boucle va toujours a son terme et les CDP suivants sont traites. Et `computeChargeAlertes` persiste aussi les REDESCENTES (`__tests__/charge-alertes.test.ts`, « redescente : pas de notification mais re-armement persiste »), donc la perte dure jusqu'au prochain franchissement descendant, pas eternellement. Ne pas re-remonter sous cette formulation. Reste vrai, et non tranche ici : le retour de `sendCdpSaturationEmail` n'est pas teste (ligne ~263), un echec Resend reste silencieux. |
+
+<!-- Ajoute tes lignes au-dessus de ce commentaire, sous l'en-tete du tableau. -->

@@ -15,13 +15,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createFreeBrouillon } from '@/lib/actions/factures';
+import { formatCurrency } from '@/lib/utils/formatters';
 import { matchesSearch } from '@/lib/utils/search';
+import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 import { cn } from '@/lib/utils';
 
 export interface FreeFactureClientOption {
   id: string;
   trigramme: string;
   raison_sociale: string;
+  /** Necessaire pour l'apercu du TTC : un client intracommunautaire est en
+   *  autoliquidation, donc a 0 % de TVA et non 20 %. */
+  tva_intracommunautaire: string | null;
 }
 
 export interface SocieteOption {
@@ -81,8 +86,14 @@ export function NewFactureLibreDialog({
     }, 0);
   }, [lignes]);
 
-  const totalTtc = totalHt * 1.2;
   const selectedClient = clients.find((c) => c.id === clientId);
+  // Le taux etait code en dur a 1.2, alors que le brouillon insere resout le
+  // regime depuis le client : pour un client intracommunautaire a 1 000 HT, le
+  // dialogue annoncait 1 200 TTC et le brouillon valait 1 000. On resout ici le
+  // meme regime que le serveur (le PDF, lui, gerait deja correctement
+  // l'autoliquidation).
+  const tvaRegime = resolveTvaRegime(selectedClient?.tva_intracommunautaire);
+  const totalTtc = totalHt * (1 + tvaRegime.taux / 100);
 
   const canSubmit =
     !!clientId &&
@@ -103,10 +114,13 @@ export function NewFactureLibreDialog({
     );
   }
 
+  // On ne remet PLUS a zero a la fermeture : `reset()` etait appele sur TOUTE
+  // fermeture, y compris Echap ou un clic a l'exterieur, et la saisie etait
+  // perdue sans confirmation ni brouillon local. Le reset n'a lieu qu'apres une
+  // creation reussie, seul moment ou l'ancienne saisie n'a plus de valeur.
   function handleOpenChange(next: boolean) {
     if (isSubmitting) return;
     onOpenChange(next);
-    if (!next) reset();
   }
 
   function addLigne() {
@@ -138,7 +152,7 @@ export function NewFactureLibreDialog({
       });
       if (result.success) {
         toast.success(
-          'Brouillon de facture libre créé. À vérifier puis envoyer dans l’onglet Brouillons.',
+          'Brouillon de facture libre créé. À vérifier puis envoyer dans l’onglet À émettre.',
         );
         onOpenChange(false);
         reset();
@@ -181,7 +195,7 @@ export function NewFactureLibreDialog({
           )}
           {societes.length === 1 && (
             <p className="text-muted-foreground text-xs">
-              Emise depuis : <strong>{societes[0]!.raison_sociale}</strong>
+              Émise depuis : <strong>{societes[0]!.raison_sociale}</strong>
             </p>
           )}
 
@@ -305,19 +319,23 @@ export function NewFactureLibreDialog({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total HT</span>
               <span className="font-mono tabular-nums">
-                {totalHt.toFixed(2)} €
+                {formatCurrency(totalHt)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">TVA 20%</span>
+              <span className="text-muted-foreground">
+                {tvaRegime.isAutoliquidation
+                  ? `TVA 0% (autoliquidation ${tvaRegime.countryCode ?? ''})`
+                  : `TVA ${tvaRegime.taux}%`}
+              </span>
               <span className="font-mono tabular-nums">
-                {(totalTtc - totalHt).toFixed(2)} €
+                {formatCurrency(totalTtc - totalHt)}
               </span>
             </div>
             <div className="flex justify-between border-t pt-1 text-base font-semibold">
               <span>Total TTC</span>
               <span className="font-mono tabular-nums">
-                {totalTtc.toFixed(2)} €
+                {formatCurrency(totalTtc)}
               </span>
             </div>
           </div>

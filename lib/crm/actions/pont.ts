@@ -31,6 +31,51 @@ export async function createClientFromCompte(
   if (!opp) return null;
   if (opp.client_id) return opp.client_id;
 
+  // Deduplication par COMPTE et non seulement par opportunite (audit #122,
+  // constat 10). Le seul controle etait `if (opp.client_id)`, donc par
+  // opportunite : une SECONDE opportunite gagnee sur le meme compte inserait un
+  // second client, avec la meme raison sociale et le meme SIRET. Projets,
+  // contrats Eduvia, factures et encours se repartissaient alors silencieusement
+  // sur deux fiches, et la serie de facturation se scindait.
+  //
+  // Ce n'est pas un cas tordu : le modele CRM est explicitement multi-sessions
+  // par compte (volume_an1/an2/an3, mois_demarrage), une deuxieme promotion
+  // vendue au meme client l'annee suivante est le cas NOMINAL, et il suffit de
+  // deposer la carte dans la colonne « Gagne ».
+  //
+  // On reutilise ici une donnee deja presente plutot que d'introduire une regle
+  // nouvelle (SIRET, back-link) : si une autre opportunite du meme compte a deja
+  // produit un client, c'est celui-la.
+  const { data: dejaLie } = await crm
+    .from('opportunites')
+    .select('client_id')
+    .eq('compte_id', opp.compte_id)
+    .not('client_id', 'is', null)
+    .limit(1)
+    .maybeSingle();
+  if (dejaLie?.client_id) {
+    // On rattache l'opportunite courante au client existant, pour que le
+    // prochain passage sorte au premier test et que le lien soit trace.
+    const { error: linkErr } = await crm
+      .from('opportunites')
+      .update({ client_id: dejaLie.client_id })
+      .eq('id', opp.id);
+    if (linkErr) {
+      logger.error(SCOPE, 'rattachement au client existant echoue', {
+        oppId,
+        clientId: dejaLie.client_id,
+        error: linkErr,
+      });
+      return null;
+    }
+    logger.info(SCOPE, 'compte deja lie a un client, reutilise', {
+      oppId,
+      compteId: opp.compte_id,
+      clientId: dejaLie.client_id,
+    });
+    return dejaLie.client_id;
+  }
+
   const { data: compte } = await crm
     .from('comptes')
     .select('nom, siret')

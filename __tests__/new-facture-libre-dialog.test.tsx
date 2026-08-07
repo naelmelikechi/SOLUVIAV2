@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { useState } from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest';
@@ -28,7 +29,21 @@ beforeEach(() => {
 
 describe('NewFactureLibreDialog', () => {
   const clients = [
-    { id: 'c1', trigramme: 'DUP', raison_sociale: 'Dupont SARL' },
+    {
+      id: 'c1',
+      trigramme: 'DUP',
+      raison_sociale: 'Dupont SARL',
+      tva_intracommunautaire: null,
+    },
+  ];
+  // Client intracommunautaire (belge) : autoliquidation, donc TVA a 0 %.
+  const clientsIntracom = [
+    {
+      id: 'c2',
+      trigramme: 'BEL',
+      raison_sociale: 'Belgique SPRL',
+      tva_intracommunautaire: 'BE0123456789',
+    },
   ];
   const societesMulti = [
     {
@@ -59,6 +74,35 @@ describe('NewFactureLibreDialog', () => {
     expect(screen.getByLabelText(/société émettrice/i)).toBeInTheDocument();
   });
 
+  it('apercu TVA : 20 % pour un client francais, 0 % en autoliquidation intracom', () => {
+    // Regression (audit #122, constat 20). Le TTC etait calcule avec 1.2 en dur
+    // alors que le brouillon insere resout le regime depuis le client : pour un
+    // client belge a 1 000 HT, le dialogue annoncait 1 200 TTC et le brouillon
+    // valait 1 000.
+    const { unmount } = render(
+      <NewFactureLibreDialog
+        open
+        onOpenChange={() => {}}
+        clients={clients}
+        societes={societesSingle}
+      />,
+    );
+    fireEvent.click(screen.getAllByText('Dupont SARL')[0]!);
+    expect(screen.getByText('TVA 20%')).toBeInTheDocument();
+    unmount();
+
+    render(
+      <NewFactureLibreDialog
+        open
+        onOpenChange={() => {}}
+        clients={clientsIntracom}
+        societes={societesSingle}
+      />,
+    );
+    fireEvent.click(screen.getAllByText('Belgique SPRL')[0]!);
+    expect(screen.getByText(/TVA 0%.*autoliquidation/i)).toBeInTheDocument();
+  });
+
   it('affiche un libelle quand exactement 1 societe', () => {
     render(
       <NewFactureLibreDialog
@@ -72,6 +116,45 @@ describe('NewFactureLibreDialog', () => {
       screen.queryByLabelText(/société émettrice/i),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/S\.A\.S\. SOLUVIA/)).toBeInTheDocument();
+  });
+
+  it('la saisie survit a une fermeture accidentelle puis reouverture', () => {
+    // Regression (audit #122, constat 12c). `handleOpenChange` appelait reset()
+    // sur TOUTE fermeture, y compris une touche Echap ou un clic a l'exterieur :
+    // la saisie etait perdue sans confirmation ni brouillon local, et rouvrir le
+    // dialogue donnait un formulaire vide. Le reset ne doit avoir lieu qu'apres
+    // une creation reussie.
+    function Wrapper() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            reouvrir
+          </button>
+          <NewFactureLibreDialog
+            open={open}
+            onOpenChange={setOpen}
+            clients={clients}
+            societes={societesSingle}
+          />
+        </>
+      );
+    }
+    render(<Wrapper />);
+
+    fireEvent.change(
+      screen.getAllByPlaceholderText(/Description ligne 1/)[0]!,
+      { target: { value: 'Prestation a ne pas perdre' } },
+    );
+
+    // Fermeture par le bouton Annuler, qui passe par handleOpenChange(false),
+    // exactement comme Echap et le clic exterieur.
+    fireEvent.click(screen.getByRole('button', { name: /annuler/i }));
+    fireEvent.click(screen.getByRole('button', { name: /reouvrir/i }));
+
+    expect(
+      screen.getAllByPlaceholderText(/Description ligne 1/)[0]!,
+    ).toHaveValue('Prestation a ne pas perdre');
   });
 
   it('submit envoie societeEmettriceId au server action', async () => {

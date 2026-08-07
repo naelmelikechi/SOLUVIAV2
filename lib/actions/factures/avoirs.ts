@@ -6,6 +6,9 @@ import { checkAuth } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/utils/audit';
 import { getDefaultSocieteEmettriceId } from '@/lib/queries/societes-emettrices';
+import { computeProrataRupture } from '@/lib/echeancier/calc';
+import { loadBilledLines } from '@/lib/echeancier/ajustements';
+import { loadTotalCommissionContrat } from '@/lib/echeancier/commission-contrat';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -78,8 +81,10 @@ export async function computeProrataAvoir(params: {
     .select(
       `
       montant_ht,
+      contrat_id,
       contrat:contrats!facture_lignes_contrat_id_fkey(
-        ref, apprenant_nom, apprenant_prenom, date_debut, duree_mois
+        ref, apprenant_nom, apprenant_prenom, date_debut, duree_mois,
+        projets!inner(echeancier_template_id, echeancier_override)
       )
     `,
     )
@@ -90,51 +95,112 @@ export async function computeProrataAvoir(params: {
     return { success: false, error: 'Aucune ligne sur cette facture' };
   }
 
-  const breakdown: ProrataBreakdownItem[] = [];
-  let total = 0;
+  // Un avoir de rupture se raisonne par CONTRAT, pas par ligne : c'est
+  // l'echeancier du contrat qui dit ce qui est gagne a la date de rupture. On
+  // regroupe donc les lignes de la facture origine par contrat, et on delegue le
+  // calcul a computeProrataRupture, le MEME que le pipeline d'ajustements.
+  //
+  // Avant, cette fonction appliquait un prorata lineaire de 30,4375 jours par
+  // mois, ligne par ligne. Sur un echeancier front-load (ex. 3/12 au M+3) elle
+  // sur-remboursait : sur un contrat de 12 mois a 12 000 de NPEC et 10 % de taux,
+  // avec seul le jalon M+3 facture (300 HT) et une rupture a 6 mois, elle
+  // proposait 151,33 EUR alors que SOLUVIA est CREDITEUR de 300 (gagne 600 pour
+  // 300 factures) et ne doit rien rembourser. Le pipeline, lui, rendait 0,00.
+  // Le montant etant pre-rempli dans le champ d'avoir et aucun garde-fou ne
+  // portant sur sa justesse, l'ecart partait tel quel a la validation.
+  const parContrat = new Map<
+    string,
+    {
+      ref: string | null;
+      apprenant: string;
+      dateDebut: string | null;
+      dureeMois: number | null;
+      projetConfig: {
+        echeancier_template_id: string | null;
+        echeancier_override: unknown;
+      } | null;
+      montantFactureHt: number;
+    }
+  >();
 
   for (const ligne of lignes) {
     const c = ligne.contrat;
-    const montantLigne = ligne.montant_ht ?? 0;
-    const apprenant = [c?.apprenant_prenom, c?.apprenant_nom]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
+    const contratId = ligne.contrat_id;
+    if (!contratId) continue;
+    const projets = c?.projets as {
+      echeancier_template_id: string | null;
+      echeancier_override: unknown;
+    } | null;
+    const existant = parContrat.get(contratId);
+    if (existant) {
+      existant.montantFactureHt += ligne.montant_ht ?? 0;
+      continue;
+    }
+    parContrat.set(contratId, {
+      ref: c?.ref ?? null,
+      apprenant:
+        [c?.apprenant_prenom, c?.apprenant_nom]
+          .filter(Boolean)
+          .join(' ')
+          .trim() || '-',
+      dateDebut: c?.date_debut ?? null,
+      dureeMois: c?.duree_mois ?? null,
+      projetConfig: projets,
+      montantFactureHt: ligne.montant_ht ?? 0,
+    });
+  }
 
-    // Without dates we cannot compute pro-rata → treat as fully non-réalisé
-    // so the CDP reviews it (worst case = full refund of that line).
-    if (!c?.date_debut || !c?.duree_mois) {
+  const breakdown: ProrataBreakdownItem[] = [];
+  let total = 0;
+
+  for (const [contratId, info] of parContrat) {
+    // Sans dates, aucun prorata n'est calculable : on propose le remboursement
+    // integral pour que le CDP arbitre, comme avant.
+    if (!info.dateDebut || !info.dureeMois) {
       breakdown.push({
-        contratRef: c?.ref ?? null,
-        apprenant: apprenant || '-',
-        montantLigneHt: montantLigne,
+        contratRef: info.ref,
+        apprenant: info.apprenant,
+        montantLigneHt: info.montantFactureHt,
         dureeRealiseeMois: 0,
         dureeTotaleMois: 0,
-        avoirLigneHt: montantLigne,
+        avoirLigneHt: info.montantFactureHt,
       });
-      total += montantLigne;
+      total += info.montantFactureHt;
       continue;
     }
 
-    const debut = new Date(c.date_debut);
-    const totalMs = rupture.getTime() - debut.getTime();
+    const billedLines = await loadBilledLines(supabase, contratId);
+    const totalCommissionContrat = await loadTotalCommissionContrat(
+      supabase,
+      info.projetConfig,
+      billedLines,
+      info.dureeMois,
+    );
+    const result = computeProrataRupture(
+      { date_debut: info.dateDebut, duree_mois: info.dureeMois },
+      dateRupture,
+      billedLines,
+      totalCommissionContrat,
+    );
+
     const realiseeMois = Math.max(
       0,
-      Math.min(c.duree_mois, totalMs / (1000 * 60 * 60 * 24 * 30.4375)),
+      Math.min(
+        info.dureeMois,
+        (rupture.getTime() - new Date(info.dateDebut).getTime()) /
+          (1000 * 60 * 60 * 24 * 30.4375),
+      ),
     );
-    const fractionNonRealisee = 1 - realiseeMois / c.duree_mois;
-    const avoirLigne =
-      Math.round(montantLigne * fractionNonRealisee * 100) / 100;
 
     breakdown.push({
-      contratRef: c.ref ?? null,
-      apprenant: apprenant || '-',
-      montantLigneHt: montantLigne,
+      contratRef: info.ref,
+      apprenant: info.apprenant,
+      montantLigneHt: info.montantFactureHt,
       dureeRealiseeMois: Math.round(realiseeMois * 10) / 10,
-      dureeTotaleMois: c.duree_mois,
-      avoirLigneHt: avoirLigne,
+      dureeTotaleMois: info.dureeMois,
+      avoirLigneHt: result.avoir_total_ht,
     });
-    total += avoirLigne;
+    total += result.avoir_total_ht;
   }
 
   return {

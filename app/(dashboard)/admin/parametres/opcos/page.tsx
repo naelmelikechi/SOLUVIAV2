@@ -22,7 +22,7 @@ export default async function OpcosPage() {
             { label: 'Référentiel OPCO' },
           ]}
         />
-        <h1 className="text-2xl font-bold">Referentiel OPCO</h1>
+        <h1 className="text-2xl font-bold">Référentiel OPCO</h1>
         <p className="text-muted-foreground mt-1">
           Mapping IDCC (conventions collectives) vers OPCO utilisé par la
           facturation.

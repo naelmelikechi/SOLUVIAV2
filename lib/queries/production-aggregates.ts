@@ -4,6 +4,7 @@ import type { Database } from '@/types/database';
 import { fetchAllRows } from '@/lib/supabase/fetch-all';
 import { logger } from '@/lib/utils/logger';
 import { encaisseHt } from '@/lib/utils/montant-ht';
+import { soldeRestantDuHt, soldeRestantDuTtc } from '@/lib/utils/avoir-netting';
 
 /**
  * Agregats production : sommes mensuelles factures/paiements + contrats
@@ -134,7 +135,7 @@ async function getMonthSumsFallback(
       supabase
         .from('paiements')
         .select(
-          'montant, facture:factures!inner(mois_concerne, montant_ht, montant_ttc, client:clients!inner(is_demo, archive))',
+          'montant, facture_id, facture:factures!inner(mois_concerne, montant_ht, montant_ttc, client:clients!inner(is_demo, archive))',
         )
         .gte('facture.mois_concerne', firstKey)
         .lt('facture.mois_concerne', nextAfterLastKey)
@@ -190,6 +191,19 @@ async function getMonthSumsFallback(
     }
   }
 
+  // Paiements deja recus, par facture. Necessaire pour que « En retard » soit
+  // le RESTANT DU et non le montant facture brut : c'est la definition unique
+  // retenue par l'audit #122, constat 13 (cf lib/utils/avoir-netting).
+  const paiementsParFacture = new Map<string, number>();
+  for (const p of paiementsRes.data ?? []) {
+    const id = (p as { facture_id?: string }).facture_id;
+    if (!id) continue;
+    paiementsParFacture.set(
+      id,
+      (paiementsParFacture.get(id) ?? 0) + (p.montant ?? 0),
+    );
+  }
+
   for (const f of facturesRows) {
     if (!f.mois_concerne) continue;
     const e = entry(f.mois_concerne.slice(0, 7));
@@ -197,8 +211,17 @@ async function getMonthSumsFallback(
     e.factureTtc += f.montant_ttc ?? 0;
     if (f.statut === 'en_retard') {
       const av = avoirByOrigine.get(f.id);
-      e.en_retard += Math.max(0, f.montant_ht + (av?.ht ?? 0));
-      e.enRetardTtc += Math.max(0, (f.montant_ttc ?? 0) + (av?.ttc ?? 0));
+      const encaisseTtc = paiementsParFacture.get(f.id) ?? 0;
+      const avoirs = av
+        ? [{ montant_ht: av.ht, montant_ttc: av.ttc, statut: 'avoir' as const }]
+        : [];
+      e.en_retard += soldeRestantDuHt(
+        f.montant_ht,
+        f.montant_ttc,
+        avoirs,
+        encaisseTtc,
+      );
+      e.enRetardTtc += soldeRestantDuTtc(f.montant_ttc, avoirs, encaisseTtc);
     }
   }
 

@@ -5,8 +5,8 @@ import { getApprenantsByProjetId } from '@/lib/queries/apprenants';
 import { getProjetPerformance } from '@/lib/queries/projet-performance';
 import { getRdvFormateursByProjetId } from '@/lib/queries/rdv';
 import { ProjetPerformanceVolets } from '@/components/projets/projet-performance-volets';
-import { ProjetApprenantsTable } from '@/components/projets/projet-apprenants-table';
-import { ProjetRdvSection } from '@/components/projets/projet-rdv-section';
+import { ProjetProgressionTable } from '@/components/projets/projet-progression-table';
+import { ProjetSuivisFormateurs } from '@/components/projets/projet-suivis-formateurs';
 import { isContratActif } from '@/lib/utils/contrat-states';
 
 export async function generateMetadata({
@@ -42,10 +42,10 @@ export default async function ProjetProductionPage({
           contrats.filter((c) => isContratActif(c.contract_state)).length
         }
       />
-      <ProjetApprenantsTable apprenants={apprenants} />
+      <ProjetProgressionTable apprenants={apprenants} />
       {/* Les suivis formateurs sont un indicateur de production, pas une piece
           de suivi administratif : ils vivent ici. */}
-      <ProjetRdvSection projetId={projet.id} rdvs={rdvs} />
+      <ProjetSuivisFormateurs projetId={projet.id} rdvs={rdvs} />
     </div>
   );
 }

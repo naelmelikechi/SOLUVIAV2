@@ -474,7 +474,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                               disabled={disabled}
                               onChange={() => toggleOne(e)}
                               className="border-input size-4 rounded disabled:cursor-not-allowed"
-                              aria-label={`Sélectionner ${e.type === 'engagement' ? 'engagement' : 'réglement OPCO'} ${deca}${stepSuffix}`}
+                              aria-label={`Sélectionner ${e.type === 'engagement' ? 'engagement' : 'règlement OPCO'} ${deca}${stepSuffix}`}
                             />
                           </TableCell>
                           <TableCell>
@@ -582,7 +582,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                       <div className="text-xs">
                                         {e.type === 'opco_step'
                                           ? "Verrouillé car l'engagement de ce contrat a déjà été facturé sur "
-                                          : 'Verrouillé car un réglement OPCO de ce contrat a déjà été facturé sur '}
+                                          : 'Verrouillé car un règlement OPCO de ce contrat a déjà été facturé sur '}
                                         <span className="font-mono">
                                           {e.locked_by.facture_ref ??
                                             'brouillon'}

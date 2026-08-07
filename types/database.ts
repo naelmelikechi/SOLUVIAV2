@@ -917,24 +917,24 @@ export type Database = {
           finished_at: string | null;
           id: string;
           started_at: string;
-          statut: string;
           stats: Json | null;
+          statut: string;
         };
         Insert: {
           erreur?: string | null;
           finished_at?: string | null;
           id?: string;
           started_at?: string;
-          statut?: string;
           stats?: Json | null;
+          statut?: string;
         };
         Update: {
           erreur?: string | null;
           finished_at?: string | null;
           id?: string;
           started_at?: string;
-          statut?: string;
           stats?: Json | null;
+          statut?: string;
         };
         Relationships: [];
       };
@@ -1486,10 +1486,13 @@ export type Database = {
           apprenant_nom: string | null;
           apprenant_prenom: string | null;
           archive: boolean;
+          archive_auto_le: string | null;
+          archive_regle_id: string | null;
           contract_conclusion_date: string | null;
           contract_mode: string | null;
           contract_number: string | null;
           contract_state: string;
+          contract_state_changed_at: string | null;
           contract_type: string | null;
           created_at: string;
           creation_mode: string | null;
@@ -1526,10 +1529,13 @@ export type Database = {
           apprenant_nom?: string | null;
           apprenant_prenom?: string | null;
           archive?: boolean;
+          archive_auto_le?: string | null;
+          archive_regle_id?: string | null;
           contract_conclusion_date?: string | null;
           contract_mode?: string | null;
           contract_number?: string | null;
           contract_state?: string;
+          contract_state_changed_at?: string | null;
           contract_type?: string | null;
           created_at?: string;
           creation_mode?: string | null;
@@ -1566,10 +1572,13 @@ export type Database = {
           apprenant_nom?: string | null;
           apprenant_prenom?: string | null;
           archive?: boolean;
+          archive_auto_le?: string | null;
+          archive_regle_id?: string | null;
           contract_conclusion_date?: string | null;
           contract_mode?: string | null;
           contract_number?: string | null;
           contract_state?: string;
+          contract_state_changed_at?: string | null;
           contract_type?: string | null;
           created_at?: string;
           creation_mode?: string | null;
@@ -1602,6 +1611,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'contrats_archive_regle_id_fkey';
+            columns: ['archive_regle_id'];
+            isOneToOne: false;
+            referencedRelation: 'contrats_regles_archivage';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'contrats_projet_id_fkey';
             columns: ['projet_id'];
@@ -1676,6 +1692,47 @@ export type Database = {
             columns: ['contrat_id'];
             isOneToOne: true;
             referencedRelation: 'contrats';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      contrats_regles_archivage: {
+        Row: {
+          actif: boolean;
+          created_at: string;
+          delai_jours: number;
+          etat_source: string;
+          id: string;
+          nom: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          actif?: boolean;
+          created_at?: string;
+          delai_jours: number;
+          etat_source: string;
+          id?: string;
+          nom: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          actif?: boolean;
+          created_at?: string;
+          delai_jours?: number;
+          etat_source?: string;
+          id?: string;
+          nom?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'contrats_regles_archivage_updated_by_fkey';
+            columns: ['updated_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
             referencedColumns: ['id'];
           },
         ];
@@ -4293,10 +4350,10 @@ export type Database = {
         Args: { p_first: string; p_next: string };
         Returns: {
           date_debut: string;
+          date_rupture: string;
           duree_mois: number;
           npec_amount: number;
           taux_commission: number;
-          date_rupture: string | null;
         }[];
       };
       count_factures_by_statut: {

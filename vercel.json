@@ -62,6 +62,10 @@
       "schedule": "0 4 * * *"
     },
     {
+      "path": "/api/cron/contrats-archivage",
+      "schedule": "30 4 * * *"
+    },
+    {
       "path": "/api/cron/devis-expiration",
       "schedule": "0 6 * * *"
     },

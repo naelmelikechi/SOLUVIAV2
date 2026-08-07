@@ -260,6 +260,13 @@ export async function getContratsActifs(
   supabase: Supabase,
   firstKey: string,
   lastKey: string,
+  /**
+   * Mode strict : leve si la RPC ET son repli echouent, au lieu de renvoyer
+   * `[]`. Les ecrans preferent une donnee degradee a une page blanche, mais un
+   * rapport envoye par mail ne doit JAMAIS annoncer zero pour une panne : le
+   * destinataire n'a aucun moyen de faire la difference.
+   */
+  opts?: { strict?: boolean },
 ): Promise<ContratActifRow[]> {
   const pFirst = `${firstKey}-01`;
   const pNext = `${format(addMonths(new Date(`${lastKey}-01T00:00:00`), 1), 'yyyy-MM')}-01`;
@@ -281,7 +288,8 @@ export async function getContratsActifs(
       { error },
     );
   }
-  return getContratsActifsFallback(supabase);
+  const fallback = await getContratsActifsFallback(supabase, opts);
+  return fallback;
 }
 
 /**
@@ -291,6 +299,7 @@ export async function getContratsActifs(
  */
 async function getContratsActifsFallback(
   supabase: Supabase,
+  opts?: { strict?: boolean },
 ): Promise<ContratActifRow[]> {
   const contratsRes = await fetchAllRows((from, to) =>
     supabase
@@ -305,12 +314,20 @@ async function getContratsActifsFallback(
       .range(from, to),
   );
 
-  if (contratsRes.error)
+  if (contratsRes.error) {
     logger.error(
       'queries.production-aggregates',
       'getContratsActifs fallback failed (contrats)',
       { error: contratsRes.error },
     );
+    // En strict, la RPC a deja echoue plus haut : ce repli etait le dernier
+    // recours. Renvoyer `[]` ferait passer une panne pour une production nulle.
+    if (opts?.strict) {
+      throw new Error(
+        `getContratsActifs : RPC et repli en echec (${contratsRes.error.message})`,
+      );
+    }
+  }
 
   const rows: ContratActifRow[] = [];
   for (const c of contratsRes.data ?? []) {

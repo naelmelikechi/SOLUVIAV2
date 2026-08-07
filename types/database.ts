@@ -2699,6 +2699,66 @@ export type Database = {
         };
         Relationships: [];
       };
+      emails_envoyes: {
+        Row: {
+          client_id: string | null;
+          created_at: string;
+          destinataires: string[];
+          envoye_le: string;
+          expediteur: string | null;
+          external_id: string | null;
+          id: string;
+          projet_id: string | null;
+          source: string;
+          statut: string | null;
+          sujet: string;
+          type: string | null;
+        };
+        Insert: {
+          client_id?: string | null;
+          created_at?: string;
+          destinataires?: string[];
+          envoye_le: string;
+          expediteur?: string | null;
+          external_id?: string | null;
+          id?: string;
+          projet_id?: string | null;
+          source: string;
+          statut?: string | null;
+          sujet: string;
+          type?: string | null;
+        };
+        Update: {
+          client_id?: string | null;
+          created_at?: string;
+          destinataires?: string[];
+          envoye_le?: string;
+          expediteur?: string | null;
+          external_id?: string | null;
+          id?: string;
+          projet_id?: string | null;
+          source?: string;
+          statut?: string | null;
+          sujet?: string;
+          type?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'emails_envoyes_client_id_fkey';
+            columns: ['client_id'];
+            isOneToOne: false;
+            referencedRelation: 'clients';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'emails_envoyes_projet_id_fkey';
+            columns: ['projet_id'];
+            isOneToOne: false;
+            referencedRelation: 'projets';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       facturation_ajustements_pending: {
         Row: {
           contrat_id: string | null;

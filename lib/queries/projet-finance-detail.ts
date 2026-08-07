@@ -4,12 +4,24 @@
  * Eduvia. Ni les memes montants, ni les memes echeances, ni le meme
  * interlocuteur - voir lib/projets/finance-flux.ts.
  *
- * Reutilise trois moteurs deja ecrits et testes, ne les recopie pas :
+ * Reutilise des moteurs deja ecrits et testes, ne les recopie pas :
  * - agregerFluxOpco (lib/projets/finance-flux.ts) pour le flux OPCO entier ;
- * - selectContratsAFacturer (lib/queries/contrats-a-facturer.ts) pour le
- *   retard de facturation commission au modele engagement ;
  * - computeEcheancierDues, via getEcheancierDues (lib/queries/echeancier-dues.ts),
  *   pour le retard de facturation commission au modele echeancier.
+ *
+ * Retard de facturation au modele engagement : ce fichier NE reutilise PAS
+ * selectContratsAFacturer (lib/queries/contrats-a-facturer.ts). Cette
+ * fonction materialise une ligne par contrat - la seule echeance la plus en
+ * retard -, ce qui est le bon comportement pour l'ecran /a-facturer (un
+ * ecran de pilotage : "quel contrat dois-je traiter"), mais sous-evalue un
+ * MONTANT : un contrat avec deux echeances ouvertes non transmises n'en
+ * compterait qu'une. sommeRetardFacturationEngagement (plus bas) reproduit
+ * le meme filtre d'eligibilite (isContratEligible cote
+ * contrats-a-facturer.ts, fonction interne non exportee, non modifiee ici)
+ * mais somme TOUTES les echeances dues. Consequence : ce montant peut
+ * differer de la somme des montants affiches sur /a-facturer - les deux
+ * ecrans repondent a des questions differentes (un contrat a traiter vs un
+ * montant total du).
  *
  * Le retard de facturation n'est PAS le reste a facturer : il ne compte que
  * ce qui aurait deja du partir (jalon OPCO ouvert et non transmis, ou
@@ -19,17 +31,12 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/utils/logger';
-import { toLocalISODate } from '@/lib/utils/dates';
+import { toLocalISODate, diffDaysIso } from '@/lib/utils/dates';
 import { round2 } from '@/lib/utils/number';
 import { productionSoluviaHt } from '@/lib/utils/montant-ht';
 import { getProjetFinance } from '@/lib/queries/projets';
 import { getDelaiReglementOpcoJours } from '@/lib/queries/parametres';
 import { agregerFluxOpco, type JalonOpco } from '@/lib/projets/finance-flux';
-import {
-  selectContratsAFacturer,
-  type AFacturerContratInput,
-  type AFacturerStepInput,
-} from '@/lib/queries/contrats-a-facturer';
 import {
   getEcheancierDues,
   currentMoisCutoff,
@@ -75,6 +82,107 @@ function contratLabel(c: {
   const apprenant =
     c.apprenti ?? `${c.apprenant_prenom ?? ''} ${c.apprenant_nom ?? ''}`.trim();
   return apprenant ? `${ref} - ${apprenant}` : ref || 'Contrat';
+}
+
+// ---------------------------------------------------------------------------
+// Retard de facturation, modele engagement (correction du sous-comptage)
+// ---------------------------------------------------------------------------
+
+/**
+ * Contrat eligible a une echeance OPCO facturable : MEME regle que la
+ * fonction interne isContratEligible de contrats-a-facturer.ts (non
+ * exportee la-bas, non modifiee ici). Dupliquee volontairement : ce fichier
+ * a besoin d'un noyau qui somme au lieu de ne garder que l'echeance la plus
+ * en retard (cf. en-tete du fichier).
+ */
+function isContratEligibleFacturationEngagement(c: {
+  archive: boolean;
+  facturation_verrouillee: boolean;
+  contract_state: string;
+}): boolean {
+  return (
+    !c.archive &&
+    !c.facturation_verrouillee &&
+    (c.contract_state === 'ENGAGE' || c.contract_state === 'TRANSMIS')
+  );
+}
+
+export interface RetardFacturationEngagementResult {
+  montant: number;
+  lignes: LigneFinance[];
+}
+
+/**
+ * Retard de facturation commission au modele engagement : somme TOUTES les
+ * echeances OPCO ouvertes (opening_date <= today) et non transmises
+ * (invoice_state null) des contrats eligibles - pas seulement l'echeance la
+ * plus en retard par contrat. Un contrat avec deux echeances ouvertes non
+ * transmises pese deux fois dans le montant retourne.
+ */
+export function sommeRetardFacturationEngagement(input: {
+  contrats: Array<{
+    id: string;
+    ref: string | null;
+    contract_number: string | null;
+    apprenant_prenom: string | null;
+    apprenant_nom: string | null;
+    archive: boolean;
+    facturation_verrouillee: boolean;
+    contract_state: string;
+  }>;
+  steps: Array<{
+    contrat_id: string;
+    step_number: number;
+    opening_date: string | null;
+    invoice_state: string | null;
+    total_amount: number | null;
+  }>;
+  today: string;
+}): RetardFacturationEngagementResult {
+  const { contrats, steps, today } = input;
+  const eligibles = new Map(
+    contrats
+      .filter(isContratEligibleFacturationEngagement)
+      .map((c) => [c.id, c] as const),
+  );
+
+  interface Due {
+    contratId: string;
+    stepNumber: number;
+    openingDate: string;
+    montant: number;
+  }
+  const dues: Due[] = [];
+  let montant = 0;
+  for (const s of steps) {
+    if (s.invoice_state !== null) continue;
+    if (!s.opening_date || s.opening_date > today) continue;
+    if (!eligibles.has(s.contrat_id)) continue;
+    const m = s.total_amount ?? 0;
+    montant += m;
+    dues.push({
+      contratId: s.contrat_id,
+      stepNumber: s.step_number,
+      openingDate: s.opening_date,
+      montant: m,
+    });
+  }
+
+  // Plus en retard d'abord, meme convention de tri que selectContratsAFacturer.
+  dues.sort(
+    (a, b) =>
+      a.openingDate.localeCompare(b.openingDate) ||
+      a.contratId.localeCompare(b.contratId),
+  );
+
+  const lignes: LigneFinance[] = dues.map((d) => ({
+    id: `${d.contratId}-${d.stepNumber}`,
+    label: contratLabel(eligibles.get(d.contratId)!),
+    detail: `Echeance ${d.stepNumber} ouverte le ${d.openingDate} (${Math.max(0, diffDaysIso(d.openingDate, today))} j)`,
+    montant: d.montant,
+  }));
+
+  return { montant: round2(montant), lignes };
 }
 
 export async function getProjetFinanceDetail(
@@ -227,52 +335,18 @@ export async function getProjetFinanceDetail(
   let lignesRetardFacturationCommission: LigneFinance[] = [];
 
   if (modeleFacturation === 'engagement') {
-    // Le meme jeu de contrats/steps sert d'entree au noyau pur
-    // selectContratsAFacturer (deja teste, deja utilise par /a-facturer) :
-    // pas de logique de retard recopiee ici, seulement l'assemblage des
-    // entrees qu'il attend, restreintes a ce seul projet.
-    const afacturerContrats: AFacturerContratInput[] = contrats.map((c) => ({
-      id: c.id,
-      ref: c.ref,
-      contract_number: c.contract_number,
-      apprenant_prenom: c.apprenant_prenom,
-      apprenant_nom: c.apprenant_nom,
-      formation_titre: c.formation_titre,
-      contract_state: c.contract_state,
-      archive: c.archive,
-      facturation_verrouillee: c.facturation_verrouillee,
-      projet_ref: projetRef,
-      client_raison_sociale: null,
-    }));
-    const afacturerSteps: AFacturerStepInput[] = steps.map((s) => ({
-      contrat_id: s.contrat_id,
-      step_number: s.step_number,
-      opening_date: s.opening_date,
-      invoice_state: s.invoice_state,
-      total_amount: s.total_amount,
-    }));
-    const rows = selectContratsAFacturer({
-      contrats: afacturerContrats,
-      steps: afacturerSteps,
-      // Le code OPCO n'est utilise par le noyau que pour l'affichage de la
-      // colonne "OPCO" de la liste globale /a-facturer ; il ne pese pas dans
-      // le montant retenu ici, donc pas besoin de le resoudre.
-      opcoByContratId: new Map(),
+    // sommeRetardFacturationEngagement (definie plus haut dans ce fichier)
+    // reproduit le filtre d'eligibilite de contrats-a-facturer.ts mais somme
+    // TOUTES les echeances dues, pas seulement la plus en retard par contrat
+    // (cf. en-tete du fichier pour la justification de cet ecart volontaire
+    // avec /a-facturer).
+    const { montant, lignes } = sommeRetardFacturationEngagement({
+      contrats,
+      steps,
       today,
     });
-    retardFacturationCommission = round2(
-      rows.reduce((sum, r) => sum + (r.montant ?? 0), 0),
-    );
-    lignesRetardFacturationCommission = rows.map((r) => ({
-      id: r.contratId,
-      label: contratLabel(r),
-      detail: `Echeance ouverte le ${r.openingDate} (${r.retardJours} j)${
-        r.echeancesDuesCount > 1
-          ? ` - ${r.echeancesDuesCount} echeances dues`
-          : ''
-      }`,
-      montant: r.montant ?? 0,
-    }));
+    retardFacturationCommission = montant;
+    lignesRetardFacturationCommission = lignes;
   } else {
     // Modele echeancier : computeEcheancierDues (via getEcheancierDues, qui
     // assemble deja projet/contrats/templates/deja-facture) donne les mois

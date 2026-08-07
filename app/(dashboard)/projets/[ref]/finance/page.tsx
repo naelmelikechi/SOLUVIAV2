@@ -5,10 +5,12 @@ import {
   getProjetFinance,
   getProjetTempsStats,
 } from '@/lib/queries/projets';
+import { getProjetFinanceDetail } from '@/lib/queries/projet-finance-detail';
 import { listEcheancierTemplates } from '@/lib/queries/echeanciers';
 import { getUser } from '@/lib/queries/users';
 import { isAdmin } from '@/lib/utils/roles';
 import { ProjetFinanceSection } from '@/components/projets/projet-finance-section';
+import { ProjetFinanceFlux } from '@/components/projets/projet-finance-flux';
 import { ProjetTempsSection } from '@/components/projets/projet-temps-section';
 import { ProjetEcheancierManualPlaceholder } from '@/components/projets/projet-echeancier-section';
 
@@ -31,16 +33,19 @@ export default async function ProjetFinancePage({
   const [projet, user] = await Promise.all([getProjetByRef(ref), getUser()]);
   if (!projet) notFound();
 
-  const [finance, temps, echeancierTemplates] = await Promise.all([
-    getProjetFinance(projet.id),
-    getProjetTempsStats(projet.id),
-    listEcheancierTemplates(),
-  ]);
+  const [finance, temps, echeancierTemplates, financeDetail] =
+    await Promise.all([
+      getProjetFinance(projet.id),
+      getProjetTempsStats(projet.id),
+      listEcheancierTemplates(),
+      getProjetFinanceDetail(projet.id, projet.ref ?? ref),
+    ]);
 
   const userIsAdmin = isAdmin(user?.role ?? null);
 
   return (
     <div className="space-y-6">
+      <ProjetFinanceFlux detail={financeDetail} />
       <div className="grid gap-6 lg:grid-cols-2">
         <ProjetFinanceSection
           finance={finance}

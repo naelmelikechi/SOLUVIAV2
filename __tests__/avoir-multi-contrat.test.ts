@@ -31,7 +31,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createAvoir } from '@/lib/actions/factures/avoirs';
 
 interface FactureLigne {
-  contrat_id: string;
+  // Nullable comme en base : `facture_lignes.contrat_id` a perdu son NOT NULL
+  // en 20260522095000, volontairement (factures libres / issues d'un devis).
+  contrat_id: string | null;
   contrat: {
     ref: string | null;
     apprenant_nom: string | null;
@@ -414,3 +416,71 @@ describe('createAvoir - multi-contrat (#6)', () => {
     expect(deleteFacture!.filters).toContainEqual(['id', 'avoir-5']);
   });
 });
+
+describe('createAvoir - facture sans aucun contrat (libre ou issue d un devis)', () => {
+  // `createFreeBrouillon` insere explicitement `contrat_id: null`, et
+  // `devis-to-facture` n'ecrit pas la colonne. Refuser l'avoir enfermait ces
+  // factures : une fois emises, l'enum n'a pas de valeur `annulee`,
+  // `deleteBrouillon` refuse tout ce qui n'est pas `a_emettre`,
+  // `forbid_facture_emise_delete` rejette le DELETE meme en service_role, et
+  // `freeze_facture_lignes_after_emission` interdit de rattacher un contrat
+  // apres coup. Aucune sortie (audit 2026-08-07, constat 2).
+  function sansContrat(extra: Partial<BuildOpts> = {}) {
+    return buildSupabase({
+      origine: {
+        id: 'fac-libre',
+        ref: 'FAC-SOL-0312',
+        statut: 'emise',
+        montant_ht: 4000,
+        taux_tva: 20,
+        est_avoir: false,
+      },
+      origineLignes: [{ contrat_id: null, contrat: null }],
+      insertedAvoir: { id: 'avoir-libre', ref: null },
+      ...extra,
+    });
+  }
+
+  async function creer(sb: ReturnType<typeof buildSupabase>, contratId?: string) {
+    requireUserMock.mockResolvedValue({
+      ok: true,
+      supabase: sb.client,
+      user: mockUser,
+    });
+    vi.mocked(createClient).mockResolvedValue(
+      sb.client as unknown as Awaited<ReturnType<typeof createClient>>,
+    );
+    return createAvoir({
+      factureOrigineId: 'aaaaaaaa-aaaa-4aaa-8aaa-000000000001',
+      motif: 'Erreur de client',
+      montant: 4000,
+      ...(contratId ? { contratId } : {}),
+    });
+  }
+
+  it('l avoir est cree, la facture libre n est plus enfermee', async () => {
+    const sb = sansContrat();
+    const result = await creer(sb);
+    expect(result.success).toBe(true);
+  });
+
+  it('la ligne d avoir porte contrat_id null, pas un contrat invente', async () => {
+    const sb = sansContrat();
+    await creer(sb);
+    const ligneInsert = sb.ops.find(
+      (o) => o.type === 'insert' && o.table === 'facture_lignes',
+    );
+    const payload = ligneInsert!.payload as Record<string, unknown>;
+    expect(payload.contrat_id).toBeNull();
+    expect(payload.montant_ht).toBe(-4000);
+    expect(payload.description).toContain('hors contrat');
+  });
+
+  it('designer un contrat sur une origine qui n en porte aucun est refuse', async () => {
+    const sb = sansContrat();
+    const result = await creer(sb, 'cccccccc-cccc-4ccc-8ccc-00000000000a');
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/aucun contrat/i);
+  });
+});
+

@@ -102,6 +102,7 @@ async function fetchMonthProduction(
           `
           montant,
           facture:factures!paiements_facture_id_fkey!inner (
+            id,
             mois_concerne,
             montant_ht,
             montant_ttc,

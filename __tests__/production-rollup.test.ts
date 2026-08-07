@@ -118,12 +118,12 @@ describe('aggregateMonthByProjet', () => {
     // Paiement TTC 240 sur une facture HT 200 / TTC 240 -> encaisse HT = 200
     {
       montant: 240,
-      facture: { montant_ht: 200, montant_ttc: 240, projet_id: 'c' },
+      facture: { id: 'f3', montant_ht: 200, montant_ttc: 240, projet_id: 'c' },
     },
     // Paiement sur une facture d un projet inconnu du mois -> ignore
     {
       montant: 100,
-      facture: { montant_ht: 100, montant_ttc: 120, projet_id: 'zz' },
+      facture: { id: 'fzz', montant_ht: 100, montant_ttc: 120, projet_id: 'zz' },
     },
   ];
 
@@ -257,3 +257,65 @@ describe('rollupByClient / projectByProjet', () => {
     expect(a.nbContrats).toBe(1);
   });
 });
+
+describe('« En retard » du drill-down : avoirs ET paiements deduits', () => {
+  // Le commit #134 a unifie cette definition sur la RPC production_month_sums,
+  // le fallback TS et kpiEncours. Le drill-down par client etait le quatrieme
+  // chemin, oublie : il ne deduisait que les avoirs. Un acompte encaisse sur une
+  // facture en retard faisait afficher au detail plus que le total qu'il
+  // decompose (audit 2026-08-07, constat 5).
+  const pX = projet('x', 'cx', 'Client X', 10);
+
+  function scenario(paiementTtc: number) {
+    const factures: FactureInput[] = [
+      {
+        id: 'fr1',
+        montant_ht: 12000,
+        montant_ttc: 14400,
+        statut: 'en_retard',
+        est_avoir: false,
+        facture_origine_id: null,
+        projet: pX,
+      },
+    ];
+    const paiements: PaiementInput[] =
+      paiementTtc === 0
+        ? []
+        : [
+            {
+              montant: paiementTtc,
+              facture: {
+                id: 'fr1',
+                montant_ht: 12000,
+                montant_ttc: 14400,
+                projet_id: 'x',
+              },
+            },
+          ];
+    return aggregateMonthByProjet('2026-07', [], factures, paiements).get('x')!;
+  }
+
+  it('sans paiement : le restant du vaut le montant facture', () => {
+    expect(scenario(0).enRetard).toBeCloseTo(12000, 2);
+  });
+
+  it('acompte de 8000 TTC : le restant du HT en tient compte', () => {
+    // 8000 TTC ramenes au HT au prorata reel 12000/14400 = 6666.67
+    // 12000 - 6666.67 = 5333.33 (et non 12000, l ancien comportement)
+    expect(scenario(8000).enRetard).toBeCloseTo(5333.33, 2);
+  });
+
+  it('acompte de 8000 TTC : le restant du TTC aussi', () => {
+    expect(scenario(8000).enRetardTtc).toBeCloseTo(6400, 2);
+  });
+
+  it('facture integralement soldee : plus rien en retard', () => {
+    expect(scenario(14400).enRetard).toBe(0);
+    expect(scenario(14400).enRetardTtc).toBe(0);
+  });
+
+  it('sur-paiement : clampe a zero, jamais de retard negatif', () => {
+    expect(scenario(20000).enRetard).toBe(0);
+  });
+})
+;

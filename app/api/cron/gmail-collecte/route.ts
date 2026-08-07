@@ -9,6 +9,7 @@ import {
   getMessageMetadata,
 } from '@/lib/gmail/client';
 import { rattacherMessage } from '@/lib/gmail/collecte';
+import { purgerJournalMails } from '@/lib/email/retention';
 
 export const maxDuration = 120;
 
@@ -30,11 +31,31 @@ export async function GET(request: Request) {
   const authError = verifyCronAuth(request);
   if (authError) return authError;
 
-  // Puis l'interrupteur, avant toute lecture et tout appel reseau. Ne pas
-  // deplacer ce check plus bas dans la fonction : c'est lui qui garantit
+  // Purge du journal AVANT l'interrupteur de collecte, et c'est delibere.
+  //
+  // La retention s'applique aux deux sources de emails_envoyes ('app' et
+  // 'gmail'), y compris quand la collecte Gmail est inactive : la source
+  // 'app' alimente la table en permanence via lib/email/_send.ts, et son
+  // journal doit s'effacer avec le temps comme celui de l'autre source.
+  //
+  // Purger notre propre table n'est pas lire une boite : la promesse
+  // d'inertie porte sur Gmail, pas sur nos propres donnees. Placer la purge
+  // apres l'interrupteur aurait laisse le journal grossir indefiniment tant
+  // que la collecte n'est pas activee, c'est-a-dire exactement dans l'etat ou
+  // se trouve la production aujourd'hui.
+  const supabase = createAdminClient();
+  const purges = await purgerJournalMails(supabase);
+
+  // Puis l'interrupteur, avant toute lecture Gmail et tout appel reseau. Ne
+  // pas deplacer ce check plus bas dans la fonction : c'est lui qui garantit
   // qu'aucune boite n'est lue tant que l'activation n'est pas deliberee.
   if (env.GMAIL_COLLECTE_ACTIVE !== 'true') {
-    return NextResponse.json({ success: true, actif: false, collectes: 0 });
+    return NextResponse.json({
+      success: true,
+      actif: false,
+      collectes: 0,
+      purges,
+    });
   }
 
   if (!gmailConfigured()) {
@@ -48,7 +69,6 @@ export async function GET(request: Request) {
     );
   }
 
-  const supabase = createAdminClient();
   const domaine = env.GMAIL_DOMAINE as string;
 
   try {
@@ -163,7 +183,7 @@ export async function GET(request: Request) {
     }
 
     logger.info(SCOPE, 'collecte gmail terminee', { collectes, ambigus });
-    return NextResponse.json({ success: true, actif: true, collectes });
+    return NextResponse.json({ success: true, actif: true, collectes, purges });
   } catch (err) {
     logger.error(SCOPE, 'cron gmail-collecte failed', { error: err });
     return NextResponse.json(

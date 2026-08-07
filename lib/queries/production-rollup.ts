@@ -1,5 +1,9 @@
 import { computeContractSchedule } from '@/lib/queries/production';
 import { encaisseHt } from '@/lib/utils/montant-ht';
+import {
+  soldeRestantDuHt,
+  soldeRestantDuTtc,
+} from '@/lib/utils/avoir-netting';
 import { round2 } from '@/lib/utils/number';
 import { resolveTauxCommission } from '@/lib/utils/commission';
 
@@ -75,6 +79,8 @@ export interface FactureInput {
 export interface PaiementInput {
   montant: number;
   facture: {
+    /** Requis pour deduire les paiements du restant du (cf. enRetard). */
+    id: string;
     montant_ht: number;
     montant_ttc: number;
     projet_id: string;
@@ -189,6 +195,18 @@ export function aggregateMonthByProjet(
     }
   }
 
+  // Paiements deja encaisses par facture. La projection les charge deja : il ne
+  // manquait que l'id de la facture pour les rattacher, soit une colonne, pas
+  // une requete.
+  const paiementsTtcByFacture = new Map<string, number>();
+  for (const p of paiements) {
+    if (!p.facture) continue;
+    paiementsTtcByFacture.set(
+      p.facture.id,
+      (paiementsTtcByFacture.get(p.facture.id) ?? 0) + (p.montant ?? 0),
+    );
+  }
+
   for (const f of factures) {
     if (!f.projet) continue;
     const entry = ensureProjet(f.projet);
@@ -196,8 +214,25 @@ export function aggregateMonthByProjet(
     entry.factureTtc += f.montant_ttc ?? 0;
     if (f.statut === 'en_retard') {
       const av = avoirByOrigine.get(f.id);
-      entry.enRetard += Math.max(0, f.montant_ht + (av?.ht ?? 0));
-      entry.enRetardTtc += Math.max(0, (f.montant_ttc ?? 0) + (av?.ttc ?? 0));
+      const paiementsTtc = paiementsTtcByFacture.get(f.id) ?? 0;
+      // « En retard » = restant du : avoirs ET paiements deduits. Le commit #134
+      // a unifie cette definition sur la RPC production_month_sums, le fallback
+      // TS et kpiEncours ; ce drill-down etait le quatrieme chemin, oublie. Il
+      // ne deduisait que les avoirs, donc un acompte encaisse laissait la ligne
+      // de detail afficher plus que le total qu'elle est censee decomposer.
+      // On passe par les helpers partages pour que la regle reste ecrite a un
+      // seul endroit.
+      entry.enRetard += soldeRestantDuHt(
+        f.montant_ht,
+        f.montant_ttc,
+        av ? [{ montant_ht: av.ht, statut: 'avoir' }] : [],
+        paiementsTtc,
+      );
+      entry.enRetardTtc += soldeRestantDuTtc(
+        f.montant_ttc,
+        av ? [{ montant_ttc: av.ttc, statut: 'avoir' }] : [],
+        paiementsTtc,
+      );
     }
   }
 

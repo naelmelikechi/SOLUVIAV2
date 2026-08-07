@@ -1,11 +1,11 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
+import { differenceInDays, parseISO } from 'date-fns';
 import {
-  CalendarDays,
+  CalendarClock,
+  CheckCircle2,
   Plus,
-  CheckCircle,
-  XCircle,
   Trash2,
   Loader2,
 } from 'lucide-react';
@@ -26,10 +26,8 @@ import {
   DataTable,
   DataTableColumnHeader,
 } from '@/components/shared/data-table';
-import { StatusBadge } from '@/components/shared/status-badge';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { formatDate } from '@/lib/utils/formatters';
-import { STATUT_RDV_LABELS, STATUT_RDV_COLORS } from '@/lib/utils/constants';
 import {
   createRdvFormateur,
   updateRdvFormateurStatut,
@@ -38,27 +36,58 @@ import {
 import { toast } from 'sonner';
 import type { RdvFormateurWithRefs } from '@/lib/queries/rdv';
 
-interface ProjetRdvSectionProps {
+interface ProjetSuivisFormateursProps {
   projetId: string;
   rdvs: RdvFormateurWithRefs[];
 }
 
-export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
+type RdvEnRetard = RdvFormateurWithRefs & { joursRetard: number };
+
+function formateurNom(rdv: RdvFormateurWithRefs): string {
+  return rdv.formateur
+    ? `${rdv.formateur.prenom} ${rdv.formateur.nom}`
+    : (rdv.formateur_nom ?? '-');
+}
+
+/**
+ * Synthese des RDV formateurs : deux chiffres (realises, en retard) puis un
+ * tableau des seuls RDV en retard. Pas de tableau pour les realises, leur
+ * compte suffit - c'est le principe "on montre ce sur quoi on peut agir, pas
+ * tout ce qu'on sait".
+ *
+ * Ce qu'on n'affiche pas, volontairement : le nombre de suivis attendu par
+ * formateur (rien en base ne permet de le calculer, les RDV sont crees un
+ * par un a la main - le commanditaire creuse la regle metier avant qu'on
+ * invente un objectif qui rendrait l'indicateur mensonger).
+ */
+export function ProjetSuivisFormateurs({
+  projetId,
+  rdvs,
+}: ProjetSuivisFormateursProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  function handleToggleStatut(id: string, current: string) {
+  const { nbRealises, enRetard } = useMemo(() => {
+    const today = new Date();
+    const realises = rdvs.filter((r) => r.statut === 'realise').length;
+    const retard: RdvEnRetard[] = rdvs
+      .filter((r) => r.statut === 'prevu' && r.date_prevue < todayIso(today))
+      .map((r) => ({
+        ...r,
+        joursRetard: differenceInDays(today, parseISO(r.date_prevue)),
+      }))
+      .sort((a, b) => b.joursRetard - a.joursRetard);
+    return { nbRealises: realises, enRetard: retard };
+  }, [rdvs]);
+
+  function handleToggleStatut(id: string) {
     setPendingId(id);
     startTransition(async () => {
-      const next = current === 'realise' ? 'prevu' : 'realise';
-      const r = await updateRdvFormateurStatut(id, next);
+      const r = await updateRdvFormateurStatut(id, 'realise');
       setPendingId(null);
-      if (r.success)
-        toast.success(
-          next === 'realise' ? 'RDV réalisé' : 'RDV remis en prévu',
-        );
+      if (r.success) toast.success('RDV réalisé');
       else toast.error(r.error ?? 'Erreur');
     });
   }
@@ -75,8 +104,18 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
     });
   }
 
-  const columns = useMemo<ColumnDef<RdvFormateurWithRefs>[]>(
+  const columns = useMemo<ColumnDef<RdvEnRetard>[]>(
     () => [
+      {
+        id: 'formateur',
+        accessorFn: (r) => formateurNom(r),
+        header: ({ column }) => (
+          <DataTableColumnHeader column={column} title="Formateur" />
+        ),
+        cell: ({ getValue }) => (
+          <span className="text-sm">{getValue<string>()}</span>
+        ),
+      },
       {
         accessorKey: 'date_prevue',
         header: ({ column }) => (
@@ -89,45 +128,22 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
         ),
       },
       {
-        id: 'formateur',
-        accessorFn: (r) =>
-          r.formateur
-            ? `${r.formateur.prenom} ${r.formateur.nom}`
-            : (r.formateur_nom ?? '-'),
+        accessorKey: 'joursRetard',
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Formateur" />
-        ),
-        cell: ({ getValue }) => (
-          <span className="text-sm">{getValue<string>()}</span>
-        ),
-      },
-      {
-        accessorKey: 'objet',
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Objet" />
+          <DataTableColumnHeader column={column} title="Retard" />
         ),
         cell: ({ row }) => (
-          <span className="text-sm">{row.original.objet ?? '-'}</span>
-        ),
-      },
-      {
-        id: 'statut',
-        accessorFn: (r) => STATUT_RDV_LABELS[r.statut],
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Statut" />
-        ),
-        cell: ({ row }) => (
-          <StatusBadge
-            label={STATUT_RDV_LABELS[row.original.statut]}
-            color={STATUT_RDV_COLORS[row.original.statut]}
-          />
+          <span className="text-sm font-medium text-[var(--destructive)] tabular-nums">
+            {row.original.joursRetard} jour
+            {row.original.joursRetard > 1 ? 's' : ''}
+          </span>
         ),
       },
       {
         id: 'actions',
         enableSorting: false,
         enableHiding: false,
-        size: 128,
+        size: 96,
         header: () => 'Actions',
         cell: ({ row }) => {
           const rdv = row.original;
@@ -137,25 +153,15 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
                 variant="ghost"
                 size="sm"
                 className="size-7 p-0"
-                title={
-                  rdv.statut === 'realise'
-                    ? 'Remettre en prévu'
-                    : 'Marquer réalisé'
-                }
-                aria-label={
-                  rdv.statut === 'realise'
-                    ? 'Remettre en prévu'
-                    : 'Marquer réalisé'
-                }
+                title="Marquer réalisé"
+                aria-label="Marquer réalisé"
                 disabled={pendingId === rdv.id}
-                onClick={() => handleToggleStatut(rdv.id, rdv.statut)}
+                onClick={() => handleToggleStatut(rdv.id)}
               >
                 {pendingId === rdv.id ? (
                   <Loader2 className="size-3.5 animate-spin" />
-                ) : rdv.statut === 'realise' ? (
-                  <XCircle className="size-3.5" />
                 ) : (
-                  <CheckCircle className="size-3.5" />
+                  <CheckCircle2 className="size-3.5" />
                 )}
               </Button>
               <Button
@@ -178,9 +184,9 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
 
   return (
     <Card className="p-6">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <CalendarDays className="size-4" /> RDV formateurs
+          <CalendarClock className="size-4" /> Suivis formateurs
         </h3>
         <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
           <Plus className="mr-1.5 size-3.5" />
@@ -188,15 +194,35 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
         </Button>
       </div>
 
-      {rdvs.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Aucun RDV</p>
+      <div className="mb-4 flex flex-wrap gap-6">
+        <div>
+          <p className="text-2xl font-bold tabular-nums">{nbRealises}</p>
+          <p className="text-muted-foreground text-sm">RDV réalisés</p>
+        </div>
+        <div>
+          <p
+            className={
+              enRetard.length > 0
+                ? 'text-2xl font-bold text-[var(--destructive)] tabular-nums'
+                : 'text-2xl font-bold tabular-nums'
+            }
+          >
+            {enRetard.length}
+          </p>
+          <p className="text-muted-foreground text-sm">RDV en retard</p>
+        </div>
+      </div>
+
+      {enRetard.length === 0 ? (
+        <p className="text-muted-foreground text-sm">Aucun RDV en retard</p>
       ) : (
         <DataTable
           columns={columns}
-          data={rdvs}
+          data={enRetard}
           searchPlaceholder="Rechercher un RDV..."
           paginationMode="auto"
           emptyMessage="Aucun résultat."
+          defaultSort={{ id: 'joursRetard', desc: true }}
         />
       )}
 
@@ -220,6 +246,10 @@ export function ProjetRdvSection({ projetId, rdvs }: ProjetRdvSectionProps) {
   );
 }
 
+function todayIso(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 function AddRdvFormateurDialog({
   projetId,
   open,
@@ -229,7 +259,7 @@ function AddRdvFormateurDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [formateurNom, setFormateurNom] = useState('');
+  const [formateurNomInput, setFormateurNomInput] = useState('');
   const [datePrevue, setDatePrevue] = useState('');
   const [objet, setObjet] = useState('');
   const [notes, setNotes] = useState('');
@@ -242,14 +272,14 @@ function AddRdvFormateurDialog({
     }
     startTransition(async () => {
       const r = await createRdvFormateur(projetId, {
-        formateurNom,
+        formateurNom: formateurNomInput,
         datePrevue,
         objet,
         notes,
       });
       if (r.success) {
         toast.success('RDV ajouté');
-        setFormateurNom('');
+        setFormateurNomInput('');
         setDatePrevue('');
         setObjet('');
         setNotes('');
@@ -263,7 +293,7 @@ function AddRdvFormateurDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CalendarDays className="text-primary size-4" />
+            <CalendarClock className="text-primary size-4" />
             Nouveau RDV formateur
           </DialogTitle>
         </DialogHeader>
@@ -281,8 +311,8 @@ function AddRdvFormateurDialog({
             <Label htmlFor="rdv-formateur">Formateur</Label>
             <Input
               id="rdv-formateur"
-              value={formateurNom}
-              onChange={(e) => setFormateurNom(e.target.value)}
+              value={formateurNomInput}
+              onChange={(e) => setFormateurNomInput(e.target.value)}
               placeholder="Nom du formateur"
             />
           </div>

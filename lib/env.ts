@@ -99,6 +99,16 @@ const serverSchema = z
     BRAIN_GITHUB_TOKEN: z.string().min(1).optional(),
     BRAIN_GITHUB_BRANCH: z.string().min(1).optional(),
 
+    // Collecte Gmail des echanges CDP <-> client (metadonnees uniquement,
+    // cf. lib/gmail). Toutes optionnelles : sans GMAIL_COLLECTE_ACTIVE='true',
+    // le cron ne fait rien du tout, aucune lecture ni appel reseau. Ne PAS
+    // positionner sans les deux prerequis hors code : autorisation du
+    // super-admin Workspace + information ecrite de l'equipe (cf.
+    // docs/runbooks/gmail-collecte.md).
+    GMAIL_COLLECTE_ACTIVE: z.string().optional(),
+    GMAIL_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
+    GMAIL_DOMAINE: z.string().min(1).optional(),
+
     // Pont recherche process (source Soluvia-Process). Optionnels en dev/test,
     // requis en prod pour le cron de synchro.
     PROCESS_SYNC_SECRET: z
@@ -211,6 +221,9 @@ function parseEnv(): Env {
     BRAIN_GITHUB_REPO: process.env.BRAIN_GITHUB_REPO?.trim(),
     BRAIN_GITHUB_TOKEN: process.env.BRAIN_GITHUB_TOKEN?.trim(),
     BRAIN_GITHUB_BRANCH: process.env.BRAIN_GITHUB_BRANCH?.trim(),
+    GMAIL_COLLECTE_ACTIVE: process.env.GMAIL_COLLECTE_ACTIVE?.trim(),
+    GMAIL_SERVICE_ACCOUNT_JSON: process.env.GMAIL_SERVICE_ACCOUNT_JSON,
+    GMAIL_DOMAINE: process.env.GMAIL_DOMAINE?.trim(),
     PROCESS_SYNC_SECRET: process.env.PROCESS_SYNC_SECRET?.trim(),
     PROCESS_SOURCE_URL: process.env.PROCESS_SOURCE_URL?.trim(),
     ADMIN_BUG_REPORT_EMAIL: process.env.ADMIN_BUG_REPORT_EMAIL?.trim(),

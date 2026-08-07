@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { env } from '@/lib/env';
 import { logger } from '@/lib/utils/logger';
+import { journaliserEmail } from '@/lib/email/journal';
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
@@ -17,6 +18,13 @@ export type EmailParams = {
   subject: string;
   html: string;
   attachments?: Attachment[];
+  // Rattachement optionnel pour le journal emails_envoyes (bloc Suivi de la
+  // fiche projet). Aucun appelant existant ne casse : renseignes uniquement
+  // la ou c'est evident et gratuit (facture, devis), le reste peut rester
+  // non rattache.
+  projetId?: string;
+  clientId?: string;
+  type?: string;
 };
 
 function toArray(v: string | string[] | undefined): string[] {
@@ -116,6 +124,20 @@ export async function sendEmail(params: EmailParams): Promise<{
       });
       return { success: false, error: error.message };
     }
+    // Journalise les destinataires REELS et le sujet ORIGINAL (jamais
+    // finalTo/finalSubject) : sous EMAIL_OVERRIDE le journal doit dire ce
+    // qui se serait passe en vrai, pas ou l'email a ete physiquement
+    // redirige. Non attendu : ne retarde pas le retour de sendEmail, mais
+    // journaliserEmail ne fait jamais echouer ni deborder silencieusement
+    // (son propre try/catch + logger.warn le garantit).
+    void journaliserEmail({
+      sujet: params.subject,
+      destinataires: [...new Set([...toList, ...ccList])],
+      expediteur: params.from,
+      projetId: params.projetId,
+      clientId: params.clientId,
+      type: params.type,
+    });
     return { success: true };
   } catch (error) {
     logger.error('email', 'Échec envoi email', {

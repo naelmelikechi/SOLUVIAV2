@@ -99,6 +99,16 @@ export default async function ParametresPage() {
             Mapping IDCC vers OPCO utilisé par la facturation.
           </p>
         </Link>
+        <Link
+          href="/admin/parametres/archivage-contrats"
+          className="hover:bg-muted/40 block rounded-md border p-4"
+        >
+          <h3 className="font-semibold">Archivage des contrats</h3>
+          <p className="text-muted-foreground text-sm">
+            Règles de sortie automatique de production des contrats restés en
+            brouillon.
+          </p>
+        </Link>
       </div>
     </div>
   );

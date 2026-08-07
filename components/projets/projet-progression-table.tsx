@@ -1,8 +1,14 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
-import { AlertTriangle, GraduationCap } from 'lucide-react';
+import {
+  AlertTriangle,
+  GraduationCap,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import type { ApprenantProjetRow } from '@/lib/queries/apprenants';
+import type { StatutProgression } from '@/lib/projets/progression';
 import { formatDate } from '@/lib/utils/formatters';
 import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
 import { Card } from '@/components/ui/card';
@@ -35,6 +41,44 @@ function statutColor(row: ApprenantProjetRow): BadgeColor {
 
 function enAlerte(row: ApprenantProjetRow): boolean {
   return isApprenantEnAlerte(row.date_debut, row.contract_state);
+}
+
+const ECART_TEXT: Record<StatutProgression, string> = {
+  avance: 'text-[var(--info)]',
+  a_jour: 'text-[var(--success)]',
+  retard: 'text-[var(--destructive)]',
+};
+
+function pctLabel(v: number | null): string {
+  return v == null ? '-' : `${Math.round(v)} %`;
+}
+
+function EcartCell({ row }: { row: ApprenantProjetRow }) {
+  if (row.progression_ecart == null) {
+    // Progression inconnue : jamais un zero ni une alerte, une absence
+    // honnete.
+    return <span className="text-muted-foreground text-sm">-</span>;
+  }
+  const arrondi = Math.round(row.progression_ecart);
+  const signe = arrondi > 0 ? '+' : '';
+  const Icon =
+    row.progression_statut === 'retard'
+      ? TrendingDown
+      : row.progression_statut === 'avance'
+        ? TrendingUp
+        : null;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 text-sm font-medium tabular-nums',
+        ECART_TEXT[row.progression_statut],
+      )}
+    >
+      {Icon && <Icon className="size-3.5 shrink-0" />}
+      {signe}
+      {arrondi} pts
+    </span>
+  );
 }
 
 const columns: ColumnDef<ApprenantProjetRow>[] = [
@@ -143,9 +187,43 @@ const columns: ColumnDef<ApprenantProjetRow>[] = [
       />
     ),
   },
+  {
+    id: 'progression_reelle',
+    accessorFn: (a) => a.progression_reelle ?? -1,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Progression" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-sm tabular-nums">
+        {pctLabel(row.original.progression_reelle)}
+      </span>
+    ),
+  },
+  {
+    id: 'progression_theorique',
+    accessorFn: (a) => a.progression_theorique ?? -1,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Théorique" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-muted-foreground text-sm tabular-nums">
+        {pctLabel(row.original.progression_theorique)}
+      </span>
+    ),
+  },
+  {
+    id: 'ecart',
+    // Les progressions inconnues (null) sont volontairement reportees en fin
+    // de tri : ce n'est ni une avance ni un retard, on ne sait juste pas.
+    accessorFn: (a) => a.progression_ecart ?? Number.POSITIVE_INFINITY,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Écart" />
+    ),
+    cell: ({ row }) => <EcartCell row={row.original} />,
+  },
 ];
 
-export function ProjetApprenantsTable({
+export function ProjetProgressionTable({
   apprenants,
 }: {
   apprenants: ApprenantProjetRow[];
@@ -191,6 +269,7 @@ export function ProjetApprenantsTable({
             searchPlaceholder="Rechercher un apprenant..."
             paginationMode="auto"
             emptyMessage="Aucun résultat."
+            defaultSort={{ id: 'ecart', desc: false }}
           />
         )}
       </Card>

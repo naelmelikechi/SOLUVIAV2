@@ -3,6 +3,7 @@ import { AppError } from '@/lib/errors';
 import { logger } from '@/lib/utils/logger';
 import type { Database } from '@/types/database';
 import { withClockSkewRetry } from '@/lib/supabase/clock-skew-retry';
+import { DEFAUT_SEUIL_ENLISEMENT_JOURS } from '@/lib/lancement/constants';
 
 export async function getParametresByCategorie(categorie: string) {
   const supabase = await createClient();
@@ -214,6 +215,42 @@ export async function getDelaiEcheanceJours(
   if (raw == null || raw.trim() === '') return DEFAULT_DELAI_ECHEANCE_JOURS;
   const n = Number(raw);
   return Number.isInteger(n) && n >= 0 ? n : DEFAULT_DELAI_ECHEANCE_JOURS;
+}
+
+/**
+ * Seuil d'enlisement de la timeline de lancement, en jours. Lu depuis le
+ * parametre `lancement.seuil_enlisement_jours` (modifiable dans
+ * /admin/parametres). Fallback sur la constante si le parametre est absent,
+ * vide ou invalide : un parametre mal saisi ne doit jamais faire disparaitre
+ * l'alerte.
+ */
+export async function getSeuilEnlisementJours(): Promise<number> {
+  const raw = await getParametreValeur('lancement.seuil_enlisement_jours');
+  if (raw == null || raw.trim() === '') return DEFAUT_SEUIL_ENLISEMENT_JOURS;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : DEFAUT_SEUIL_ENLISEMENT_JOURS;
+}
+
+/**
+ * Delai de reglement OPCO, en jours. Lu depuis le parametre
+ * `facturation.delai_reglement_opco_jours` (modifiable dans
+ * /admin/parametres).
+ */
+export const DEFAUT_DELAI_REGLEMENT_OPCO_JOURS = 60;
+
+/**
+ * Delai de reglement OPCO, en jours. Fallback sur la constante si le
+ * parametre est absent ou invalide : un parametre mal saisi ne doit jamais
+ * faire disparaitre l'indicateur de retard.
+ */
+export async function getDelaiReglementOpcoJours(): Promise<number> {
+  const raw = await getParametreValeur(
+    'facturation.delai_reglement_opco_jours',
+  );
+  if (raw == null || raw.trim() === '')
+    return DEFAUT_DELAI_REGLEMENT_OPCO_JOURS;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : DEFAUT_DELAI_REGLEMENT_OPCO_JOURS;
 }
 
 export async function getJoursFeries(annee: number) {

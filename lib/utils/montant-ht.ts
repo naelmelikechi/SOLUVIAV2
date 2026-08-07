@@ -35,6 +35,19 @@ export function ttcToHt(montantTtc: number, tvaRate = TVA_RATE): number {
 }
 
 /**
+ * Production SOLUVIA en HT : le taux de commission s'applique a la production
+ * OPCO et donne un montant TTC, ttcToHt en deduit le HT. Formule partagee par
+ * la carte de synthese et la section Finance : les deux doivent afficher le
+ * meme chiffre, donc elle ne vit qu'ici.
+ */
+export function productionSoluviaHt(
+  productionOpco: number,
+  tauxCommission: number,
+): number {
+  return productionOpco * ttcToHt(tauxCommission / 100);
+}
+
+/**
  * Calcule le TTC à partir d'un HT et d'un taux de TVA (fraction, ex. 0,2 = 20 %).
  * Inverse de ttcToHt. Vaut le HT pour un taux 0 (régime intracom / autoliquidation).
  * L'arrondi d'affichage est délégué à formatCurrency.

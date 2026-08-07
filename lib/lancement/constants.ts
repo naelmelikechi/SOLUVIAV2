@@ -19,13 +19,13 @@ export const LANCEMENT_ETAPE_KEYS = LANCEMENT_ETAPES.map(
 ) as LancementEtapeKey[];
 
 export const LANCEMENT_STATUTS = [
-  { key: 'non_commence', label: 'Non commencé', color: 'gray' },
+  { key: 'non_commence', label: 'À venir', color: 'gray' },
   { key: 'en_cours', label: 'En cours', color: 'orange' },
   // "Depose" = dossier parti chez le tiers instructeur, en attente de sa
   // reponse. Distinct d'"en_cours" (action encore cote SOLUVIA) et de
   // "lance" (accepte). Ordre de la liste = ordre d'avancement affiche.
   { key: 'depose', label: 'Déposé', color: 'blue' },
-  { key: 'lance', label: 'Lancé', color: 'green' },
+  { key: 'lance', label: 'Terminé', color: 'green' },
 ] as const satisfies readonly {
   key: string;
   label: string;
@@ -43,3 +43,8 @@ export function getLancementStatutMeta(statut: string) {
     LANCEMENT_STATUTS.find((s) => s.key === statut) ?? LANCEMENT_STATUTS[0]
   );
 }
+
+// Seuil par defaut si le parametre `lancement.seuil_enlisement_jours` est
+// absent ou invalide : un parametre mal saisi ne doit jamais faire disparaitre
+// l'alerte d'enlisement.
+export const DEFAUT_SEUIL_ENLISEMENT_JOURS = 15;

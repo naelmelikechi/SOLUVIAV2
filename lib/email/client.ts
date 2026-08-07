@@ -27,6 +27,8 @@ async function sendFactureEmail(params: {
   conditionsReglement?: string | null;
   pdfBuffer: Buffer;
   emetteur?: EmetteurInfo;
+  projetId?: string;
+  clientId?: string;
 }): Promise<{ success: boolean; error?: string }> {
   const subject = params.isAvoir
     ? `Avoir ${params.factureRef} - SOLUVIA`
@@ -44,6 +46,9 @@ async function sendFactureEmail(params: {
         content: params.pdfBuffer,
       },
     ],
+    projetId: params.projetId,
+    clientId: params.clientId,
+    type: params.isAvoir ? 'avoir' : 'facture',
   });
 }
 
@@ -195,6 +200,8 @@ export async function sendEmailForFacture(
     conditionsReglement: facture.conditions_reglement,
     pdfBuffer,
     emetteur,
+    projetId: facture.projet?.id,
+    clientId,
   });
 
   // 5. Persist outcome (succes ou echec) sur la facture pour observabilite.
@@ -234,7 +241,7 @@ export async function sendRelanceEmail(
   const { data: facture } = await supabase
     .from('factures')
     .select(
-      'id, ref, date_emission, date_echeance, montant_ttc, client:clients!factures_client_id_fkey(id, raison_sociale)',
+      'id, ref, date_emission, date_echeance, montant_ttc, client:clients!factures_client_id_fkey(id, raison_sociale), projet:projets!factures_projet_id_fkey(id)',
     )
     .eq('id', factureId)
     .single();
@@ -302,6 +309,9 @@ export async function sendRelanceEmail(
     cc: recipients.cc.length > 0 ? recipients.cc : undefined,
     subject: `Rappel - Facture ${facture.ref} en attente de paiement`,
     html,
+    projetId: facture.projet?.id,
+    clientId,
+    type: 'relance',
   });
 
   if (!result.success && !result.skipped) {

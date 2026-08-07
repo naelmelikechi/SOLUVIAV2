@@ -173,7 +173,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
     to: string[];
     cc: string[];
   }) => {
-    if (!sendDialog) return { success: false, error: 'Etat invalide' };
+    if (!sendDialog) return { success: false, error: 'État invalide' };
     const factureId = sendDialog.factureId;
     const result = await sendFacture(factureId, recipients);
     if (result.success) {

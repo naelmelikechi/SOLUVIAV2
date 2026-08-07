@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createFreeBrouillon } from '@/lib/actions/factures';
+import { formatCurrency } from '@/lib/utils/formatters';
 import { matchesSearch } from '@/lib/utils/search';
 import { resolveTvaRegime } from '@/lib/utils/tva-intracom';
 import { cn } from '@/lib/utils';
@@ -194,7 +195,7 @@ export function NewFactureLibreDialog({
           )}
           {societes.length === 1 && (
             <p className="text-muted-foreground text-xs">
-              Emise depuis : <strong>{societes[0]!.raison_sociale}</strong>
+              Émise depuis : <strong>{societes[0]!.raison_sociale}</strong>
             </p>
           )}
 
@@ -318,7 +319,7 @@ export function NewFactureLibreDialog({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total HT</span>
               <span className="font-mono tabular-nums">
-                {totalHt.toFixed(2)} €
+                {formatCurrency(totalHt)}
               </span>
             </div>
             <div className="flex justify-between">
@@ -328,13 +329,13 @@ export function NewFactureLibreDialog({
                   : `TVA ${tvaRegime.taux}%`}
               </span>
               <span className="font-mono tabular-nums">
-                {(totalTtc - totalHt).toFixed(2)} €
+                {formatCurrency(totalTtc - totalHt)}
               </span>
             </div>
             <div className="flex justify-between border-t pt-1 text-base font-semibold">
               <span>Total TTC</span>
               <span className="font-mono tabular-nums">
-                {totalTtc.toFixed(2)} €
+                {formatCurrency(totalTtc)}
               </span>
             </div>
           </div>

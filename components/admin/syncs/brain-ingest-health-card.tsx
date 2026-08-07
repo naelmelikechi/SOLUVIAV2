@@ -27,6 +27,17 @@ const STATE_BADGES: Record<
   never: { label: 'Jamais lancé', color: 'gray' },
 };
 
+/**
+ * Libelles des statuts bruts de `brain_ingest_runs.statut` (contraints en base
+ * a running | success | error). Meme vocabulaire que les autres cartes de
+ * /admin/syncs, qui n'affichent jamais la valeur technique telle quelle.
+ */
+const RUN_STATUT_LABELS: Record<string, string> = {
+  running: 'en cours',
+  success: 'succès',
+  error: 'erreur',
+};
+
 const STATE_HINTS: Record<BrainIngestState, string | null> = {
   ok: null,
   stale: `Aucune ingestion réussie depuis plus de ${BRAIN_INGEST_STALE_HOURS / 24} jours : le cerveau n'apprend plus (conversations, entités, obsolescence).`,
@@ -114,7 +125,7 @@ export function BrainIngestHealthCard({
             className="text-muted-foreground text-xs"
             title={formatHorodatage(lastRun.started_at)}
           >
-            Dernier run ({lastRun.statut}){' '}
+            Dernier run ({RUN_STATUT_LABELS[lastRun.statut] ?? lastRun.statut}){' '}
             {formatDistanceToNow(new Date(lastRun.started_at), {
               addSuffix: true,
               locale: fr,

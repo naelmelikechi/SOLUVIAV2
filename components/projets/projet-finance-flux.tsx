@@ -39,23 +39,38 @@ const MONTANT_LABELS: Record<CleMontant, string> = {
   retardEncaissement: "Retard d'encaissement",
 };
 
-// Seuls les deux retards ont un decompte ligne a ligne : produit et facture
-// sont des totaux agreges deja affiches dans le bandeau, sans reconstitution
-// contrat par contrat exposee par la query.
-const MONTANTS_AVEC_LIGNES: ReadonlySet<CleMontant> = new Set([
-  'retardFacturation',
-  'retardEncaissement',
-]);
+const EMPTY_MESSAGES: Record<CleMontant, string> = {
+  produit: 'Aucune ligne : aucun contrat non archivé sur ce flux.',
+  facture: 'Aucune ligne : rien de facturé sur ce montant.',
+  retardFacturation: 'Aucune ligne : rien en retard sur ce montant.',
+  retardEncaissement: 'Aucune ligne : rien en retard sur ce montant.',
+};
+
+// Les quatre montants ont chacun leur decompte ligne a ligne (produit,
+// facture, retard de facturation, retard d'encaissement) : chaque cle de
+// FluxDetail pointe vers son tableau de lignes correspondant.
+const LIGNES_PAR_MONTANT: Record<
+  CleMontant,
+  keyof Pick<
+    ProjetFinanceDetail['commission'],
+    | 'lignesProduit'
+    | 'lignesFacture'
+    | 'lignesRetardFacturation'
+    | 'lignesRetardEncaissement'
+  >
+> = {
+  produit: 'lignesProduit',
+  facture: 'lignesFacture',
+  retardFacturation: 'lignesRetardFacturation',
+  retardEncaissement: 'lignesRetardEncaissement',
+};
 
 function lignesPour(
   detail: ProjetFinanceDetail,
   flux: CleFlux,
   montant: CleMontant,
 ): LigneFinance[] {
-  const f = detail[flux];
-  if (montant === 'retardFacturation') return f.lignesRetardFacturation;
-  if (montant === 'retardEncaissement') return f.lignesRetardEncaissement;
-  return [];
+  return detail[flux][LIGNES_PAR_MONTANT[montant]];
 }
 
 function montantTotal(
@@ -179,7 +194,6 @@ export function ProjetFinanceFlux({ detail }: { detail: ProjetFinanceDetail }) {
     [detail, flux, montant],
   );
   const total = montantTotal(detail, flux, montant);
-  const avecLignes = MONTANTS_AVEC_LIGNES.has(montant);
 
   return (
     <div className="space-y-6">
@@ -241,11 +255,7 @@ export function ProjetFinanceFlux({ detail }: { detail: ProjetFinanceDetail }) {
           data={lignes}
           paginationMode="auto"
           searchPlaceholder="Rechercher..."
-          emptyMessage={
-            avecLignes
-              ? 'Aucune ligne : rien en retard sur ce montant.'
-              : 'Montant total agrégé, sans décompte ligne à ligne pour cet indicateur.'
-          }
+          emptyMessage={EMPTY_MESSAGES[montant]}
         />
       </Card>
     </div>

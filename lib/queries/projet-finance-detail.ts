@@ -6,6 +6,10 @@
  *
  * Reutilise des moteurs deja ecrits et testes, ne les recopie pas :
  * - agregerFluxOpco (lib/projets/finance-flux.ts) pour le flux OPCO entier ;
+ * - computeContractSchedule (lib/queries/production.ts) pour le produit par
+ *   contrat des deux flux (OPCO et commission) ;
+ * - productionSoluviaHt (lib/utils/montant-ht.ts) pour convertir le produit
+ *   OPCO d'un contrat en produit commission ;
  * - computeEcheancierDues, via getEcheancierDues (lib/queries/echeancier-dues.ts),
  *   pour le retard de facturation commission au modele echeancier.
  *
@@ -34,8 +38,10 @@ import { logger } from '@/lib/utils/logger';
 import { toLocalISODate, diffDaysIso } from '@/lib/utils/dates';
 import { round2 } from '@/lib/utils/number';
 import { productionSoluviaHt } from '@/lib/utils/montant-ht';
+import { formatCurrency } from '@/lib/utils/formatters';
 import { getProjetFinance } from '@/lib/queries/projets';
 import { getDelaiReglementOpcoJours } from '@/lib/queries/parametres';
+import { computeContractSchedule } from '@/lib/queries/production';
 import { agregerFluxOpco, type JalonOpco } from '@/lib/projets/finance-flux';
 import {
   getEcheancierDues,
@@ -56,6 +62,8 @@ export interface FluxDetail {
   facture: number;
   retardFacturation: number;
   retardEncaissement: number;
+  lignesProduit: LigneFinance[];
+  lignesFacture: LigneFinance[];
   lignesRetardFacturation: LigneFinance[];
   lignesRetardEncaissement: LigneFinance[];
 }
@@ -185,6 +193,133 @@ export function sommeRetardFacturationEngagement(input: {
   return { montant: round2(montant), lignes };
 }
 
+// ---------------------------------------------------------------------------
+// Produit (decompte ligne a ligne des deux flux)
+// ---------------------------------------------------------------------------
+
+/**
+ * Produit OPCO d'un contrat (prorata rupture inclus) : somme du volet OPCO
+ * de computeContractSchedule (lib/queries/production.ts). 0 si le contrat
+ * n'a pas les donnees necessaires (NPEC, date de debut, duree) - le taux de
+ * commission est sans effet sur ce volet, computeContractSchedule l'ignore
+ * pour la jambe OPCO du calendrier.
+ */
+function montantProduitOpcoContrat(c: {
+  npec_amount: number | null;
+  date_debut: string | null;
+  duree_mois: number | null;
+  date_rupture: string | null;
+}): number {
+  const npec = c.npec_amount ?? 0;
+  if (npec <= 0 || !c.date_debut || !c.duree_mois || c.duree_mois <= 0)
+    return 0;
+  const schedule = computeContractSchedule(
+    c.date_debut,
+    c.duree_mois,
+    npec,
+    0,
+    c.date_rupture,
+  );
+  return round2(schedule.opco.reduce((sum, e) => sum + e.amount, 0));
+}
+
+export interface LignesProduitResult {
+  opco: LigneFinance[];
+  commission: LigneFinance[];
+}
+
+/**
+ * Decompte ligne a ligne du "Produit" des deux flux, une ligne par contrat
+ * non archive. Le produit commission d'un contrat reutilise le produit OPCO
+ * du meme contrat via productionSoluviaHt (lib/utils/montant-ht.ts), meme
+ * formule que la carte de synthese et l'agregat commission.produit.
+ */
+export function construireLignesProduit(
+  contrats: Array<{
+    id: string;
+    ref: string | null;
+    contract_number: string | null;
+    apprenant_prenom: string | null;
+    apprenant_nom: string | null;
+    formation_titre: string | null;
+    archive: boolean;
+    npec_amount: number | null;
+    date_debut: string | null;
+    duree_mois: number | null;
+    date_rupture: string | null;
+  }>,
+  tauxCommission: number,
+): LignesProduitResult {
+  const opco: LigneFinance[] = [];
+  const commission: LigneFinance[] = [];
+  for (const c of contrats) {
+    if (c.archive) continue;
+    const montantOpco = montantProduitOpcoContrat(c);
+    const label = contratLabel(c);
+    const detail = `${c.formation_titre ?? 'Formation non renseignee'} - NPEC ${formatCurrency(c.npec_amount ?? 0)}`;
+    opco.push({ id: c.id, label, detail, montant: montantOpco });
+    commission.push({
+      id: c.id,
+      label,
+      detail: `${detail}, commission ${tauxCommission}%`,
+      montant: productionSoluviaHt(montantOpco, tauxCommission),
+    });
+  }
+  return { opco, commission };
+}
+
+// ---------------------------------------------------------------------------
+// Facture (decompte ligne a ligne des deux flux)
+// ---------------------------------------------------------------------------
+
+/** Une ligne par jalon transmis (invoice_state non nul) des contrats non
+ *  archives - meme jeu de jalons que fluxOpcoAgg.facture. */
+export function construireLignesFactureOpco(
+  jalons: JalonOpco[],
+  contratById: Map<
+    string,
+    {
+      ref: string | null;
+      contract_number?: string | null;
+      apprenant_prenom?: string | null;
+      apprenant_nom?: string | null;
+    }
+  >,
+): LigneFinance[] {
+  return jalons
+    .filter((j) => j.invoiceState != null)
+    .map((j) => ({
+      id: j.id,
+      label: contratLabel(contratById.get(j.contratId) ?? { ref: null }),
+      detail: `Etape ${j.stepNumber}, transmise le ${
+        j.invoiceSentAt ? j.invoiceSentAt.slice(0, 10) : 'date inconnue'
+      } - ${j.invoiceState}`,
+      montant: j.totalAmount,
+    }));
+}
+
+export interface FactureCommissionRow {
+  id: string;
+  ref: string | null;
+  montant_ht: number | null;
+  date_emission: string | null;
+  date_echeance: string | null;
+  statut: string;
+}
+
+/** Une ligne par facture du projet (avoirs inclus, montant tel que stocke -
+ *  deja negatif pour un avoir, jamais re-negative ici). */
+export function construireLignesFactureCommission(
+  factures: FactureCommissionRow[],
+): LigneFinance[] {
+  return factures.map((f) => ({
+    id: f.id,
+    label: f.ref ?? f.id,
+    detail: `Emise le ${f.date_emission ?? '?'}, echeance le ${f.date_echeance ?? '?'} - ${f.statut}`,
+    montant: f.montant_ht ?? 0,
+  }));
+}
+
 export async function getProjetFinanceDetail(
   projetId: string,
   projetRef: string,
@@ -198,6 +333,7 @@ export async function getProjetFinanceDetail(
     projetRes,
     contratsRes,
     facturesRetardRes,
+    facturesCommissionRes,
   ] = await Promise.all([
     getProjetFinance(projetId),
     getDelaiReglementOpcoJours(),
@@ -221,6 +357,14 @@ export async function getProjetFinanceDetail(
       .eq('projet_id', projetId)
       .in('statut', ['emise', 'en_retard'])
       .lt('date_echeance', today),
+    // Decompte ligne a ligne du "Facture" commission : MEME jeu de statuts
+    // que facture_soluvia (getProjetFinance), pour que la somme des lignes
+    // egale le total affiche dans le bandeau.
+    supabase
+      .from('factures')
+      .select('id, ref, montant_ht, date_emission, date_echeance, statut')
+      .eq('projet_id', projetId)
+      .in('statut', ['emise', 'payee', 'en_retard', 'avoir']),
   ]);
 
   if (projetRes.error) {
@@ -240,6 +384,13 @@ export async function getProjetFinanceDetail(
       projetId,
       error: facturesRetardRes.error,
     });
+  }
+  if (facturesCommissionRes.error) {
+    logger.error(
+      'queries.projet-finance-detail',
+      'factures commission fetch failed',
+      { projetId, error: facturesCommissionRes.error },
+    );
   }
 
   const contrats = contratsRes.data ?? [];
@@ -290,11 +441,20 @@ export async function getProjetFinanceDetail(
     delaiReglementOpcoJours,
   );
 
+  // Produit : une ligne par contrat non archive, les deux flux (OPCO puis
+  // commission) partagent le meme calcul de base (computeContractSchedule).
+  const lignesProduit = construireLignesProduit(
+    contrats,
+    finance.taux_commission,
+  );
+
   const opco: FluxDetail = {
     produit: finance.production_opco,
     facture: fluxOpcoAgg.facture,
     retardFacturation: fluxOpcoAgg.retardFacturation,
     retardEncaissement: fluxOpcoAgg.retardEncaissement,
+    lignesProduit: lignesProduit.opco,
+    lignesFacture: construireLignesFactureOpco(jalonsOpco, contratById),
     lignesRetardFacturation: fluxOpcoAgg.lignesRetardFacturation.map((l) => ({
       id: l.id,
       label: contratLabel(contratById.get(l.contratId) ?? { ref: null }),
@@ -381,6 +541,10 @@ export async function getProjetFinanceDetail(
     facture: finance.facture_soluvia,
     retardFacturation: retardFacturationCommission,
     retardEncaissement: round2(retardEncaissementCommission),
+    lignesProduit: lignesProduit.commission,
+    lignesFacture: construireLignesFactureCommission(
+      facturesCommissionRes.data ?? [],
+    ),
     lignesRetardFacturation: lignesRetardFacturationCommission,
     lignesRetardEncaissement: lignesRetardEncaissementCommission,
   };

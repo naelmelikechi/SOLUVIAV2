@@ -50,11 +50,11 @@ function RegleFormBody({
   function handleSubmit() {
     const delai = Number.parseInt(delaiJours, 10);
     if (!etatSource) {
-      toast.error('Choisissez un etat source');
+      toast.error('Choisissez un état source');
       return;
     }
     if (!Number.isFinite(delai) || delai <= 0) {
-      toast.error('Le delai doit etre un entier positif');
+      toast.error('Le délai doit être un entier positif');
       return;
     }
     startTransition(async () => {
@@ -66,7 +66,7 @@ function RegleFormBody({
         actif,
       });
       if (res.success) {
-        toast.success(regle ? 'Regle mise a jour' : 'Regle creee');
+        toast.success(regle ? 'Règle mise à jour' : 'Règle créée');
         onClose();
       } else {
         toast.error(res.error ?? 'Erreur');
@@ -87,15 +87,15 @@ function RegleFormBody({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="regle-etat">Etat source</Label>
+          <Label htmlFor="regle-etat">État source</Label>
           <Select
             value={etatSource || undefined}
             onValueChange={(v) => setEtatSource(v ?? '')}
           >
             <SelectTrigger className="w-full" id="regle-etat">
-              <SelectValue placeholder="Choisir un etat">
+              <SelectValue placeholder="Choisir un état">
                 {(v) =>
-                  v ? (CONTRACT_STATE_LABELS[v] ?? v) : 'Choisir un etat'
+                  v ? (CONTRACT_STATE_LABELS[v] ?? v) : 'Choisir un état'
                 }
               </SelectValue>
             </SelectTrigger>
@@ -108,12 +108,12 @@ function RegleFormBody({
             </SelectContent>
           </Select>
           <p className="text-muted-foreground text-xs">
-            Choisi dans la liste des etats connus - une saisie libre pourrait
-            creer une regle inerte que personne ne verrait.
+            Choisi dans la liste des états connus - une saisie libre pourrait
+            créer une règle inerte que personne ne verrait.
           </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="regle-delai">Delai (jours)</Label>
+          <Label htmlFor="regle-delai">Délai (jours)</Label>
           <Input
             id="regle-delai"
             type="number"
@@ -127,7 +127,7 @@ function RegleFormBody({
             checked={actif}
             onCheckedChange={(v) => setActif(v === true)}
           />
-          <span className="text-sm">Regle active</span>
+          <span className="text-sm">Règle active</span>
         </label>
       </div>
 
@@ -149,7 +149,7 @@ export function RegleArchivageFormDialog({ open, onOpenChange, regle }: Props) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {regle ? 'Modifier la regle' : 'Nouvelle regle'}
+            {regle ? 'Modifier la règle' : 'Nouvelle règle'}
           </DialogTitle>
         </DialogHeader>
         <RegleFormBody

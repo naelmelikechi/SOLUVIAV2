@@ -42,7 +42,7 @@ export function ReglesArchivageTable({
         actif: !regle.actif,
       });
       if (res.success) {
-        toast.success(regle.actif ? 'Regle desactivee' : 'Regle activee');
+        toast.success(regle.actif ? 'Règle désactivée' : 'Règle activée');
       } else {
         toast.error(res.error ?? 'Erreur');
       }
@@ -54,7 +54,7 @@ export function ReglesArchivageTable({
     startTransition(async () => {
       const res = await deleteRegleArchivage(deleteTarget.id);
       if (res.success) {
-        toast.success('Regle supprimee');
+        toast.success('Règle supprimée');
         setDeleteTarget(null);
       } else {
         toast.error(res.error ?? 'Erreur');
@@ -82,7 +82,7 @@ export function ReglesArchivageTable({
       {
         accessorKey: 'etat_source',
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Etat source" />
+          <DataTableColumnHeader column={column} title="État source" />
         ),
         cell: ({ row }) => (
           <Badge variant="secondary" className="font-mono text-xs">
@@ -93,7 +93,7 @@ export function ReglesArchivageTable({
       {
         accessorKey: 'delai_jours',
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Delai" />
+          <DataTableColumnHeader column={column} title="Délai" />
         ),
         cell: ({ row }) => (
           <span className="text-sm tabular-nums">
@@ -105,7 +105,7 @@ export function ReglesArchivageTable({
         id: 'nbContratsArchives',
         accessorFn: (r) => r.nbContratsArchives,
         header: ({ column }) => (
-          <DataTableColumnHeader column={column} title="Deja archives" />
+          <DataTableColumnHeader column={column} title="Déjà archivés" />
         ),
         cell: ({ row }) => (
           <span className="text-sm tabular-nums">
@@ -129,7 +129,7 @@ export function ReglesArchivageTable({
                 : 'text-muted-foreground'
             }
           >
-            {row.original.actif ? 'Active' : 'Desactivee'}
+            {row.original.actif ? 'Active' : 'Désactivée'}
           </button>
         ),
       },
@@ -169,19 +169,19 @@ export function ReglesArchivageTable({
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold">
-          {regles.length} regle{regles.length > 1 ? 's' : ''} d&apos;archivage
+          {regles.length} règle{regles.length > 1 ? 's' : ''} d&apos;archivage
         </h3>
         <Button size="sm" onClick={() => setShowCreate(true)}>
-          <Plus className="mr-2 size-3.5" /> Nouvelle regle
+          <Plus className="mr-2 size-3.5" /> Nouvelle règle
         </Button>
       </div>
 
       <DataTable
         columns={columns}
         data={regles}
-        searchPlaceholder="Rechercher une regle..."
+        searchPlaceholder="Rechercher une règle..."
         paginationMode="auto"
-        emptyMessage="Aucune regle d'archivage configuree."
+        emptyMessage="Aucune règle d'archivage configurée."
       />
 
       <RegleArchivageFormDialog
@@ -197,10 +197,10 @@ export function ReglesArchivageTable({
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="Supprimer cette regle ?"
+        title="Supprimer cette règle ?"
         description={
           deleteTarget
-            ? `La regle "${deleteTarget.nom}" sera supprimee. Les contrats deja archives par cette regle le restent, mais perdent la trace de la regle qui les a sortis.`
+            ? `La règle "${deleteTarget.nom}" sera supprimée. Les contrats déjà archivés par cette règle le restent, mais perdent la trace de la règle qui les a sortis.`
             : ''
         }
         confirmText="Supprimer"

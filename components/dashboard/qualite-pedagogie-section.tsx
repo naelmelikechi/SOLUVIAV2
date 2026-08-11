@@ -71,7 +71,7 @@ export async function QualitePedagogieSection({
     <section className="space-y-4">
       <div>
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold">Qualite &amp; Pedagogie</h2>
+          <h2 className="text-xl font-semibold">Qualité &amp; Pédagogie</h2>
           <Popover>
             <PopoverTrigger
               aria-label="Explication des calculs"
@@ -89,37 +89,37 @@ export async function QualitePedagogieSection({
                   Calcul en multi-CFA
                 </p>
                 <p className="text-muted-foreground">
-                  Aucun KPI n&apos;est une moyenne par CFA. Tout est agrege sur
-                  le scope en sommant numerateurs et denominateurs bruts : un
-                  gros CFA pese plus qu&apos;un petit.
+                  Aucun KPI n&apos;est une moyenne par CFA. Tout est agrégé
+                  sur le scope en sommant numérateurs et dénominateurs bruts :
+                  un gros CFA pèse plus qu&apos;un petit.
                 </p>
                 <ul className="text-muted-foreground space-y-1.5 pl-1">
                   <li>
                     <span className="text-foreground font-medium">
                       Qualiopi
                     </span>{' '}
-                    : livrables conform / livrables attendus (referentiel x nb
-                    campus), tous CFA confondus.
+                    : livrables conform / livrables attendus (référentiel ×
+                    nb campus), tous CFA confondus.
                   </li>
                   <li>
                     <span className="text-foreground font-medium">
-                      Pedagogie
+                      Pédagogie
                     </span>{' '}
                     : moyenne des progressions saisies sur tous les contrats
-                    actifs. Une progression = une saisie ponderee 1.
+                    actifs. Une progression = une saisie pondérée 1.
                   </li>
                   <li>
                     <span className="text-foreground font-medium">
                       Financement
                     </span>{' '}
-                    : montant HT facture / NPEC total des contrats actifs.
+                    : montant HT facturé / NPEC total des contrats actifs.
                   </li>
                   <li>
                     <span className="text-foreground font-medium">
                       Abandons
                     </span>{' '}
-                    : contrats resilies ou annules / total contrats, toutes
-                    periodes.
+                    : contrats résiliés ou annulés / total contrats, toutes
+                    périodes.
                   </li>
                 </ul>
               </div>
@@ -153,7 +153,7 @@ export async function QualitePedagogieSection({
         />
         <KpiCard
           title="Abandons"
-          subtitle="Contrats resilies ou annules, toutes periodes"
+          subtitle="Contrats résiliés ou annulés, toutes périodes"
           color="red"
           series={series.get('taux_abandon') ?? []}
         />

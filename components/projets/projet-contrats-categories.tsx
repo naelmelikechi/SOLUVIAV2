@@ -187,7 +187,7 @@ function columnsPour(
           id: 'regle',
           accessorFn: (c) =>
             c.archive_regle_id
-              ? (reglesNoms[c.archive_regle_id] ?? 'Regle supprimee')
+              ? (reglesNoms[c.archive_regle_id] ?? 'Règle supprimée')
               : 'Archivage manuel',
           header: ({ column }) => (
             <DataTableColumnHeader column={column} title="Sorti par" />
@@ -196,7 +196,7 @@ function columnsPour(
             <span className="text-sm">
               {row.original.archive_regle_id
                 ? (reglesNoms[row.original.archive_regle_id] ??
-                  'Regle supprimee')
+                  'Règle supprimée')
                 : 'Archivage manuel'}
             </span>
           ),

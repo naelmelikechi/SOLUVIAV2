@@ -12,7 +12,15 @@ import {
   STATUT_PROJET_COLORS,
 } from '@/lib/utils/constants';
 
-export function ProjetDetailHeader({ projet }: { projet: ProjetDetail }) {
+export function ProjetDetailHeader({
+  projet,
+  userIsAdmin = false,
+}: {
+  projet: ProjetDetail;
+  // La fiche client vit sous /admin/clients, qui redirige les non-admins vers
+  // /accueil : sans ce garde, le nom du client est un lien qui ejecte le CDP.
+  userIsAdmin?: boolean;
+}) {
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2 md:gap-4">
@@ -28,7 +36,7 @@ export function ProjetDetailHeader({ projet }: { projet: ProjetDetail }) {
         >
           <Copy className="size-3.5" />
         </button>
-        {projet.client?.id ? (
+        {userIsAdmin && projet.client?.id ? (
           <Link
             href={`/admin/clients/${projet.client.id}`}
             className="text-lg font-semibold underline-offset-2 hover:underline"

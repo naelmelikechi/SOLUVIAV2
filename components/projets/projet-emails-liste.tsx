@@ -11,8 +11,8 @@ import type { ProjetEmail } from '@/lib/queries/emails-projet';
 const VISIBLE_COUNT = 5;
 
 const SOURCE_LABEL: Record<string, string> = {
-  app: 'Envoye par l application',
-  gmail: 'Echange direct',
+  app: "Envoyé par l'application",
+  gmail: 'Échange direct',
 };
 
 const SOURCE_DOT: Record<string, string> = {

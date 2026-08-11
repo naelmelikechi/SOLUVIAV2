@@ -20,9 +20,12 @@ const RegleSchema = z.object({
   id: z.string().uuid().optional(),
   nom: z.string().trim().min(1, 'Nom requis').max(200),
   etat_source: z.enum(ETATS_VALIDES, {
-    message: 'Etat inconnu - choisissez dans la liste',
+    message: 'État inconnu - choisissez dans la liste',
   }),
-  delai_jours: z.number().int().positive('Delai doit etre un entier positif'),
+  delai_jours: z
+    .number()
+    .int()
+    .positive('Le délai doit être un entier positif'),
   actif: z.boolean(),
 });
 
@@ -73,7 +76,7 @@ export async function upsertRegleArchivage(
     if (error.code === '23505') {
       return {
         success: false,
-        error: 'Une regle existe deja pour cet etat',
+        error: 'Une règle existe déjà pour cet état',
       };
     }
     return { success: false, error: error.message };

@@ -37,7 +37,7 @@ export default async function ProjetLayout({
         items={[{ label: 'Projets', href: '/projets' }, { label: ref }]}
       />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <ProjetDetailHeader projet={projet} />
+        <ProjetDetailHeader projet={projet} userIsAdmin={userIsAdmin} />
         {userIsAdmin && (
           <ProjetDuplicateButton
             projetId={projet.id}

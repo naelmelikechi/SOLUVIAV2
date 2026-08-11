@@ -82,6 +82,11 @@ const formationColumn: ColumnDef<ContratRowCategorise> = {
 
 const npecColumn: ColumnDef<ContratRowCategorise> = {
   accessorKey: 'npec_amount',
+  meta: {
+    label: 'Prise en charge',
+    aggregate: 'sum',
+    aggregateFormat: formatCurrency,
+  },
   header: ({ column }) => (
     <DataTableColumnHeader
       column={column}
@@ -157,6 +162,13 @@ function columnsPour(
         {
           id: 'production',
           accessorFn: (c) => productionAvantRupture[c.id] ?? 0,
+          // L'accessor renvoie deja le montant HT (number), pas besoin
+          // d'aggregateValue.
+          meta: {
+            label: "Produit avant l'arrêt",
+            aggregate: 'sum',
+            aggregateFormat: formatCurrency,
+          },
           header: ({ column }) => (
             <DataTableColumnHeader
               column={column}

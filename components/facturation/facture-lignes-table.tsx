@@ -128,6 +128,11 @@ export function FactureLignesTable({
       },
       {
         accessorKey: 'montant_ht',
+        meta: {
+          label: 'Montant HT',
+          aggregate: 'sum',
+          aggregateFormat: formatCurrency,
+        },
         header: ({ column }) => (
           <DataTableColumnHeader
             column={column}
@@ -148,6 +153,12 @@ export function FactureLignesTable({
       {
         id: 'montant_ttc',
         accessorFn: (l) => htToTtc(l.montant_ht, tauxTva / 100),
+        meta: {
+          label: 'Montant TTC',
+          aggregate: 'sum',
+          aggregateFormat: formatCurrency,
+          aggregateValue: (l) => htToTtc(l.montant_ht, tauxTva / 100),
+        },
         header: ({ column }) => (
           <DataTableColumnHeader
             column={column}

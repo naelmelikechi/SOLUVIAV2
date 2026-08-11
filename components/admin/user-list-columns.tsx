@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import type { BadgeColor } from '@/components/shared/status-badge';
 import type { UserListItem } from '@/lib/queries/users';
 import { formatDateLong } from '@/lib/utils/formatters';
+import { textFilterFn } from '@/lib/utils/table-filters';
 import { Button } from '@/components/ui/button';
 
 const roleBadge: Record<string, { label: string; color: BadgeColor }> = {
@@ -48,6 +49,8 @@ export function getUserListColumns(
     },
     {
       accessorKey: 'role',
+      meta: { label: 'Rôle' },
+      filterFn: textFilterFn,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Rôle" />
       ),

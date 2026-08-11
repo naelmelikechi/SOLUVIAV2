@@ -123,6 +123,11 @@ export const aFacturerColumns: ColumnDef<ContratAFacturer>[] = [
   },
   {
     accessorKey: 'montant',
+    meta: {
+      label: 'Montant',
+      aggregate: 'sum',
+      aggregateFormat: formatCurrency,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Montant" />
     ),

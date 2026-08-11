@@ -5,6 +5,7 @@ import { Download, UserPlus } from 'lucide-react';
 import type { UserListItem } from '@/lib/queries/users';
 import type { EmployeeCostDefaults } from '@/lib/utils/employee-cost';
 import { DataTable } from '@/components/shared/data-table';
+import type { FilterOption } from '@/components/shared/data-table';
 import { getUserListColumns } from '@/components/admin/user-list-columns';
 import { InviteUserDialog } from '@/components/admin/invite-user-dialog';
 import { UserEditDialog } from '@/components/admin/user-edit-dialog';
@@ -18,6 +19,17 @@ const ROLE_LABELS: Record<string, string> = {
   cdp: 'CDP',
   commercial: 'Commercial',
 };
+
+const USER_FILTERS: FilterOption[] = [
+  {
+    column: 'role',
+    label: 'Rôle',
+    options: Object.entries(ROLE_LABELS).map(([value, label]) => ({
+      label,
+      value,
+    })),
+  },
+];
 
 export function UsersDataTable({
   data,
@@ -80,6 +92,7 @@ export function UsersDataTable({
         searchKey="email"
         searchPlaceholder="Rechercher par email..."
         defaultSort={{ id: 'nom', desc: false }}
+        filters={USER_FILTERS}
       />
 
       <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} />

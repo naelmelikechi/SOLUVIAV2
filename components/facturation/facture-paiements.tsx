@@ -42,6 +42,11 @@ const paiementColumns: ColumnDef<Paiement>[] = [
   },
   {
     accessorKey: 'montant',
+    meta: {
+      label: 'Montant',
+      aggregate: 'sum',
+      aggregateFormat: formatCurrency,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Montant" />
     ),

@@ -104,6 +104,11 @@ const columns: ColumnDef<LigneFinance>[] = [
   },
   {
     accessorKey: 'montant',
+    meta: {
+      label: 'Montant',
+      aggregate: 'sum',
+      aggregateFormat: formatCurrency,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}

@@ -140,7 +140,11 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'taux_commission',
-    meta: { label: 'Commission' },
+    meta: {
+      label: 'Commission',
+      aggregate: 'avg',
+      aggregateFormat: (v) => `${Math.round(v)} %`,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Commission" />
     ),
@@ -170,7 +174,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'apprentisActifs',
-    meta: { label: 'Apprentis actifs' },
+    meta: { label: 'Apprentis actifs', aggregate: 'sum' },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Apprentis actifs" />
     ),
@@ -182,7 +186,7 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'facturesEnRetard',
-    meta: { label: 'Factures en retard' },
+    meta: { label: 'Factures en retard', aggregate: 'sum' },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Fact. retard" />
     ),
@@ -196,7 +200,12 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'encaissementsEnRetard',
-    meta: { label: 'Encaissements en retard' },
+    // L'accessor renvoie le montant HT brut (number), la barre somme en HT.
+    meta: {
+      label: 'Encaissements en retard',
+      aggregate: 'sum',
+      aggregateFormat: formatCurrency,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Enc. retard" />
     ),
@@ -219,7 +228,11 @@ export const projetListColumns: ColumnDef<ProjetListEnriched>[] = [
   },
   {
     accessorKey: 'tempsMois',
-    meta: { label: 'Temps du mois' },
+    meta: {
+      label: 'Temps du mois',
+      aggregate: 'sum',
+      aggregateFormat: formatHeures,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Temps" />
     ),

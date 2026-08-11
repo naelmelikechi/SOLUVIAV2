@@ -46,6 +46,11 @@ const columns: ColumnDef<ClientProjet>[] = [
   },
   {
     accessorKey: 'taux_commission',
+    meta: {
+      label: 'Commission',
+      aggregate: 'avg',
+      aggregateFormat: (v) => `${Math.round(v)} %`,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Commission" />
     ),

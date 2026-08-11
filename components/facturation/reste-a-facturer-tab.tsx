@@ -139,6 +139,21 @@ export function ResteAFacturerTab({ raf }: { raf: ResteAFacturer }) {
     ];
   }, [raf.parContrat]);
 
+  // Vue projet : les lignes sont agrégées tous OPCO confondus (pas de champ
+  // OPCO dispo), la seule facette pertinente est le client.
+  const projetFilters = useMemo<FilterOption[]>(() => {
+    const clients = Array.from(
+      new Set(raf.parProjet.map((r) => r.client)),
+    ).sort();
+    return [
+      {
+        column: 'client',
+        label: 'Client',
+        options: clients.map((v) => ({ label: v, value: v })),
+      },
+    ];
+  }, [raf.parProjet]);
+
   const focusedContrats = useMemo(
     () =>
       raf.parContrat.filter((r) => {
@@ -275,6 +290,7 @@ export function ResteAFacturerTab({ raf }: { raf: ResteAFacturer }) {
             searchKey="projetRef"
             searchPlaceholder="Rechercher un projet, client..."
             defaultSort={{ id: 'facturableHt', desc: true }}
+            filters={projetFilters}
           />
         ) : (
           <DataTable

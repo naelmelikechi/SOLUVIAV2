@@ -27,6 +27,11 @@ const columns: ColumnDef<CdpStats>[] = [
   },
   {
     accessorKey: 'heuresInternes',
+    meta: {
+      label: 'Heures internes',
+      aggregate: 'sum',
+      aggregateFormat: formatHeures,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -42,6 +47,11 @@ const columns: ColumnDef<CdpStats>[] = [
   },
   {
     accessorKey: 'heuresClient',
+    meta: {
+      label: 'Heures client',
+      aggregate: 'sum',
+      aggregateFormat: formatHeures,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -57,6 +67,12 @@ const columns: ColumnDef<CdpStats>[] = [
   },
   {
     accessorKey: 'ratio',
+    // Les ratios null (aucune heure client) sont ignores par la moyenne.
+    meta: {
+      label: 'Ratio interne',
+      aggregate: 'avg',
+      aggregateFormat: (v) => `${v.toFixed(1).replace('.', ',')}%`,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}

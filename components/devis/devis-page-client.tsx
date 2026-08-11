@@ -3,6 +3,7 @@
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/shared/data-table';
+import type { FilterOption } from '@/components/shared/data-table';
 import { devisColumns } from '@/components/devis/devis-list-columns';
 import type { DevisListItem } from '@/lib/queries/devis';
 import { formatDate } from '@/lib/utils/formatters';
@@ -16,6 +17,17 @@ const STATUT_DEVIS_LABELS: Record<string, string> = {
   remplace: 'Remplacé',
   annule: 'Annulé',
 };
+
+const DEVIS_FILTERS: FilterOption[] = [
+  {
+    column: 'statut',
+    label: 'Statut',
+    options: Object.entries(STATUT_DEVIS_LABELS).map(([value, label]) => ({
+      label,
+      value,
+    })),
+  },
+];
 
 export function DevisPageClient({ devis }: { devis: DevisListItem[] }) {
   const handleExport = async () => {
@@ -47,7 +59,12 @@ export function DevisPageClient({ devis }: { devis: DevisListItem[] }) {
           Export Excel
         </Button>
       </div>
-      <DataTable columns={devisColumns} data={devis} />
+      <DataTable
+        columns={devisColumns}
+        data={devis}
+        searchPlaceholder="Rechercher un devis..."
+        filters={DEVIS_FILTERS}
+      />
     </div>
   );
 }

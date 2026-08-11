@@ -70,6 +70,10 @@ export const supervisionColumns: ColumnDef<ContratNonFacture>[] = [
   },
   {
     accessorKey: 'nonTransmisCount',
+    meta: {
+      label: 'Éch. non transmises',
+      aggregate: 'sum',
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Éch. non transmises" />
     ),
@@ -106,6 +110,11 @@ export const supervisionColumns: ColumnDef<ContratNonFacture>[] = [
   },
   {
     accessorKey: 'montantNonTransmis',
+    meta: {
+      label: 'Montant non transmis',
+      aggregate: 'sum',
+      aggregateFormat: formatCurrency,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Montant non transmis" />
     ),

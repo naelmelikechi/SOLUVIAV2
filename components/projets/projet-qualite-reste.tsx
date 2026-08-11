@@ -133,7 +133,7 @@ export async function ProjetQualiteReste({
                     href={`/qualiopi/${clientTrigramme}/${campusEntreeId}/${g.criterionId}/${g.indicatorId}`}
                     className="text-primary hover:text-primary/80 min-w-0 flex-1 truncate text-sm font-medium"
                   >
-                    Indicateur {g.indicatorCode} — {g.indicatorTitle}
+                    Indicateur {g.indicatorCode} - {g.indicatorTitle}
                   </Link>
                   <span className="text-muted-foreground shrink-0 text-xs">
                     {g.manquants} pièce{g.manquants > 1 ? 's' : ''} manquante

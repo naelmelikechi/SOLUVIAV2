@@ -169,7 +169,10 @@ export function ReglesArchivageTable({
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold">
-          {regles.length} règle{regles.length > 1 ? 's' : ''} d&apos;archivage
+          {/* Espace dans l'expression : Turbopack perd l'espace d'un texte JSX
+              à entité (&apos;) qui suit une expression. */}
+          {regles.length} règle{regles.length > 1 ? 's' : ''}
+          {" d'archivage"}
         </h3>
         <Button size="sm" onClick={() => setShowCreate(true)}>
           <Plus className="mr-2 size-3.5" /> Nouvelle règle

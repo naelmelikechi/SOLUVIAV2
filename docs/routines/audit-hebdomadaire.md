@@ -31,7 +31,7 @@ Tu disposes de l'outil Agent (sous-agents). Utilise-le massivement. Un audit fai
 - Cartographie le repo : arborescence, taille des fichiers (`find . -name '*.ts*' -not -path './node_modules/*' | xargs wc -l | sort -rn | head -40`), migrations SQL, routes API, crons, workflows CI.
 - `git log --oneline -200` et `git log --format='%ad %s' --date=short -50` : ou le projet bouge, ce qui a ete livre recemment.
 - `gh pr list --state open` et `gh issue list --state open` : ce qui est deja connu ne doit PAS etre remonte comme une decouverte. Regarde en particulier les PR ouvertes qui corrigent deja une faille.
-- Lis `docs/routines/decisions.md` : tout constat qui y figure avec la decision `wontfix`, `acceptee` ou `corrigee` ne doit PAS etre remonte une nouvelle fois. C'est la memoire des executions precedentes. La liste des PR et des issues ouvertes ne suffit pas : elle oublie tout ce qui a ete referme.
+- Lis `docs/routines/decisions.md` (archive figee) puis tous les fichiers de `docs/routines/journal/`, du plus recent au plus ancien : tout constat qui y figure avec la decision `wontfix`, `acceptee` ou `corrigee` ne doit PAS etre remonte une nouvelle fois. C'est la memoire des executions precedentes. La liste des PR et des issues ouvertes ne suffit pas : elle oublie tout ce qui a ete referme.
 - Installe avec `npm ci` et lance `npm run lint`, `npm run typecheck`, `npm test`, puis `npm audit --omit=dev`.
 - Utilise TodoWrite pour tenir ton plan d'audit a jour.
 
@@ -90,7 +90,7 @@ Avant de conclure, lance un dernier sous-agent avec cette question : "voici ce q
 
 ### Alimenter la memoire des routines
 
-Quand tu ecartes un constat pour une raison durable, ou quand une decision a deja ete prise a son sujet, ajoute une ligne a `docs/routines/decisions.md` dans ta PR. C'est ce qui evite qu'il revienne a l'identique la prochaine fois.
+Quand tu ecartes un constat pour une raison durable, ou quand une decision a deja ete prise a son sujet, ajoute une ligne au fichier journal de l'execution, `docs/routines/journal/AAAA-MM-JJ-<routine>.md` (ne modifie jamais `decisions.md` : editer ce fichier cumulatif creait des conflits entre PR paralleles, voir `docs/routines/journal/README.md`), dans ta PR. C'est ce qui evite qu'il revienne a l'identique la prochaine fois.
 
 N'y inscris jamais un constat que tu n'as pas verifie, ni une decision que tu as prise seul sur un sujet qui demande un arbitrage : ce fichier fait autorite pour toutes les executions suivantes, donc une erreur qui y entre devient permanente et silencieuse.
 

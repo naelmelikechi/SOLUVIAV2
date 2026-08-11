@@ -58,3 +58,14 @@ and pushes invoices to Odoo.
 - Auto-save pattern: 2s debounce via `useDebounce` hook (for time tracking)
 - CRON routes protected by `CRON_SECRET` bearer token
 - Supabase Realtime for sidebar badge counts (notifications, overdue invoices, time not logged)
+
+
+## Mémoire des routines (convention du 2026-08-11)
+
+Les routines automatiques (monitoring quotidien, audit hebdomadaire) n'éditent
+plus `docs/routines/decisions.md` : chaque exécution écrit un nouveau fichier
+`docs/routines/journal/AAAA-MM-JJ-<routine>.md` (voir
+`docs/routines/journal/README.md`). Cela supprime les conflits entre PR de
+routines ouvertes en parallèle. Pour recharger la mémoire : lire
+`decisions.md` (archive) puis les fichiers du journal, du plus récent au plus
+ancien.

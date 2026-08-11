@@ -42,7 +42,7 @@ Pour chacun des 5 depots, avec `gh` :
 - PR ouvertes ou fermees dont la branche commence par `claude/` : `gh pr list --state all --search "head:claude/" --json number,title,createdAt,state,mergedAt`
 - commentaires ajoutes sur l'issue `Monitoring continu - rapports` : `gh issue list --search "Monitoring continu - rapports" --state all`, puis les commentaires et leur date
 - issues d'audit hebdomadaire creees depuis lundi dernier : `gh issue list --search "Audit hebdomadaire" --state all`
-- derniere modification de `docs/routines/decisions.md` : `gh api repos/naelmelikechi/<repo>/commits?path=docs/routines/decisions.md`
+- derniere ecriture de la memoire des routines : `gh api repos/naelmelikechi/<repo>/commits?path=docs/routines/journal` (les fragments `docs/routines/journal/*.md` ont remplace l'edition de `decisions.md`, devenu archive figee)
 
 ## 2. Verification structurelle
 
@@ -56,7 +56,7 @@ une bonne nouvelle. C'est le premier point de ton rapport si ca arrive.
 ## 3. Ce qui doit t'alerter
 
 - **Un depot totalement silencieux depuis plus de 7 jours** : aucune PR, aucun
-  commentaire de rapport, aucune ligne ajoutee a `decisions.md`. Sur un depot
+  commentaire de rapport, aucun fichier ajoute a `docs/routines/journal/`. Sur un depot
   actif c'est suspect ; sur un depot dormant (les sites secondaires bougent
   peu) c'est normal. Distingue les deux au lieu de tout signaler.
 - **Une PR de routine ouverte depuis plus de 7 jours** : le dispositif produit
@@ -66,7 +66,7 @@ une bonne nouvelle. C'est le premier point de ton rapport si ca arrive.
 - **Une CI rouge ou instable sur `main`** dans un depot ou elle tourne : les
   routines s'appuient dessus pour decider quoi pousser, donc une CI qui ment
   contamine tout ce qu'elles produisent.
-- **`decisions.md` qui ne grossit jamais** alors que des rapports sont produits :
+- **Un journal (`docs/routines/journal/`) qui ne recoit jamais de fichier** alors que des rapports sont produits :
   signe que la boucle de memoire n'est pas reellement utilisee.
 
 ## 4. Discipline factuelle

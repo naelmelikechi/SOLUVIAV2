@@ -1,0 +1,60 @@
+# 2026-08-13 - Monitoring quotidien
+
+Rapport complet : commentaire du 2026-08-13 sur l'issue #143. PR de l'execution : celle-ci.
+
+Diagnostic vert sur `main` (`8200794`, inchange depuis le run du 2026-08-11) :
+`lint` (1 warning preexistant sur `facturation-page-client.tsx:238`), `typecheck`
+et `test` (1614 tests, 1 ignore) passent. `npm audit --omit=dev` : les memes 6
+avis `high` que les jours precedents (`next` -> `postcss` + `sharp`, `nanoid`,
+`fast-uri`, `brace-expansion`), deja portes par le rapport du 2026-08-08 sur
+#143, non re-remontes.
+
+`main` n'ayant pas bouge depuis trois executions, la recherche a porte sur les
+parties du lot 3 « Finance » du module Projet que ni le monitoring du 2026-08-08
+(qui n'avait vu que le retard d'encaissement commission) ni celui du 2026-08-12
+(les seuils de `/admin/parametres`) n'avaient couvertes.
+
+Un constat candidat retenu, soumis a deux sous-agents charges de le REFUTER avec
+consigne de conclure REFUTE en cas de doute. Les deux ont conclu CONFIRME, sur
+des angles distincts (unite du montant / semantique et portee).
+
+## Constat confirme, remonte sur l'issue #143
+
+| Constat                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Decision | Raison                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Le « Retard facturation » du bloc « Notre commission » de `/projets/[ref]/finance` n'est pas un montant de commission SOLUVIA pour les projets au modele `engagement` : `sommeRetardFacturationEngagement` (`lib/queries/projet-finance-detail.ts:130-194`) somme `eduvia_invoice_steps.total_amount` brut, sans conversion par le taux ni par la TVA, et ce montant est pose tel quel dans `commission.retardFacturation` (`:503-509`, `:542`). Le meme nombre alimente la carte Finance de la synthese (`app/(dashboard)/projets/[ref]/page.tsx:64`), ou il est ADDITIONNE a `retardEncaissementHt` (du vrai HT commission) et colore la carte en rouge (`lib/projets/synthese.ts:114-126`) | reportee | Confirme par deux verifications adversariales independantes. Deux defauts superposes. (1) Unite : `produit` du meme bloc est converti par `productionSoluviaHt` (`:537-540`) et `facture` porte des HT de factures reelles ; seul `retardFacturation` reste en euros OPCO. Le bloc « Financement OPCO » juste en dessous annonce pourtant que ses montants sont « non convertis, non comparables aux montants HT de la commission » (`components/projets/projet-finance-flux.tsx:203`). (2) Semantique : au modele engagement la commission n'est facturable qu'apres reglement OPCO (`lib/queries/billable-events/db.ts:60-72` exclut `invoice_state IS NULL` des la requete source, `derive.ts:163-175` exige `pedagoRegle`) ; une echeance jamais transmise ne produit aucun event facturable. Les deux blocs affichent donc quasiment le meme jeu d'echeances, dans la meme unite, a deux cartes d'ecart. Aggravant : `getEcheancierDues` filtre `modele_facturation = 'echeancier'` (`lib/queries/echeancier-dues.ts:411`), donc un projet `engagement` qui facture aussi en echeancier (cas prevu par la migration `20260710090000`) ne voit AUCUN de ses jalons de commission reellement en retard. Non corrige en PR automatique : le correctif touche la definition d'un montant affiche et demande un arbitrage (convertir, ou vider la tuile au profit d'un indicateur de retard de transmission clairement etiquete). Porte par le commentaire du 2026-08-13 sur #143. |
+
+## Correction mineure de cette PR
+
+Accents manquants dans les libelles du tableau de detail de
+`/projets/[ref]/finance`, tous produits par `lib/queries/projet-finance-detail.ts`
+et rendus dans la colonne « Détail » (`projet-finance-flux.tsx:94-104`) :
+« Echeance » -> « Échéance », « Etape » -> « Étape », « depassee » ->
+« dépassée », « Emise »/« echeance » -> « Émise »/« échéance », « Formation non
+renseignee » -> « renseignée ». C'est le seul fichier du depot a produire des
+libelles d'interface non accentues (`grep` sur `components/`, `lib/`, `app/`).
+Volontairement NON corriges dans la meme passe, parce qu'ils changent une valeur
+vue par l'utilisateur et non son orthographe : le statut brut de la base affiche
+tel quel en fin de ligne (`- ${f.statut}` : « emise », « en_retard »...) et les
+dates ISO non passees par `formatDate`.
+
+## Constats ecartes avant verification adversariale
+
+Ecartes par lecture directe, sans mobiliser de sous-agent.
+
+| Constat examine                                                                                                                                                                                                                                                                                                   | Pourquoi ecarte                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getEcheancierDuesWith` renvoie `hasEcheancierProjets: false` alors que des projets echeancier existent, des lors qu'aucun contrat actif n'est trouve (`lib/queries/echeancier-dues.ts:466-467`), ce qui contredit le contrat annonce par sa docstring (« l'UI distingue "aucun projet echeancier" de "a jour" ») | Sans consequence : le champ n'est lu nulle part dans le depot. `grep -rn hasEcheancierProjets` ne remonte que la definition du type et les huit `return` de ce fichier. A rouvrir seulement si un ecran se met a s'en servir. |
+| L'export Excel des factures (`app/api/factures/export/route.ts`) serait accessible a un CDP alors que son en-tete annonce « admin only »                                                                                                                                                                          | Faux : `checkAuth()` (`lib/auth/guards.ts:101-113`) verifie bien `isAdmin` en plus de `actif`, et la route renvoie 403 sinon (`:40-43`).                                                                                      |
+| `nextMonthKey` (`lib/queries/production-rollup.ts:354-361`) casserait au passage de decembre a janvier                                                                                                                                                                                                            | Faux : verifie sur les bornes. `2026-12` donne `2027-01`, `2026-01` donne `2026-02`. L'arithmetique en mois absolus est correcte.                                                                                             |
+| Un `upsert` partiel de `setLancementEtapeStatut` / `setLancementEtapeDateObjectif` (`lib/actions/projet-lancement.ts:131-139`, `:197-205`) ecraserait la colonne que l'autre action ecrit                                                                                                                         | Faux : PostgREST ne construit le `ON CONFLICT DO UPDATE SET` que sur les colonnes presentes dans le payload ; `date_objectif` survit a un changement de statut, et inversement.                                               |
+
+## Rappel : constats deja remontes, toujours ouverts
+
+Verifies encore presents sur `8200794`, non re-remontes (ils appartiennent aux
+rapports cites) :
+
+- Retard d'encaissement commission somme `montant_ht` brut sans deduire avoirs ni
+  paiements (`lib/queries/projet-finance-detail.ts:476-479`) - rapport du
+  2026-08-08 sur #143.
+- Les 6 avis `high` de `npm audit --omit=dev` - rapport du 2026-08-08 sur #143.

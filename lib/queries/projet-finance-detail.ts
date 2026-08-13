@@ -186,7 +186,7 @@ export function sommeRetardFacturationEngagement(input: {
   const lignes: LigneFinance[] = dues.map((d) => ({
     id: `${d.contratId}-${d.stepNumber}`,
     label: contratLabel(eligibles.get(d.contratId)!),
-    detail: `Echeance ${d.stepNumber} ouverte le ${d.openingDate} (${Math.max(0, diffDaysIso(d.openingDate, today))} j)`,
+    detail: `Échéance ${d.stepNumber} ouverte le ${d.openingDate} (${Math.max(0, diffDaysIso(d.openingDate, today))} j)`,
     montant: d.montant,
   }));
 
@@ -256,7 +256,7 @@ export function construireLignesProduit(
     if (c.archive) continue;
     const montantOpco = montantProduitOpcoContrat(c);
     const label = contratLabel(c);
-    const detail = `${c.formation_titre ?? 'Formation non renseignee'} - NPEC ${formatCurrency(c.npec_amount ?? 0)}`;
+    const detail = `${c.formation_titre ?? 'Formation non renseignée'} - NPEC ${formatCurrency(c.npec_amount ?? 0)}`;
     opco.push({ id: c.id, label, detail, montant: montantOpco });
     commission.push({
       id: c.id,
@@ -291,7 +291,7 @@ export function construireLignesFactureOpco(
     .map((j) => ({
       id: j.id,
       label: contratLabel(contratById.get(j.contratId) ?? { ref: null }),
-      detail: `Etape ${j.stepNumber}, transmise le ${
+      detail: `Étape ${j.stepNumber}, transmise le ${
         j.invoiceSentAt ? j.invoiceSentAt.slice(0, 10) : 'date inconnue'
       } - ${j.invoiceState}`,
       montant: j.totalAmount,
@@ -315,7 +315,7 @@ export function construireLignesFactureCommission(
   return factures.map((f) => ({
     id: f.id,
     label: f.ref ?? f.id,
-    detail: `Emise le ${f.date_emission ?? '?'}, echeance le ${f.date_echeance ?? '?'} - ${f.statut}`,
+    detail: `Émise le ${f.date_emission ?? '?'}, échéance le ${f.date_echeance ?? '?'} - ${f.statut}`,
     montant: f.montant_ht ?? 0,
   }));
 }
@@ -458,13 +458,13 @@ export async function getProjetFinanceDetail(
     lignesRetardFacturation: fluxOpcoAgg.lignesRetardFacturation.map((l) => ({
       id: l.id,
       label: contratLabel(contratById.get(l.contratId) ?? { ref: null }),
-      detail: `Etape ${l.stepNumber}, ouverte le ${l.openingDate} (${l.joursDepuisOuverture} j)`,
+      detail: `Étape ${l.stepNumber}, ouverte le ${l.openingDate} (${l.joursDepuisOuverture} j)`,
       montant: l.montant,
     })),
     lignesRetardEncaissement: fluxOpcoAgg.lignesRetardEncaissement.map((l) => ({
       id: l.id,
       label: contratLabel(contratById.get(l.contratId) ?? { ref: null }),
-      detail: `Etape ${l.stepNumber}, transmise le ${l.invoiceSentAt.slice(0, 10)} (${l.joursDepuisEnvoi} j)`,
+      detail: `Étape ${l.stepNumber}, transmise le ${l.invoiceSentAt.slice(0, 10)} (${l.joursDepuisEnvoi} j)`,
       montant: l.montantDu,
     })),
   };
@@ -481,7 +481,7 @@ export async function getProjetFinanceDetail(
     (f) => ({
       id: f.id,
       label: f.ref ?? f.id,
-      detail: `Echeance depassee le ${f.date_echeance ?? ''}`,
+      detail: `Échéance dépassée le ${f.date_echeance ?? ''}`,
       montant: f.montant_ht ?? 0,
     }),
   );

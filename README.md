@@ -101,8 +101,8 @@ boot échoue. Preview et dev n'ont pas cette contrainte.
   `/temps`, `/qualiopi`, `/indicateurs`, `/equipe`, `/admin/*`, etc.
 - `api/` — route handlers :
   - `api/auth/callback` — callback reset password
-  - `api/cron/*` — 10 jobs cron (voir `docs/CRONS.md`)
-  - `api/sync/eduvia` — sync quotidien Eduvia
+  - `api/cron/*` — 22 jobs cron (voir `docs/CRONS.md`)
+  - `api/sync/eduvia` — sync Eduvia horaire de 09h à 18h UTC
   - `api/factures/[ref]/pdf` — rendu PDF facture
   - `api/echeances/[id]/pdf-preview` — aperçu PDF échéance
 
@@ -154,7 +154,7 @@ Voir [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) pour :
 
 ## Crons
 
-11 jobs cron schedulés via `vercel.json`. Documentation complète dans
+24 jobs cron schedulés via `vercel.json`. Documentation complète dans
 [`docs/CRONS.md`](docs/CRONS.md) : schedule, finalité, error handling,
 observation.
 

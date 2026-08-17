@@ -246,7 +246,7 @@ export function BrouillonsTab({ brouillons }: BrouillonsTabProps) {
       <EmptyState
         icon={Inbox}
         title="Aucun brouillon"
-        description="Les brouillons apparaîtront ici après avoir préparé les factures depuis l’onglet Échéancier."
+        description="Les brouillons apparaîtront ici une fois des factures préparées, depuis l’onglet À l’engagement, l’onglet Échéancier, ou le bouton Nouvelle facture."
       />
     );
   }

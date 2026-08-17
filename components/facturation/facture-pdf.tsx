@@ -218,7 +218,7 @@ export function FacturePdf({
 
         {/* Destinataire */}
         <DestinataireBlock
-          label="Facturer à"
+          label="Facturé à"
           raisonSociale={facture.client?.raison_sociale ?? ''}
           addressLines={formatClientAddressLines(
             facture.client?.adresse,

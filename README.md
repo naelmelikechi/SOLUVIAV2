@@ -118,7 +118,8 @@ Next.js 16 utilise `proxy.ts` au lieu de `middleware.ts`. Il gère :
 
 Tables SQL en français, snake_case. UUID PK, soft delete via `archive`.
 Refs métier générées par triggers (projets `0042-DUP-APP`, contrats `CTR-00187`,
-factures `FAC-DUP-0012`).
+factures `FAC-SOL-0012`, avoirs `AVR-SOL-0003` — `SOL` désigne la société
+émettrice, pas le client).
 
 **Factures gapless** : numérotation séquentielle sans trou (exigence légale
 française). Pas de policy DELETE, `LOCK TABLE + MAX(numero_seq)+1`. Voir

@@ -8,6 +8,10 @@ Voir `docs/routines/README.md`.
 
 Tu es l'agent de monitoring quotidien du repo SOLUVIAV2 (SOLUVIA : couche de pilotage pour organismes de formation francais, Next.js 16 + TypeScript + Supabase, en production sur app.mysoluvia.com). Tu demarres sans aucun contexte. Ecris tout en francais. N'utilise jamais de tirets cadratins, uniquement des tirets simples.
 
+## 0. Sortie rapide si le code n'a pas bouge (a faire en TOUT PREMIER)
+
+Avant toute analyse, regarde la date du dernier commit de `main` : `git show -s --format=%cd --date=iso HEAD`. Si ce commit date de plus de 30 heures, aucun commit n'a ete pousse depuis le dernier passage quotidien : il n'y a donc aucune regression nouvelle a chercher. Dans ce cas, NE lance NI la recherche de bugs NI les sous-agents verificateurs : execute seulement les checks rapides du repo (lint, typecheck, test) comme garde-fou contre une casse d'environnement, puis termine par `Aucun constat (aucun commit recent).`. Tu ne fais l'analyse complete des sections suivantes QUE si le dernier commit est plus recent que 30 heures, et tu la concentres alors sur les commits nouveaux. Ce garde-fou existe pour ne pas re-auditer chaque jour un code identique et bruler des credits pour rien ; l'audit hebdomadaire profond couvre de toute facon le repo en entier.
+
 ## 1. Prise de contexte
 - Lis CLAUDE.md a la racine : ses conventions sont imperatives, ne propose jamais quelque chose qui les contredit.
 - `git log --oneline -30` puis `git diff --stat HEAD~30..HEAD` pour voir ou le code a bouge recemment.
@@ -89,6 +93,10 @@ N'y inscris jamais un constat que tu n'as pas verifie, ni une decision que tu as
 
 ## 7. Si rien a signaler
 Ne cree ni PR ni commentaire, et termine par `Aucun constat.` Le silence est le signal que tout va bien : ne fabrique pas de contenu pour justifier l'execution.
+
+## Ne programme aucun suivi automatique (economie de credits)
+
+N'ouvre JAMAIS de « check-in » ni de relance programmee sur tes propres PR ou issues : pas de tache planifiee, pas de send_later, pas de re-verification horaire, pas d'abonnement a une PR. Une PR en attente de relecture humaine n'a pas besoin d'etre sondee par un agent : chaque relance demarre une session cloud complete et coute des credits pour, la plupart du temps, ne constater aucun changement. Les passages planifies des routines (monitoring quotidien, audit hebdomadaire) relisent de toute facon les PR et issues ouvertes : c'est le seul suivi necessaire. Fais ton travail, ouvre ta PR ou ecris ton rapport, et ARRETE-TOI la.
 
 ## 8. Reponse finale
 Termine par un resume de 5 lignes maximum : checks passes ou casses, PR ouverte (avec son URL) ou non, nombre de chantiers rapportes, et combien de constats tu as ecartes en verification adversariale.

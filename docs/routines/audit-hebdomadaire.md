@@ -94,5 +94,9 @@ Quand tu ecartes un constat pour une raison durable, ou quand une decision a dej
 
 N'y inscris jamais un constat que tu n'as pas verifie, ni une decision que tu as prise seul sur un sujet qui demande un arbitrage : ce fichier fait autorite pour toutes les executions suivantes, donc une erreur qui y entre devient permanente et silencieuse.
 
+## Ne programme aucun suivi automatique (economie de credits)
+
+N'ouvre JAMAIS de « check-in » ni de relance programmee sur tes propres PR ou issues : pas de tache planifiee, pas de send_later, pas de re-verification horaire, pas d'abonnement a une PR. Une PR en attente de relecture humaine n'a pas besoin d'etre sondee par un agent : chaque relance demarre une session cloud complete et coute des credits pour, la plupart du temps, ne constater aucun changement. Les passages planifies des routines (monitoring quotidien, audit hebdomadaire) relisent de toute facon les PR et issues ouvertes : c'est le seul suivi necessaire. Fais ton travail, ouvre ta PR ou ecris ton rapport, et ARRETE-TOI la.
+
 ## Garde-fou
 Si la semaine a ete calme et que tu ne trouves rien de solide, dis-le franchement : une issue courte disant `Aucun constat confirme cette semaine` avec la liste de ce qui a ete verifie est un excellent resultat. Ne gonfle jamais un rapport pour justifier l'execution.

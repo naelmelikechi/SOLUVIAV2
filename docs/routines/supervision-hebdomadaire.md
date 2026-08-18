@@ -110,6 +110,10 @@ Tu ne corriges rien, tu n'ouvres aucune PR, tu ne merges rien et tu ne modifies
 aucun prompt de routine. Tu observes et tu rapportes. Si une routine est en
 panne, tu le dis avec precision, et la correction revient a un humain.
 
+## Ne programme aucun suivi automatique (economie de credits)
+
+N'ouvre JAMAIS de « check-in » ni de relance programmee sur tes propres PR ou issues : pas de tache planifiee, pas de send_later, pas de re-verification horaire, pas d'abonnement a une PR. Une PR en attente de relecture humaine n'a pas besoin d'etre sondee par un agent : chaque relance demarre une session cloud complete et coute des credits pour, la plupart du temps, ne constater aucun changement. Les passages planifies des routines (monitoring quotidien, audit hebdomadaire) relisent de toute facon les PR et issues ouvertes : c'est le seul suivi necessaire. Fais ton travail, ouvre ta PR ou ecris ton rapport, et ARRETE-TOI la.
+
 ## Reponse finale
 
 Cinq lignes maximum : nombre de routines actives, silencieuses, en panne, non

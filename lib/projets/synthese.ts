@@ -47,7 +47,13 @@ export interface SyntheseInput {
      *  transmise a l'OPCO - jamais converti. Un OPCO qui ne regle pas n'est
      *  pas le meme probleme qu'un client qui ne regle pas : ce montant ne
      *  colore jamais le ton de la carte, il n'alimente que sa ligne
-     *  secondaire. */
+     *  secondaire.
+     *
+     *  Le libelle de cette ligne reste volontairement « en retard », sans
+     *  designer de responsable : le cumul melange un retard de NOTRE cote
+     *  (jalon ouvert jamais transmis, lib/projets/finance-flux.ts:78-94) et un
+     *  retard de l'OPCO (jalon transmis non regle, :96-119). C'est
+     *  /projets/[ref]/finance qui separe les deux. */
     opcoRetard: number;
   };
   contrats: { total: number; actifs: number };
@@ -126,7 +132,7 @@ export function buildSyntheseCards(input: SyntheseInput): CarteSynthese[] {
     ton: enRetardCommission ? 'alerte' : 'neutre',
     ...(opcoRetard > 0
       ? {
-          alerteSecondaire: `OPCO : ${formatCurrency(opcoRetard)} en retard de règlement`,
+          alerteSecondaire: `OPCO : ${formatCurrency(opcoRetard)} en retard`,
         }
       : {}),
   };

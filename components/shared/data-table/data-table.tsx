@@ -33,6 +33,8 @@ import { matchesSearch } from '@/lib/utils/search';
 import { useDebounce } from '@/hooks/use-debounce';
 import { DataTableToolbar, type FilterOption } from './data-table-toolbar';
 import { DataTablePagination } from './data-table-pagination';
+import { DataTableAggregateBar } from './data-table-aggregate-bar';
+import './column-meta';
 
 /**
  * Requete cote serveur emise par la DataTable en mode serveur (opt-in).
@@ -461,6 +463,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
+      <DataTableAggregateBar table={table} serverMode={serverMode} />
       {renderBulkActions && selectedRows.length > 0 && (
         <div className="bg-muted/50 border-border flex flex-wrap items-center justify-between gap-2 rounded-lg border p-2 text-sm">
           <div className="flex items-center gap-2">

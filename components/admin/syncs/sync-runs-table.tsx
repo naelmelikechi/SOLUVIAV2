@@ -5,8 +5,10 @@ import {
   DataTable,
   DataTableColumnHeader,
 } from '@/components/shared/data-table';
+import type { FilterOption } from '@/components/shared/data-table';
 import { StatusBadge, type BadgeColor } from '@/components/shared/status-badge';
 import type { RecentSyncRun } from '@/lib/queries/syncs';
+import { textFilterFn } from '@/lib/utils/table-filters';
 import { formatDureeMs, formatHorodatage } from './format';
 
 const STATUT_BADGES: Record<string, { label: string; color: BadgeColor }> = {
@@ -47,6 +49,8 @@ const columns: ColumnDef<RecentSyncRun>[] = [
   },
   {
     accessorKey: 'statut',
+    meta: { label: 'Statut' },
+    filterFn: textFilterFn,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Statut" />
     ),
@@ -60,6 +64,11 @@ const columns: ColumnDef<RecentSyncRun>[] = [
   },
   {
     accessorKey: 'duration_ms',
+    meta: {
+      label: 'Durée',
+      aggregate: 'sum',
+      aggregateFormat: (v) => formatDureeMs(Math.round(v)),
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Durée" />
     ),
@@ -93,6 +102,17 @@ const columns: ColumnDef<RecentSyncRun>[] = [
   },
 ];
 
+const SYNC_RUN_FILTERS: FilterOption[] = [
+  {
+    column: 'statut',
+    label: 'Statut',
+    options: Object.entries(STATUT_BADGES).map(([value, badge]) => ({
+      label: badge.label,
+      value,
+    })),
+  },
+];
+
 export function SyncRunsTable({ data }: { data: RecentSyncRun[] }) {
   return (
     <DataTable
@@ -100,6 +120,7 @@ export function SyncRunsTable({ data }: { data: RecentSyncRun[] }) {
       data={data}
       searchPlaceholder="Rechercher un client, un statut..."
       defaultSort={{ id: 'created_at', desc: true }}
+      filters={SYNC_RUN_FILTERS}
     />
   );
 }

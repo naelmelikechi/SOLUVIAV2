@@ -163,6 +163,11 @@ export function createContratColumns(): ColumnDef<RafContratRow>[] {
     },
     {
       accessorKey: 'facturableHt',
+      meta: {
+        label: 'Facturable HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -176,6 +181,11 @@ export function createContratColumns(): ColumnDef<RafContratRow>[] {
     },
     {
       accessorKey: 'facturableTtc',
+      meta: {
+        label: 'Facturable TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -189,6 +199,11 @@ export function createContratColumns(): ColumnDef<RafContratRow>[] {
     },
     {
       accessorKey: 'emisNonPayeHt',
+      meta: {
+        label: 'En attente HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -202,6 +217,11 @@ export function createContratColumns(): ColumnDef<RafContratRow>[] {
     },
     {
       accessorKey: 'emisNonPayeTtc',
+      meta: {
+        label: 'En attente TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -215,6 +235,11 @@ export function createContratColumns(): ColumnDef<RafContratRow>[] {
     },
     {
       accessorKey: 'bloqueHt',
+      meta: {
+        label: 'Bloqué HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -244,6 +269,11 @@ export function createContratColumns(): ColumnDef<RafContratRow>[] {
     },
     {
       accessorKey: 'bloqueTtc',
+      meta: {
+        label: 'Bloqué TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -257,6 +287,11 @@ export function createContratColumns(): ColumnDef<RafContratRow>[] {
     },
     {
       accessorKey: 'previsionnelHt',
+      meta: {
+        label: 'Prévisionnel HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -270,6 +305,11 @@ export function createContratColumns(): ColumnDef<RafContratRow>[] {
     },
     {
       accessorKey: 'previsionnelTtc',
+      meta: {
+        label: 'Prévisionnel TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -309,6 +349,8 @@ export function createProjetColumns(): ColumnDef<RafProjetRow>[] {
     },
     {
       accessorKey: 'client',
+      enableColumnFilter: true,
+      filterFn: textFilterFn,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Client" />
       ),
@@ -316,6 +358,11 @@ export function createProjetColumns(): ColumnDef<RafProjetRow>[] {
     },
     {
       accessorKey: 'facturableHt',
+      meta: {
+        label: 'Facturable HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -329,6 +376,11 @@ export function createProjetColumns(): ColumnDef<RafProjetRow>[] {
     },
     {
       accessorKey: 'facturableTtc',
+      meta: {
+        label: 'Facturable TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -342,6 +394,11 @@ export function createProjetColumns(): ColumnDef<RafProjetRow>[] {
     },
     {
       accessorKey: 'emisNonPayeHt',
+      meta: {
+        label: 'En attente HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -355,6 +412,11 @@ export function createProjetColumns(): ColumnDef<RafProjetRow>[] {
     },
     {
       accessorKey: 'emisNonPayeTtc',
+      meta: {
+        label: 'En attente TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -368,6 +430,11 @@ export function createProjetColumns(): ColumnDef<RafProjetRow>[] {
     },
     {
       accessorKey: 'bloqueHt',
+      meta: {
+        label: 'Bloqué HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -381,6 +448,11 @@ export function createProjetColumns(): ColumnDef<RafProjetRow>[] {
     },
     {
       accessorKey: 'bloqueTtc',
+      meta: {
+        label: 'Bloqué TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -394,6 +466,11 @@ export function createProjetColumns(): ColumnDef<RafProjetRow>[] {
     },
     {
       accessorKey: 'previsionnelHt',
+      meta: {
+        label: 'Prévisionnel HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -407,6 +484,11 @@ export function createProjetColumns(): ColumnDef<RafProjetRow>[] {
     },
     {
       accessorKey: 'previsionnelTtc',
+      meta: {
+        label: 'Prévisionnel TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -456,6 +538,11 @@ export function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
     },
     {
       accessorKey: 'facturableHt',
+      meta: {
+        label: 'Facturable HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -469,6 +556,11 @@ export function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
     },
     {
       accessorKey: 'facturableTtc',
+      meta: {
+        label: 'Facturable TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -482,6 +574,11 @@ export function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
     },
     {
       accessorKey: 'emisNonPayeHt',
+      meta: {
+        label: 'En attente HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -495,6 +592,11 @@ export function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
     },
     {
       accessorKey: 'emisNonPayeTtc',
+      meta: {
+        label: 'En attente TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -508,6 +610,11 @@ export function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
     },
     {
       accessorKey: 'bloqueHt',
+      meta: {
+        label: 'Bloqué HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -521,6 +628,11 @@ export function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
     },
     {
       accessorKey: 'bloqueTtc',
+      meta: {
+        label: 'Bloqué TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -534,6 +646,11 @@ export function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
     },
     {
       accessorKey: 'previsionnelHt',
+      meta: {
+        label: 'Prévisionnel HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -547,6 +664,11 @@ export function createOpcoColumns(): ColumnDef<RafOpcoRow>[] {
     },
     {
       accessorKey: 'previsionnelTtc',
+      meta: {
+        label: 'Prévisionnel TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}

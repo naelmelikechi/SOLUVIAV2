@@ -125,6 +125,11 @@ export function InternesConfigTab({ categories, projets }: Props) {
       {
         id: 'heures_12m',
         accessorFn: (c) => heuresParCategorie.get(c.id) ?? 0,
+        meta: {
+          label: 'Heures 12m',
+          aggregate: 'sum',
+          aggregateFormat: (v) => `${v.toFixed(1).replace('.', ',')} h`,
+        },
         header: ({ column }) => (
           <DataTableColumnHeader
             column={column}

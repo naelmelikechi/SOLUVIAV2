@@ -22,6 +22,17 @@ function ratioOf(r: { realise: number; total: number }): number {
   return r.total > 0 ? r.realise / r.total : -1;
 }
 
+// Ratio en % pour la barre d'agregats (moyenne) - les lignes sans volume
+// sont exclues (null) plutot que comptees a -100 %.
+function ratioPct(r: { realise: number; total: number }): number | null {
+  const ratio = ratioOf(r);
+  return ratio < 0 ? null : ratio * 100;
+}
+
+function formatPct(value: number): string {
+  return `${Math.round(value)} %`;
+}
+
 const columns: ColumnDef<Row>[] = [
   {
     accessorKey: 'clientNom',
@@ -37,6 +48,12 @@ const columns: ColumnDef<Row>[] = [
   {
     id: 'progression',
     accessorFn: (r) => ratioOf(r.progression),
+    meta: {
+      label: 'Progression apprenants',
+      aggregate: 'avg',
+      aggregateValue: (r) => ratioPct(r.progression),
+      aggregateFormat: formatPct,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Progression apprenants" />
     ),
@@ -51,6 +68,12 @@ const columns: ColumnDef<Row>[] = [
   {
     id: 'rdv',
     accessorFn: (r) => ratioOf(r.rdvFormateurs),
+    meta: {
+      label: 'RDV formateurs',
+      aggregate: 'avg',
+      aggregateValue: (r) => ratioPct(r.rdvFormateurs),
+      aggregateFormat: formatPct,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="RDV formateurs" />
     ),
@@ -65,6 +88,12 @@ const columns: ColumnDef<Row>[] = [
   {
     id: 'qualite',
     accessorFn: (r) => ratioOf(r.qualite),
+    meta: {
+      label: 'Tâches qualité',
+      aggregate: 'avg',
+      aggregateValue: (r) => ratioPct(r.qualite),
+      aggregateFormat: formatPct,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Tâches qualité" />
     ),
@@ -79,6 +108,12 @@ const columns: ColumnDef<Row>[] = [
   {
     id: 'facturation',
     accessorFn: (r) => ratioOf(r.facturation),
+    meta: {
+      label: 'Facturation',
+      aggregate: 'avg',
+      aggregateValue: (r) => ratioPct(r.facturation),
+      aggregateFormat: formatPct,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Facturation" />
     ),

@@ -43,6 +43,7 @@ export function PlanDeChargeTable({ lines }: PlanDeChargeTableProps) {
       {
         id: 'nbClients',
         accessorFn: (row) => row.nbClients,
+        meta: { label: 'Clients', aggregate: 'sum' },
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Clients" />
         ),
@@ -53,6 +54,7 @@ export function PlanDeChargeTable({ lines }: PlanDeChargeTableProps) {
       {
         id: 'nbProjetsActifs',
         accessorFn: (row) => row.nbProjetsActifs,
+        meta: { label: 'Projets actifs', aggregate: 'sum' },
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Projets actifs" />
         ),
@@ -63,6 +65,7 @@ export function PlanDeChargeTable({ lines }: PlanDeChargeTableProps) {
       {
         id: 'nbAlternants',
         accessorFn: (row) => row.nbAlternants,
+        meta: { label: 'Alternants', aggregate: 'sum' },
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Alternants" />
         ),
@@ -92,6 +95,11 @@ export function PlanDeChargeTable({ lines }: PlanDeChargeTableProps) {
       {
         id: 'capacite',
         accessorFn: (row) => row.score.charge,
+        meta: {
+          label: 'Capacité',
+          aggregate: 'avg',
+          aggregateFormat: (v) => `${Math.round(v)} %`,
+        },
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Capacité" />
         ),
@@ -124,6 +132,7 @@ export function PlanDeChargeTable({ lines }: PlanDeChargeTableProps) {
     <DataTable
       columns={columns}
       data={lines}
+      searchPlaceholder="Rechercher un CDP..."
       defaultSort={{ id: 'capacite', desc: false }}
       onRowClick={(row) => router.push(`/commercial/cdp?cdp=${row.cdp.id}`)}
       emptyMessage="Aucun chef de projet référent."

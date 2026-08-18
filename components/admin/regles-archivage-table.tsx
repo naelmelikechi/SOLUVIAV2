@@ -104,6 +104,11 @@ export function ReglesArchivageTable({
       {
         id: 'nbContratsArchives',
         accessorFn: (r) => r.nbContratsArchives,
+        meta: {
+          label: 'Déjà archivés',
+          aggregate: 'sum',
+          aggregateFormat: (v) => Math.round(v).toLocaleString('fr-FR'),
+        },
         header: ({ column }) => (
           <DataTableColumnHeader column={column} title="Déjà archivés" />
         ),

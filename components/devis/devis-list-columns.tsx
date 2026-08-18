@@ -3,6 +3,8 @@ import type { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import { DevisStatusBadge } from './devis-status-badge';
 import type { DevisListItem } from '@/lib/queries/devis';
+import { formatCurrency } from '@/lib/utils/formatters';
+import { textFilterFn } from '@/lib/utils/table-filters';
 
 export const devisColumns: ColumnDef<DevisListItem>[] = [
   {
@@ -48,11 +50,20 @@ export const devisColumns: ColumnDef<DevisListItem>[] = [
   {
     accessorKey: 'statut',
     header: 'Statut',
+    meta: { label: 'Statut' },
+    filterFn: textFilterFn,
     cell: ({ row }) => <DevisStatusBadge statut={row.original.statut} />,
   },
   {
     accessorKey: 'montant_ttc',
     header: 'Total TTC',
+    meta: {
+      label: 'Total TTC',
+      aggregate: 'sum',
+      aggregateFormat: formatCurrency,
+      // Le montant peut arriver en chaine depuis PostgREST (numeric).
+      aggregateValue: (row) => Number(row.montant_ttc),
+    },
     cell: ({ row }) => (
       <span className="font-mono tabular-nums">
         {Number(row.original.montant_ttc).toFixed(2).replace('.', ',')} €

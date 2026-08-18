@@ -1,10 +1,14 @@
 'use client';
 import * as React from 'react';
-import { useTransition } from 'react';
+import { useMemo, useTransition } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { useRouter } from 'next/navigation';
 import { runWithToast } from '@/components/crm/shared/run-with-toast';
-import { DataTable } from '@/components/crm/shared/data-table';
+import {
+  DataTable,
+  DataTableColumnHeader,
+  type FilterOption,
+} from '@/components/shared/data-table';
 import {
   Select,
   SelectContent,
@@ -16,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { moveOpportuniteStage } from '@/lib/crm/actions/opportunites';
 import { label, statutOppLabel } from '@/lib/crm/labels';
+import { textFilterFn } from '@/lib/utils/table-filters';
 import type { Etape, OppCard } from './types';
 
 function exportCsv(rows: OppCard[], etapes: Etape[]) {
@@ -104,6 +109,9 @@ function EtapeCell({
   );
 }
 
+/** Couleur d'étape validée avant injection dans un bloc <style> (hex uniquement). */
+const HEX_COLOR = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
 export function OppTable({
   opportunites,
   etapes,
@@ -113,10 +121,41 @@ export function OppTable({
 }) {
   const router = useRouter();
   const etapeItems = etapes.map((e) => ({ label: etapeLabel(e), value: e.id }));
+
+  // Teinte de fond par étape : rowClassName ne porte que des classes, donc on
+  // génère une classe par étape (couleur DB inconnue au build de Tailwind) et
+  // les règles CSS correspondantes - mêmes ratios color-mix que l'ancien socle
+  // CRM (18/28 % clair, 16/24 % sombre, hover inclus).
+  const { tintCss, tintClassByEtape } = useMemo(() => {
+    const rules: string[] = [];
+    const byEtape = new Map<string, string>();
+    etapes.forEach((e, i) => {
+      if (!HEX_COLOR.test(e.couleur)) return;
+      const cls = `crm-opp-tint-${i}`;
+      byEtape.set(e.id, cls);
+      rules.push(
+        `.${cls}{background-color:color-mix(in srgb,${e.couleur} 18%,transparent)}` +
+          `.${cls}:hover{background-color:color-mix(in srgb,${e.couleur} 28%,transparent)}` +
+          `.dark .${cls}{background-color:color-mix(in srgb,${e.couleur} 16%,transparent)}` +
+          `.dark .${cls}:hover{background-color:color-mix(in srgb,${e.couleur} 24%,transparent)}`,
+      );
+    });
+    return { tintCss: rules.join('\n'), tintClassByEtape: byEtape };
+  }, [etapes]);
+
+  const etapeById = useMemo(
+    () => new Map(etapes.map((e) => [e.id, e])),
+    [etapes],
+  );
+
   const columns: ColumnDef<OppCard>[] = [
     {
       accessorKey: 'intitule',
-      header: 'Intitulé',
+      enableHiding: false,
+      meta: { label: 'Intitulé' },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Intitulé" />
+      ),
       cell: ({ row }) => (
         <button
           className="font-medium hover:underline"
@@ -128,12 +167,29 @@ export function OppTable({
     },
     {
       id: 'compte',
-      header: 'Compte',
+      meta: { label: 'Compte' },
+      accessorFn: (row) => row.compte?.nom ?? '',
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title="Compte"
+          filterVariant="text"
+        />
+      ),
       cell: ({ row }) => row.original.compte?.nom ?? '-',
+      enableColumnFilter: true,
+      filterFn: textFilterFn,
     },
     {
       accessorKey: 'probabilite',
-      header: 'Prob.',
+      meta: {
+        label: 'Probabilité',
+        aggregate: 'avg',
+        aggregateFormat: (v) => `${Math.round(v)} %`,
+      },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Prob." />
+      ),
       cell: ({ row }) =>
         row.original.probabilite != null
           ? `${row.original.probabilite} %`
@@ -141,14 +197,27 @@ export function OppTable({
     },
     {
       id: 'etape',
-      header: 'Étape',
+      meta: { label: 'Étape' },
+      accessorFn: (row) => etapeById.get(row.etape_id)?.libelle ?? '',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Étape" />
+      ),
       cell: ({ row }) => (
         <EtapeCell opp={row.original} etapes={etapes} etapeItems={etapeItems} />
       ),
+      enableColumnFilter: true,
+      filterFn: textFilterFn,
+      // Tri par ordre du pipeline plutôt qu'alphabétique sur le libellé.
+      sortingFn: (a, b) =>
+        (etapeById.get(a.original.etape_id)?.ordre ?? 0) -
+        (etapeById.get(b.original.etape_id)?.ordre ?? 0),
     },
     {
       accessorKey: 'statut',
-      header: 'Statut',
+      meta: { label: 'Statut' },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Statut" />
+      ),
       cell: ({ row }) => {
         const s = row.original.statut;
         const cls =
@@ -161,30 +230,42 @@ export function OppTable({
       },
     },
   ];
+
+  const filters: FilterOption[] = [
+    {
+      column: 'etape',
+      label: 'Étape',
+      options: etapes.map((e) => ({ label: e.libelle, value: e.libelle })),
+    },
+  ];
+
   return (
-    <div className="space-y-2">
-      <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => exportCsv(opportunites, etapes)}
-        >
-          <Download className="mr-1 h-4 w-4" />
-          Export CSV
-        </Button>
-      </div>
+    <>
+      {tintCss && <style>{tintCss}</style>}
       <DataTable
         columns={columns}
         data={opportunites}
-        rowTint={(o) => etapes.find((e) => e.id === o.etape_id)?.couleur}
-        filterPlaceholder="Filtrer les opportunités…"
-        emptyState={
+        searchPlaceholder="Rechercher une opportunité..."
+        filters={filters}
+        paginationMode="auto"
+        rowClassName={(o) => tintClassByEtape.get(o.etape_id)}
+        toolbarExtra={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportCsv(opportunites, etapes)}
+          >
+            <Download className="mr-1 h-4 w-4" />
+            Export CSV
+          </Button>
+        }
+        emptyMessage={
           <>
             Aucune opportunité pour l&apos;instant. Utilisez le bouton «
             Nouvelle opportunité » pour démarrer.
           </>
         }
       />
-    </div>
+    </>
   );
 }

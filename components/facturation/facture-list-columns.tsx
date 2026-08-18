@@ -162,6 +162,11 @@ export function createFactureListColumns(
     },
     {
       accessorKey: 'montant_ht',
+      meta: {
+        label: 'Montant HT',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Montant HT" />
       ),
@@ -178,6 +183,11 @@ export function createFactureListColumns(
     },
     {
       accessorKey: 'montant_ttc',
+      meta: {
+        label: 'Montant TTC',
+        aggregate: 'sum',
+        aggregateFormat: formatCurrency,
+      },
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Montant TTC" />
       ),

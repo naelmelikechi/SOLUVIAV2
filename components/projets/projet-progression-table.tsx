@@ -190,6 +190,14 @@ const columns: ColumnDef<ApprenantProjetRow>[] = [
   {
     id: 'progression_reelle',
     accessorFn: (a) => a.progression_reelle ?? -1,
+    // L'accessor renvoie -1 pour les inconnues (tri) : la moyenne se calcule
+    // sur les vraies valeurs via aggregateValue, les null sont ignores.
+    meta: {
+      label: 'Progression',
+      aggregate: 'avg',
+      aggregateFormat: (v) => `${Math.round(v)} %`,
+      aggregateValue: (a) => a.progression_reelle,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Progression" />
     ),
@@ -202,6 +210,12 @@ const columns: ColumnDef<ApprenantProjetRow>[] = [
   {
     id: 'progression_theorique',
     accessorFn: (a) => a.progression_theorique ?? -1,
+    meta: {
+      label: 'Théorique',
+      aggregate: 'avg',
+      aggregateFormat: (v) => `${Math.round(v)} %`,
+      aggregateValue: (a) => a.progression_theorique,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Théorique" />
     ),
@@ -216,6 +230,15 @@ const columns: ColumnDef<ApprenantProjetRow>[] = [
     // Les progressions inconnues (null) sont volontairement reportees en fin
     // de tri : ce n'est ni une avance ni un retard, on ne sait juste pas.
     accessorFn: (a) => a.progression_ecart ?? Number.POSITIVE_INFINITY,
+    meta: {
+      label: 'Écart',
+      aggregate: 'avg',
+      aggregateFormat: (v) => {
+        const arrondi = Math.round(v);
+        return `${arrondi > 0 ? '+' : ''}${arrondi} pts`;
+      },
+      aggregateValue: (a) => a.progression_ecart,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Écart" />
     ),

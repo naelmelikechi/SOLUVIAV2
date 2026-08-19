@@ -268,8 +268,12 @@ describe('buildSyntheseCards', () => {
       ...BASE,
       finance: { ...BASE.finance, opcoRetard: 12400 },
     })[2]!;
+    // Libelle volontairement neutre : le cumul melange un retard de NOTRE cote
+    // (jalon jamais transmis) et un retard de l'OPCO (jalon transmis non
+    // regle). Parler de « retard de reglement » designerait l'OPCO alors que
+    // l'action a mener peut etre chez nous.
     expect(avecOpco.alerteSecondaire).toBe(
-      `OPCO : ${formatCurrency(12400)} en retard de règlement`,
+      `OPCO : ${formatCurrency(12400)} en retard`,
     );
   });
 

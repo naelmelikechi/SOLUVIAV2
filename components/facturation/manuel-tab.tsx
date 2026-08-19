@@ -517,7 +517,7 @@ export function ManuelTab({ projets }: ManuelTabProps) {
                                     >
                                       <div className="text-xs">
                                         {
-                                          "L'IDCC de l'employeur n'est rattaché à aucun OPCO du référentiel. Mappez-le dans /admin/parametres/opcos."
+                                          "L'IDCC de l'employeur n'est rattaché à aucun OPCO du référentiel. Rattachez-le dans Paramètres, Référentiel OPCO."
                                         }
                                       </div>
                                     </TooltipContent>

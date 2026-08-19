@@ -22,10 +22,7 @@ import type {
 
 type CleFlux = 'commission' | 'opco';
 type CleMontant =
-  | 'produit'
-  | 'facture'
-  | 'retardFacturation'
-  | 'retardEncaissement';
+  'produit' | 'facture' | 'retardFacturation' | 'retardEncaissement';
 
 const FLUX_LABELS: Record<CleFlux, string> = {
   commission: 'Notre commission',
@@ -169,12 +166,12 @@ function BlocFlux({
         <StatItem label="Produit" valeur={formatCurrency(flux.produit)} />
         <StatItem label="Facturé" valeur={formatCurrency(flux.facture)} />
         <StatItem
-          label="Retard facturation"
+          label="Retard de facturation"
           valeur={formatCurrency(flux.retardFacturation)}
           alerte={flux.retardFacturation > 0}
         />
         <StatItem
-          label="Retard encaissement"
+          label="Retard d'encaissement"
           valeur={formatCurrency(flux.retardEncaissement)}
           alerte={flux.retardEncaissement > 0}
         />

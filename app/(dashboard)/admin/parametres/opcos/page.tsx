@@ -5,7 +5,7 @@ import { listOpcos } from '@/lib/queries/opcos';
 import { OpcosSection } from '@/components/admin/opcos-section';
 import { Breadcrumbs } from '@/components/shared/breadcrumbs';
 
-export const metadata: Metadata = { title: 'Referentiel OPCO - SOLUVIA' };
+export const metadata: Metadata = { title: 'Référentiel OPCO - SOLUVIA' };
 
 export default async function OpcosPage() {
   const auth = await checkAuth();

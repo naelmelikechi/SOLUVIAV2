@@ -89,17 +89,17 @@ export async function QualitePedagogieSection({
                   Calcul en multi-CFA
                 </p>
                 <p className="text-muted-foreground">
-                  Aucun KPI n&apos;est une moyenne par CFA. Tout est agrégé
-                  sur le scope en sommant numérateurs et dénominateurs bruts :
-                  un gros CFA pèse plus qu&apos;un petit.
+                  Aucun KPI n&apos;est une moyenne par CFA. Tout est agrégé sur
+                  le scope en sommant numérateurs et dénominateurs bruts : un
+                  gros CFA pèse plus qu&apos;un petit.
                 </p>
                 <ul className="text-muted-foreground space-y-1.5 pl-1">
                   <li>
                     <span className="text-foreground font-medium">
                       Qualiopi
                     </span>{' '}
-                    : livrables conform / livrables attendus (référentiel ×
-                    nb campus), tous CFA confondus.
+                    : livrables conformes / livrables attendus (référentiel × nb
+                    campus), tous CFA confondus.
                   </li>
                   <li>
                     <span className="text-foreground font-medium">

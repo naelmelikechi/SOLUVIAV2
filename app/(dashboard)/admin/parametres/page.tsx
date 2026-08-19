@@ -21,6 +21,11 @@ import { EcheanciersSectionWrapper } from '@/components/admin/echeanciers-sectio
 export const metadata: Metadata = { title: 'Paramètres - SOLUVIA' };
 
 export default async function ParametresPage() {
+  // Annee courante, et non une annee figee : la section « Jours feries » doit
+  // suivre le calendrier. Si la table n'est pas alimentee pour l'annee en
+  // cours, la section s'affiche vide, ce qui rend le manque visible.
+  const anneeJoursFeries = new Date().getFullYear();
+
   // user + 8 queries en parallele. Si non-admin on paye pour rien (cas
   // rare : sidebar gate).
   const [
@@ -39,7 +44,7 @@ export default async function ParametresPage() {
     getParametresByCategorie('facturation'),
     getTypologies(),
     getAxesTemps(),
-    getJoursFeries(2026),
+    getJoursFeries(anneeJoursFeries),
     getLastEduviaSyncDate(),
     getEmployeeCostDefaults(),
     listEcheancierTemplates(),
@@ -77,6 +82,7 @@ export default async function ParametresPage() {
           typologies={typologies}
           axes={axes}
           joursFeries={joursFeries}
+          anneeJoursFeries={anneeJoursFeries}
           lastEduviaSyncDate={lastEduviaSyncDate}
         />
         <EmployeeCostDefaultsForm initial={costDefaults} />

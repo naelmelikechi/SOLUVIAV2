@@ -51,6 +51,8 @@ interface ParametresFormProps {
     ordre: number;
   }[];
   joursFeries: { id: string; date: string; libelle: string }[];
+  /** Annee des jours feries charges, pour que le titre suive la donnee. */
+  anneeJoursFeries: number;
   lastEduviaSyncDate: string | null;
 }
 
@@ -60,6 +62,7 @@ export function ParametresForm({
   typologies,
   axes,
   joursFeries,
+  anneeJoursFeries,
   lastEduviaSyncDate,
 }: ParametresFormProps) {
   const [entreprise, setEntreprise] = useState(initialEntreprise);
@@ -355,8 +358,15 @@ export function ParametresForm({
       {/* Section 5: Jours fériés */}
       <SectionCard
         icon={<Calendar className="h-4 w-4 shrink-0" />}
-        title="Jours fériés 2026"
+        title={`Jours fériés ${anneeJoursFeries}`}
       >
+        {joursFeries.length === 0 && (
+          <p className="text-muted-foreground text-sm">
+            Aucun jour férié enregistré pour {anneeJoursFeries}. Les plafonds de
+            saisie de temps et le rappel hebdomadaire les compteront comme des
+            jours ouvrés tant que la table n&apos;est pas alimentée.
+          </p>
+        )}
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {joursFeries.map((jour) => {
             const d = new Date(jour.date + 'T00:00:00');

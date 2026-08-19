@@ -195,9 +195,9 @@ Prevention : la fenetre est tres courte (< 1s). Pas de protection automatique, o
 
 ### 4.2 Numerotation interrompue
 
-**Rappel legal** : la numerotation `FAC-XXX-NNNN` est gapless (max+1 avec lock). **Aucune facture ne peut etre supprimee.** Si une facture est creee par erreur :
+**Rappel legal** : la numerotation `FAC-SOL-NNNN` (et `AVR-SOL-NNNN` pour les avoirs, serie distincte) est gapless (max+1 avec lock). **Aucune facture EMISE ne peut etre supprimee** : le trigger `forbid_facture_emise_delete` leve des que `ref` ou `numero_seq` est renseigne, y compris pour un acces technique privilegie. Un brouillon, lui, n'a pas encore de numero et reste supprimable par un admin. Si une facture est creee par erreur :
 
-- ne PAS la supprimer (RLS interdit le DELETE de toute facon)
+- ne PAS la supprimer (le trigger l'interdit de toute facon des qu'elle est emise)
 - creer un avoir (`createAvoir`) qui annule comptablement
 - documenter dans `avoir_motif`
 

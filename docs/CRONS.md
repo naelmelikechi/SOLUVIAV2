@@ -9,26 +9,42 @@ Tous les horaires sont en **UTC** (convention Vercel cron).
 
 ## Vue d'ensemble
 
-| Route                             | Schedule (UTC) | Fréquence                     | `maxDuration` |
-| --------------------------------- | -------------- | ----------------------------- | ------------- |
-| `/api/cron/snapshot`              | `0 3 1 * *`    | Mensuel, 1er à 03h            | 120s          |
-| `/api/cron/factures-retard`       | `0 9 * * 1-5`  | Quotidien, 09h lun-ven        | 60s           |
-| `/api/sync/eduvia`                | `0 9-18 * * *` | Horaire, 09h-18h 7j/7 (10×/j) | 300s          |
-| `/api/cron/eduvia-audit`          | `0 0 * * *`    | Quotidien, minuit             | 300s          |
-| `/api/sync/odoo`                  | `0 * * * *`    | Chaque heure (24×/j)          | 120s          |
-| `/api/cron/chat-cleanup`          | `0 */4 * * *`  | Toutes les 4h                 | 30s           |
-| `/api/cron/email-temps-non-saisi` | `0 12 * * 5`   | Vendredi 12h                  | 60s           |
-| `/api/cron/email-factures-retard` | `0 8 * * 1`    | Lundi 08h                     | 60s           |
-| `/api/cron/email-fenetre-debut`   | `0 8 25 * *`   | Le 25 de chaque mois, 08h     | 60s           |
-| `/api/cron/email-fenetre-fin`     | `0 8 2 * *`    | Le 2 de chaque mois, 08h      | 60s           |
-| `/api/cron/email-rapport-mensuel` | `0 9 1 * *`    | Le 1er de chaque mois, 09h    | 60s           |
-| `/api/cron/progression-snapshot`  | `0 7 * * 1`    | Lundi 07h                     | 60s           |
-| `/api/cron/intercontrat-alerte`   | `0 9 * * 1`    | Lundi 09h                     | 60s           |
-| `/api/cron/cleanup-auth-orphans`  | `0 4 * * *`    | Quotidien, 04h                | 60s           |
-| `/api/cron/devis-expiration`      | `0 6 * * *`    | Quotidien, 06h                | 60s           |
-| `/api/cron/devis-relance`         | `0 7 * * *`    | Quotidien, 07h                | 60s           |
-| `/api/cron/prospect-alertes`      | `0 8 * * *`    | Quotidien, 08h                | 60s           |
-| `/api/cron/kpi-digest`            | `0 9 * * 1`    | Lundi 09h                     | 120s          |
+| Route                             | Schedule (UTC)     | Fréquence                      | `maxDuration` |
+| --------------------------------- | ------------------ | ------------------------------ | ------------- |
+| `/api/cron/snapshot`              | `0 3 1 * *`        | Mensuel, 1er à 03h             | 120s          |
+| `/api/cron/factures-retard`       | `0 9 * * 1-5`      | Quotidien, 09h lun-ven         | 60s           |
+| `/api/sync/eduvia`                | `0 9-18 * * *`     | Horaire, 09h-18h 7j/7 (10×/j)  | 300s          |
+| `/api/cron/eduvia-audit`          | `0 0 * * *`        | Quotidien, minuit              | 300s          |
+| `/api/sync/odoo`                  | `0 * * * *`        | Chaque heure (24×/j)           | 120s          |
+| `/api/cron/chat-cleanup`          | `0 */4 * * *`      | Toutes les 4h                  | 30s           |
+| `/api/cron/email-temps-non-saisi` | `0 12 * * 5`       | Vendredi 12h                   | 60s           |
+| `/api/cron/email-factures-retard` | `0 8 * * 1`        | Lundi 08h                      | 60s           |
+| `/api/cron/email-fenetre-debut`   | `0 8 25 * *`       | Le 25 de chaque mois, 08h      | 60s           |
+| `/api/cron/email-fenetre-fin`     | `0 8 2 * *`        | Le 2 de chaque mois, 08h       | 60s           |
+| `/api/cron/email-rapport-mensuel` | `0 9 1 * *`        | Le 1er de chaque mois, 09h     | 60s           |
+| `/api/cron/progression-snapshot`  | `0 7 * * 1`        | Lundi 07h                      | 60s           |
+| `/api/cron/intercontrat-alerte`   | `0 9 * * 1`        | Lundi 09h                      | 60s           |
+| `/api/cron/cleanup-auth-orphans`  | `0 4 * * *`        | Quotidien, 04h                 | 60s           |
+| `/api/cron/devis-expiration`      | `0 6 * * *`        | Quotidien, 06h                 | 60s           |
+| `/api/cron/devis-relance`         | `0 7 * * *`        | Quotidien, 07h                 | 60s           |
+| `/api/cron/echeancier-retard`     | `5 9 * * 1`        | Lundi 09h05                    | 60s           |
+| `/api/cron/contrats-archivage`    | `30 4 * * *`       | Quotidien, 04h30               | 60s           |
+| `/api/cron/passation-echeances`   | `0 7-17/2 * * 1-5` | Toutes les 2h, 07h-17h lun-ven | 60s           |
+| `/api/cron/crm-recap`             | `0 16 * * 1,3,5`   | Lun/mer/ven 16h                | défaut        |
+| `/api/cron/crm-alertes`           | `0 6 * * 1-5`      | Quotidien, 06h lun-ven         | 60s           |
+| `/api/cron/a-facturer-notif`      | `30 6 * * 1-5`     | Quotidien, 06h30 lun-ven       | 60s           |
+| `/api/cron/process-sync`          | `0 4 * * *`        | Quotidien, 04h                 | 300s          |
+| `/api/cron/gmail-collecte`        | `0 5 * * *`        | Quotidien, 05h                 | 120s          |
+
+Les huit dernières lignes ci-dessus ont été ajoutées pour que le tableau
+redevienne exhaustif : elles étaient planifiées dans `vercel.json` sans figurer
+ici. Elles n'ont pas encore de section « Détail par cron » ; les valeurs de
+`maxDuration` sont celles déclarées dans chaque `route.ts` (`crm-recap` n'en
+déclare pas, il prend donc la valeur par défaut de la plateforme).
+
+`app/api/cron/welcome-emails-broadcast` existe sur disque mais n'est **pas**
+planifié dans `vercel.json` : c'est une route à déclencher à la main, elle
+n'apparaît donc pas dans ce tableau.
 
 ## Détail par cron
 
@@ -195,33 +211,6 @@ lendemain (3).
 l'affichage de tendance sur `/indicateurs`.
 
 ---
-
-### `prospect-alertes` - alertes commerciales in-app (quotidien 08h)
-
-**Finalité** : deux détections sur le pipeline commercial :
-(a) RDV tenu sans mail post-RDV (commercial à +24h, escalade admins à
-+48h) ; (b) prospect actif sans activité (commercial à +14j, escalade
-admins à +30j). Crée des notifications in-app.
-
-**Idempotence** : dédup par `(type, user_id, lien)` sur les notifications
-non lues - rejeu safe.
-
-**Symptôme d'échec** : plus d'alertes commerciales dans la cloche de
-notifications. Chercher `cron.prospect-alertes` dans les logs.
-
----
-
-### `kpi-digest` - digest hebdo KPI commerciaux (lundi 09h)
-
-**Finalité** : calcule les KPI commerciaux du mois en cours
-(`computeCommercialKpis`) et envoie un email digest aux admins actifs
-(admin + superadmin), avec CTA vers `/commercial/kpis`.
-
-**Idempotence** : lock via `email_send_log` sur clé ISO week
-(`withEmailLock('kpi-digest', isoWeekKey)`), pas de double envoi.
-
-**Symptôme d'échec** : pas d'email le lundi matin. Vérifier
-`RESEND_API_KEY` et la table `email_send_log`.
 
 ## Checklist d'incident cron
 

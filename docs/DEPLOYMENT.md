@@ -184,7 +184,7 @@ de failover, activer le PITR Supabase, tester une restore.
 
 ## Références
 
-- [`docs/CRONS.md`](./CRONS.md) — détail des 11 jobs cron
+- [`docs/CRONS.md`](./CRONS.md) — détail des 24 jobs cron
 - [`docs/numerotation-factures.md`](./numerotation-factures.md) — gapless invoices
 - [`vercel.json`](../vercel.json) — config Vercel
 - [`CLAUDE.md`](../CLAUDE.md) — conventions projet pour l'agent
